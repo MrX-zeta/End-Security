@@ -1,9 +1,9 @@
 {
   "meta": {
     "nombre": "Grafo de conocimiento — End Security",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "actualizado": "2026-10-14",
-    "fase": "Alcance y modelo de datos definidos (modelo pendiente de aprobación final). Carpetas MVVM creadas. Siguiente: vistas.",
+    "fase": "Alcance, modelo de datos e identidad visual (Carbón y miel) definidos. Onboarding y login diseñados en Figma. Siguiente: componentes y resto de vistas.",
     "historial": [
       {
         "version": "1.0.0",
@@ -11,7 +11,7 @@
         "cambio": "Alcance, decisiones y huecos de la propuesta."
       },
       {
-        "version": "1.1.0",
+        "version": "1.2.0",
         "fecha": "2026-10-14",
         "cambio": "Modelo de datos (tablas, transacciones, DEC-39..49), uso exclusivo de Claude Code (DEC-38), anti-replay TOTP a PostgreSQL, usuarios anonimizados en vez de borrados, PII de bitácora separada, carpetas MVVM."
       }
@@ -89,15 +89,15 @@
       "retirada_en": "tecnología descartada → decisión"
     },
     "estadisticas": {
-      "nodos": 278,
-      "aristas": 682,
+      "nodos": 282,
+      "aristas": 688,
       "por_tipo": {
         "proyecto": 1,
         "objetivo": 6,
         "restriccion": 5,
         "actor": 3,
-        "tecnologia": 26,
-        "decision": 49,
+        "tecnologia": 27,
+        "decision": 50,
         "hueco": 37,
         "amenaza": 13,
         "riesgo_aceptado": 11,
@@ -107,8 +107,8 @@
         "almacen_clave_valor": 2,
         "transaccion": 15,
         "fuera_de_alcance": 10,
-        "pregunta_abierta": 10,
-        "invariante": 27
+        "pregunta_abierta": 11,
+        "invariante": 28
       }
     }
   },
@@ -144,7 +144,8 @@
           "pruebas_bd": "docs/bd/pruebas_esquema.sql",
           "diagrama_er": "https://www.figma.com/board/w1hMfKUxNDxk6hFTV2h9JW",
           "instrucciones_ia": "CLAUDE.md",
-          "estado": "ai/context/estado-actual.md"
+          "estado": "ai/context/estado-actual.md",
+          "diseno_ui": "https://www.figma.com/design/K8GenUmR7GcNZAtJRjagER/End-security"
         }
       }
     },
@@ -272,6 +273,13 @@
       "tipo": "tecnologia",
       "nombre": "Redis",
       "descripcion": "Rate limiting, bloqueo por intentos, reto de login entre contraseña y TOTP, sesiones revocadas.",
+      "estado": "decidido"
+    },
+    {
+      "id": "TEC-MONTSERRAT",
+      "tipo": "tecnologia",
+      "nombre": "Montserrat",
+      "descripcion": "Tipografía única de la app (licencia OFL, se empaqueta en Compose). Helvetica descartada por licencia.",
       "estado": "decidido"
     },
     {
@@ -871,6 +879,57 @@
       "nombre": "Versión de PostgreSQL y migraciones",
       "descripcion": "PostgreSQL 16 o 17 (imagen oficial de Docker). docs/bd/schema.sql es la migración 001; docs/bd/pruebas_esquema.sql es la evidencia de pruebas (36 automáticas + 1 de concurrencia).",
       "estado": "decidido"
+    },
+    {
+      "id": "DEC-50",
+      "tipo": "decision",
+      "nombre": "Identidad visual: Carbón y miel",
+      "descripcion": "Paleta propuesta por el equipo (#111111, #2F2F2F, #F6F6F6, #FFCB74) con tipografía Montserrat, estilo minimalista inspirado en la referencia de Rondesignlab. Tema claro para login y pantallas de trabajo; tema oscuro para onboarding y detalle. Diseño en Figma (página Minimalista).",
+      "estado": "decidido",
+      "detalles": {
+        "temas": {
+          "claro": {
+            "background": "#F6F6F6",
+            "surface": "#FFFFFF",
+            "outline": "#858585",
+            "on-surface": "#111111",
+            "on-surface-variant": "#2F2F2F",
+            "primary": "#FFCB74",
+            "on-primary": "#111111",
+            "blob": "#2F2F2F",
+            "shadow-light": "#FFFFFF 95%",
+            "shadow-dark": "#111111 12%"
+          },
+          "oscuro": {
+            "background": "#2F2F2F",
+            "surface": "#111111",
+            "outline": "#7D7D7D",
+            "on-surface": "#F6F6F6",
+            "on-surface-variant": "#B0B0B0",
+            "primary": "#FFCB74",
+            "on-primary": "#111111",
+            "blob": "#111111",
+            "shadow-light": "#FFFFFF 10%",
+            "shadow-dark": "#000000 55%"
+          }
+        },
+        "reglas": [
+          "El amarillo #FFCB74 es el color de acción (botones, elemento activo, botón de ícono); siempre con texto o ícono #111111 encima. Nunca como color de texto sobre fondo claro (contraste 1.4:1).",
+          "Títulos en dos pesos: primera línea Montserrat Bold, segunda Regular (p. ej. 'Hola' / 'de nuevo').",
+          "Botón primario: alto 56, radio 16, texto Bold a la izquierda y flecha a la derecha.",
+          "Íconos destacados del onboarding: disco circular neumórfico (fondo igual al de la pantalla, sombra oscura abajo-derecha, luz arriba-izquierda, brillo interior) con ícono amarillo.",
+          "Campos de texto: superficie blanca, radio 16, borde #858585 de 1 px (contraste 3:1) y sombra suave; botón de ícono amarillo cuadrado redondeado para mostrar contraseña.",
+          "Máximo dos manchas orgánicas por pantalla, una con grano; sin retículas de puntos.",
+          "Enlaces subrayados, porque comparten color con el texto.",
+          "Textos simples y neutros; sin términos técnicos (cifrado, conocimiento cero, algoritmos) en la interfaz."
+        ],
+        "descartadas": [
+          "Bóveda nocturna",
+          "Verde acero",
+          "Grafito y ámbar",
+          "Índigo institucional"
+        ]
+      }
     },
     {
       "id": "DEC-49",
@@ -2571,6 +2630,13 @@
       "estado": "resuelto"
     },
     {
+      "id": "PEND-11",
+      "tipo": "pregunta_abierta",
+      "nombre": "Componentes en Figma",
+      "descripcion": "Convertir campos, botones, disco neumórfico, barras e íconos en componentes de Figma antes de maquetar el resto de vistas.",
+      "estado": "pendiente"
+    },
+    {
       "id": "PEND-10",
       "tipo": "pregunta_abierta",
       "nombre": "Idioma del código",
@@ -2757,6 +2823,13 @@
       "tipo": "invariante",
       "nombre": "INV-26",
       "descripcion": "Los códigos cortos (recuperación, verificación de correo) se guardan como HMAC con pepper, nunca en claro ni con hash simple.",
+      "estado": "obligatorio"
+    },
+    {
+      "id": "INV-28",
+      "tipo": "invariante",
+      "nombre": "INV-28",
+      "descripcion": "La UI usa solo los tokens de Carbón y miel (DEC-50) y la tipografía Montserrat; nunca hex sueltos en los composables ni texto amarillo sobre fondo claro.",
       "estado": "obligatorio"
     },
     {
@@ -5503,6 +5576,11 @@
       "relacion": "resuelta_por"
     },
     {
+      "de": "PEND-11",
+      "a": "DEC-50",
+      "relacion": "afina"
+    },
+    {
       "de": "PEND-10",
       "a": "DEC-38",
       "relacion": "afina"
@@ -5670,6 +5748,11 @@
     {
       "de": "INV-26",
       "a": "DEC-43",
+      "relacion": "deriva_de"
+    },
+    {
+      "de": "INV-28",
+      "a": "DEC-50",
       "relacion": "deriva_de"
     },
     {
@@ -5878,6 +5961,16 @@
       "relacion": "usa"
     },
     {
+      "de": "DEC-50",
+      "a": "TEC-MONTSERRAT",
+      "relacion": "usa"
+    },
+    {
+      "de": "DEC-50",
+      "a": "TEC-KOTLIN",
+      "relacion": "usa"
+    },
+    {
       "de": "DEC-38",
       "a": "TEC-CLAUDE",
       "relacion": "usa"
@@ -6050,6 +6143,16 @@
     {
       "de": "DEC-48",
       "a": "DEC-45",
+      "relacion": "depende_de"
+    },
+    {
+      "de": "DEC-50",
+      "a": "DEC-26",
+      "relacion": "depende_de"
+    },
+    {
+      "de": "DEC-50",
+      "a": "DEC-33",
       "relacion": "depende_de"
     },
     {
