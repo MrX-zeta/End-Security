@@ -26,3 +26,17 @@ captures/
 # OS generated files
 .DS_Store
 Thumbs.db
+
+# Secretos y variables de entorno
+.env
+.env.*
+*.p12
+*.pem
+keystore.properties
+
+# Claude Code: archivos personales (no se versionan)
+CLAUDE.local.md
+.claude/settings.local.json
+
+# Backend (cuando exista)
+node_modules/

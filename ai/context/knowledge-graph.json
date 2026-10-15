@@ -1,0 +1,6191 @@
+{
+  "meta": {
+    "nombre": "Grafo de conocimiento — End Security",
+    "version": "1.1.0",
+    "actualizado": "2026-10-14",
+    "fase": "Alcance y modelo de datos definidos (modelo pendiente de aprobación final). Carpetas MVVM creadas. Siguiente: vistas.",
+    "historial": [
+      {
+        "version": "1.0.0",
+        "fecha": "2026-10-14",
+        "cambio": "Alcance, decisiones y huecos de la propuesta."
+      },
+      {
+        "version": "1.1.0",
+        "fecha": "2026-10-14",
+        "cambio": "Modelo de datos (tablas, transacciones, DEC-39..49), uso exclusivo de Claude Code (DEC-38), anti-replay TOTP a PostgreSQL, usuarios anonimizados en vez de borrados, PII de bitácora separada, carpetas MVVM."
+      }
+    ],
+    "proposito": "Fuente de verdad del contexto, decisiones técnicas y huecos resueltos del proyecto, para personas y agentes de IA.",
+    "como_usar_para_agentes": [
+      "Leer primero los nodos tipo 'invariante': son reglas que no se pueden romper.",
+      "Antes de implementar algo, buscar la 'decision' correspondiente y seguirla.",
+      "Las 'operacion' indican dónde ocurre cada acción (Local/API/Ambos), si requiere red, qué tablas lee/escribe y qué transacción ejecuta.",
+      "Para buscar un nodo usa Grep con su id (p. ej. \"DEC-05\" o \"TBL-ITEMS\"); no hace falta leer el archivo completo.",
+      "Los nodos con estado 'propuesto', 'pendiente' o 'preliminar' NO son definitivos: preguntar antes de asumir.",
+      "Nada de lo que esté en 'fuera_de_alcance' se implementa sin aprobación.",
+      "Al tomar una decisión nueva, agregar el nodo y sus relaciones, subir la versión y actualizar 'actualizado'."
+    ],
+    "tipos_de_nodo": {
+      "proyecto": "Raíz del grafo",
+      "objetivo": "Objetivos de la propuesta",
+      "restriccion": "Límites del proyecto",
+      "actor": "Quién interactúa con el sistema",
+      "tecnologia": "Herramientas y librerías",
+      "decision": "Decisión técnica tomada o propuesta",
+      "hueco": "Debilidad detectada en la propuesta y ya parchada",
+      "amenaza": "Amenaza del modelo (STRIDE)",
+      "riesgo_aceptado": "Riesgo residual documentado y aceptado",
+      "modulo": "Área funcional de la app",
+      "operacion": "Operación concreta (base para consultas y vistas)",
+      "tabla": "Tabla de PostgreSQL o Room",
+      "almacen_clave_valor": "Redis o DataStore",
+      "transaccion": "Transacción del servidor (ver docs/bd/modelo-datos.md §6)",
+      "fuera_de_alcance": "Excluido del MVP",
+      "pregunta_abierta": "Pendiente de decidir",
+      "invariante": "Regla obligatoria para todo el código"
+    },
+    "estados": {
+      "decidido": "Acordado",
+      "propuesto": "Recomendado, falta confirmación",
+      "pendiente": "Sin decidir",
+      "parchado": "Hueco ya resuelto",
+      "resuelto": "Pregunta ya contestada",
+      "descartado": "No se usará",
+      "fuera_de_alcance": "Excluido del MVP",
+      "riesgo_aceptado": "Documentado y aceptado",
+      "obligatorio": "Regla dura"
+    },
+    "tipos_de_relacion": {
+      "persigue": "proyecto → objetivo",
+      "limitado_por": "proyecto → restricción",
+      "contiene": "proyecto → módulo",
+      "resuelto_por": "hueco → decisión/objetivo",
+      "mitigada_por": "amenaza → decisión",
+      "residual_de": "riesgo → amenaza",
+      "lee": "operación → tabla",
+      "escribe": "operación → tabla",
+      "ejecuta": "operación → transacción",
+      "modifica": "transacción → tabla",
+      "aplica": "transacción → decisión",
+      "referencia": "tabla hija → tabla padre (FK)",
+      "espeja": "tabla local → tabla del servidor",
+      "resuelta_por": "pregunta → decisión",
+      "pertenece_a": "operación → módulo",
+      "ejecutada_por": "operación → actor",
+      "regida_por": "operación → decisión",
+      "definida_por": "entidad → decisión",
+      "usa": "decisión → tecnología",
+      "depende_de": "decisión → decisión",
+      "motiva": "restricción → decisión",
+      "excluye": "decisión → fuera de alcance",
+      "excluido_por": "fuera de alcance → restricción",
+      "afina": "pregunta → decisión",
+      "deriva_de": "invariante → decisión",
+      "cumple": "decisión → objetivo",
+      "asigna_monitoreo_a": "decisión → actor",
+      "trata_como_no_confiable": "decisión → actor",
+      "reemplazada_en": "tecnología descartada → decisión",
+      "retirada_en": "tecnología descartada → decisión"
+    },
+    "estadisticas": {
+      "nodos": 278,
+      "aristas": 682,
+      "por_tipo": {
+        "proyecto": 1,
+        "objetivo": 6,
+        "restriccion": 5,
+        "actor": 3,
+        "tecnologia": 26,
+        "decision": 49,
+        "hueco": 37,
+        "amenaza": 13,
+        "riesgo_aceptado": 11,
+        "modulo": 10,
+        "operacion": 42,
+        "tabla": 11,
+        "almacen_clave_valor": 2,
+        "transaccion": 15,
+        "fuera_de_alcance": 10,
+        "pregunta_abierta": 10,
+        "invariante": 27
+      }
+    }
+  },
+  "nodos": [
+    {
+      "id": "PRY-01",
+      "tipo": "proyecto",
+      "nombre": "End Security",
+      "descripcion": "Gestor de contraseñas móvil (Android nativo) con cifrado de conocimiento cero en el cliente, 2FA TOTP, detección de contraseñas filtradas con k-anonimato (HIBP) y análisis compuesto de salud del almacén.",
+      "estado": "decidido",
+      "detalles": {
+        "materia": "Seguridad Informática",
+        "carrera": "Ingeniería en Tecnologías de la Información e Innovación Digital",
+        "institucion": "UP Chiapas",
+        "periodo": "Séptimo cuatrimestre",
+        "unidad": "U4",
+        "fecha_propuesta": "2026-10-06",
+        "fecha_entrega": "finales de noviembre / inicios de diciembre de 2026",
+        "proyecto_android": {
+          "ruta": "proyecto-U4 (raíz = proyecto de Android Studio)",
+          "namespace": "com.luis.end_security",
+          "minSdk": 28,
+          "targetSdk": 36,
+          "compileSdk": 37,
+          "agp": "9.2.1",
+          "kotlin": "2.2.10",
+          "compose_bom": "2026.02.01"
+        },
+        "documentos": {
+          "arquitectura": "docs/arquitectura.md",
+          "modelo_datos": "docs/bd/modelo-datos.md",
+          "ddl": "docs/bd/schema.sql",
+          "pruebas_bd": "docs/bd/pruebas_esquema.sql",
+          "diagrama_er": "https://www.figma.com/board/w1hMfKUxNDxk6hFTV2h9JW",
+          "instrucciones_ia": "CLAUDE.md",
+          "estado": "ai/context/estado-actual.md"
+        }
+      }
+    },
+    {
+      "id": "OBJ-GEN",
+      "tipo": "objetivo",
+      "nombre": "Objetivo general",
+      "descripcion": "Diseñar e implementar un gestor de contraseñas (app móvil + API REST) con cifrado de conocimiento cero en el cliente, MFA TOTP y validación de credenciales comprometidas preservando la privacidad.",
+      "estado": "decidido"
+    },
+    {
+      "id": "OBJ-01",
+      "tipo": "objetivo",
+      "nombre": "Arquitectura de cifrado en el cliente",
+      "descripcion": "Lógica criptográfica local con AES-256-GCM y Argon2id para derivar llaves y cifrar el almacén antes de cualquier transmisión.",
+      "estado": "decidido"
+    },
+    {
+      "id": "OBJ-02",
+      "tipo": "objetivo",
+      "nombre": "API REST segura de sincronización y auditoría",
+      "descripcion": "Persistencia de bloques cifrados, autenticación JWT, validación TOTP y bitácora de accesos.",
+      "estado": "decidido"
+    },
+    {
+      "id": "OBJ-03",
+      "tipo": "objetivo",
+      "nombre": "Detección de contraseñas filtradas con k-anonimato",
+      "descripcion": "Consulta a HIBP Pwned Passwords enviando solo los primeros 5 caracteres del hash SHA-1.",
+      "estado": "decidido"
+    },
+    {
+      "id": "OBJ-04",
+      "tipo": "objetivo",
+      "nombre": "Pruebas y validación de seguridad",
+      "descripcion": "Análisis estático/dinámico, pruebas MITM para validar pinning y auditoría de la BD para confirmar ausencia de texto plano. Redacción corregida: 'validación' en lugar de 'análisis de factibilidad'.",
+      "estado": "decidido"
+    },
+    {
+      "id": "OBJ-05",
+      "tipo": "objetivo",
+      "nombre": "Análisis compuesto de salud del almacén",
+      "descripcion": "Objetivo implícito en el título que no estaba definido; se formaliza: fuerza + reutilización + filtración + antigüedad.",
+      "estado": "decidido"
+    },
+    {
+      "id": "RES-01",
+      "tipo": "restriccion",
+      "nombre": "Tiempo limitado",
+      "descripcion": "~7 semanas desde 2026-10-14 hasta la entrega; entregables documentados a lo largo del periodo.",
+      "estado": "decidido"
+    },
+    {
+      "id": "RES-02",
+      "tipo": "restriccion",
+      "nombre": "Equipo de 2 personas",
+      "descripcion": "Dos desarrolladores para app, backend, infraestructura y documentación.",
+      "estado": "decidido"
+    },
+    {
+      "id": "RES-03",
+      "tipo": "restriccion",
+      "nombre": "Desarrollo 100% con Claude (Claude Code)",
+      "descripcion": "Todo el código se genera con Claude, principalmente a través de Claude Code; no se usan otras herramientas de IA. Obliga a revisión humana del código criptográfico, uso exclusivo de librerías reconocidas y pruebas con vectores oficiales.",
+      "estado": "decidido"
+    },
+    {
+      "id": "RES-04",
+      "tipo": "restriccion",
+      "nombre": "Sin Play Store",
+      "descripcion": "La app se distribuye como APK (sideload). Firma de release y R8 son responsabilidad del equipo.",
+      "estado": "decidido"
+    },
+    {
+      "id": "RES-05",
+      "tipo": "restriccion",
+      "nombre": "Backend desplegado en servidor real",
+      "descripcion": "API, PostgreSQL y Redis en un servidor con dominio propio (no solo local).",
+      "estado": "decidido"
+    },
+    {
+      "id": "ACT-01",
+      "tipo": "actor",
+      "nombre": "Usuario (cliente)",
+      "descripcion": "Persona dueña del almacén. Único rol humano de la aplicación.",
+      "estado": "decidido"
+    },
+    {
+      "id": "ACT-02",
+      "tipo": "actor",
+      "nombre": "Sistema",
+      "descripcion": "Procesos automáticos: bitácora, bloqueo por intentos, purgas, alertas, autobloqueo, sincronización.",
+      "estado": "decidido"
+    },
+    {
+      "id": "ACT-03",
+      "tipo": "actor",
+      "nombre": "Servidor / API",
+      "descripcion": "Se considera NO confiable para la confidencialidad: solo almacena y sincroniza datos cifrados que no puede leer.",
+      "estado": "decidido"
+    },
+    {
+      "id": "TEC-KOTLIN",
+      "tipo": "tecnologia",
+      "nombre": "Kotlin + Jetpack Compose (Material 3)",
+      "descripcion": "Frontend Android nativo.",
+      "estado": "decidido"
+    },
+    {
+      "id": "TEC-NEST",
+      "tipo": "tecnologia",
+      "nombre": "Node.js + NestJS",
+      "descripcion": "Backend / API REST.",
+      "estado": "decidido"
+    },
+    {
+      "id": "TEC-PG",
+      "tipo": "tecnologia",
+      "nombre": "PostgreSQL 16+",
+      "descripcion": "BD del servidor: usuarios, bloques cifrados, parámetros KDF, sesiones, 2FA, bitácora. Esquema probado en 16.",
+      "estado": "decidido"
+    },
+    {
+      "id": "TEC-REDIS",
+      "tipo": "tecnologia",
+      "nombre": "Redis",
+      "descripcion": "Rate limiting, bloqueo por intentos, reto de login entre contraseña y TOTP, sesiones revocadas.",
+      "estado": "decidido"
+    },
+    {
+      "id": "TEC-CLAUDE",
+      "tipo": "tecnologia",
+      "nombre": "Claude Code",
+      "descripcion": "Única herramienta de IA del proyecto: CLAUDE.md, .claude/rules, .claude/agents, .claude/skills y .claude/settings.json.",
+      "estado": "decidido"
+    },
+    {
+      "id": "TEC-DOCKER",
+      "tipo": "tecnologia",
+      "nombre": "Docker / Docker Compose",
+      "descripcion": "Contenedores de API, PostgreSQL, Redis y proxy inverso.",
+      "estado": "decidido"
+    },
+    {
+      "id": "TEC-AESGCM",
+      "tipo": "tecnologia",
+      "nombre": "AES-256-GCM",
+      "descripcion": "Cifrado autenticado de la llave del almacén y de cada elemento.",
+      "estado": "decidido"
+    },
+    {
+      "id": "TEC-ARGON2",
+      "tipo": "tecnologia",
+      "nombre": "Argon2id",
+      "descripcion": "Derivación de la llave maestra (cliente) y hash del hash de autenticación (servidor). Librería y parámetros pendientes.",
+      "estado": "decidido"
+    },
+    {
+      "id": "TEC-HKDF",
+      "tipo": "tecnologia",
+      "nombre": "HKDF-SHA256",
+      "descripcion": "Separación de la llave maestra en llave de cifrado y llave de autenticación.",
+      "estado": "propuesto"
+    },
+    {
+      "id": "TEC-JWT",
+      "tipo": "tecnologia",
+      "nombre": "JWT de acceso + refresh token opaco rotativo",
+      "descripcion": "Autenticación de la API.",
+      "estado": "decidido"
+    },
+    {
+      "id": "TEC-TOTP",
+      "tipo": "tecnologia",
+      "nombre": "TOTP (RFC 6238)",
+      "descripcion": "Segundo factor del login. Secreto generado por el servidor, se registra en Google Authenticator u otra app.",
+      "estado": "decidido"
+    },
+    {
+      "id": "TEC-TLS",
+      "tipo": "tecnologia",
+      "nombre": "TLS 1.3 + certificate pinning (SPKI)",
+      "descripcion": "Transporte con la API propia.",
+      "estado": "decidido"
+    },
+    {
+      "id": "TEC-LE",
+      "tipo": "tecnologia",
+      "nombre": "Let's Encrypt (certbot --reuse-key)",
+      "descripcion": "Certificado TLS del dominio, reutilizando la llave para que el pin no cambie.",
+      "estado": "propuesto"
+    },
+    {
+      "id": "TEC-HIBP",
+      "tipo": "tecnologia",
+      "nombre": "HIBP Pwned Passwords (range API)",
+      "descripcion": "Consulta gratuita con k-anonimato. NO se usa la API de filtraciones por correo (de pago).",
+      "estado": "decidido"
+    },
+    {
+      "id": "TEC-RESEND",
+      "tipo": "tecnologia",
+      "nombre": "Resend",
+      "descripcion": "Envío de correos: verificación y alertas de seguridad. Alcance mínimo.",
+      "estado": "decidido"
+    },
+    {
+      "id": "TEC-ZXCVBN",
+      "tipo": "tecnologia",
+      "nombre": "zxcvbn4j",
+      "descripcion": "Estimación de fuerza de contraseñas en el dispositivo.",
+      "estado": "propuesto"
+    },
+    {
+      "id": "TEC-ROOM",
+      "tipo": "tecnologia",
+      "nombre": "Room",
+      "descripcion": "BD local espejo con bloques cifrados y estado de sincronización.",
+      "estado": "propuesto"
+    },
+    {
+      "id": "TEC-KEYSTORE",
+      "tipo": "tecnologia",
+      "nombre": "Android Keystore",
+      "descripcion": "Llaves no extraíbles para biometría y para cifrar tokens locales.",
+      "estado": "decidido"
+    },
+    {
+      "id": "TEC-BIOMETRIC",
+      "tipo": "tecnologia",
+      "nombre": "androidx.biometric (BiometricPrompt + CryptoObject)",
+      "descripcion": "Desbloqueo biométrico opcional.",
+      "estado": "decidido"
+    },
+    {
+      "id": "TEC-WORK",
+      "tipo": "tecnologia",
+      "nombre": "WorkManager",
+      "descripcion": "Sincronización en segundo plano con restricción de red.",
+      "estado": "propuesto"
+    },
+    {
+      "id": "TEC-HILT",
+      "tipo": "tecnologia",
+      "nombre": "Hilt",
+      "descripcion": "Inyección de dependencias. Verificar compatibilidad con AGP 9.",
+      "estado": "propuesto"
+    },
+    {
+      "id": "TEC-NET",
+      "tipo": "tecnologia",
+      "nombre": "Retrofit + OkHttp + kotlinx.serialization",
+      "descripcion": "Cliente HTTP; OkHttp aporta CertificatePinner.",
+      "estado": "propuesto"
+    },
+    {
+      "id": "TEC-DATASTORE",
+      "tipo": "tecnologia",
+      "nombre": "DataStore",
+      "descripcion": "Ajustes locales y tokens (cifrados con llave del Keystore).",
+      "estado": "propuesto"
+    },
+    {
+      "id": "TEC-ZXING",
+      "tipo": "tecnologia",
+      "nombre": "ZXing core",
+      "descripcion": "Generar el código QR otpauth:// en la configuración del 2FA.",
+      "estado": "propuesto"
+    },
+    {
+      "id": "TEC-OAUTH2",
+      "tipo": "tecnologia",
+      "nombre": "OAuth2 / login con Google",
+      "descripcion": "Retirado del stack: no hay terceros a quienes delegar y duplicaría credenciales.",
+      "estado": "descartado"
+    },
+    {
+      "id": "TEC-ESP",
+      "tipo": "tecnologia",
+      "nombre": "EncryptedSharedPreferences",
+      "descripcion": "Obsoleta en AndroidX; no usar.",
+      "estado": "descartado"
+    },
+    {
+      "id": "DEC-01",
+      "tipo": "decision",
+      "nombre": "Modo híbrido (sin conexión primero)",
+      "descripcion": "Copia local de los mismos bloques cifrados que el servidor. Desbloqueo y CRUD funcionan sin red; los cambios se encolan. Requieren red: primer login, configuración 2FA, sincronización, HIBP y operaciones de cuenta.",
+      "estado": "decidido",
+      "detalles": {
+        "descartados": [
+          "Solo en línea (sin acceso si cae el servidor)",
+          "Sin conexión total con fusión de cambios (demasiado costoso)"
+        ]
+      }
+    },
+    {
+      "id": "DEC-02",
+      "tipo": "decision",
+      "nombre": "Multi-dispositivo con concurrencia optimista",
+      "descripcion": "Cada elemento tiene número de versión. El cliente envía la versión esperada; si no coincide el servidor responde 409. En conflicto gana el servidor y la versión local se guarda como copia nueva con sufijo '(conflicto)'. No hay fusión de campos.",
+      "estado": "decidido"
+    },
+    {
+      "id": "DEC-03",
+      "tipo": "decision",
+      "nombre": "Un bloque cifrado por elemento",
+      "descripcion": "Cada contraseña guardada es una fila con su propio bloque cifrado (no un único bloque con todo el almacén). Permite versión y lápida por elemento. Fuga de metadatos aceptada (ver RSG-01).",
+      "estado": "decidido"
+    },
+    {
+      "id": "DEC-04",
+      "tipo": "decision",
+      "nombre": "Contenido del elemento: JSON versionado y cifrado completo",
+      "descripcion": "Todo el contenido va dentro del bloque cifrado. Agregar campos en el futuro no requiere migrar tablas.",
+      "estado": "decidido",
+      "detalles": {
+        "formato": {
+          "v": 1,
+          "nombre": "obligatorio",
+          "usuario": "opcional",
+          "password": "opcional",
+          "url": "opcional",
+          "notas": "opcional",
+          "password_changed_at": "ISO-8601, se actualiza solo si cambia la contraseña",
+          "categoria": "opcional, futuro",
+          "favorito": "opcional, futuro"
+        }
+      }
+    },
+    {
+      "id": "DEC-05",
+      "tipo": "decision",
+      "nombre": "Jerarquía de llaves",
+      "descripcion": "La contraseña maestra nunca sale del dispositivo. Cambiar la contraseña maestra solo re-envuelve la llave del almacén; los elementos no se re-cifran.",
+      "estado": "decidido",
+      "detalles": {
+        "esquema": [
+          "master_key = Argon2id(contraseña_maestra, sal_kdf, parámetros_kdf)",
+          "enc_key = HKDF-SHA256(master_key, info='end-security/enc')",
+          "auth_key = HKDF-SHA256(master_key, info='end-security/auth')",
+          "El cliente envía auth_key (sobre TLS); el servidor guarda Argon2id(auth_key, sal_servidor)",
+          "vault_key = 32 bytes aleatorios (SecureRandom) generados en el registro",
+          "protected_vault_key = AES-256-GCM(enc_key, vault_key) — se guarda en servidor y en local",
+          "elemento_cifrado = AES-256-GCM(vault_key, json_elemento, nonce, AAD)"
+        ],
+        "pendiente": "Parámetros concretos de Argon2id (memoria, iteraciones, paralelismo) y librería."
+      }
+    },
+    {
+      "id": "DEC-06",
+      "tipo": "decision",
+      "nombre": "Sal KDF aleatoria independiente del correo",
+      "descripcion": "16 bytes aleatorios por usuario. Cambiar el correo no obliga a regenerar llaves.",
+      "estado": "decidido"
+    },
+    {
+      "id": "DEC-07",
+      "tipo": "decision",
+      "nombre": "Prelogin anti-enumeración",
+      "descripcion": "El endpoint que devuelve parámetros KDF responde siempre. Para correos inexistentes devuelve parámetros falsos deterministas: sal = HMAC(secreto_servidor, correo).",
+      "estado": "decidido"
+    },
+    {
+      "id": "DEC-08",
+      "tipo": "decision",
+      "nombre": "Desbloqueo local sin red",
+      "descripcion": "Se deriva enc_key y se descifra protected_vault_key; si la etiqueta GCM falla, la contraseña es incorrecta. Retraso incremental tras intentos fallidos; sin borrado automático de datos.",
+      "estado": "decidido"
+    },
+    {
+      "id": "DEC-09",
+      "tipo": "decision",
+      "nombre": "Desbloqueo biométrico opcional",
+      "descripcion": "vault_key envuelta con una llave AES del Keystore que exige autenticación biométrica (CryptoObject). Se invalida al registrar una biometría nueva y entonces se pide la contraseña maestra. Desactivado por defecto.",
+      "estado": "decidido"
+    },
+    {
+      "id": "DEC-10",
+      "tipo": "decision",
+      "nombre": "Sin recuperación de la contraseña maestra",
+      "descripcion": "Si se olvida, los datos se pierden (propiedad del conocimiento cero). Advertencia explícita en el registro. Alternativa no adoptada aún: código de recuperación del almacén.",
+      "estado": "propuesto"
+    },
+    {
+      "id": "DEC-11",
+      "tipo": "decision",
+      "nombre": "2FA TOTP del login",
+      "descripcion": "El servidor genera el secreto; la app muestra QR, texto copiable y botón para abrir una app autenticadora (otpauth://). Se activa solo tras validar el primer código. La app NO genera códigos TOTP de cuentas guardadas.",
+      "estado": "decidido",
+      "detalles": {
+        "parametros": {
+          "algoritmo": "SHA1",
+          "digitos": 6,
+          "periodo_s": 30,
+          "ventana": "±1 paso"
+        },
+        "protecciones": [
+          "anti-replay en PostgreSQL: two_factor.last_used_step se actualiza con un UPDATE atómico (antes se planeaba en Redis; cambiado en v1.1)",
+          "rate limit en Redis",
+          "secreto cifrado en reposo con llave del servidor (variable de entorno, versionada con server_key_id); fuera del conocimiento cero y documentado"
+        ]
+      }
+    },
+    {
+      "id": "DEC-12",
+      "tipo": "decision",
+      "nombre": "Códigos de recuperación del 2FA",
+      "descripcion": "10 códigos de un solo uso, guardados como HMAC con pepper (DEC-43), mostrados una sola vez. Regenerar invalida los anteriores. No existe operación de consulta. La tabla referencia a two_factor: sin 2FA no hay códigos y desactivarlo los borra en cascada.",
+      "estado": "decidido"
+    },
+    {
+      "id": "DEC-13",
+      "tipo": "decision",
+      "nombre": "Correo con Resend, alcance mínimo",
+      "descripcion": "Verificación del correo al registrarse/cambiarlo y alertas de eventos críticos. El esquema lo contempla desde el inicio (email_verified_at opcional + tabla de códigos de verificación) aunque se implemente al final. El registro responde de forma genérica. El correo NUNCA restablece el 2FA ni la contraseña maestra.",
+      "estado": "decidido",
+      "detalles": {
+        "alertas": [
+          "inicio de sesión desde dispositivo nuevo",
+          "cambio de contraseña maestra",
+          "2FA desactivado",
+          "cambio de correo",
+          "eliminación de cuenta"
+        ]
+      }
+    },
+    {
+      "id": "DEC-14",
+      "tipo": "decision",
+      "nombre": "Sin rol de administrador",
+      "descripcion": "No hay panel ni tabla de roles. El monitoreo lo hace el propio usuario (pantalla de actividad + alertas) y reglas automáticas. La operación del sistema se hace directamente sobre el servidor.",
+      "estado": "decidido"
+    },
+    {
+      "id": "DEC-15",
+      "tipo": "decision",
+      "nombre": "Lista plana de elementos",
+      "descripcion": "Sin carpetas como entidad. Categoría y favorito son campos opcionales dentro del bloque cifrado (impacto cero en el esquema del servidor).",
+      "estado": "decidido"
+    },
+    {
+      "id": "DEC-16",
+      "tipo": "decision",
+      "nombre": "Sesiones por dispositivo y tokens",
+      "descripcion": "Access JWT de vida corta + refresh token opaco rotativo guardado como hash en una tabla de sesiones (una por dispositivo). Permite listar dispositivos y cerrar sesión remota. Reusar un refresh token ya rotado revoca la sesión completa. En el teléfono los tokens se cifran con una llave del Keystore (DataStore); no usar EncryptedSharedPreferences. Solo se guarda el SHA-256 del refresh token (32 B aleatorios). La rotación vive en la función app.session_rotate(). El cliente debe serializar las renovaciones (una a la vez): dos simultáneas se detectarían como robo.",
+      "estado": "decidido",
+      "detalles": {
+        "sugerido": {
+          "access_ttl": "15 min",
+          "refresh_ttl": "30 días"
+        }
+      }
+    },
+    {
+      "id": "DEC-17",
+      "tipo": "decision",
+      "nombre": "Borrado lógico con lápida",
+      "descripcion": "Eliminar un elemento lo marca como borrado (sin contenido) y sube la versión para que los demás dispositivos se enteren. Purga física programada después de un plazo.",
+      "estado": "decidido"
+    },
+    {
+      "id": "DEC-18",
+      "tipo": "decision",
+      "nombre": "Eliminación de cuenta y anonimización",
+      "descripcion": "Requiere reautenticación. Borra de inmediato bloques cifrados, 2FA y verificaciones, revoca sesiones y marca deleted_at. Tras 30 días de gracia, app.anonymize_deleted_accounts() vacía la fila (correo, nombre, hashes y material de llaves en NULL) y borra la PII de la bitácora. La fila de users NUNCA se borra físicamente: la bitácora encadenada la referencia (cambiado en v1.1). En el teléfono se borran Room, DataStore y las llaves del Keystore.",
+      "estado": "decidido"
+    },
+    {
+      "id": "DEC-19",
+      "tipo": "decision",
+      "nombre": "Bitácora append-only encadenada",
+      "descripcion": "audit_log nunca recibe UPDATE ni DELETE (triggers + privilegios), ni siquiera al anonimizar. id, prev_hash y hash los asigna un trigger bajo candado: hash = SHA-256(prev_hash || id|fecha|user_id|session_id|evento|resultado|metadata). La IP y el user-agent viven en audit_log_pii, que sí se puede borrar sin romper la cadena (cambiado en v1.1). app.verify_audit_chain() detecta alteraciones. 18 tipos de evento cerrados; metadata sin datos personales. El evento se inserta al final de cada transacción.",
+      "estado": "decidido"
+    },
+    {
+      "id": "DEC-20",
+      "tipo": "decision",
+      "nombre": "Análisis compuesto",
+      "descripcion": "Puntaje por elemento (Crítico/Alto/Medio/Bajo) y salud global del almacén, calculados en el dispositivo. Los resultados nunca se envían al servidor.",
+      "estado": "decidido",
+      "detalles": {
+        "senales": {
+          "fuerza": "zxcvbn, sin red",
+          "reutilizacion": "comparación local, sin red",
+          "filtracion": "HIBP k-anonimato, con red",
+          "antiguedad": "password_changed_at, sin red"
+        }
+      }
+    },
+    {
+      "id": "DEC-21",
+      "tipo": "decision",
+      "nombre": "HIBP directo desde la app",
+      "descripcion": "La app consulta la range API sin pasar por el backend (el servidor nunca ve ni prefijos). Se ejecuta al desbloquear o bajo demanda, no en segundo plano. Encabezado Add-Padding. Sin red: estado 'pendiente'.",
+      "estado": "propuesto"
+    },
+    {
+      "id": "DEC-22",
+      "tipo": "decision",
+      "nombre": "Certificate pinning SPKI",
+      "descripcion": "Pin de la llave pública propia, reutilizada en cada renovación (certbot --reuse-key), más un pin de respaldo. Solo para la API propia. Tráfico en claro deshabilitado.",
+      "estado": "decidido"
+    },
+    {
+      "id": "DEC-23",
+      "tipo": "decision",
+      "nombre": "Despliegue",
+      "descripcion": "Docker Compose en servidor con dominio. Solo el proxy inverso HTTPS (TLS 1.3) se expone; PostgreSQL y Redis en red interna.",
+      "estado": "decidido"
+    },
+    {
+      "id": "DEC-24",
+      "tipo": "decision",
+      "nombre": "Generador de contraseñas",
+      "descripcion": "Cálculo local con SecureRandom, sin sesgo de módulo; garantiza al menos un carácter de cada clase seleccionada.",
+      "estado": "decidido",
+      "detalles": {
+        "parametros": [
+          "longitud",
+          "mayúsculas",
+          "minúsculas",
+          "números",
+          "símbolos",
+          "excluir ambiguos (0/O, l/1)"
+        ]
+      }
+    },
+    {
+      "id": "DEC-25",
+      "tipo": "decision",
+      "nombre": "Portapapeles seguro",
+      "descripcion": "Copias marcadas como sensibles (EXTRA_IS_SENSITIVE en Android 13+) y borrado automático configurable.",
+      "estado": "decidido"
+    },
+    {
+      "id": "DEC-26",
+      "tipo": "decision",
+      "nombre": "Protecciones de pantalla y autobloqueo",
+      "descripcion": "FLAG_SECURE en pantallas con secretos (bloquea capturas y vista de recientes). Autobloqueo por inactividad y al pasar a segundo plano, configurable.",
+      "estado": "decidido",
+      "detalles": {
+        "sugerido": {
+          "autobloqueo": "5 min"
+        }
+      }
+    },
+    {
+      "id": "DEC-27",
+      "tipo": "decision",
+      "nombre": "Higiene de memoria (mejor esfuerzo)",
+      "descripcion": "Secretos como ByteArray/CharArray y sobrescritura al bloquear. Limitación conocida: los String de Compose son inmutables.",
+      "estado": "decidido"
+    },
+    {
+      "id": "DEC-28",
+      "tipo": "decision",
+      "nombre": "Criptografía solo con librerías reconocidas",
+      "descripcion": "Sin primitivas propias. AES-GCM vía JCA (Android) y crypto de Node; Argon2 vía librería pendiente. Todo el código cripto pasa revisión humana y pruebas con vectores oficiales (RFC 9106, NIST GCM).",
+      "estado": "decidido"
+    },
+    {
+      "id": "DEC-29",
+      "tipo": "decision",
+      "nombre": "Nonce y AAD en AES-GCM",
+      "descripcion": "Nonce de 96 bits aleatorio por cada cifrado, nunca reutilizado. AAD = id_elemento | id_usuario | versión_de_formato, para que el servidor no pueda intercambiar bloques entre elementos o usuarios.",
+      "estado": "decidido"
+    },
+    {
+      "id": "DEC-30",
+      "tipo": "decision",
+      "nombre": "Metodología de seguridad",
+      "descripcion": "Modelo de amenazas STRIDE y OWASP MASVS como referencia. Herramientas: MobSF, Semgrep, Burp/mitmproxy, Frida (demostrar que el pinning se puede saltar en un dispositivo rooteado) y auditoría de la BD sin texto plano.",
+      "estado": "decidido"
+    },
+    {
+      "id": "DEC-31",
+      "tipo": "decision",
+      "nombre": "Política de contraseña maestra",
+      "descripcion": "Medidor de fuerza en el registro y mínimo exigido.",
+      "estado": "propuesto",
+      "detalles": {
+        "sugerido": {
+          "longitud_minima": 12,
+          "zxcvbn_minimo": 3
+        }
+      }
+    },
+    {
+      "id": "DEC-32",
+      "tipo": "decision",
+      "nombre": "Rate limiting y bloqueo por intentos",
+      "descripcion": "En Redis para login (por IP y por HMAC del correo), verificación TOTP, prelogin, registro y envío de correos. Tras 5 fallos se bloquea la cuenta 15 min y se registra account_locked. Ninguna clave de Redis contiene correos en claro.",
+      "estado": "decidido"
+    },
+    {
+      "id": "DEC-33",
+      "tipo": "decision",
+      "nombre": "Arquitectura de la app",
+      "descripcion": "MVVM + flujo unidireccional, organización por funcionalidad (feature/*/data|domain|ui), Room como fuente de verdad, WorkManager para sincronizar. Carpetas creadas en el proyecto. Detalle en docs/arquitectura.md.",
+      "estado": "decidido"
+    },
+    {
+      "id": "DEC-34",
+      "tipo": "decision",
+      "nombre": "Datos capturados vs persistidos",
+      "descripcion": "En el modelado se distingue lo que el usuario captura de lo que realmente se guarda. El servidor solo persiste: id, bloque cifrado, nonce, versión, timestamps y bandera de borrado.",
+      "estado": "decidido"
+    },
+    {
+      "id": "DEC-35",
+      "tipo": "decision",
+      "nombre": "Correcciones de redacción de la propuesta",
+      "descripcion": "'Matemáticamente imposible' → 'computacionalmente inviable, condicionado a la fortaleza de la contraseña maestra'. Objetivo 4: 'validación' en lugar de 'factibilidad'. Se retira OAuth2. Pinning: no 'impide' sino 'dificulta' la intercepción.",
+      "estado": "decidido"
+    },
+    {
+      "id": "DEC-36",
+      "tipo": "decision",
+      "nombre": "Alcance MVP",
+      "descripcion": "Se recorta el alcance para caber en 7 semanas con 2 personas (ver nodos fuera_de_alcance).",
+      "estado": "decidido"
+    },
+    {
+      "id": "DEC-37",
+      "tipo": "decision",
+      "nombre": "Endurecimiento del proyecto Android",
+      "descripcion": "Hallazgos en el proyecto generado por Android Studio que hay que corregir.",
+      "estado": "decidido",
+      "detalles": {
+        "cambios": [
+          "android:allowBackup=\"false\" y reglas de extracción que excluyan todo (hoy está en true)",
+          "Habilitar R8/minificación en release (hoy optimization.enable = false)",
+          "android:usesCleartextTraffic=\"false\" / network_security_config",
+          "Sin logs de datos sensibles en release"
+        ]
+      }
+    },
+    {
+      "id": "DEC-38",
+      "tipo": "decision",
+      "nombre": "Desarrollo con Claude Code",
+      "descripcion": "Configuración del proyecto para Claude Code: CLAUDE.md en la raíz (se carga en cada sesión, <200 líneas), reglas por ruta en .claude/rules/ (solo se cargan al tocar esos archivos), subagente security-reviewer de solo lectura en .claude/agents/, skills en .claude/skills/ y permisos en .claude/settings.json que bloquean la lectura de secretos. Reemplaza la propuesta de AGENTS.md y de una carpeta ai/agents.",
+      "estado": "decidido",
+      "detalles": {
+        "archivos": [
+          "CLAUDE.md",
+          ".claude/settings.json",
+          ".claude/rules/crypto.md",
+          ".claude/rules/base-de-datos.md",
+          ".claude/agents/security-reviewer.md",
+          ".claude/skills/registrar-sesion/SKILL.md",
+          "ai/context/estado-actual.md",
+          "ai/sessions/"
+        ]
+      }
+    },
+    {
+      "id": "DEC-39",
+      "tipo": "decision",
+      "nombre": "version + revision en cada elemento",
+      "descripcion": "version = cuántas veces cambió el elemento (concurrencia optimista, 409). revision = posición en la historia de cambios del usuario (cursor de sincronización), única por usuario y asignada desde users.vault_revision con la fila del usuario bloqueada. No se usan fechas como cursor.",
+      "estado": "decidido"
+    },
+    {
+      "id": "DEC-40",
+      "tipo": "decision",
+      "nombre": "Horizonte de purga de lápidas (410)",
+      "descripcion": "users.purged_through_revision guarda la revisión más alta de lápidas purgadas. Si el cursor de un cliente (>0) es menor, el servidor responde 410 y el cliente hace descarga completa. Evita que un teléfono desconectado mucho tiempo resucite elementos borrados.",
+      "estado": "decidido"
+    },
+    {
+      "id": "DEC-41",
+      "tipo": "decision",
+      "nombre": "key_version",
+      "descripcion": "users.key_version sube al cambiar la contraseña maestra; el cambio usa key_version esperada (concurrencia optimista). Los teléfonos comparan su copia local para saber que sus parámetros KDF y su pvk quedaron obsoletos.",
+      "estado": "decidido"
+    },
+    {
+      "id": "DEC-42",
+      "tipo": "decision",
+      "nombre": "Estrategia de llaves primarias",
+      "descripcion": "UUID generado por el cliente para elementos (permite crear sin conexión); UUID del servidor para sesiones y verificaciones (se exponen sin revelar cantidades); bigint consecutivo asignado por trigger para la bitácora (el orden es parte de la cadena).",
+      "estado": "decidido"
+    },
+    {
+      "id": "DEC-43",
+      "tipo": "decision",
+      "nombre": "HMAC con pepper para códigos cortos",
+      "descripcion": "Códigos de recuperación y de verificación de correo se guardan como HMAC-SHA256(pepper, código). Con SHA-256 simple, un código de 6 dígitos o ~50 bits se rompe por fuerza bruta si se roba la BD. El pepper vive en variable de entorno.",
+      "estado": "decidido"
+    },
+    {
+      "id": "DEC-44",
+      "tipo": "decision",
+      "nombre": "Lógica concurrente en funciones de la BD",
+      "descripcion": "app.vault_write_item() (crear/editar/borrar con versión) y app.session_rotate() (rotación con detección de robo) viven en PostgreSQL y están probadas. La API solo las invoca. Mantenimiento en app.run_maintenance().",
+      "estado": "decidido"
+    },
+    {
+      "id": "DEC-45",
+      "tipo": "decision",
+      "nombre": "Roles de base de datos",
+      "descripcion": "endsec_api (sin DELETE en users; solo SELECT/INSERT en la bitácora) y endsec_jobs (purgas y anonimización). Un tercer rol dueño ejecuta migraciones. La API nunca se conecta como superusuario ni como dueño.",
+      "estado": "decidido"
+    },
+    {
+      "id": "DEC-46",
+      "tipo": "decision",
+      "nombre": "Reglas transaccionales",
+      "descripcion": "READ COMMITTED con candados explícitos. Orden fijo de candados: users → vault_items → sessions → two_factor → recovery_codes → email_verifications → audit_log. Argon2 siempre fuera de la transacción. Evento de bitácora al final. Correos y Redis después del COMMIT. Los intentos fallidos de un código se guardan en su propia transacción.",
+      "estado": "decidido"
+    },
+    {
+      "id": "DEC-47",
+      "tipo": "decision",
+      "nombre": "Modelo local (Room) y estados de sincronización",
+      "descripcion": "Tablas account (una fila), vault_items (espejo + server_version, server_revision, local_seq, sync_state) y breach_checks (caché HIBP cifrada). sync_state ∈ synced | pending | conflict. local_seq evita marcar como sincronizado algo editado durante la subida. Los conflictos se marcan en segundo plano y se resuelven al desbloquear, porque la copia '(conflicto)' lleva id nuevo y el id forma parte del AAD. Sin SQLCipher: Room solo contiene bloques cifrados.",
+      "estado": "decidido"
+    },
+    {
+      "id": "DEC-48",
+      "tipo": "decision",
+      "nombre": "Versión de PostgreSQL y migraciones",
+      "descripcion": "PostgreSQL 16 o 17 (imagen oficial de Docker). docs/bd/schema.sql es la migración 001; docs/bd/pruebas_esquema.sql es la evidencia de pruebas (36 automáticas + 1 de concurrencia).",
+      "estado": "decidido"
+    },
+    {
+      "id": "DEC-49",
+      "tipo": "decision",
+      "nombre": "Nombre visible opcional",
+      "descripcion": "users.display_name opcional (1 a 50 caracteres), no único y no sirve para iniciar sesión.",
+      "estado": "decidido"
+    },
+    {
+      "id": "GAP-01",
+      "tipo": "hueco",
+      "nombre": "Autenticación sin enviar la contraseña maestra",
+      "descripcion": "La propuesta no explicaba qué recibe el servidor para validar el login.",
+      "estado": "parchado"
+    },
+    {
+      "id": "GAP-02",
+      "tipo": "hueco",
+      "nombre": "Jerarquía de llaves ausente",
+      "descripcion": "Cambiar la contraseña maestra obligaba a re-cifrar todo.",
+      "estado": "parchado"
+    },
+    {
+      "id": "GAP-03",
+      "tipo": "hueco",
+      "nombre": "Olvido de la contraseña maestra",
+      "descripcion": "No se definía qué pasa.",
+      "estado": "parchado"
+    },
+    {
+      "id": "GAP-04",
+      "tipo": "hueco",
+      "nombre": "'Análisis compuesto' sin definir",
+      "descripcion": "Aparecía en el título pero no en el documento.",
+      "estado": "parchado"
+    },
+    {
+      "id": "GAP-05",
+      "tipo": "hueco",
+      "nombre": "Secreto TOTP en claro",
+      "descripcion": "Contradecía la auditoría de 'ausencia de texto plano'.",
+      "estado": "parchado"
+    },
+    {
+      "id": "GAP-06",
+      "tipo": "hueco",
+      "nombre": "'Matemáticamente imposible de descifrar'",
+      "descripcion": "Exageración: hay fuerza bruta offline contra los bloques.",
+      "estado": "parchado"
+    },
+    {
+      "id": "GAP-07",
+      "tipo": "hueco",
+      "nombre": "'Alertar en tiempo real' con HIBP",
+      "descripcion": "La API gratuita no notifica; revisar en segundo plano exigiría el almacén abierto.",
+      "estado": "parchado"
+    },
+    {
+      "id": "GAP-08",
+      "tipo": "hueco",
+      "nombre": "'Registro inmutable' sin mecanismo",
+      "descripcion": "Una tabla de PostgreSQL es mutable.",
+      "estado": "parchado"
+    },
+    {
+      "id": "GAP-09",
+      "tipo": "hueco",
+      "nombre": "Monitoreo de actividad sospechosa sin definir",
+      "descripcion": "No se decía qué es sospechoso ni a quién se alerta.",
+      "estado": "parchado"
+    },
+    {
+      "id": "GAP-10",
+      "tipo": "hueco",
+      "nombre": "OAuth2 sin justificación",
+      "descripcion": "No hay terceros a quienes delegar.",
+      "estado": "parchado"
+    },
+    {
+      "id": "GAP-11",
+      "tipo": "hueco",
+      "nombre": "Almacenamiento local y modo sin conexión",
+      "descripcion": "No se definía si la app funciona sin red.",
+      "estado": "parchado"
+    },
+    {
+      "id": "GAP-12",
+      "tipo": "hueco",
+      "nombre": "Biometría sin diseño",
+      "descripcion": "Se mencionaba en el stack sin explicar cómo.",
+      "estado": "parchado"
+    },
+    {
+      "id": "GAP-13",
+      "tipo": "hueco",
+      "nombre": "Conflictos de sincronización",
+      "descripcion": "Dos dispositivos editando a la vez.",
+      "estado": "parchado"
+    },
+    {
+      "id": "GAP-14",
+      "tipo": "hueco",
+      "nombre": "Granularidad del cifrado y metadatos",
+      "descripcion": "No se definía qué campos se cifran ni si es un bloque o varios.",
+      "estado": "parchado"
+    },
+    {
+      "id": "GAP-15",
+      "tipo": "hueco",
+      "nombre": "Origen de la sal y enumeración de usuarios",
+      "descripcion": "El cliente necesita la sal antes del login.",
+      "estado": "parchado"
+    },
+    {
+      "id": "GAP-16",
+      "tipo": "hueco",
+      "nombre": "Sin modelo de amenazas",
+      "descripcion": "Indispensable en una materia de seguridad.",
+      "estado": "parchado"
+    },
+    {
+      "id": "GAP-17",
+      "tipo": "hueco",
+      "nombre": "Objetivo 4 hablaba de 'factibilidad' al final",
+      "descripcion": "La factibilidad se analiza al inicio.",
+      "estado": "parchado"
+    },
+    {
+      "id": "GAP-18",
+      "tipo": "hueco",
+      "nombre": "Certificado para el pinning",
+      "descripcion": "Con despliegue local no había certificado real que fijar.",
+      "estado": "parchado"
+    },
+    {
+      "id": "GAP-19",
+      "tipo": "hueco",
+      "nombre": "Alcance excesivo",
+      "descripcion": "Demasiadas piezas para 7 semanas y 2 personas.",
+      "estado": "parchado"
+    },
+    {
+      "id": "GAP-20",
+      "tipo": "hueco",
+      "nombre": "EncryptedSharedPreferences obsoleta",
+      "descripcion": "Dónde guardar tokens de forma segura.",
+      "estado": "parchado"
+    },
+    {
+      "id": "GAP-21",
+      "tipo": "hueco",
+      "nombre": "2FA no protege el desbloqueo local",
+      "descripcion": "Quien roba el teléfono o la BD solo enfrenta Argon2 + contraseña maestra.",
+      "estado": "parchado"
+    },
+    {
+      "id": "GAP-22",
+      "tipo": "hueco",
+      "nombre": "Eliminar elementos por nombre y sin lápida",
+      "descripcion": "Los nombres se repiten y otro dispositivo volvería a subirlo.",
+      "estado": "parchado"
+    },
+    {
+      "id": "GAP-23",
+      "tipo": "hueco",
+      "nombre": "Faltaba el generador de contraseñas",
+      "descripcion": "Función básica de un gestor.",
+      "estado": "parchado"
+    },
+    {
+      "id": "GAP-24",
+      "tipo": "hueco",
+      "nombre": "Tabla de operaciones mezclaba datos capturados y persistidos",
+      "descripcion": "Llevaría a columnas en claro en Postgres.",
+      "estado": "parchado"
+    },
+    {
+      "id": "GAP-25",
+      "tipo": "hueco",
+      "nombre": "Protecciones de UI ausentes",
+      "descripcion": "Portapapeles, capturas de pantalla y autobloqueo.",
+      "estado": "parchado"
+    },
+    {
+      "id": "GAP-26",
+      "tipo": "hueco",
+      "nombre": "Código criptográfico generado por IA",
+      "descripcion": "Riesgo de Random en lugar de SecureRandom, nonces repetidos, etc.",
+      "estado": "parchado"
+    },
+    {
+      "id": "GAP-27",
+      "tipo": "hueco",
+      "nombre": "Sesiones, dispositivos y cierre remoto",
+      "descripcion": "No había forma de revocar un dispositivo.",
+      "estado": "parchado"
+    },
+    {
+      "id": "GAP-28",
+      "tipo": "hueco",
+      "nombre": "Servicio de correo no definido",
+      "descripcion": "Sin correo no hay verificación ni alertas, y el registro revela qué correos existen.",
+      "estado": "parchado"
+    },
+    {
+      "id": "GAP-29",
+      "tipo": "hueco",
+      "nombre": "Valores inseguros del proyecto Android generado",
+      "descripcion": "allowBackup=true y R8 deshabilitado en release.",
+      "estado": "parchado"
+    },
+    {
+      "id": "GAP-30",
+      "tipo": "hueco",
+      "nombre": "Resurrección de elementos tras purgar lápidas",
+      "descripcion": "Un teléfono desconectado más tiempo que la retención no se enteraría del borrado.",
+      "estado": "parchado"
+    },
+    {
+      "id": "GAP-31",
+      "tipo": "hueco",
+      "nombre": "Cadena de bitácora vs anonimización",
+      "descripcion": "Borrar la IP o el usuario rompería la cadena de hashes.",
+      "estado": "parchado"
+    },
+    {
+      "id": "GAP-32",
+      "tipo": "hueco",
+      "nombre": "Resolver conflictos con el almacén bloqueado",
+      "descripcion": "La copia de conflicto requiere la vault_key para re-cifrar con un id nuevo.",
+      "estado": "parchado"
+    },
+    {
+      "id": "GAP-33",
+      "tipo": "hueco",
+      "nombre": "Códigos cortos con SHA-256 simple",
+      "descripcion": "Rompibles por fuerza bruta si se roba la BD.",
+      "estado": "parchado"
+    },
+    {
+      "id": "GAP-34",
+      "tipo": "hueco",
+      "nombre": "Contraseña maestra cambiada en otro dispositivo",
+      "descripcion": "Los demás teléfonos conservarían parámetros y pvk obsoletos.",
+      "estado": "parchado"
+    },
+    {
+      "id": "GAP-35",
+      "tipo": "hueco",
+      "nombre": "Cursor de sincronización por fechas",
+      "descripcion": "Falla con relojes desfasados y transacciones concurrentes.",
+      "estado": "parchado"
+    },
+    {
+      "id": "GAP-36",
+      "tipo": "hueco",
+      "nombre": "Tipos incorrectos en la tabla de operaciones",
+      "descripcion": "Cerrar sesión remota como lectura, generar contraseña como escritura, falta verificar correo.",
+      "estado": "parchado"
+    },
+    {
+      "id": "GAP-37",
+      "tipo": "hueco",
+      "nombre": "Herramientas de IA no definidas",
+      "descripcion": "La arquitectura proponía AGENTS.md genérico; el equipo usa solo Claude Code.",
+      "estado": "parchado"
+    },
+    {
+      "id": "AMZ-01",
+      "tipo": "amenaza",
+      "nombre": "Compromiso total del servidor o de la BD",
+      "descripcion": "Categoría STRIDE: S/I/D (STRIDE)",
+      "estado": "decidido"
+    },
+    {
+      "id": "AMZ-02",
+      "tipo": "amenaza",
+      "nombre": "Robo o pérdida del teléfono",
+      "descripcion": "Categoría STRIDE: I",
+      "estado": "decidido"
+    },
+    {
+      "id": "AMZ-03",
+      "tipo": "amenaza",
+      "nombre": "Atacante en la red (MITM)",
+      "descripcion": "Categoría STRIDE: T/I",
+      "estado": "decidido"
+    },
+    {
+      "id": "AMZ-04",
+      "tipo": "amenaza",
+      "nombre": "Fuerza bruta en línea / credential stuffing contra el login",
+      "descripcion": "Categoría STRIDE: S",
+      "estado": "decidido"
+    },
+    {
+      "id": "AMZ-05",
+      "tipo": "amenaza",
+      "nombre": "Malware o root en el dispositivo (Frida, lectura de memoria)",
+      "descripcion": "Categoría STRIDE: T/I",
+      "estado": "decidido"
+    },
+    {
+      "id": "AMZ-06",
+      "tipo": "amenaza",
+      "nombre": "Observación física, capturas y vista de recientes",
+      "descripcion": "Categoría STRIDE: I",
+      "estado": "decidido"
+    },
+    {
+      "id": "AMZ-07",
+      "tipo": "amenaza",
+      "nombre": "Fuga por portapapeles",
+      "descripcion": "Categoría STRIDE: I",
+      "estado": "decidido"
+    },
+    {
+      "id": "AMZ-08",
+      "tipo": "amenaza",
+      "nombre": "Enumeración de usuarios",
+      "descripcion": "Categoría STRIDE: I",
+      "estado": "decidido"
+    },
+    {
+      "id": "AMZ-09",
+      "tipo": "amenaza",
+      "nombre": "Robo y reutilización de tokens",
+      "descripcion": "Categoría STRIDE: S/E",
+      "estado": "decidido"
+    },
+    {
+      "id": "AMZ-10",
+      "tipo": "amenaza",
+      "nombre": "Servidor que intercambia o altera bloques cifrados",
+      "descripcion": "Categoría STRIDE: T",
+      "estado": "decidido"
+    },
+    {
+      "id": "AMZ-11",
+      "tipo": "amenaza",
+      "nombre": "Código inseguro generado por IA",
+      "descripcion": "Categoría STRIDE: T/I",
+      "estado": "decidido"
+    },
+    {
+      "id": "AMZ-12",
+      "tipo": "amenaza",
+      "nombre": "Manipulación de la bitácora",
+      "descripcion": "Categoría STRIDE: R",
+      "estado": "decidido"
+    },
+    {
+      "id": "AMZ-13",
+      "tipo": "amenaza",
+      "nombre": "Pérdida del segundo factor",
+      "descripcion": "Categoría STRIDE: D",
+      "estado": "decidido"
+    },
+    {
+      "id": "RSG-01",
+      "tipo": "riesgo_aceptado",
+      "nombre": "Metadatos visibles para el servidor",
+      "descripcion": "Cantidad de elementos, tamaños de bloque y fechas de modificación.",
+      "estado": "riesgo_aceptado"
+    },
+    {
+      "id": "RSG-02",
+      "tipo": "riesgo_aceptado",
+      "nombre": "2FA en el mismo dispositivo",
+      "descripcion": "Si la app autenticadora está en el mismo teléfono, ambos factores viven en un solo dispositivo.",
+      "estado": "riesgo_aceptado"
+    },
+    {
+      "id": "RSG-03",
+      "tipo": "riesgo_aceptado",
+      "nombre": "Fuerza bruta offline",
+      "descripcion": "Con la BD o el teléfono robado, la única defensa es Argon2id + fortaleza de la contraseña maestra; el 2FA no aplica.",
+      "estado": "riesgo_aceptado"
+    },
+    {
+      "id": "RSG-04",
+      "tipo": "riesgo_aceptado",
+      "nombre": "Strings inmutables en memoria",
+      "descripcion": "Los campos de texto de Compose usan String; no se pueden sobrescribir.",
+      "estado": "riesgo_aceptado"
+    },
+    {
+      "id": "RSG-05",
+      "tipo": "riesgo_aceptado",
+      "nombre": "Dispositivo rooteado",
+      "descripcion": "Puede saltar el pinning y leer memoria. Se demuestra en pruebas y se documenta.",
+      "estado": "riesgo_aceptado"
+    },
+    {
+      "id": "RSG-06",
+      "tipo": "riesgo_aceptado",
+      "nombre": "Servidor puede borrar datos o servir versiones antiguas",
+      "descripcion": "Disponibilidad y rollback no están protegidos por el cifrado.",
+      "estado": "riesgo_aceptado"
+    },
+    {
+      "id": "RSG-07",
+      "tipo": "riesgo_aceptado",
+      "nombre": "Secreto TOTP legible por el servidor",
+      "descripcion": "Necesario para validar códigos; fuera del conocimiento cero.",
+      "estado": "riesgo_aceptado"
+    },
+    {
+      "id": "RSG-08",
+      "tipo": "riesgo_aceptado",
+      "nombre": "Pérdida total por olvido de la contraseña maestra",
+      "descripcion": "Consecuencia directa del conocimiento cero (si se confirma DEC-10).",
+      "estado": "riesgo_aceptado"
+    },
+    {
+      "id": "RSG-09",
+      "tipo": "riesgo_aceptado",
+      "nombre": "Correo no verificado",
+      "descripcion": "Solo si Resend no llega a implementarse.",
+      "estado": "riesgo_aceptado"
+    },
+    {
+      "id": "RSG-10",
+      "tipo": "riesgo_aceptado",
+      "nombre": "Un superusuario puede alterar la bitácora",
+      "descripcion": "Puede desactivar el trigger; la alteración se DETECTA con verify_audit_chain(), no se impide.",
+      "estado": "riesgo_aceptado"
+    },
+    {
+      "id": "RSG-11",
+      "tipo": "riesgo_aceptado",
+      "nombre": "Fila mínima de cuentas anonimizadas",
+      "descripcion": "Persisten el UUID y las fechas de alta/baja para no romper la bitácora.",
+      "estado": "riesgo_aceptado"
+    },
+    {
+      "id": "MOD-AUTH",
+      "tipo": "modulo",
+      "nombre": "Autenticación",
+      "descripcion": "Registro, verificación de correo, prelogin, login, 2FA en login, tokens.",
+      "estado": "decidido"
+    },
+    {
+      "id": "MOD-UNLOCK",
+      "tipo": "modulo",
+      "nombre": "Desbloqueo",
+      "descripcion": "Desbloqueo con contraseña maestra o biometría y autobloqueo.",
+      "estado": "decidido"
+    },
+    {
+      "id": "MOD-VAULT",
+      "tipo": "modulo",
+      "nombre": "Almacén",
+      "descripcion": "CRUD de elementos, búsqueda, copiar, generador.",
+      "estado": "decidido"
+    },
+    {
+      "id": "MOD-HEALTH",
+      "tipo": "modulo",
+      "nombre": "Salud del almacén",
+      "descripcion": "Análisis compuesto y consulta HIBP.",
+      "estado": "decidido"
+    },
+    {
+      "id": "MOD-2FA",
+      "tipo": "modulo",
+      "nombre": "Doble factor",
+      "descripcion": "Configurar, confirmar y desactivar 2FA; códigos de recuperación.",
+      "estado": "decidido"
+    },
+    {
+      "id": "MOD-ACCOUNT",
+      "tipo": "modulo",
+      "nombre": "Cuenta",
+      "descripcion": "Correo, contraseña maestra, eliminación de cuenta.",
+      "estado": "decidido"
+    },
+    {
+      "id": "MOD-ACTIVITY",
+      "tipo": "modulo",
+      "nombre": "Sesiones y actividad",
+      "descripcion": "Dispositivos, cierre remoto, bitácora del usuario.",
+      "estado": "decidido"
+    },
+    {
+      "id": "MOD-SYNC",
+      "tipo": "modulo",
+      "nombre": "Sincronización",
+      "descripcion": "Descarga inicial, cambios incrementales, cola de subida, conflictos.",
+      "estado": "decidido"
+    },
+    {
+      "id": "MOD-SETTINGS",
+      "tipo": "modulo",
+      "nombre": "Ajustes",
+      "descripcion": "Autobloqueo, portapapeles, biometría.",
+      "estado": "decidido"
+    },
+    {
+      "id": "MOD-SYSTEM",
+      "tipo": "modulo",
+      "nombre": "Procesos del sistema",
+      "descripcion": "Bitácora, alertas, bloqueo por intentos, purgas, anonimización.",
+      "estado": "decidido"
+    },
+    {
+      "id": "OP-01",
+      "tipo": "operacion",
+      "nombre": "Registrar elemento",
+      "descripcion": "Operación del módulo MOD-VAULT.",
+      "estado": "decidido",
+      "detalles": {
+        "actor": "cliente",
+        "tipo_acceso": "Escritura",
+        "lugar": "Ambos",
+        "requiere_red": false,
+        "frecuencia": "Media",
+        "datos_capturados": "nombre (obligatorio), usuario, contraseña, URL, notas",
+        "datos_persistidos": "id UUID (cliente), bloque cifrado, nonce, versión=1, timestamps"
+      }
+    },
+    {
+      "id": "OP-02",
+      "tipo": "operacion",
+      "nombre": "Editar elemento",
+      "descripcion": "Operación del módulo MOD-VAULT.",
+      "estado": "decidido",
+      "detalles": {
+        "actor": "cliente",
+        "tipo_acceso": "Escritura",
+        "lugar": "Ambos",
+        "requiere_red": false,
+        "frecuencia": "Media",
+        "datos_capturados": "campos del elemento + versión esperada",
+        "datos_persistidos": "bloque cifrado nuevo, nonce nuevo, versión+1"
+      }
+    },
+    {
+      "id": "OP-03",
+      "tipo": "operacion",
+      "nombre": "Eliminar elemento",
+      "descripcion": "Operación del módulo MOD-VAULT.",
+      "estado": "decidido",
+      "detalles": {
+        "actor": "cliente",
+        "tipo_acceso": "Escritura",
+        "lugar": "Ambos",
+        "requiere_red": false,
+        "frecuencia": "Baja",
+        "datos_capturados": "id del elemento + versión esperada",
+        "datos_persistidos": "lápida: borrado=true, bloque vacío, versión+1"
+      }
+    },
+    {
+      "id": "OP-04",
+      "tipo": "operacion",
+      "nombre": "Listar elementos",
+      "descripcion": "Operación del módulo MOD-VAULT.",
+      "estado": "decidido",
+      "detalles": {
+        "actor": "cliente",
+        "tipo_acceso": "Lectura",
+        "lugar": "Local",
+        "requiere_red": false,
+        "frecuencia": "Alta",
+        "datos_capturados": "almacén desbloqueado",
+        "datos_persistidos": "—"
+      }
+    },
+    {
+      "id": "OP-05",
+      "tipo": "operacion",
+      "nombre": "Ver detalle / revelar contraseña",
+      "descripcion": "Operación del módulo MOD-VAULT.",
+      "estado": "decidido",
+      "detalles": {
+        "actor": "cliente",
+        "tipo_acceso": "Lectura",
+        "lugar": "Local",
+        "requiere_red": false,
+        "frecuencia": "Alta",
+        "datos_capturados": "id del elemento",
+        "datos_persistidos": "—"
+      }
+    },
+    {
+      "id": "OP-06",
+      "tipo": "operacion",
+      "nombre": "Copiar al portapapeles",
+      "descripcion": "Operación del módulo MOD-VAULT.",
+      "estado": "decidido",
+      "detalles": {
+        "actor": "cliente",
+        "tipo_acceso": "Cálculo",
+        "lugar": "Local",
+        "requiere_red": false,
+        "frecuencia": "Alta",
+        "datos_capturados": "campo a copiar",
+        "datos_persistidos": "—"
+      }
+    },
+    {
+      "id": "OP-07",
+      "tipo": "operacion",
+      "nombre": "Buscar / filtrar elementos",
+      "descripcion": "Operación del módulo MOD-VAULT.",
+      "estado": "decidido",
+      "detalles": {
+        "actor": "cliente",
+        "tipo_acceso": "Lectura",
+        "lugar": "Local",
+        "requiere_red": false,
+        "frecuencia": "Alta",
+        "datos_capturados": "texto de búsqueda",
+        "datos_persistidos": "— (búsqueda en memoria sobre datos descifrados)"
+      }
+    },
+    {
+      "id": "OP-08",
+      "tipo": "operacion",
+      "nombre": "Generar contraseña",
+      "descripcion": "Operación del módulo MOD-VAULT.",
+      "estado": "decidido",
+      "detalles": {
+        "actor": "cliente",
+        "tipo_acceso": "Cálculo",
+        "lugar": "Local",
+        "requiere_red": false,
+        "frecuencia": "Media",
+        "datos_capturados": "longitud, clases de caracteres, excluir ambiguos",
+        "datos_persistidos": "—"
+      }
+    },
+    {
+      "id": "OP-09",
+      "tipo": "operacion",
+      "nombre": "Calcular salud del almacén",
+      "descripcion": "Operación del módulo MOD-HEALTH.",
+      "estado": "decidido",
+      "detalles": {
+        "actor": "cliente",
+        "tipo_acceso": "Cálculo",
+        "lugar": "Local",
+        "requiere_red": false,
+        "frecuencia": "Media",
+        "datos_capturados": "almacén desbloqueado",
+        "datos_persistidos": "caché local cifrada o solo en memoria"
+      }
+    },
+    {
+      "id": "OP-10",
+      "tipo": "operacion",
+      "nombre": "Consultar filtraciones (HIBP)",
+      "descripcion": "Operación del módulo MOD-HEALTH.",
+      "estado": "decidido",
+      "detalles": {
+        "actor": "cliente",
+        "tipo_acceso": "Lectura",
+        "lugar": "API externa",
+        "requiere_red": true,
+        "frecuencia": "Media",
+        "datos_capturados": "contraseñas del almacén (en memoria)",
+        "datos_persistidos": "— (sale solo el prefijo de 5 caracteres del SHA-1)"
+      }
+    },
+    {
+      "id": "OP-11",
+      "tipo": "operacion",
+      "nombre": "Registrar cuenta",
+      "descripcion": "Operación del módulo MOD-AUTH.",
+      "estado": "decidido",
+      "detalles": {
+        "actor": "cliente",
+        "tipo_acceso": "Escritura",
+        "lugar": "API",
+        "requiere_red": true,
+        "frecuencia": "Baja",
+        "datos_capturados": "correo, contraseña maestra (+confirmación)",
+        "datos_persistidos": "correo, hash de auth_key, sal y parámetros KDF, protected_vault_key"
+      }
+    },
+    {
+      "id": "OP-12",
+      "tipo": "operacion",
+      "nombre": "Verificar correo",
+      "descripcion": "Operación del módulo MOD-AUTH.",
+      "estado": "decidido",
+      "detalles": {
+        "actor": "cliente",
+        "tipo_acceso": "Lectura + Escritura",
+        "lugar": "API",
+        "requiere_red": true,
+        "frecuencia": "Baja",
+        "datos_capturados": "código recibido por correo",
+        "datos_persistidos": "email_verified_at; código marcado como usado"
+      }
+    },
+    {
+      "id": "OP-13",
+      "tipo": "operacion",
+      "nombre": "Obtener parámetros de derivación (prelogin)",
+      "descripcion": "Operación del módulo MOD-AUTH.",
+      "estado": "decidido",
+      "detalles": {
+        "actor": "cliente",
+        "tipo_acceso": "Lectura",
+        "lugar": "API",
+        "requiere_red": true,
+        "frecuencia": "Media",
+        "datos_capturados": "correo",
+        "datos_persistidos": "—"
+      }
+    },
+    {
+      "id": "OP-14",
+      "tipo": "operacion",
+      "nombre": "Iniciar sesión",
+      "descripcion": "Operación del módulo MOD-AUTH.",
+      "estado": "decidido",
+      "detalles": {
+        "actor": "cliente",
+        "tipo_acceso": "Lectura + Escritura",
+        "lugar": "API",
+        "requiere_red": true,
+        "frecuencia": "Baja",
+        "datos_capturados": "correo + auth_key derivada",
+        "datos_persistidos": "sesión nueva (si no hay 2FA) y evento en bitácora"
+      }
+    },
+    {
+      "id": "OP-15",
+      "tipo": "operacion",
+      "nombre": "Verificar TOTP en login",
+      "descripcion": "Operación del módulo MOD-AUTH.",
+      "estado": "decidido",
+      "detalles": {
+        "actor": "cliente",
+        "tipo_acceso": "Lectura + Escritura",
+        "lugar": "API",
+        "requiere_red": true,
+        "frecuencia": "Baja",
+        "datos_capturados": "código de 6 dígitos",
+        "datos_persistidos": "último paso usado (anti-replay), sesión"
+      }
+    },
+    {
+      "id": "OP-16",
+      "tipo": "operacion",
+      "nombre": "Iniciar sesión con código de recuperación",
+      "descripcion": "Operación del módulo MOD-AUTH.",
+      "estado": "decidido",
+      "detalles": {
+        "actor": "cliente",
+        "tipo_acceso": "Lectura + Escritura",
+        "lugar": "API",
+        "requiere_red": true,
+        "frecuencia": "Muy baja",
+        "datos_capturados": "código de recuperación",
+        "datos_persistidos": "código marcado como usado"
+      }
+    },
+    {
+      "id": "OP-17",
+      "tipo": "operacion",
+      "nombre": "Renovar token",
+      "descripcion": "Operación del módulo MOD-AUTH.",
+      "estado": "decidido",
+      "detalles": {
+        "actor": "sistema",
+        "tipo_acceso": "Escritura",
+        "lugar": "API",
+        "requiere_red": true,
+        "frecuencia": "Alta",
+        "datos_capturados": "refresh token",
+        "datos_persistidos": "hash del refresh nuevo; el anterior queda revocado"
+      }
+    },
+    {
+      "id": "OP-18",
+      "tipo": "operacion",
+      "nombre": "Cerrar sesión",
+      "descripcion": "Operación del módulo MOD-AUTH.",
+      "estado": "decidido",
+      "detalles": {
+        "actor": "cliente",
+        "tipo_acceso": "Escritura",
+        "lugar": "Ambos",
+        "requiere_red": true,
+        "frecuencia": "Baja",
+        "datos_capturados": "—",
+        "datos_persistidos": "sesión revocada; bloqueo local"
+      }
+    },
+    {
+      "id": "OP-19",
+      "tipo": "operacion",
+      "nombre": "Desbloquear con contraseña maestra",
+      "descripcion": "Operación del módulo MOD-UNLOCK.",
+      "estado": "decidido",
+      "detalles": {
+        "actor": "cliente",
+        "tipo_acceso": "Lectura",
+        "lugar": "Local",
+        "requiere_red": false,
+        "frecuencia": "Alta",
+        "datos_capturados": "contraseña maestra",
+        "datos_persistidos": "—"
+      }
+    },
+    {
+      "id": "OP-20",
+      "tipo": "operacion",
+      "nombre": "Desbloquear con biometría",
+      "descripcion": "Operación del módulo MOD-UNLOCK.",
+      "estado": "decidido",
+      "detalles": {
+        "actor": "cliente",
+        "tipo_acceso": "Lectura",
+        "lugar": "Local",
+        "requiere_red": false,
+        "frecuencia": "Alta",
+        "datos_capturados": "huella / rostro",
+        "datos_persistidos": "—"
+      }
+    },
+    {
+      "id": "OP-21",
+      "tipo": "operacion",
+      "nombre": "Bloqueo automático",
+      "descripcion": "Operación del módulo MOD-UNLOCK.",
+      "estado": "decidido",
+      "detalles": {
+        "actor": "sistema",
+        "tipo_acceso": "Cálculo",
+        "lugar": "Local",
+        "requiere_red": false,
+        "frecuencia": "Alta",
+        "datos_capturados": "—",
+        "datos_persistidos": "— (borra llaves de memoria)"
+      }
+    },
+    {
+      "id": "OP-22",
+      "tipo": "operacion",
+      "nombre": "Iniciar configuración 2FA",
+      "descripcion": "Operación del módulo MOD-2FA.",
+      "estado": "decidido",
+      "detalles": {
+        "actor": "cliente",
+        "tipo_acceso": "Escritura",
+        "lugar": "API",
+        "requiere_red": true,
+        "frecuencia": "Muy baja",
+        "datos_capturados": "—",
+        "datos_persistidos": "secreto TOTP cifrado en estado 'pendiente'"
+      }
+    },
+    {
+      "id": "OP-23",
+      "tipo": "operacion",
+      "nombre": "Confirmar 2FA",
+      "descripcion": "Operación del módulo MOD-2FA.",
+      "estado": "decidido",
+      "detalles": {
+        "actor": "cliente",
+        "tipo_acceso": "Escritura",
+        "lugar": "API",
+        "requiere_red": true,
+        "frecuencia": "Muy baja",
+        "datos_capturados": "primer código TOTP",
+        "datos_persistidos": "2FA activo + hashes de 10 códigos de recuperación"
+      }
+    },
+    {
+      "id": "OP-24",
+      "tipo": "operacion",
+      "nombre": "Desactivar 2FA",
+      "descripcion": "Operación del módulo MOD-2FA.",
+      "estado": "decidido",
+      "detalles": {
+        "actor": "cliente",
+        "tipo_acceso": "Escritura",
+        "lugar": "API",
+        "requiere_red": true,
+        "frecuencia": "Muy baja",
+        "datos_capturados": "reautenticación (auth_key + TOTP)",
+        "datos_persistidos": "secreto y códigos eliminados; evento + alerta"
+      }
+    },
+    {
+      "id": "OP-25",
+      "tipo": "operacion",
+      "nombre": "Regenerar códigos de recuperación",
+      "descripcion": "Operación del módulo MOD-2FA.",
+      "estado": "decidido",
+      "detalles": {
+        "actor": "cliente",
+        "tipo_acceso": "Escritura",
+        "lugar": "API",
+        "requiere_red": true,
+        "frecuencia": "Muy baja",
+        "datos_capturados": "reautenticación",
+        "datos_persistidos": "hashes nuevos; anteriores invalidados"
+      }
+    },
+    {
+      "id": "OP-26",
+      "tipo": "operacion",
+      "nombre": "Cambiar correo",
+      "descripcion": "Operación del módulo MOD-ACCOUNT.",
+      "estado": "decidido",
+      "detalles": {
+        "actor": "cliente",
+        "tipo_acceso": "Escritura",
+        "lugar": "API",
+        "requiere_red": true,
+        "frecuencia": "Muy baja",
+        "datos_capturados": "correo nuevo + reautenticación",
+        "datos_persistidos": "correo nuevo pendiente de verificación; evento + alerta"
+      }
+    },
+    {
+      "id": "OP-27",
+      "tipo": "operacion",
+      "nombre": "Cambiar contraseña maestra",
+      "descripcion": "Operación del módulo MOD-ACCOUNT.",
+      "estado": "decidido",
+      "detalles": {
+        "actor": "cliente",
+        "tipo_acceso": "Escritura",
+        "lugar": "Ambos",
+        "requiere_red": true,
+        "frecuencia": "Muy baja",
+        "datos_capturados": "contraseña actual + nueva + TOTP",
+        "datos_persistidos": "sal/parámetros nuevos, hash de auth_key nuevo, protected_vault_key re-envuelta; cierra otras sesiones"
+      }
+    },
+    {
+      "id": "OP-28",
+      "tipo": "operacion",
+      "nombre": "Eliminar cuenta",
+      "descripcion": "Operación del módulo MOD-ACCOUNT.",
+      "estado": "decidido",
+      "detalles": {
+        "actor": "cliente",
+        "tipo_acceso": "Escritura",
+        "lugar": "Ambos",
+        "requiere_red": true,
+        "frecuencia": "Muy baja",
+        "datos_capturados": "reautenticación + confirmación explícita",
+        "datos_persistidos": "baja lógica; bloques y sesiones borrados; datos locales borrados"
+      }
+    },
+    {
+      "id": "OP-29",
+      "tipo": "operacion",
+      "nombre": "Listar sesiones / dispositivos",
+      "descripcion": "Operación del módulo MOD-ACTIVITY.",
+      "estado": "decidido",
+      "detalles": {
+        "actor": "cliente",
+        "tipo_acceso": "Lectura",
+        "lugar": "API",
+        "requiere_red": true,
+        "frecuencia": "Baja",
+        "datos_capturados": "—",
+        "datos_persistidos": "—"
+      }
+    },
+    {
+      "id": "OP-30",
+      "tipo": "operacion",
+      "nombre": "Cerrar sesión remota",
+      "descripcion": "Operación del módulo MOD-ACTIVITY.",
+      "estado": "decidido",
+      "detalles": {
+        "actor": "cliente",
+        "tipo_acceso": "Escritura",
+        "lugar": "API",
+        "requiere_red": true,
+        "frecuencia": "Muy baja",
+        "datos_capturados": "id de sesión",
+        "datos_persistidos": "sesión revocada"
+      }
+    },
+    {
+      "id": "OP-31",
+      "tipo": "operacion",
+      "nombre": "Consultar mi actividad",
+      "descripcion": "Operación del módulo MOD-ACTIVITY.",
+      "estado": "decidido",
+      "detalles": {
+        "actor": "cliente",
+        "tipo_acceso": "Lectura",
+        "lugar": "API",
+        "requiere_red": true,
+        "frecuencia": "Baja",
+        "datos_capturados": "rango / paginación",
+        "datos_persistidos": "—"
+      }
+    },
+    {
+      "id": "OP-32",
+      "tipo": "operacion",
+      "nombre": "Descarga inicial del almacén",
+      "descripcion": "Operación del módulo MOD-SYNC.",
+      "estado": "decidido",
+      "detalles": {
+        "actor": "sistema",
+        "tipo_acceso": "Lectura",
+        "lugar": "API",
+        "requiere_red": true,
+        "frecuencia": "Muy baja",
+        "datos_capturados": "—",
+        "datos_persistidos": "copia local de bloques + cursor de sincronización"
+      }
+    },
+    {
+      "id": "OP-33",
+      "tipo": "operacion",
+      "nombre": "Descargar cambios desde la última sincronización",
+      "descripcion": "Operación del módulo MOD-SYNC.",
+      "estado": "decidido",
+      "detalles": {
+        "actor": "sistema",
+        "tipo_acceso": "Lectura",
+        "lugar": "API",
+        "requiere_red": true,
+        "frecuencia": "Alta",
+        "datos_capturados": "cursor",
+        "datos_persistidos": "elementos actualizados/lápidas + cursor nuevo"
+      }
+    },
+    {
+      "id": "OP-34",
+      "tipo": "operacion",
+      "nombre": "Subir cambios pendientes",
+      "descripcion": "Operación del módulo MOD-SYNC.",
+      "estado": "decidido",
+      "detalles": {
+        "actor": "sistema",
+        "tipo_acceso": "Escritura",
+        "lugar": "Ambos",
+        "requiere_red": true,
+        "frecuencia": "Alta",
+        "datos_capturados": "cola local con versión esperada",
+        "datos_persistidos": "versión aceptada o copia '(conflicto)'"
+      }
+    },
+    {
+      "id": "OP-35",
+      "tipo": "operacion",
+      "nombre": "Activar / desactivar biometría",
+      "descripcion": "Operación del módulo MOD-SETTINGS.",
+      "estado": "decidido",
+      "detalles": {
+        "actor": "cliente",
+        "tipo_acceso": "Escritura",
+        "lugar": "Local",
+        "requiere_red": false,
+        "frecuencia": "Muy baja",
+        "datos_capturados": "biometría + almacén desbloqueado",
+        "datos_persistidos": "vault_key envuelta con llave del Keystore"
+      }
+    },
+    {
+      "id": "OP-36",
+      "tipo": "operacion",
+      "nombre": "Ajustes locales",
+      "descripcion": "Operación del módulo MOD-SETTINGS.",
+      "estado": "decidido",
+      "detalles": {
+        "actor": "cliente",
+        "tipo_acceso": "Escritura",
+        "lugar": "Local",
+        "requiere_red": false,
+        "frecuencia": "Baja",
+        "datos_capturados": "tiempo de autobloqueo y de borrado del portapapeles",
+        "datos_persistidos": "DataStore"
+      }
+    },
+    {
+      "id": "OP-37",
+      "tipo": "operacion",
+      "nombre": "Registrar evento en bitácora",
+      "descripcion": "Operación del módulo MOD-SYSTEM.",
+      "estado": "decidido",
+      "detalles": {
+        "actor": "sistema",
+        "tipo_acceso": "Escritura",
+        "lugar": "API",
+        "requiere_red": false,
+        "frecuencia": "Alta",
+        "datos_capturados": "tipo de evento, sesión, IP, user-agent",
+        "datos_persistidos": "registro encadenado por hash"
+      }
+    },
+    {
+      "id": "OP-38",
+      "tipo": "operacion",
+      "nombre": "Enviar alerta por correo",
+      "descripcion": "Operación del módulo MOD-SYSTEM.",
+      "estado": "decidido",
+      "detalles": {
+        "actor": "sistema",
+        "tipo_acceso": "Escritura",
+        "lugar": "API",
+        "requiere_red": false,
+        "frecuencia": "Baja",
+        "datos_capturados": "evento crítico",
+        "datos_persistidos": "—"
+      }
+    },
+    {
+      "id": "OP-39",
+      "tipo": "operacion",
+      "nombre": "Bloquear por intentos fallidos",
+      "descripcion": "Operación del módulo MOD-SYSTEM.",
+      "estado": "decidido",
+      "detalles": {
+        "actor": "sistema",
+        "tipo_acceso": "Escritura",
+        "lugar": "API (Redis)",
+        "requiere_red": false,
+        "frecuencia": "Media",
+        "datos_capturados": "IP / correo",
+        "datos_persistidos": "contadores con expiración"
+      }
+    },
+    {
+      "id": "OP-40",
+      "tipo": "operacion",
+      "nombre": "Purgas programadas",
+      "descripcion": "Operación del módulo MOD-SYSTEM.",
+      "estado": "decidido",
+      "detalles": {
+        "actor": "sistema",
+        "tipo_acceso": "Escritura",
+        "lugar": "API",
+        "requiere_red": false,
+        "frecuencia": "Diaria",
+        "datos_capturados": "—",
+        "datos_persistidos": "elimina lápidas viejas, sesiones expiradas, códigos de verificación expirados, cuentas dadas de baja"
+      }
+    },
+    {
+      "id": "OP-41",
+      "tipo": "operacion",
+      "nombre": "Anonimizar bitácora de cuentas eliminadas",
+      "descripcion": "Operación del módulo MOD-SYSTEM.",
+      "estado": "decidido",
+      "detalles": {
+        "actor": "sistema",
+        "tipo_acceso": "Escritura",
+        "lugar": "API",
+        "requiere_red": false,
+        "frecuencia": "Diaria",
+        "datos_capturados": "—",
+        "datos_persistidos": "IP y user-agent anonimizados"
+      }
+    },
+    {
+      "id": "OP-42",
+      "tipo": "operacion",
+      "nombre": "Editar nombre visible",
+      "descripcion": "Operación del módulo MOD-ACCOUNT.",
+      "estado": "decidido",
+      "detalles": {
+        "actor": "cliente",
+        "tipo_acceso": "Escritura",
+        "lugar": "API",
+        "requiere_red": true,
+        "frecuencia": "Muy baja",
+        "datos_capturados": "nombre visible (opcional)",
+        "datos_persistidos": "users.display_name"
+      }
+    },
+    {
+      "id": "TBL-USERS",
+      "tipo": "tabla",
+      "nombre": "app.users",
+      "descripcion": "Una fila por cuenta; nunca se borra físicamente (baja → anonimización).",
+      "estado": "propuesto",
+      "detalles": {
+        "almacen": "PostgreSQL",
+        "campos": [
+          "id",
+          "email",
+          "email_verified_at",
+          "display_name",
+          "auth_hash",
+          "kdf_salt",
+          "kdf_memory_kib",
+          "kdf_iterations",
+          "kdf_parallelism",
+          "pvk_nonce",
+          "pvk_ciphertext",
+          "key_version",
+          "vault_revision",
+          "purged_through_revision",
+          "created_at",
+          "updated_at",
+          "deleted_at",
+          "anonymized_at"
+        ],
+        "referencia_doc": "docs/bd/schema.sql"
+      }
+    },
+    {
+      "id": "TBL-ITEMS",
+      "tipo": "tabla",
+      "nombre": "app.vault_items",
+      "descripcion": "Un bloque cifrado por elemento; lápida = deleted_at con contenido NULL.",
+      "estado": "propuesto",
+      "detalles": {
+        "almacen": "PostgreSQL",
+        "campos": [
+          "id",
+          "user_id",
+          "version",
+          "revision",
+          "format_version",
+          "nonce",
+          "ciphertext",
+          "created_at",
+          "updated_at",
+          "deleted_at"
+        ],
+        "referencia_doc": "docs/bd/schema.sql"
+      }
+    },
+    {
+      "id": "TBL-SESSIONS",
+      "tipo": "tabla",
+      "nombre": "app.sessions",
+      "descripcion": "Una sesión por dispositivo; guarda el SHA-256 del refresh token actual y del anterior.",
+      "estado": "propuesto",
+      "detalles": {
+        "almacen": "PostgreSQL",
+        "campos": [
+          "id",
+          "user_id",
+          "device_name",
+          "refresh_token_hash",
+          "previous_refresh_token_hash",
+          "created_at",
+          "last_used_at",
+          "expires_at",
+          "revoked_at",
+          "revoke_reason"
+        ],
+        "referencia_doc": "docs/bd/schema.sql"
+      }
+    },
+    {
+      "id": "TBL-2FA",
+      "tipo": "tabla",
+      "nombre": "app.two_factor",
+      "descripcion": "Relación 1:0..1 con users; secreto cifrado con llave del servidor y anti-replay.",
+      "estado": "propuesto",
+      "detalles": {
+        "almacen": "PostgreSQL",
+        "campos": [
+          "user_id",
+          "status",
+          "secret_nonce",
+          "secret_ciphertext",
+          "server_key_id",
+          "last_used_step",
+          "created_at",
+          "activated_at"
+        ],
+        "referencia_doc": "docs/bd/schema.sql"
+      }
+    },
+    {
+      "id": "TBL-RECOVERY",
+      "tipo": "tabla",
+      "nombre": "app.recovery_codes",
+      "descripcion": "Códigos de recuperación (HMAC); dependen de two_factor.",
+      "estado": "propuesto",
+      "detalles": {
+        "almacen": "PostgreSQL",
+        "campos": [
+          "id",
+          "user_id",
+          "code_hash",
+          "used_at",
+          "created_at"
+        ],
+        "referencia_doc": "docs/bd/schema.sql"
+      }
+    },
+    {
+      "id": "TBL-EMAILV",
+      "tipo": "tabla",
+      "nombre": "app.email_verifications",
+      "descripcion": "Códigos de verificación de correo (HMAC, máx. 5 intentos, uno vigente por propósito).",
+      "estado": "propuesto",
+      "detalles": {
+        "almacen": "PostgreSQL",
+        "campos": [
+          "id",
+          "user_id",
+          "purpose",
+          "target_email",
+          "code_hash",
+          "attempts",
+          "expires_at",
+          "consumed_at",
+          "created_at"
+        ],
+        "referencia_doc": "docs/bd/schema.sql"
+      }
+    },
+    {
+      "id": "TBL-AUDIT",
+      "tipo": "tabla",
+      "nombre": "app.audit_log",
+      "descripcion": "Bitácora append-only encadenada por hash.",
+      "estado": "propuesto",
+      "detalles": {
+        "almacen": "PostgreSQL",
+        "campos": [
+          "id",
+          "occurred_at",
+          "user_id",
+          "session_id",
+          "event_type",
+          "outcome",
+          "metadata",
+          "prev_hash",
+          "hash"
+        ],
+        "referencia_doc": "docs/bd/schema.sql"
+      }
+    },
+    {
+      "id": "TBL-AUDITPII",
+      "tipo": "tabla",
+      "nombre": "app.audit_log_pii",
+      "descripcion": "IP y user-agent de cada evento; se borran a los 90 días o al anonimizar.",
+      "estado": "propuesto",
+      "detalles": {
+        "almacen": "PostgreSQL",
+        "campos": [
+          "event_id",
+          "ip",
+          "user_agent"
+        ],
+        "referencia_doc": "docs/bd/schema.sql"
+      }
+    },
+    {
+      "id": "TBL-L-ACCOUNT",
+      "tipo": "tabla",
+      "nombre": "account",
+      "descripcion": "Una sola fila: datos para desbloquear sin red y cursor de sincronización.",
+      "estado": "propuesto",
+      "detalles": {
+        "almacen": "Room",
+        "campos": [
+          "user_id",
+          "email",
+          "display_name",
+          "kdf_salt",
+          "kdf_memory_kib",
+          "kdf_iterations",
+          "kdf_parallelism",
+          "pvk_nonce",
+          "pvk_ciphertext",
+          "key_version",
+          "sync_cursor",
+          "last_sync_at",
+          "bio_iv",
+          "bio_wrapped_vault_key"
+        ],
+        "referencia_doc": "docs/bd/modelo-datos.md"
+      }
+    },
+    {
+      "id": "TBL-L-ITEMS",
+      "tipo": "tabla",
+      "nombre": "vault_items (local)",
+      "descripcion": "Espejo de los bloques cifrados + estado de sincronización.",
+      "estado": "propuesto",
+      "detalles": {
+        "almacen": "Room",
+        "campos": [
+          "id",
+          "format_version",
+          "nonce",
+          "ciphertext",
+          "server_version",
+          "server_revision",
+          "local_seq",
+          "sync_state",
+          "deleted_at",
+          "updated_at"
+        ],
+        "referencia_doc": "docs/bd/modelo-datos.md"
+      }
+    },
+    {
+      "id": "TBL-L-BREACH",
+      "tipo": "tabla",
+      "nombre": "breach_checks",
+      "descripcion": "Caché cifrada del resultado de HIBP por elemento.",
+      "estado": "propuesto",
+      "detalles": {
+        "almacen": "Room",
+        "campos": [
+          "item_id",
+          "checked_local_seq",
+          "nonce",
+          "ciphertext",
+          "checked_at"
+        ],
+        "referencia_doc": "docs/bd/modelo-datos.md"
+      }
+    },
+    {
+      "id": "KV-DATASTORE",
+      "tipo": "almacen_clave_valor",
+      "nombre": "DataStore",
+      "descripcion": "Ajustes locales y tokens cifrados con llave del Keystore.",
+      "estado": "propuesto",
+      "detalles": {
+        "almacen": "DataStore",
+        "campos": [
+          "autolock_minutes",
+          "clipboard_clear_seconds",
+          "biometric_enabled",
+          "access_token (cifrado)",
+          "refresh_token (cifrado)",
+          "device_name"
+        ],
+        "referencia_doc": "docs/bd/modelo-datos.md"
+      }
+    },
+    {
+      "id": "KV-REDIS",
+      "tipo": "almacen_clave_valor",
+      "nombre": "Redis",
+      "descripcion": "Claves efímeras; ningún correo en claro.",
+      "estado": "propuesto",
+      "detalles": {
+        "almacen": "Redis",
+        "campos": [
+          "rl:login:ip:{ip}",
+          "rl:login:acct:{hmac(correo)}",
+          "rl:totp:{user_id}",
+          "rl:prelogin:ip:{ip}",
+          "rl:register:ip:{ip}",
+          "rl:email:{user_id}",
+          "login_challenge:{aleatorio}",
+          "session_revoked:{session_id}"
+        ],
+        "referencia_doc": "docs/bd/modelo-datos.md"
+      }
+    },
+    {
+      "id": "TX-01",
+      "tipo": "transaccion",
+      "nombre": "Registro",
+      "descripcion": "Argon2 fuera → BEGIN: INSERT users, email_verifications, audit_log → COMMIT → correo. Correo duplicado: ROLLBACK y respuesta genérica.",
+      "estado": "propuesto"
+    },
+    {
+      "id": "TX-02",
+      "tipo": "transaccion",
+      "nombre": "Prelogin",
+      "descripcion": "SELECT de parámetros KDF; si no existe, parámetros falsos con HMAC(secreto, correo). Sin transacción.",
+      "estado": "propuesto"
+    },
+    {
+      "id": "TX-03",
+      "tipo": "transaccion",
+      "nombre": "Login, paso 1",
+      "descripcion": "Argon2 fuera. Con 2FA: reto en Redis y nada en BD. Sin 2FA: BEGIN: INSERT sessions, audit_log → COMMIT.",
+      "estado": "propuesto"
+    },
+    {
+      "id": "TX-04",
+      "tipo": "transaccion",
+      "nombre": "Login, paso 2 (TOTP)",
+      "descripcion": "GETDEL del reto → BEGIN: UPDATE atómico de last_used_step (0 filas = código repetido) → INSERT sessions, audit_log → COMMIT.",
+      "estado": "propuesto"
+    },
+    {
+      "id": "TX-05",
+      "tipo": "transaccion",
+      "nombre": "Login con código de recuperación",
+      "descripcion": "BEGIN: UPDATE recovery_codes SET used_at WHERE … used_at IS NULL (1 fila) → INSERT sessions, audit_log → COMMIT → alerta.",
+      "estado": "propuesto"
+    },
+    {
+      "id": "TX-06",
+      "tipo": "transaccion",
+      "nombre": "Renovar token",
+      "descripcion": "app.session_rotate(); si reuse_detected: INSERT audit_log, Redis session_revoked y alerta.",
+      "estado": "propuesto"
+    },
+    {
+      "id": "TX-07",
+      "tipo": "transaccion",
+      "nombre": "Logout / cierre remoto",
+      "descripcion": "BEGIN: UPDATE sessions (revocar) → INSERT audit_log → COMMIT → Redis session_revoked.",
+      "estado": "propuesto"
+    },
+    {
+      "id": "TX-08",
+      "tipo": "transaccion",
+      "nombre": "Subir cambios",
+      "descripcion": "Una transacción por lote (máx. 100): app.vault_write_item() por elemento; conflictos se reportan por elemento.",
+      "estado": "propuesto"
+    },
+    {
+      "id": "TX-09",
+      "tipo": "transaccion",
+      "nombre": "Descargar cambios",
+      "descripcion": "cursor>0 y < purged_through_revision → 410. Si no: revision > cursor ORDER BY revision LIMIT 500. Descarga inicial paginada con revision ≤ hasta.",
+      "estado": "propuesto"
+    },
+    {
+      "id": "TX-10",
+      "tipo": "transaccion",
+      "nombre": "Cambiar contraseña maestra",
+      "descripcion": "Reautenticación fuera → BEGIN: UPDATE users con key_version esperada, revocar otras sesiones, audit_log → COMMIT → el teléfono reemplaza account.",
+      "estado": "propuesto"
+    },
+    {
+      "id": "TX-11",
+      "tipo": "transaccion",
+      "nombre": "Configurar 2FA",
+      "descripcion": "Inicio: INSERT pending ON CONFLICT solo si pending. Confirmación: BEGIN: activar, reemplazar códigos (10), audit_log → COMMIT.",
+      "estado": "propuesto"
+    },
+    {
+      "id": "TX-12",
+      "tipo": "transaccion",
+      "nombre": "Desactivar 2FA / regenerar códigos",
+      "descripcion": "Reautenticación → BEGIN: DELETE two_factor (cascada) o reemplazar códigos → audit_log → COMMIT → alerta.",
+      "estado": "propuesto"
+    },
+    {
+      "id": "TX-13",
+      "tipo": "transaccion",
+      "nombre": "Verificar / cambiar correo",
+      "descripcion": "Solicitud: reemplazar código vigente. Verificación: intento fallido en su propia transacción; acierto: consumir, actualizar users, audit_log.",
+      "estado": "propuesto"
+    },
+    {
+      "id": "TX-14",
+      "tipo": "transaccion",
+      "nombre": "Eliminar cuenta",
+      "descripcion": "Reautenticación → BEGIN: bloquear users, borrar items/2FA/verificaciones, revocar sesiones, deleted_at, audit_log → COMMIT → borrar datos locales.",
+      "estado": "propuesto"
+    },
+    {
+      "id": "TX-15",
+      "tipo": "transaccion",
+      "nombre": "Mantenimiento diario",
+      "descripcion": "app.run_maintenance() con endsec_jobs: lápidas >90 d, anonimización >30 d de baja, sesiones/códigos/2FA pendiente vencidos, IPs >90 d.",
+      "estado": "propuesto"
+    },
+    {
+      "id": "FDA-01",
+      "tipo": "fuera_de_alcance",
+      "nombre": "Autocompletado de Android (AutofillService)",
+      "descripcion": "Difícil de probar con código generado por IA y con riesgo de phishing. Trabajo futuro.",
+      "estado": "fuera_de_alcance"
+    },
+    {
+      "id": "FDA-02",
+      "tipo": "fuera_de_alcance",
+      "nombre": "Login con Google / OAuth2",
+      "descripcion": "Duplica credenciales y no aporta seguridad con conocimiento cero.",
+      "estado": "fuera_de_alcance"
+    },
+    {
+      "id": "FDA-03",
+      "tipo": "fuera_de_alcance",
+      "nombre": "Panel de administración",
+      "descripcion": "Con conocimiento cero no tendría nada que mostrar.",
+      "estado": "fuera_de_alcance"
+    },
+    {
+      "id": "FDA-04",
+      "tipo": "fuera_de_alcance",
+      "nombre": "Publicación en Play Store",
+      "descripcion": "Se distribuye como APK.",
+      "estado": "fuera_de_alcance"
+    },
+    {
+      "id": "FDA-05",
+      "tipo": "fuera_de_alcance",
+      "nombre": "Monitoreo de filtraciones en segundo plano",
+      "descripcion": "Exigiría el almacén abierto en segundo plano.",
+      "estado": "fuera_de_alcance"
+    },
+    {
+      "id": "FDA-06",
+      "tipo": "fuera_de_alcance",
+      "nombre": "Monitoreo de filtraciones por correo (HIBP de pago)",
+      "descripcion": "Requiere API de pago y envía el correo sin anonimizar.",
+      "estado": "fuera_de_alcance"
+    },
+    {
+      "id": "FDA-07",
+      "tipo": "fuera_de_alcance",
+      "nombre": "Compartir contraseñas entre usuarios",
+      "descripcion": "Requiere criptografía asimétrica adicional.",
+      "estado": "fuera_de_alcance"
+    },
+    {
+      "id": "FDA-08",
+      "tipo": "fuera_de_alcance",
+      "nombre": "Generar códigos TOTP de cuentas guardadas",
+      "descripcion": "La app no es autenticador; solo usa TOTP para su propio login.",
+      "estado": "fuera_de_alcance"
+    },
+    {
+      "id": "FDA-09",
+      "tipo": "fuera_de_alcance",
+      "nombre": "Carpetas como entidad",
+      "descripcion": "Se usa lista plana; categorías opcionales dentro del bloque cifrado.",
+      "estado": "fuera_de_alcance"
+    },
+    {
+      "id": "FDA-10",
+      "tipo": "fuera_de_alcance",
+      "nombre": "Importar / exportar",
+      "descripcion": "Trabajo futuro.",
+      "estado": "fuera_de_alcance"
+    },
+    {
+      "id": "PEND-01",
+      "tipo": "pregunta_abierta",
+      "nombre": "Parámetros y librería de Argon2id",
+      "descripcion": "Elegir librería (argon2kt, lazysodium-android o Bouncy Castle) y medir memoria/iteraciones en un teléfono de gama baja. El esquema ya exige los mínimos de OWASP.",
+      "estado": "pendiente"
+    },
+    {
+      "id": "PEND-02",
+      "tipo": "pregunta_abierta",
+      "nombre": "Recuperación de la contraseña maestra",
+      "descripcion": "Confirmar 'sin recuperación' o agregar un código de recuperación del almacén.",
+      "estado": "pendiente"
+    },
+    {
+      "id": "PEND-03",
+      "tipo": "pregunta_abierta",
+      "nombre": "Política exacta de contraseña maestra",
+      "descripcion": "Sugerido: mínimo 12 caracteres y zxcvbn ≥ 3.",
+      "estado": "pendiente"
+    },
+    {
+      "id": "PEND-04",
+      "tipo": "pregunta_abierta",
+      "nombre": "Duración de tokens y autobloqueo por defecto",
+      "descripcion": "Sugerido: access 15 min, refresh 30 días, autobloqueo 5 min.",
+      "estado": "pendiente"
+    },
+    {
+      "id": "PEND-05",
+      "tipo": "pregunta_abierta",
+      "nombre": "Plazos de retención",
+      "descripcion": "Propuesto en el esquema (parámetros de app.run_maintenance): lápidas 90 días, gracia de baja 30 días, IPs 90 días. Falta confirmarlos.",
+      "estado": "pendiente"
+    },
+    {
+      "id": "PEND-06",
+      "tipo": "pregunta_abierta",
+      "nombre": "ORM del backend",
+      "descripcion": "Prisma o TypeORM. Cualquiera sirve: las funciones de la BD se llaman con SQL directo y schema.sql es la migración 001.",
+      "estado": "pendiente"
+    },
+    {
+      "id": "PEND-07",
+      "tipo": "pregunta_abierta",
+      "nombre": "¿Se conserva el campo 'nombre de usuario'?",
+      "descripcion": "Resuelto: se conserva como display_name opcional.",
+      "estado": "resuelto"
+    },
+    {
+      "id": "PEND-08",
+      "tipo": "pregunta_abierta",
+      "nombre": "HIBP desde la app o desde el backend",
+      "descripcion": "Propuesto: directo desde la app.",
+      "estado": "pendiente"
+    },
+    {
+      "id": "PEND-09",
+      "tipo": "pregunta_abierta",
+      "nombre": "Esquema de base de datos",
+      "descripcion": "Resuelto: docs/bd/schema.sql (PostgreSQL) y modelo Room en docs/bd/modelo-datos.md. Pendiente de aprobación final del equipo.",
+      "estado": "resuelto"
+    },
+    {
+      "id": "PEND-10",
+      "tipo": "pregunta_abierta",
+      "nombre": "Idioma del código",
+      "descripcion": "Propuesto en CLAUDE.md: identificadores en inglés; comentarios, documentación y textos de la UI en español.",
+      "estado": "pendiente"
+    },
+    {
+      "id": "INV-01",
+      "tipo": "invariante",
+      "nombre": "INV-01",
+      "descripcion": "El servidor nunca recibe ni guarda la contraseña maestra, master_key, enc_key, vault_key en claro ni ningún campo de un elemento en claro.",
+      "estado": "obligatorio"
+    },
+    {
+      "id": "INV-02",
+      "tipo": "invariante",
+      "nombre": "INV-02",
+      "descripcion": "Ningún dato sensible en claro en el disco del teléfono: Room guarda solo bloques cifrados.",
+      "estado": "obligatorio"
+    },
+    {
+      "id": "INV-03",
+      "tipo": "invariante",
+      "nombre": "INV-03",
+      "descripcion": "AES-256-GCM con nonce aleatorio de 96 bits por cada cifrado y AAD = id_elemento|id_usuario|versión_formato.",
+      "estado": "obligatorio"
+    },
+    {
+      "id": "INV-04",
+      "tipo": "invariante",
+      "nombre": "INV-04",
+      "descripcion": "Aleatoriedad solo con SecureRandom (Android) o crypto.randomBytes (Node). Prohibido Random, kotlin.random o Math.random para secretos.",
+      "estado": "obligatorio"
+    },
+    {
+      "id": "INV-05",
+      "tipo": "invariante",
+      "nombre": "INV-05",
+      "descripcion": "No implementar primitivas criptográficas propias. Todo código cripto requiere revisión humana y pruebas con vectores oficiales.",
+      "estado": "obligatorio"
+    },
+    {
+      "id": "INV-06",
+      "tipo": "invariante",
+      "nombre": "INV-06",
+      "descripcion": "Nunca registrar en logs secretos, contraseñas, llaves, tokens ni bloques cifrados. Las clases con secretos sobrescriben toString().",
+      "estado": "obligatorio"
+    },
+    {
+      "id": "INV-07",
+      "tipo": "invariante",
+      "nombre": "INV-07",
+      "descripcion": "Las llaves viven solo en memoria mientras el almacén está desbloqueado y se sobrescriben al bloquear. Nunca en SavedStateHandle.",
+      "estado": "obligatorio"
+    },
+    {
+      "id": "INV-08",
+      "tipo": "invariante",
+      "nombre": "INV-08",
+      "descripcion": "Eliminar un elemento siempre es lógico (lápida) hasta la purga.",
+      "estado": "obligatorio"
+    },
+    {
+      "id": "INV-09",
+      "tipo": "invariante",
+      "nombre": "INV-09",
+      "descripcion": "Toda escritura de elemento envía la versión esperada; el servidor responde 409 si no coincide.",
+      "estado": "obligatorio"
+    },
+    {
+      "id": "INV-10",
+      "tipo": "invariante",
+      "nombre": "INV-10",
+      "descripcion": "Cambiar correo o contraseña maestra, desactivar 2FA, regenerar códigos y eliminar la cuenta requieren reautenticación (auth_key + TOTP si está activo).",
+      "estado": "obligatorio"
+    },
+    {
+      "id": "INV-11",
+      "tipo": "invariante",
+      "nombre": "INV-11",
+      "descripcion": "audit_log nunca recibe UPDATE, DELETE ni TRUNCATE. La anonimización solo borra filas de audit_log_pii.",
+      "estado": "obligatorio"
+    },
+    {
+      "id": "INV-12",
+      "tipo": "invariante",
+      "nombre": "INV-12",
+      "descripcion": "Prelogin y registro nunca revelan si un correo existe.",
+      "estado": "obligatorio"
+    },
+    {
+      "id": "INV-13",
+      "tipo": "invariante",
+      "nombre": "INV-13",
+      "descripcion": "Los resultados del análisis de salud nunca se envían al servidor.",
+      "estado": "obligatorio"
+    },
+    {
+      "id": "INV-14",
+      "tipo": "invariante",
+      "nombre": "INV-14",
+      "descripcion": "A HIBP solo se envían los primeros 5 caracteres hexadecimales del SHA-1, con encabezado Add-Padding.",
+      "estado": "obligatorio"
+    },
+    {
+      "id": "INV-15",
+      "tipo": "invariante",
+      "nombre": "INV-15",
+      "descripcion": "Toda pantalla que muestre secretos usa FLAG_SECURE.",
+      "estado": "obligatorio"
+    },
+    {
+      "id": "INV-16",
+      "tipo": "invariante",
+      "nombre": "INV-16",
+      "descripcion": "El correo nunca sirve para restablecer el 2FA ni la contraseña maestra.",
+      "estado": "obligatorio"
+    },
+    {
+      "id": "INV-17",
+      "tipo": "invariante",
+      "nombre": "INV-17",
+      "descripcion": "PostgreSQL y Redis nunca se exponen a internet.",
+      "estado": "obligatorio"
+    },
+    {
+      "id": "INV-18",
+      "tipo": "invariante",
+      "nombre": "INV-18",
+      "descripcion": "Todo el tráfico con la API propia usa HTTPS con pinning SPKI y pin de respaldo; tráfico en claro deshabilitado.",
+      "estado": "obligatorio"
+    },
+    {
+      "id": "INV-19",
+      "tipo": "invariante",
+      "nombre": "INV-19",
+      "descripcion": "Si una decisión no está en este grafo, el agente pregunta antes de inventarla.",
+      "estado": "obligatorio"
+    },
+    {
+      "id": "INV-20",
+      "tipo": "invariante",
+      "nombre": "INV-20",
+      "descripcion": "Orden fijo de candados: users → vault_items → sessions → two_factor → recovery_codes → email_verifications → audit_log.",
+      "estado": "obligatorio"
+    },
+    {
+      "id": "INV-21",
+      "tipo": "invariante",
+      "nombre": "INV-21",
+      "descripcion": "Argon2 (y cualquier operación lenta) nunca dentro de una transacción de BD.",
+      "estado": "obligatorio"
+    },
+    {
+      "id": "INV-22",
+      "tipo": "invariante",
+      "nombre": "INV-22",
+      "descripcion": "El evento de bitácora se inserta al final de la transacción; correos y escrituras en Redis van después del COMMIT.",
+      "estado": "obligatorio"
+    },
+    {
+      "id": "INV-23",
+      "tipo": "invariante",
+      "nombre": "INV-23",
+      "descripcion": "Crear, editar o borrar elementos en el servidor solo a través de app.vault_write_item(); rotar tokens solo con app.session_rotate().",
+      "estado": "obligatorio"
+    },
+    {
+      "id": "INV-24",
+      "tipo": "invariante",
+      "nombre": "INV-24",
+      "descripcion": "La API se conecta con un rol heredero de endsec_api; los jobs con endsec_jobs. Nunca como superusuario ni dueño del esquema.",
+      "estado": "obligatorio"
+    },
+    {
+      "id": "INV-25",
+      "tipo": "invariante",
+      "nombre": "INV-25",
+      "descripcion": "El cliente Android serializa las renovaciones de token (una a la vez).",
+      "estado": "obligatorio"
+    },
+    {
+      "id": "INV-26",
+      "tipo": "invariante",
+      "nombre": "INV-26",
+      "descripcion": "Los códigos cortos (recuperación, verificación de correo) se guardan como HMAC con pepper, nunca en claro ni con hash simple.",
+      "estado": "obligatorio"
+    },
+    {
+      "id": "INV-27",
+      "tipo": "invariante",
+      "nombre": "INV-27",
+      "descripcion": "sync_state local solo toma los valores synced, pending o conflict; un elemento solo pasa a synced si local_seq no cambió durante la subida.",
+      "estado": "obligatorio"
+    }
+  ],
+  "aristas": [
+    {
+      "de": "PRY-01",
+      "a": "OBJ-GEN",
+      "relacion": "persigue"
+    },
+    {
+      "de": "PRY-01",
+      "a": "OBJ-01",
+      "relacion": "persigue"
+    },
+    {
+      "de": "PRY-01",
+      "a": "OBJ-02",
+      "relacion": "persigue"
+    },
+    {
+      "de": "PRY-01",
+      "a": "OBJ-03",
+      "relacion": "persigue"
+    },
+    {
+      "de": "PRY-01",
+      "a": "OBJ-04",
+      "relacion": "persigue"
+    },
+    {
+      "de": "PRY-01",
+      "a": "OBJ-05",
+      "relacion": "persigue"
+    },
+    {
+      "de": "PRY-01",
+      "a": "RES-01",
+      "relacion": "limitado_por"
+    },
+    {
+      "de": "PRY-01",
+      "a": "RES-02",
+      "relacion": "limitado_por"
+    },
+    {
+      "de": "PRY-01",
+      "a": "RES-03",
+      "relacion": "limitado_por"
+    },
+    {
+      "de": "PRY-01",
+      "a": "RES-04",
+      "relacion": "limitado_por"
+    },
+    {
+      "de": "PRY-01",
+      "a": "RES-05",
+      "relacion": "limitado_por"
+    },
+    {
+      "de": "GAP-01",
+      "a": "DEC-05",
+      "relacion": "resuelto_por"
+    },
+    {
+      "de": "GAP-02",
+      "a": "DEC-05",
+      "relacion": "resuelto_por"
+    },
+    {
+      "de": "GAP-03",
+      "a": "DEC-10",
+      "relacion": "resuelto_por"
+    },
+    {
+      "de": "GAP-04",
+      "a": "DEC-20",
+      "relacion": "resuelto_por"
+    },
+    {
+      "de": "GAP-04",
+      "a": "OBJ-05",
+      "relacion": "resuelto_por"
+    },
+    {
+      "de": "GAP-05",
+      "a": "DEC-11",
+      "relacion": "resuelto_por"
+    },
+    {
+      "de": "GAP-06",
+      "a": "DEC-35",
+      "relacion": "resuelto_por"
+    },
+    {
+      "de": "GAP-06",
+      "a": "DEC-31",
+      "relacion": "resuelto_por"
+    },
+    {
+      "de": "GAP-07",
+      "a": "DEC-21",
+      "relacion": "resuelto_por"
+    },
+    {
+      "de": "GAP-07",
+      "a": "DEC-13",
+      "relacion": "resuelto_por"
+    },
+    {
+      "de": "GAP-08",
+      "a": "DEC-19",
+      "relacion": "resuelto_por"
+    },
+    {
+      "de": "GAP-09",
+      "a": "DEC-14",
+      "relacion": "resuelto_por"
+    },
+    {
+      "de": "GAP-09",
+      "a": "DEC-13",
+      "relacion": "resuelto_por"
+    },
+    {
+      "de": "GAP-09",
+      "a": "DEC-32",
+      "relacion": "resuelto_por"
+    },
+    {
+      "de": "GAP-10",
+      "a": "DEC-35",
+      "relacion": "resuelto_por"
+    },
+    {
+      "de": "GAP-11",
+      "a": "DEC-01",
+      "relacion": "resuelto_por"
+    },
+    {
+      "de": "GAP-12",
+      "a": "DEC-09",
+      "relacion": "resuelto_por"
+    },
+    {
+      "de": "GAP-13",
+      "a": "DEC-02",
+      "relacion": "resuelto_por"
+    },
+    {
+      "de": "GAP-13",
+      "a": "DEC-17",
+      "relacion": "resuelto_por"
+    },
+    {
+      "de": "GAP-14",
+      "a": "DEC-03",
+      "relacion": "resuelto_por"
+    },
+    {
+      "de": "GAP-14",
+      "a": "DEC-04",
+      "relacion": "resuelto_por"
+    },
+    {
+      "de": "GAP-15",
+      "a": "DEC-06",
+      "relacion": "resuelto_por"
+    },
+    {
+      "de": "GAP-15",
+      "a": "DEC-07",
+      "relacion": "resuelto_por"
+    },
+    {
+      "de": "GAP-15",
+      "a": "DEC-13",
+      "relacion": "resuelto_por"
+    },
+    {
+      "de": "GAP-16",
+      "a": "DEC-30",
+      "relacion": "resuelto_por"
+    },
+    {
+      "de": "GAP-17",
+      "a": "DEC-35",
+      "relacion": "resuelto_por"
+    },
+    {
+      "de": "GAP-18",
+      "a": "DEC-22",
+      "relacion": "resuelto_por"
+    },
+    {
+      "de": "GAP-18",
+      "a": "DEC-23",
+      "relacion": "resuelto_por"
+    },
+    {
+      "de": "GAP-19",
+      "a": "DEC-36",
+      "relacion": "resuelto_por"
+    },
+    {
+      "de": "GAP-20",
+      "a": "DEC-16",
+      "relacion": "resuelto_por"
+    },
+    {
+      "de": "GAP-21",
+      "a": "DEC-31",
+      "relacion": "resuelto_por"
+    },
+    {
+      "de": "GAP-22",
+      "a": "DEC-17",
+      "relacion": "resuelto_por"
+    },
+    {
+      "de": "GAP-23",
+      "a": "DEC-24",
+      "relacion": "resuelto_por"
+    },
+    {
+      "de": "GAP-24",
+      "a": "DEC-34",
+      "relacion": "resuelto_por"
+    },
+    {
+      "de": "GAP-25",
+      "a": "DEC-25",
+      "relacion": "resuelto_por"
+    },
+    {
+      "de": "GAP-25",
+      "a": "DEC-26",
+      "relacion": "resuelto_por"
+    },
+    {
+      "de": "GAP-26",
+      "a": "DEC-28",
+      "relacion": "resuelto_por"
+    },
+    {
+      "de": "GAP-26",
+      "a": "DEC-29",
+      "relacion": "resuelto_por"
+    },
+    {
+      "de": "GAP-27",
+      "a": "DEC-16",
+      "relacion": "resuelto_por"
+    },
+    {
+      "de": "GAP-28",
+      "a": "DEC-13",
+      "relacion": "resuelto_por"
+    },
+    {
+      "de": "GAP-29",
+      "a": "DEC-37",
+      "relacion": "resuelto_por"
+    },
+    {
+      "de": "GAP-30",
+      "a": "DEC-40",
+      "relacion": "resuelto_por"
+    },
+    {
+      "de": "GAP-31",
+      "a": "DEC-18",
+      "relacion": "resuelto_por"
+    },
+    {
+      "de": "GAP-31",
+      "a": "DEC-19",
+      "relacion": "resuelto_por"
+    },
+    {
+      "de": "GAP-32",
+      "a": "DEC-47",
+      "relacion": "resuelto_por"
+    },
+    {
+      "de": "GAP-33",
+      "a": "DEC-43",
+      "relacion": "resuelto_por"
+    },
+    {
+      "de": "GAP-34",
+      "a": "DEC-41",
+      "relacion": "resuelto_por"
+    },
+    {
+      "de": "GAP-34",
+      "a": "DEC-16",
+      "relacion": "resuelto_por"
+    },
+    {
+      "de": "GAP-35",
+      "a": "DEC-39",
+      "relacion": "resuelto_por"
+    },
+    {
+      "de": "GAP-36",
+      "a": "DEC-34",
+      "relacion": "resuelto_por"
+    },
+    {
+      "de": "GAP-37",
+      "a": "DEC-38",
+      "relacion": "resuelto_por"
+    },
+    {
+      "de": "AMZ-01",
+      "a": "DEC-05",
+      "relacion": "mitigada_por"
+    },
+    {
+      "de": "AMZ-01",
+      "a": "DEC-04",
+      "relacion": "mitigada_por"
+    },
+    {
+      "de": "AMZ-01",
+      "a": "DEC-29",
+      "relacion": "mitigada_por"
+    },
+    {
+      "de": "AMZ-01",
+      "a": "DEC-31",
+      "relacion": "mitigada_por"
+    },
+    {
+      "de": "AMZ-02",
+      "a": "DEC-08",
+      "relacion": "mitigada_por"
+    },
+    {
+      "de": "AMZ-02",
+      "a": "DEC-26",
+      "relacion": "mitigada_por"
+    },
+    {
+      "de": "AMZ-02",
+      "a": "DEC-37",
+      "relacion": "mitigada_por"
+    },
+    {
+      "de": "AMZ-02",
+      "a": "DEC-16",
+      "relacion": "mitigada_por"
+    },
+    {
+      "de": "AMZ-03",
+      "a": "DEC-22",
+      "relacion": "mitigada_por"
+    },
+    {
+      "de": "AMZ-03",
+      "a": "DEC-23",
+      "relacion": "mitigada_por"
+    },
+    {
+      "de": "AMZ-04",
+      "a": "DEC-32",
+      "relacion": "mitigada_por"
+    },
+    {
+      "de": "AMZ-04",
+      "a": "DEC-11",
+      "relacion": "mitigada_por"
+    },
+    {
+      "de": "AMZ-05",
+      "a": "DEC-27",
+      "relacion": "mitigada_por"
+    },
+    {
+      "de": "AMZ-05",
+      "a": "DEC-26",
+      "relacion": "mitigada_por"
+    },
+    {
+      "de": "AMZ-06",
+      "a": "DEC-26",
+      "relacion": "mitigada_por"
+    },
+    {
+      "de": "AMZ-07",
+      "a": "DEC-25",
+      "relacion": "mitigada_por"
+    },
+    {
+      "de": "AMZ-08",
+      "a": "DEC-07",
+      "relacion": "mitigada_por"
+    },
+    {
+      "de": "AMZ-08",
+      "a": "DEC-13",
+      "relacion": "mitigada_por"
+    },
+    {
+      "de": "AMZ-09",
+      "a": "DEC-16",
+      "relacion": "mitigada_por"
+    },
+    {
+      "de": "AMZ-10",
+      "a": "DEC-29",
+      "relacion": "mitigada_por"
+    },
+    {
+      "de": "AMZ-10",
+      "a": "DEC-02",
+      "relacion": "mitigada_por"
+    },
+    {
+      "de": "AMZ-11",
+      "a": "DEC-28",
+      "relacion": "mitigada_por"
+    },
+    {
+      "de": "AMZ-11",
+      "a": "DEC-30",
+      "relacion": "mitigada_por"
+    },
+    {
+      "de": "AMZ-12",
+      "a": "DEC-19",
+      "relacion": "mitigada_por"
+    },
+    {
+      "de": "AMZ-13",
+      "a": "DEC-12",
+      "relacion": "mitigada_por"
+    },
+    {
+      "de": "RSG-01",
+      "a": "AMZ-01",
+      "relacion": "residual_de"
+    },
+    {
+      "de": "RSG-02",
+      "a": "AMZ-02",
+      "relacion": "residual_de"
+    },
+    {
+      "de": "RSG-03",
+      "a": "AMZ-01",
+      "relacion": "residual_de"
+    },
+    {
+      "de": "RSG-04",
+      "a": "AMZ-05",
+      "relacion": "residual_de"
+    },
+    {
+      "de": "RSG-05",
+      "a": "AMZ-05",
+      "relacion": "residual_de"
+    },
+    {
+      "de": "RSG-06",
+      "a": "AMZ-10",
+      "relacion": "residual_de"
+    },
+    {
+      "de": "RSG-07",
+      "a": "AMZ-01",
+      "relacion": "residual_de"
+    },
+    {
+      "de": "RSG-08",
+      "a": "AMZ-13",
+      "relacion": "residual_de"
+    },
+    {
+      "de": "RSG-09",
+      "a": "AMZ-08",
+      "relacion": "residual_de"
+    },
+    {
+      "de": "RSG-10",
+      "a": "AMZ-12",
+      "relacion": "residual_de"
+    },
+    {
+      "de": "RSG-11",
+      "a": "AMZ-01",
+      "relacion": "residual_de"
+    },
+    {
+      "de": "PRY-01",
+      "a": "MOD-AUTH",
+      "relacion": "contiene"
+    },
+    {
+      "de": "PRY-01",
+      "a": "MOD-UNLOCK",
+      "relacion": "contiene"
+    },
+    {
+      "de": "PRY-01",
+      "a": "MOD-VAULT",
+      "relacion": "contiene"
+    },
+    {
+      "de": "PRY-01",
+      "a": "MOD-HEALTH",
+      "relacion": "contiene"
+    },
+    {
+      "de": "PRY-01",
+      "a": "MOD-2FA",
+      "relacion": "contiene"
+    },
+    {
+      "de": "PRY-01",
+      "a": "MOD-ACCOUNT",
+      "relacion": "contiene"
+    },
+    {
+      "de": "PRY-01",
+      "a": "MOD-ACTIVITY",
+      "relacion": "contiene"
+    },
+    {
+      "de": "PRY-01",
+      "a": "MOD-SYNC",
+      "relacion": "contiene"
+    },
+    {
+      "de": "PRY-01",
+      "a": "MOD-SETTINGS",
+      "relacion": "contiene"
+    },
+    {
+      "de": "PRY-01",
+      "a": "MOD-SYSTEM",
+      "relacion": "contiene"
+    },
+    {
+      "de": "OP-01",
+      "a": "MOD-VAULT",
+      "relacion": "pertenece_a"
+    },
+    {
+      "de": "OP-01",
+      "a": "ACT-01",
+      "relacion": "ejecutada_por"
+    },
+    {
+      "de": "OP-01",
+      "a": "DEC-04",
+      "relacion": "regida_por"
+    },
+    {
+      "de": "OP-01",
+      "a": "DEC-29",
+      "relacion": "regida_por"
+    },
+    {
+      "de": "OP-02",
+      "a": "MOD-VAULT",
+      "relacion": "pertenece_a"
+    },
+    {
+      "de": "OP-02",
+      "a": "ACT-01",
+      "relacion": "ejecutada_por"
+    },
+    {
+      "de": "OP-02",
+      "a": "DEC-02",
+      "relacion": "regida_por"
+    },
+    {
+      "de": "OP-02",
+      "a": "DEC-04",
+      "relacion": "regida_por"
+    },
+    {
+      "de": "OP-03",
+      "a": "MOD-VAULT",
+      "relacion": "pertenece_a"
+    },
+    {
+      "de": "OP-03",
+      "a": "ACT-01",
+      "relacion": "ejecutada_por"
+    },
+    {
+      "de": "OP-03",
+      "a": "DEC-17",
+      "relacion": "regida_por"
+    },
+    {
+      "de": "OP-04",
+      "a": "MOD-VAULT",
+      "relacion": "pertenece_a"
+    },
+    {
+      "de": "OP-04",
+      "a": "ACT-01",
+      "relacion": "ejecutada_por"
+    },
+    {
+      "de": "OP-04",
+      "a": "DEC-01",
+      "relacion": "regida_por"
+    },
+    {
+      "de": "OP-05",
+      "a": "MOD-VAULT",
+      "relacion": "pertenece_a"
+    },
+    {
+      "de": "OP-05",
+      "a": "ACT-01",
+      "relacion": "ejecutada_por"
+    },
+    {
+      "de": "OP-05",
+      "a": "DEC-26",
+      "relacion": "regida_por"
+    },
+    {
+      "de": "OP-06",
+      "a": "MOD-VAULT",
+      "relacion": "pertenece_a"
+    },
+    {
+      "de": "OP-06",
+      "a": "ACT-01",
+      "relacion": "ejecutada_por"
+    },
+    {
+      "de": "OP-06",
+      "a": "DEC-25",
+      "relacion": "regida_por"
+    },
+    {
+      "de": "OP-07",
+      "a": "MOD-VAULT",
+      "relacion": "pertenece_a"
+    },
+    {
+      "de": "OP-07",
+      "a": "ACT-01",
+      "relacion": "ejecutada_por"
+    },
+    {
+      "de": "OP-07",
+      "a": "DEC-04",
+      "relacion": "regida_por"
+    },
+    {
+      "de": "OP-08",
+      "a": "MOD-VAULT",
+      "relacion": "pertenece_a"
+    },
+    {
+      "de": "OP-08",
+      "a": "ACT-01",
+      "relacion": "ejecutada_por"
+    },
+    {
+      "de": "OP-08",
+      "a": "DEC-24",
+      "relacion": "regida_por"
+    },
+    {
+      "de": "OP-09",
+      "a": "MOD-HEALTH",
+      "relacion": "pertenece_a"
+    },
+    {
+      "de": "OP-09",
+      "a": "ACT-01",
+      "relacion": "ejecutada_por"
+    },
+    {
+      "de": "OP-09",
+      "a": "DEC-20",
+      "relacion": "regida_por"
+    },
+    {
+      "de": "OP-10",
+      "a": "MOD-HEALTH",
+      "relacion": "pertenece_a"
+    },
+    {
+      "de": "OP-10",
+      "a": "ACT-01",
+      "relacion": "ejecutada_por"
+    },
+    {
+      "de": "OP-10",
+      "a": "DEC-21",
+      "relacion": "regida_por"
+    },
+    {
+      "de": "OP-11",
+      "a": "MOD-AUTH",
+      "relacion": "pertenece_a"
+    },
+    {
+      "de": "OP-11",
+      "a": "ACT-01",
+      "relacion": "ejecutada_por"
+    },
+    {
+      "de": "OP-11",
+      "a": "DEC-05",
+      "relacion": "regida_por"
+    },
+    {
+      "de": "OP-11",
+      "a": "DEC-06",
+      "relacion": "regida_por"
+    },
+    {
+      "de": "OP-11",
+      "a": "DEC-31",
+      "relacion": "regida_por"
+    },
+    {
+      "de": "OP-11",
+      "a": "DEC-13",
+      "relacion": "regida_por"
+    },
+    {
+      "de": "OP-12",
+      "a": "MOD-AUTH",
+      "relacion": "pertenece_a"
+    },
+    {
+      "de": "OP-12",
+      "a": "ACT-01",
+      "relacion": "ejecutada_por"
+    },
+    {
+      "de": "OP-12",
+      "a": "DEC-13",
+      "relacion": "regida_por"
+    },
+    {
+      "de": "OP-13",
+      "a": "MOD-AUTH",
+      "relacion": "pertenece_a"
+    },
+    {
+      "de": "OP-13",
+      "a": "ACT-01",
+      "relacion": "ejecutada_por"
+    },
+    {
+      "de": "OP-13",
+      "a": "DEC-07",
+      "relacion": "regida_por"
+    },
+    {
+      "de": "OP-14",
+      "a": "MOD-AUTH",
+      "relacion": "pertenece_a"
+    },
+    {
+      "de": "OP-14",
+      "a": "ACT-01",
+      "relacion": "ejecutada_por"
+    },
+    {
+      "de": "OP-14",
+      "a": "DEC-05",
+      "relacion": "regida_por"
+    },
+    {
+      "de": "OP-14",
+      "a": "DEC-16",
+      "relacion": "regida_por"
+    },
+    {
+      "de": "OP-14",
+      "a": "DEC-32",
+      "relacion": "regida_por"
+    },
+    {
+      "de": "OP-15",
+      "a": "MOD-AUTH",
+      "relacion": "pertenece_a"
+    },
+    {
+      "de": "OP-15",
+      "a": "ACT-01",
+      "relacion": "ejecutada_por"
+    },
+    {
+      "de": "OP-15",
+      "a": "DEC-11",
+      "relacion": "regida_por"
+    },
+    {
+      "de": "OP-16",
+      "a": "MOD-AUTH",
+      "relacion": "pertenece_a"
+    },
+    {
+      "de": "OP-16",
+      "a": "ACT-01",
+      "relacion": "ejecutada_por"
+    },
+    {
+      "de": "OP-16",
+      "a": "DEC-12",
+      "relacion": "regida_por"
+    },
+    {
+      "de": "OP-17",
+      "a": "MOD-AUTH",
+      "relacion": "pertenece_a"
+    },
+    {
+      "de": "OP-17",
+      "a": "ACT-02",
+      "relacion": "ejecutada_por"
+    },
+    {
+      "de": "OP-17",
+      "a": "DEC-16",
+      "relacion": "regida_por"
+    },
+    {
+      "de": "OP-18",
+      "a": "MOD-AUTH",
+      "relacion": "pertenece_a"
+    },
+    {
+      "de": "OP-18",
+      "a": "ACT-01",
+      "relacion": "ejecutada_por"
+    },
+    {
+      "de": "OP-18",
+      "a": "DEC-16",
+      "relacion": "regida_por"
+    },
+    {
+      "de": "OP-19",
+      "a": "MOD-UNLOCK",
+      "relacion": "pertenece_a"
+    },
+    {
+      "de": "OP-19",
+      "a": "ACT-01",
+      "relacion": "ejecutada_por"
+    },
+    {
+      "de": "OP-19",
+      "a": "DEC-08",
+      "relacion": "regida_por"
+    },
+    {
+      "de": "OP-20",
+      "a": "MOD-UNLOCK",
+      "relacion": "pertenece_a"
+    },
+    {
+      "de": "OP-20",
+      "a": "ACT-01",
+      "relacion": "ejecutada_por"
+    },
+    {
+      "de": "OP-20",
+      "a": "DEC-09",
+      "relacion": "regida_por"
+    },
+    {
+      "de": "OP-21",
+      "a": "MOD-UNLOCK",
+      "relacion": "pertenece_a"
+    },
+    {
+      "de": "OP-21",
+      "a": "ACT-02",
+      "relacion": "ejecutada_por"
+    },
+    {
+      "de": "OP-21",
+      "a": "DEC-26",
+      "relacion": "regida_por"
+    },
+    {
+      "de": "OP-21",
+      "a": "DEC-27",
+      "relacion": "regida_por"
+    },
+    {
+      "de": "OP-22",
+      "a": "MOD-2FA",
+      "relacion": "pertenece_a"
+    },
+    {
+      "de": "OP-22",
+      "a": "ACT-01",
+      "relacion": "ejecutada_por"
+    },
+    {
+      "de": "OP-22",
+      "a": "DEC-11",
+      "relacion": "regida_por"
+    },
+    {
+      "de": "OP-23",
+      "a": "MOD-2FA",
+      "relacion": "pertenece_a"
+    },
+    {
+      "de": "OP-23",
+      "a": "ACT-01",
+      "relacion": "ejecutada_por"
+    },
+    {
+      "de": "OP-23",
+      "a": "DEC-11",
+      "relacion": "regida_por"
+    },
+    {
+      "de": "OP-23",
+      "a": "DEC-12",
+      "relacion": "regida_por"
+    },
+    {
+      "de": "OP-24",
+      "a": "MOD-2FA",
+      "relacion": "pertenece_a"
+    },
+    {
+      "de": "OP-24",
+      "a": "ACT-01",
+      "relacion": "ejecutada_por"
+    },
+    {
+      "de": "OP-24",
+      "a": "DEC-11",
+      "relacion": "regida_por"
+    },
+    {
+      "de": "OP-24",
+      "a": "DEC-13",
+      "relacion": "regida_por"
+    },
+    {
+      "de": "OP-25",
+      "a": "MOD-2FA",
+      "relacion": "pertenece_a"
+    },
+    {
+      "de": "OP-25",
+      "a": "ACT-01",
+      "relacion": "ejecutada_por"
+    },
+    {
+      "de": "OP-25",
+      "a": "DEC-12",
+      "relacion": "regida_por"
+    },
+    {
+      "de": "OP-26",
+      "a": "MOD-ACCOUNT",
+      "relacion": "pertenece_a"
+    },
+    {
+      "de": "OP-26",
+      "a": "ACT-01",
+      "relacion": "ejecutada_por"
+    },
+    {
+      "de": "OP-26",
+      "a": "DEC-06",
+      "relacion": "regida_por"
+    },
+    {
+      "de": "OP-26",
+      "a": "DEC-13",
+      "relacion": "regida_por"
+    },
+    {
+      "de": "OP-27",
+      "a": "MOD-ACCOUNT",
+      "relacion": "pertenece_a"
+    },
+    {
+      "de": "OP-27",
+      "a": "ACT-01",
+      "relacion": "ejecutada_por"
+    },
+    {
+      "de": "OP-27",
+      "a": "DEC-05",
+      "relacion": "regida_por"
+    },
+    {
+      "de": "OP-27",
+      "a": "DEC-16",
+      "relacion": "regida_por"
+    },
+    {
+      "de": "OP-28",
+      "a": "MOD-ACCOUNT",
+      "relacion": "pertenece_a"
+    },
+    {
+      "de": "OP-28",
+      "a": "ACT-01",
+      "relacion": "ejecutada_por"
+    },
+    {
+      "de": "OP-28",
+      "a": "DEC-18",
+      "relacion": "regida_por"
+    },
+    {
+      "de": "OP-29",
+      "a": "MOD-ACTIVITY",
+      "relacion": "pertenece_a"
+    },
+    {
+      "de": "OP-29",
+      "a": "ACT-01",
+      "relacion": "ejecutada_por"
+    },
+    {
+      "de": "OP-29",
+      "a": "DEC-16",
+      "relacion": "regida_por"
+    },
+    {
+      "de": "OP-30",
+      "a": "MOD-ACTIVITY",
+      "relacion": "pertenece_a"
+    },
+    {
+      "de": "OP-30",
+      "a": "ACT-01",
+      "relacion": "ejecutada_por"
+    },
+    {
+      "de": "OP-30",
+      "a": "DEC-16",
+      "relacion": "regida_por"
+    },
+    {
+      "de": "OP-31",
+      "a": "MOD-ACTIVITY",
+      "relacion": "pertenece_a"
+    },
+    {
+      "de": "OP-31",
+      "a": "ACT-01",
+      "relacion": "ejecutada_por"
+    },
+    {
+      "de": "OP-31",
+      "a": "DEC-19",
+      "relacion": "regida_por"
+    },
+    {
+      "de": "OP-32",
+      "a": "MOD-SYNC",
+      "relacion": "pertenece_a"
+    },
+    {
+      "de": "OP-32",
+      "a": "ACT-02",
+      "relacion": "ejecutada_por"
+    },
+    {
+      "de": "OP-32",
+      "a": "DEC-01",
+      "relacion": "regida_por"
+    },
+    {
+      "de": "OP-33",
+      "a": "MOD-SYNC",
+      "relacion": "pertenece_a"
+    },
+    {
+      "de": "OP-33",
+      "a": "ACT-02",
+      "relacion": "ejecutada_por"
+    },
+    {
+      "de": "OP-33",
+      "a": "DEC-02",
+      "relacion": "regida_por"
+    },
+    {
+      "de": "OP-33",
+      "a": "DEC-17",
+      "relacion": "regida_por"
+    },
+    {
+      "de": "OP-34",
+      "a": "MOD-SYNC",
+      "relacion": "pertenece_a"
+    },
+    {
+      "de": "OP-34",
+      "a": "ACT-02",
+      "relacion": "ejecutada_por"
+    },
+    {
+      "de": "OP-34",
+      "a": "DEC-02",
+      "relacion": "regida_por"
+    },
+    {
+      "de": "OP-35",
+      "a": "MOD-SETTINGS",
+      "relacion": "pertenece_a"
+    },
+    {
+      "de": "OP-35",
+      "a": "ACT-01",
+      "relacion": "ejecutada_por"
+    },
+    {
+      "de": "OP-35",
+      "a": "DEC-09",
+      "relacion": "regida_por"
+    },
+    {
+      "de": "OP-36",
+      "a": "MOD-SETTINGS",
+      "relacion": "pertenece_a"
+    },
+    {
+      "de": "OP-36",
+      "a": "ACT-01",
+      "relacion": "ejecutada_por"
+    },
+    {
+      "de": "OP-36",
+      "a": "DEC-25",
+      "relacion": "regida_por"
+    },
+    {
+      "de": "OP-36",
+      "a": "DEC-26",
+      "relacion": "regida_por"
+    },
+    {
+      "de": "OP-37",
+      "a": "MOD-SYSTEM",
+      "relacion": "pertenece_a"
+    },
+    {
+      "de": "OP-37",
+      "a": "ACT-02",
+      "relacion": "ejecutada_por"
+    },
+    {
+      "de": "OP-37",
+      "a": "DEC-19",
+      "relacion": "regida_por"
+    },
+    {
+      "de": "OP-38",
+      "a": "MOD-SYSTEM",
+      "relacion": "pertenece_a"
+    },
+    {
+      "de": "OP-38",
+      "a": "ACT-02",
+      "relacion": "ejecutada_por"
+    },
+    {
+      "de": "OP-38",
+      "a": "DEC-13",
+      "relacion": "regida_por"
+    },
+    {
+      "de": "OP-39",
+      "a": "MOD-SYSTEM",
+      "relacion": "pertenece_a"
+    },
+    {
+      "de": "OP-39",
+      "a": "ACT-02",
+      "relacion": "ejecutada_por"
+    },
+    {
+      "de": "OP-39",
+      "a": "DEC-32",
+      "relacion": "regida_por"
+    },
+    {
+      "de": "OP-40",
+      "a": "MOD-SYSTEM",
+      "relacion": "pertenece_a"
+    },
+    {
+      "de": "OP-40",
+      "a": "ACT-02",
+      "relacion": "ejecutada_por"
+    },
+    {
+      "de": "OP-40",
+      "a": "DEC-17",
+      "relacion": "regida_por"
+    },
+    {
+      "de": "OP-40",
+      "a": "DEC-18",
+      "relacion": "regida_por"
+    },
+    {
+      "de": "OP-41",
+      "a": "MOD-SYSTEM",
+      "relacion": "pertenece_a"
+    },
+    {
+      "de": "OP-41",
+      "a": "ACT-02",
+      "relacion": "ejecutada_por"
+    },
+    {
+      "de": "OP-41",
+      "a": "DEC-18",
+      "relacion": "regida_por"
+    },
+    {
+      "de": "OP-41",
+      "a": "DEC-19",
+      "relacion": "regida_por"
+    },
+    {
+      "de": "OP-42",
+      "a": "MOD-ACCOUNT",
+      "relacion": "pertenece_a"
+    },
+    {
+      "de": "OP-42",
+      "a": "ACT-01",
+      "relacion": "ejecutada_por"
+    },
+    {
+      "de": "OP-42",
+      "a": "DEC-49",
+      "relacion": "regida_por"
+    },
+    {
+      "de": "TBL-USERS",
+      "a": "DEC-05",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "TBL-USERS",
+      "a": "DEC-06",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "TBL-USERS",
+      "a": "DEC-13",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "TBL-USERS",
+      "a": "DEC-18",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "TBL-USERS",
+      "a": "DEC-40",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "TBL-USERS",
+      "a": "DEC-41",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "TBL-USERS",
+      "a": "DEC-49",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "TBL-ITEMS",
+      "a": "DEC-03",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "TBL-ITEMS",
+      "a": "DEC-04",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "TBL-ITEMS",
+      "a": "DEC-17",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "TBL-ITEMS",
+      "a": "DEC-29",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "TBL-ITEMS",
+      "a": "DEC-39",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "TBL-ITEMS",
+      "a": "DEC-42",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "TBL-SESSIONS",
+      "a": "DEC-16",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "TBL-2FA",
+      "a": "DEC-11",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "TBL-RECOVERY",
+      "a": "DEC-12",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "TBL-RECOVERY",
+      "a": "DEC-43",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "TBL-EMAILV",
+      "a": "DEC-13",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "TBL-EMAILV",
+      "a": "DEC-43",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "TBL-AUDIT",
+      "a": "DEC-19",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "TBL-AUDIT",
+      "a": "DEC-42",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "TBL-AUDITPII",
+      "a": "DEC-18",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "TBL-AUDITPII",
+      "a": "DEC-19",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "TBL-L-ACCOUNT",
+      "a": "DEC-08",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "TBL-L-ACCOUNT",
+      "a": "DEC-09",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "TBL-L-ACCOUNT",
+      "a": "DEC-47",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "TBL-L-ITEMS",
+      "a": "DEC-01",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "TBL-L-ITEMS",
+      "a": "DEC-02",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "TBL-L-ITEMS",
+      "a": "DEC-47",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "TBL-L-BREACH",
+      "a": "DEC-20",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "TBL-L-BREACH",
+      "a": "DEC-21",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "TBL-L-BREACH",
+      "a": "DEC-47",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "KV-DATASTORE",
+      "a": "DEC-16",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "KV-DATASTORE",
+      "a": "DEC-26",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "KV-REDIS",
+      "a": "DEC-32",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "KV-REDIS",
+      "a": "DEC-16",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "TBL-ITEMS",
+      "a": "TBL-USERS",
+      "relacion": "referencia",
+      "nota": "N:1, ON DELETE CASCADE"
+    },
+    {
+      "de": "TBL-SESSIONS",
+      "a": "TBL-USERS",
+      "relacion": "referencia",
+      "nota": "N:1, CASCADE"
+    },
+    {
+      "de": "TBL-2FA",
+      "a": "TBL-USERS",
+      "relacion": "referencia",
+      "nota": "0..1:1, PK = FK, CASCADE"
+    },
+    {
+      "de": "TBL-RECOVERY",
+      "a": "TBL-2FA",
+      "relacion": "referencia",
+      "nota": "N:1, CASCADE"
+    },
+    {
+      "de": "TBL-EMAILV",
+      "a": "TBL-USERS",
+      "relacion": "referencia",
+      "nota": "N:1, CASCADE"
+    },
+    {
+      "de": "TBL-AUDIT",
+      "a": "TBL-USERS",
+      "relacion": "referencia",
+      "nota": "N:0..1, RESTRICT"
+    },
+    {
+      "de": "TBL-AUDITPII",
+      "a": "TBL-AUDIT",
+      "relacion": "referencia",
+      "nota": "0..1:1, RESTRICT"
+    },
+    {
+      "de": "TBL-L-BREACH",
+      "a": "TBL-L-ITEMS",
+      "relacion": "referencia",
+      "nota": "0..1:1, CASCADE"
+    },
+    {
+      "de": "TBL-L-ITEMS",
+      "a": "TBL-ITEMS",
+      "relacion": "espeja"
+    },
+    {
+      "de": "TBL-L-ACCOUNT",
+      "a": "TBL-USERS",
+      "relacion": "espeja",
+      "nota": "solo parámetros KDF, pvk, key_version y datos de perfil"
+    },
+    {
+      "de": "TX-01",
+      "a": "DEC-46",
+      "relacion": "aplica"
+    },
+    {
+      "de": "TX-01",
+      "a": "TBL-USERS",
+      "relacion": "modifica"
+    },
+    {
+      "de": "TX-01",
+      "a": "TBL-EMAILV",
+      "relacion": "modifica"
+    },
+    {
+      "de": "TX-01",
+      "a": "TBL-AUDIT",
+      "relacion": "modifica"
+    },
+    {
+      "de": "TX-01",
+      "a": "TBL-AUDITPII",
+      "relacion": "modifica"
+    },
+    {
+      "de": "TX-02",
+      "a": "DEC-46",
+      "relacion": "aplica"
+    },
+    {
+      "de": "TX-03",
+      "a": "DEC-46",
+      "relacion": "aplica"
+    },
+    {
+      "de": "TX-03",
+      "a": "TBL-SESSIONS",
+      "relacion": "modifica"
+    },
+    {
+      "de": "TX-03",
+      "a": "TBL-AUDIT",
+      "relacion": "modifica"
+    },
+    {
+      "de": "TX-03",
+      "a": "TBL-AUDITPII",
+      "relacion": "modifica"
+    },
+    {
+      "de": "TX-03",
+      "a": "KV-REDIS",
+      "relacion": "modifica"
+    },
+    {
+      "de": "TX-04",
+      "a": "DEC-46",
+      "relacion": "aplica"
+    },
+    {
+      "de": "TX-04",
+      "a": "TBL-2FA",
+      "relacion": "modifica"
+    },
+    {
+      "de": "TX-04",
+      "a": "TBL-SESSIONS",
+      "relacion": "modifica"
+    },
+    {
+      "de": "TX-04",
+      "a": "TBL-AUDIT",
+      "relacion": "modifica"
+    },
+    {
+      "de": "TX-04",
+      "a": "KV-REDIS",
+      "relacion": "modifica"
+    },
+    {
+      "de": "TX-05",
+      "a": "DEC-46",
+      "relacion": "aplica"
+    },
+    {
+      "de": "TX-05",
+      "a": "TBL-RECOVERY",
+      "relacion": "modifica"
+    },
+    {
+      "de": "TX-05",
+      "a": "TBL-SESSIONS",
+      "relacion": "modifica"
+    },
+    {
+      "de": "TX-05",
+      "a": "TBL-AUDIT",
+      "relacion": "modifica"
+    },
+    {
+      "de": "TX-06",
+      "a": "DEC-46",
+      "relacion": "aplica"
+    },
+    {
+      "de": "TX-06",
+      "a": "TBL-SESSIONS",
+      "relacion": "modifica"
+    },
+    {
+      "de": "TX-06",
+      "a": "TBL-AUDIT",
+      "relacion": "modifica"
+    },
+    {
+      "de": "TX-06",
+      "a": "KV-REDIS",
+      "relacion": "modifica"
+    },
+    {
+      "de": "TX-07",
+      "a": "DEC-46",
+      "relacion": "aplica"
+    },
+    {
+      "de": "TX-07",
+      "a": "TBL-SESSIONS",
+      "relacion": "modifica"
+    },
+    {
+      "de": "TX-07",
+      "a": "TBL-AUDIT",
+      "relacion": "modifica"
+    },
+    {
+      "de": "TX-07",
+      "a": "KV-REDIS",
+      "relacion": "modifica"
+    },
+    {
+      "de": "TX-08",
+      "a": "DEC-46",
+      "relacion": "aplica"
+    },
+    {
+      "de": "TX-08",
+      "a": "TBL-ITEMS",
+      "relacion": "modifica"
+    },
+    {
+      "de": "TX-08",
+      "a": "TBL-USERS",
+      "relacion": "modifica"
+    },
+    {
+      "de": "TX-08",
+      "a": "TBL-L-ITEMS",
+      "relacion": "modifica"
+    },
+    {
+      "de": "TX-09",
+      "a": "DEC-46",
+      "relacion": "aplica"
+    },
+    {
+      "de": "TX-09",
+      "a": "TBL-L-ITEMS",
+      "relacion": "modifica"
+    },
+    {
+      "de": "TX-09",
+      "a": "TBL-L-ACCOUNT",
+      "relacion": "modifica"
+    },
+    {
+      "de": "TX-10",
+      "a": "DEC-46",
+      "relacion": "aplica"
+    },
+    {
+      "de": "TX-10",
+      "a": "TBL-USERS",
+      "relacion": "modifica"
+    },
+    {
+      "de": "TX-10",
+      "a": "TBL-SESSIONS",
+      "relacion": "modifica"
+    },
+    {
+      "de": "TX-10",
+      "a": "TBL-AUDIT",
+      "relacion": "modifica"
+    },
+    {
+      "de": "TX-10",
+      "a": "TBL-L-ACCOUNT",
+      "relacion": "modifica"
+    },
+    {
+      "de": "TX-10",
+      "a": "KV-REDIS",
+      "relacion": "modifica"
+    },
+    {
+      "de": "TX-11",
+      "a": "DEC-46",
+      "relacion": "aplica"
+    },
+    {
+      "de": "TX-11",
+      "a": "TBL-2FA",
+      "relacion": "modifica"
+    },
+    {
+      "de": "TX-11",
+      "a": "TBL-RECOVERY",
+      "relacion": "modifica"
+    },
+    {
+      "de": "TX-11",
+      "a": "TBL-AUDIT",
+      "relacion": "modifica"
+    },
+    {
+      "de": "TX-12",
+      "a": "DEC-46",
+      "relacion": "aplica"
+    },
+    {
+      "de": "TX-12",
+      "a": "TBL-2FA",
+      "relacion": "modifica"
+    },
+    {
+      "de": "TX-12",
+      "a": "TBL-RECOVERY",
+      "relacion": "modifica"
+    },
+    {
+      "de": "TX-12",
+      "a": "TBL-AUDIT",
+      "relacion": "modifica"
+    },
+    {
+      "de": "TX-13",
+      "a": "DEC-46",
+      "relacion": "aplica"
+    },
+    {
+      "de": "TX-13",
+      "a": "TBL-EMAILV",
+      "relacion": "modifica"
+    },
+    {
+      "de": "TX-13",
+      "a": "TBL-USERS",
+      "relacion": "modifica"
+    },
+    {
+      "de": "TX-13",
+      "a": "TBL-AUDIT",
+      "relacion": "modifica"
+    },
+    {
+      "de": "TX-14",
+      "a": "DEC-46",
+      "relacion": "aplica"
+    },
+    {
+      "de": "TX-14",
+      "a": "TBL-USERS",
+      "relacion": "modifica"
+    },
+    {
+      "de": "TX-14",
+      "a": "TBL-ITEMS",
+      "relacion": "modifica"
+    },
+    {
+      "de": "TX-14",
+      "a": "TBL-SESSIONS",
+      "relacion": "modifica"
+    },
+    {
+      "de": "TX-14",
+      "a": "TBL-2FA",
+      "relacion": "modifica"
+    },
+    {
+      "de": "TX-14",
+      "a": "TBL-EMAILV",
+      "relacion": "modifica"
+    },
+    {
+      "de": "TX-14",
+      "a": "TBL-AUDIT",
+      "relacion": "modifica"
+    },
+    {
+      "de": "TX-14",
+      "a": "TBL-L-ACCOUNT",
+      "relacion": "modifica"
+    },
+    {
+      "de": "TX-14",
+      "a": "TBL-L-ITEMS",
+      "relacion": "modifica"
+    },
+    {
+      "de": "TX-14",
+      "a": "KV-DATASTORE",
+      "relacion": "modifica"
+    },
+    {
+      "de": "TX-14",
+      "a": "KV-REDIS",
+      "relacion": "modifica"
+    },
+    {
+      "de": "TX-15",
+      "a": "DEC-46",
+      "relacion": "aplica"
+    },
+    {
+      "de": "TX-15",
+      "a": "TBL-ITEMS",
+      "relacion": "modifica"
+    },
+    {
+      "de": "TX-15",
+      "a": "TBL-USERS",
+      "relacion": "modifica"
+    },
+    {
+      "de": "TX-15",
+      "a": "TBL-SESSIONS",
+      "relacion": "modifica"
+    },
+    {
+      "de": "TX-15",
+      "a": "TBL-EMAILV",
+      "relacion": "modifica"
+    },
+    {
+      "de": "TX-15",
+      "a": "TBL-2FA",
+      "relacion": "modifica"
+    },
+    {
+      "de": "TX-15",
+      "a": "TBL-AUDITPII",
+      "relacion": "modifica"
+    },
+    {
+      "de": "TX-15",
+      "a": "TBL-AUDIT",
+      "relacion": "modifica"
+    },
+    {
+      "de": "TX-08",
+      "a": "DEC-44",
+      "relacion": "aplica"
+    },
+    {
+      "de": "TX-06",
+      "a": "DEC-44",
+      "relacion": "aplica"
+    },
+    {
+      "de": "TX-15",
+      "a": "DEC-44",
+      "relacion": "aplica"
+    },
+    {
+      "de": "TX-09",
+      "a": "DEC-40",
+      "relacion": "aplica"
+    },
+    {
+      "de": "TX-10",
+      "a": "DEC-41",
+      "relacion": "aplica"
+    },
+    {
+      "de": "TX-04",
+      "a": "DEC-11",
+      "relacion": "aplica"
+    },
+    {
+      "de": "TX-05",
+      "a": "DEC-12",
+      "relacion": "aplica"
+    },
+    {
+      "de": "TX-13",
+      "a": "DEC-43",
+      "relacion": "aplica"
+    },
+    {
+      "de": "TX-14",
+      "a": "DEC-18",
+      "relacion": "aplica"
+    },
+    {
+      "de": "TX-02",
+      "a": "DEC-07",
+      "relacion": "aplica"
+    },
+    {
+      "de": "OP-01",
+      "a": "TBL-L-ITEMS",
+      "relacion": "escribe"
+    },
+    {
+      "de": "OP-02",
+      "a": "TBL-L-ITEMS",
+      "relacion": "escribe"
+    },
+    {
+      "de": "OP-03",
+      "a": "TBL-L-ITEMS",
+      "relacion": "escribe"
+    },
+    {
+      "de": "OP-04",
+      "a": "TBL-L-ITEMS",
+      "relacion": "lee"
+    },
+    {
+      "de": "OP-05",
+      "a": "TBL-L-ITEMS",
+      "relacion": "lee"
+    },
+    {
+      "de": "OP-07",
+      "a": "TBL-L-ITEMS",
+      "relacion": "lee"
+    },
+    {
+      "de": "OP-09",
+      "a": "TBL-L-ITEMS",
+      "relacion": "lee"
+    },
+    {
+      "de": "OP-09",
+      "a": "TBL-L-BREACH",
+      "relacion": "lee"
+    },
+    {
+      "de": "OP-10",
+      "a": "TBL-L-ITEMS",
+      "relacion": "lee"
+    },
+    {
+      "de": "OP-10",
+      "a": "TBL-L-BREACH",
+      "relacion": "escribe"
+    },
+    {
+      "de": "OP-11",
+      "a": "TBL-USERS",
+      "relacion": "lee"
+    },
+    {
+      "de": "OP-11",
+      "a": "KV-REDIS",
+      "relacion": "lee"
+    },
+    {
+      "de": "OP-11",
+      "a": "TBL-USERS",
+      "relacion": "escribe"
+    },
+    {
+      "de": "OP-11",
+      "a": "TBL-EMAILV",
+      "relacion": "escribe"
+    },
+    {
+      "de": "OP-11",
+      "a": "TBL-AUDIT",
+      "relacion": "escribe"
+    },
+    {
+      "de": "OP-11",
+      "a": "TBL-AUDITPII",
+      "relacion": "escribe"
+    },
+    {
+      "de": "OP-11",
+      "a": "TX-01",
+      "relacion": "ejecuta"
+    },
+    {
+      "de": "OP-12",
+      "a": "TBL-EMAILV",
+      "relacion": "lee"
+    },
+    {
+      "de": "OP-12",
+      "a": "TBL-EMAILV",
+      "relacion": "escribe"
+    },
+    {
+      "de": "OP-12",
+      "a": "TBL-USERS",
+      "relacion": "escribe"
+    },
+    {
+      "de": "OP-12",
+      "a": "TBL-AUDIT",
+      "relacion": "escribe"
+    },
+    {
+      "de": "OP-12",
+      "a": "TX-13",
+      "relacion": "ejecuta"
+    },
+    {
+      "de": "OP-13",
+      "a": "TBL-USERS",
+      "relacion": "lee"
+    },
+    {
+      "de": "OP-13",
+      "a": "TX-02",
+      "relacion": "ejecuta"
+    },
+    {
+      "de": "OP-14",
+      "a": "TBL-USERS",
+      "relacion": "lee"
+    },
+    {
+      "de": "OP-14",
+      "a": "TBL-2FA",
+      "relacion": "lee"
+    },
+    {
+      "de": "OP-14",
+      "a": "KV-REDIS",
+      "relacion": "lee"
+    },
+    {
+      "de": "OP-14",
+      "a": "TBL-SESSIONS",
+      "relacion": "escribe"
+    },
+    {
+      "de": "OP-14",
+      "a": "TBL-AUDIT",
+      "relacion": "escribe"
+    },
+    {
+      "de": "OP-14",
+      "a": "TBL-AUDITPII",
+      "relacion": "escribe"
+    },
+    {
+      "de": "OP-14",
+      "a": "KV-REDIS",
+      "relacion": "escribe"
+    },
+    {
+      "de": "OP-14",
+      "a": "TX-03",
+      "relacion": "ejecuta"
+    },
+    {
+      "de": "OP-15",
+      "a": "TBL-2FA",
+      "relacion": "lee"
+    },
+    {
+      "de": "OP-15",
+      "a": "KV-REDIS",
+      "relacion": "lee"
+    },
+    {
+      "de": "OP-15",
+      "a": "TBL-2FA",
+      "relacion": "escribe"
+    },
+    {
+      "de": "OP-15",
+      "a": "TBL-SESSIONS",
+      "relacion": "escribe"
+    },
+    {
+      "de": "OP-15",
+      "a": "TBL-AUDIT",
+      "relacion": "escribe"
+    },
+    {
+      "de": "OP-15",
+      "a": "TX-04",
+      "relacion": "ejecuta"
+    },
+    {
+      "de": "OP-16",
+      "a": "TBL-RECOVERY",
+      "relacion": "lee"
+    },
+    {
+      "de": "OP-16",
+      "a": "TBL-RECOVERY",
+      "relacion": "escribe"
+    },
+    {
+      "de": "OP-16",
+      "a": "TBL-SESSIONS",
+      "relacion": "escribe"
+    },
+    {
+      "de": "OP-16",
+      "a": "TBL-AUDIT",
+      "relacion": "escribe"
+    },
+    {
+      "de": "OP-16",
+      "a": "TX-05",
+      "relacion": "ejecuta"
+    },
+    {
+      "de": "OP-17",
+      "a": "TBL-SESSIONS",
+      "relacion": "lee"
+    },
+    {
+      "de": "OP-17",
+      "a": "TBL-SESSIONS",
+      "relacion": "escribe"
+    },
+    {
+      "de": "OP-17",
+      "a": "TX-06",
+      "relacion": "ejecuta"
+    },
+    {
+      "de": "OP-18",
+      "a": "TBL-SESSIONS",
+      "relacion": "escribe"
+    },
+    {
+      "de": "OP-18",
+      "a": "TBL-AUDIT",
+      "relacion": "escribe"
+    },
+    {
+      "de": "OP-18",
+      "a": "KV-REDIS",
+      "relacion": "escribe"
+    },
+    {
+      "de": "OP-18",
+      "a": "KV-DATASTORE",
+      "relacion": "escribe"
+    },
+    {
+      "de": "OP-18",
+      "a": "TX-07",
+      "relacion": "ejecuta"
+    },
+    {
+      "de": "OP-19",
+      "a": "TBL-L-ACCOUNT",
+      "relacion": "lee"
+    },
+    {
+      "de": "OP-20",
+      "a": "TBL-L-ACCOUNT",
+      "relacion": "lee"
+    },
+    {
+      "de": "OP-21",
+      "a": "KV-DATASTORE",
+      "relacion": "lee"
+    },
+    {
+      "de": "OP-22",
+      "a": "TBL-2FA",
+      "relacion": "lee"
+    },
+    {
+      "de": "OP-22",
+      "a": "TBL-2FA",
+      "relacion": "escribe"
+    },
+    {
+      "de": "OP-22",
+      "a": "TX-11",
+      "relacion": "ejecuta"
+    },
+    {
+      "de": "OP-23",
+      "a": "TBL-2FA",
+      "relacion": "lee"
+    },
+    {
+      "de": "OP-23",
+      "a": "TBL-2FA",
+      "relacion": "escribe"
+    },
+    {
+      "de": "OP-23",
+      "a": "TBL-RECOVERY",
+      "relacion": "escribe"
+    },
+    {
+      "de": "OP-23",
+      "a": "TBL-AUDIT",
+      "relacion": "escribe"
+    },
+    {
+      "de": "OP-23",
+      "a": "TX-11",
+      "relacion": "ejecuta"
+    },
+    {
+      "de": "OP-24",
+      "a": "TBL-2FA",
+      "relacion": "escribe"
+    },
+    {
+      "de": "OP-24",
+      "a": "TBL-RECOVERY",
+      "relacion": "escribe"
+    },
+    {
+      "de": "OP-24",
+      "a": "TBL-AUDIT",
+      "relacion": "escribe"
+    },
+    {
+      "de": "OP-24",
+      "a": "TX-12",
+      "relacion": "ejecuta"
+    },
+    {
+      "de": "OP-25",
+      "a": "TBL-RECOVERY",
+      "relacion": "escribe"
+    },
+    {
+      "de": "OP-25",
+      "a": "TBL-AUDIT",
+      "relacion": "escribe"
+    },
+    {
+      "de": "OP-25",
+      "a": "TX-12",
+      "relacion": "ejecuta"
+    },
+    {
+      "de": "OP-26",
+      "a": "TBL-USERS",
+      "relacion": "lee"
+    },
+    {
+      "de": "OP-26",
+      "a": "TBL-EMAILV",
+      "relacion": "escribe"
+    },
+    {
+      "de": "OP-26",
+      "a": "TBL-USERS",
+      "relacion": "escribe"
+    },
+    {
+      "de": "OP-26",
+      "a": "TBL-AUDIT",
+      "relacion": "escribe"
+    },
+    {
+      "de": "OP-26",
+      "a": "TX-13",
+      "relacion": "ejecuta"
+    },
+    {
+      "de": "OP-27",
+      "a": "TBL-USERS",
+      "relacion": "lee"
+    },
+    {
+      "de": "OP-27",
+      "a": "TBL-USERS",
+      "relacion": "escribe"
+    },
+    {
+      "de": "OP-27",
+      "a": "TBL-SESSIONS",
+      "relacion": "escribe"
+    },
+    {
+      "de": "OP-27",
+      "a": "TBL-AUDIT",
+      "relacion": "escribe"
+    },
+    {
+      "de": "OP-27",
+      "a": "TBL-L-ACCOUNT",
+      "relacion": "escribe"
+    },
+    {
+      "de": "OP-27",
+      "a": "TX-10",
+      "relacion": "ejecuta"
+    },
+    {
+      "de": "OP-28",
+      "a": "TBL-USERS",
+      "relacion": "lee"
+    },
+    {
+      "de": "OP-28",
+      "a": "TBL-ITEMS",
+      "relacion": "escribe"
+    },
+    {
+      "de": "OP-28",
+      "a": "TBL-SESSIONS",
+      "relacion": "escribe"
+    },
+    {
+      "de": "OP-28",
+      "a": "TBL-2FA",
+      "relacion": "escribe"
+    },
+    {
+      "de": "OP-28",
+      "a": "TBL-EMAILV",
+      "relacion": "escribe"
+    },
+    {
+      "de": "OP-28",
+      "a": "TBL-USERS",
+      "relacion": "escribe"
+    },
+    {
+      "de": "OP-28",
+      "a": "TBL-AUDIT",
+      "relacion": "escribe"
+    },
+    {
+      "de": "OP-28",
+      "a": "TBL-L-ACCOUNT",
+      "relacion": "escribe"
+    },
+    {
+      "de": "OP-28",
+      "a": "TBL-L-ITEMS",
+      "relacion": "escribe"
+    },
+    {
+      "de": "OP-28",
+      "a": "KV-DATASTORE",
+      "relacion": "escribe"
+    },
+    {
+      "de": "OP-28",
+      "a": "TX-14",
+      "relacion": "ejecuta"
+    },
+    {
+      "de": "OP-29",
+      "a": "TBL-SESSIONS",
+      "relacion": "lee"
+    },
+    {
+      "de": "OP-30",
+      "a": "TBL-SESSIONS",
+      "relacion": "escribe"
+    },
+    {
+      "de": "OP-30",
+      "a": "TBL-AUDIT",
+      "relacion": "escribe"
+    },
+    {
+      "de": "OP-30",
+      "a": "KV-REDIS",
+      "relacion": "escribe"
+    },
+    {
+      "de": "OP-30",
+      "a": "TX-07",
+      "relacion": "ejecuta"
+    },
+    {
+      "de": "OP-31",
+      "a": "TBL-AUDIT",
+      "relacion": "lee"
+    },
+    {
+      "de": "OP-31",
+      "a": "TBL-AUDITPII",
+      "relacion": "lee"
+    },
+    {
+      "de": "OP-32",
+      "a": "TBL-USERS",
+      "relacion": "lee"
+    },
+    {
+      "de": "OP-32",
+      "a": "TBL-ITEMS",
+      "relacion": "lee"
+    },
+    {
+      "de": "OP-32",
+      "a": "TBL-L-ITEMS",
+      "relacion": "escribe"
+    },
+    {
+      "de": "OP-32",
+      "a": "TBL-L-ACCOUNT",
+      "relacion": "escribe"
+    },
+    {
+      "de": "OP-32",
+      "a": "TX-09",
+      "relacion": "ejecuta"
+    },
+    {
+      "de": "OP-33",
+      "a": "TBL-USERS",
+      "relacion": "lee"
+    },
+    {
+      "de": "OP-33",
+      "a": "TBL-ITEMS",
+      "relacion": "lee"
+    },
+    {
+      "de": "OP-33",
+      "a": "TBL-L-ITEMS",
+      "relacion": "escribe"
+    },
+    {
+      "de": "OP-33",
+      "a": "TBL-L-ACCOUNT",
+      "relacion": "escribe"
+    },
+    {
+      "de": "OP-33",
+      "a": "TX-09",
+      "relacion": "ejecuta"
+    },
+    {
+      "de": "OP-34",
+      "a": "TBL-L-ITEMS",
+      "relacion": "lee"
+    },
+    {
+      "de": "OP-34",
+      "a": "TBL-USERS",
+      "relacion": "lee"
+    },
+    {
+      "de": "OP-34",
+      "a": "TBL-ITEMS",
+      "relacion": "lee"
+    },
+    {
+      "de": "OP-34",
+      "a": "TBL-ITEMS",
+      "relacion": "escribe"
+    },
+    {
+      "de": "OP-34",
+      "a": "TBL-USERS",
+      "relacion": "escribe"
+    },
+    {
+      "de": "OP-34",
+      "a": "TBL-L-ITEMS",
+      "relacion": "escribe"
+    },
+    {
+      "de": "OP-34",
+      "a": "TX-08",
+      "relacion": "ejecuta"
+    },
+    {
+      "de": "OP-35",
+      "a": "TBL-L-ACCOUNT",
+      "relacion": "escribe"
+    },
+    {
+      "de": "OP-35",
+      "a": "KV-DATASTORE",
+      "relacion": "escribe"
+    },
+    {
+      "de": "OP-36",
+      "a": "KV-DATASTORE",
+      "relacion": "escribe"
+    },
+    {
+      "de": "OP-37",
+      "a": "TBL-AUDIT",
+      "relacion": "escribe"
+    },
+    {
+      "de": "OP-37",
+      "a": "TBL-AUDITPII",
+      "relacion": "escribe"
+    },
+    {
+      "de": "OP-38",
+      "a": "TBL-USERS",
+      "relacion": "lee"
+    },
+    {
+      "de": "OP-39",
+      "a": "KV-REDIS",
+      "relacion": "lee"
+    },
+    {
+      "de": "OP-39",
+      "a": "KV-REDIS",
+      "relacion": "escribe"
+    },
+    {
+      "de": "OP-39",
+      "a": "TBL-AUDIT",
+      "relacion": "escribe"
+    },
+    {
+      "de": "OP-40",
+      "a": "TBL-ITEMS",
+      "relacion": "escribe"
+    },
+    {
+      "de": "OP-40",
+      "a": "TBL-SESSIONS",
+      "relacion": "escribe"
+    },
+    {
+      "de": "OP-40",
+      "a": "TBL-EMAILV",
+      "relacion": "escribe"
+    },
+    {
+      "de": "OP-40",
+      "a": "TBL-2FA",
+      "relacion": "escribe"
+    },
+    {
+      "de": "OP-40",
+      "a": "TBL-AUDITPII",
+      "relacion": "escribe"
+    },
+    {
+      "de": "OP-40",
+      "a": "TBL-USERS",
+      "relacion": "escribe"
+    },
+    {
+      "de": "OP-40",
+      "a": "TX-15",
+      "relacion": "ejecuta"
+    },
+    {
+      "de": "OP-41",
+      "a": "TBL-AUDITPII",
+      "relacion": "escribe"
+    },
+    {
+      "de": "OP-41",
+      "a": "TBL-USERS",
+      "relacion": "escribe"
+    },
+    {
+      "de": "OP-41",
+      "a": "TBL-AUDIT",
+      "relacion": "escribe"
+    },
+    {
+      "de": "OP-41",
+      "a": "TX-15",
+      "relacion": "ejecuta"
+    },
+    {
+      "de": "OP-42",
+      "a": "TBL-USERS",
+      "relacion": "escribe"
+    },
+    {
+      "de": "FDA-01",
+      "a": "RES-03",
+      "relacion": "excluido_por"
+    },
+    {
+      "de": "DEC-36",
+      "a": "FDA-01",
+      "relacion": "excluye"
+    },
+    {
+      "de": "FDA-02",
+      "a": "RES-01",
+      "relacion": "excluido_por"
+    },
+    {
+      "de": "DEC-36",
+      "a": "FDA-02",
+      "relacion": "excluye"
+    },
+    {
+      "de": "FDA-03",
+      "a": "RES-01",
+      "relacion": "excluido_por"
+    },
+    {
+      "de": "DEC-36",
+      "a": "FDA-03",
+      "relacion": "excluye"
+    },
+    {
+      "de": "FDA-04",
+      "a": "RES-04",
+      "relacion": "excluido_por"
+    },
+    {
+      "de": "DEC-36",
+      "a": "FDA-04",
+      "relacion": "excluye"
+    },
+    {
+      "de": "FDA-05",
+      "a": "RES-01",
+      "relacion": "excluido_por"
+    },
+    {
+      "de": "DEC-36",
+      "a": "FDA-05",
+      "relacion": "excluye"
+    },
+    {
+      "de": "FDA-06",
+      "a": "RES-01",
+      "relacion": "excluido_por"
+    },
+    {
+      "de": "DEC-36",
+      "a": "FDA-06",
+      "relacion": "excluye"
+    },
+    {
+      "de": "FDA-07",
+      "a": "RES-01",
+      "relacion": "excluido_por"
+    },
+    {
+      "de": "DEC-36",
+      "a": "FDA-07",
+      "relacion": "excluye"
+    },
+    {
+      "de": "FDA-08",
+      "a": "RES-01",
+      "relacion": "excluido_por"
+    },
+    {
+      "de": "DEC-36",
+      "a": "FDA-08",
+      "relacion": "excluye"
+    },
+    {
+      "de": "FDA-09",
+      "a": "RES-01",
+      "relacion": "excluido_por"
+    },
+    {
+      "de": "DEC-36",
+      "a": "FDA-09",
+      "relacion": "excluye"
+    },
+    {
+      "de": "FDA-10",
+      "a": "RES-01",
+      "relacion": "excluido_por"
+    },
+    {
+      "de": "DEC-36",
+      "a": "FDA-10",
+      "relacion": "excluye"
+    },
+    {
+      "de": "PEND-01",
+      "a": "DEC-05",
+      "relacion": "afina"
+    },
+    {
+      "de": "PEND-02",
+      "a": "DEC-10",
+      "relacion": "afina"
+    },
+    {
+      "de": "PEND-03",
+      "a": "DEC-31",
+      "relacion": "afina"
+    },
+    {
+      "de": "PEND-04",
+      "a": "DEC-16",
+      "relacion": "afina"
+    },
+    {
+      "de": "PEND-05",
+      "a": "DEC-19",
+      "relacion": "afina"
+    },
+    {
+      "de": "PEND-06",
+      "a": "DEC-48",
+      "relacion": "afina"
+    },
+    {
+      "de": "PEND-07",
+      "a": "DEC-34",
+      "relacion": "afina"
+    },
+    {
+      "de": "PEND-07",
+      "a": "DEC-49",
+      "relacion": "resuelta_por"
+    },
+    {
+      "de": "PEND-08",
+      "a": "DEC-21",
+      "relacion": "afina"
+    },
+    {
+      "de": "PEND-09",
+      "a": "DEC-34",
+      "relacion": "afina"
+    },
+    {
+      "de": "PEND-09",
+      "a": "DEC-48",
+      "relacion": "resuelta_por"
+    },
+    {
+      "de": "PEND-10",
+      "a": "DEC-38",
+      "relacion": "afina"
+    },
+    {
+      "de": "INV-01",
+      "a": "DEC-05",
+      "relacion": "deriva_de"
+    },
+    {
+      "de": "INV-01",
+      "a": "DEC-04",
+      "relacion": "deriva_de"
+    },
+    {
+      "de": "INV-02",
+      "a": "DEC-01",
+      "relacion": "deriva_de"
+    },
+    {
+      "de": "INV-03",
+      "a": "DEC-29",
+      "relacion": "deriva_de"
+    },
+    {
+      "de": "INV-04",
+      "a": "DEC-24",
+      "relacion": "deriva_de"
+    },
+    {
+      "de": "INV-04",
+      "a": "DEC-28",
+      "relacion": "deriva_de"
+    },
+    {
+      "de": "INV-05",
+      "a": "DEC-28",
+      "relacion": "deriva_de"
+    },
+    {
+      "de": "INV-06",
+      "a": "DEC-27",
+      "relacion": "deriva_de"
+    },
+    {
+      "de": "INV-07",
+      "a": "DEC-27",
+      "relacion": "deriva_de"
+    },
+    {
+      "de": "INV-07",
+      "a": "DEC-08",
+      "relacion": "deriva_de"
+    },
+    {
+      "de": "INV-08",
+      "a": "DEC-17",
+      "relacion": "deriva_de"
+    },
+    {
+      "de": "INV-09",
+      "a": "DEC-02",
+      "relacion": "deriva_de"
+    },
+    {
+      "de": "INV-10",
+      "a": "DEC-18",
+      "relacion": "deriva_de"
+    },
+    {
+      "de": "INV-10",
+      "a": "DEC-11",
+      "relacion": "deriva_de"
+    },
+    {
+      "de": "INV-11",
+      "a": "DEC-19",
+      "relacion": "deriva_de"
+    },
+    {
+      "de": "INV-12",
+      "a": "DEC-07",
+      "relacion": "deriva_de"
+    },
+    {
+      "de": "INV-12",
+      "a": "DEC-13",
+      "relacion": "deriva_de"
+    },
+    {
+      "de": "INV-13",
+      "a": "DEC-20",
+      "relacion": "deriva_de"
+    },
+    {
+      "de": "INV-14",
+      "a": "DEC-21",
+      "relacion": "deriva_de"
+    },
+    {
+      "de": "INV-15",
+      "a": "DEC-26",
+      "relacion": "deriva_de"
+    },
+    {
+      "de": "INV-16",
+      "a": "DEC-13",
+      "relacion": "deriva_de"
+    },
+    {
+      "de": "INV-17",
+      "a": "DEC-23",
+      "relacion": "deriva_de"
+    },
+    {
+      "de": "INV-18",
+      "a": "DEC-22",
+      "relacion": "deriva_de"
+    },
+    {
+      "de": "INV-19",
+      "a": "DEC-33",
+      "relacion": "deriva_de"
+    },
+    {
+      "de": "INV-19",
+      "a": "DEC-38",
+      "relacion": "deriva_de"
+    },
+    {
+      "de": "INV-20",
+      "a": "DEC-46",
+      "relacion": "deriva_de"
+    },
+    {
+      "de": "INV-21",
+      "a": "DEC-46",
+      "relacion": "deriva_de"
+    },
+    {
+      "de": "INV-22",
+      "a": "DEC-46",
+      "relacion": "deriva_de"
+    },
+    {
+      "de": "INV-22",
+      "a": "DEC-19",
+      "relacion": "deriva_de"
+    },
+    {
+      "de": "INV-23",
+      "a": "DEC-44",
+      "relacion": "deriva_de"
+    },
+    {
+      "de": "INV-24",
+      "a": "DEC-45",
+      "relacion": "deriva_de"
+    },
+    {
+      "de": "INV-25",
+      "a": "DEC-16",
+      "relacion": "deriva_de"
+    },
+    {
+      "de": "INV-26",
+      "a": "DEC-43",
+      "relacion": "deriva_de"
+    },
+    {
+      "de": "INV-27",
+      "a": "DEC-47",
+      "relacion": "deriva_de"
+    },
+    {
+      "de": "DEC-01",
+      "a": "TEC-ROOM",
+      "relacion": "usa"
+    },
+    {
+      "de": "DEC-01",
+      "a": "TEC-WORK",
+      "relacion": "usa"
+    },
+    {
+      "de": "DEC-02",
+      "a": "TEC-PG",
+      "relacion": "usa"
+    },
+    {
+      "de": "DEC-02",
+      "a": "TEC-ROOM",
+      "relacion": "usa"
+    },
+    {
+      "de": "DEC-05",
+      "a": "TEC-ARGON2",
+      "relacion": "usa"
+    },
+    {
+      "de": "DEC-05",
+      "a": "TEC-HKDF",
+      "relacion": "usa"
+    },
+    {
+      "de": "DEC-05",
+      "a": "TEC-AESGCM",
+      "relacion": "usa"
+    },
+    {
+      "de": "DEC-08",
+      "a": "TEC-ARGON2",
+      "relacion": "usa"
+    },
+    {
+      "de": "DEC-08",
+      "a": "TEC-AESGCM",
+      "relacion": "usa"
+    },
+    {
+      "de": "DEC-09",
+      "a": "TEC-KEYSTORE",
+      "relacion": "usa"
+    },
+    {
+      "de": "DEC-09",
+      "a": "TEC-BIOMETRIC",
+      "relacion": "usa"
+    },
+    {
+      "de": "DEC-11",
+      "a": "TEC-TOTP",
+      "relacion": "usa"
+    },
+    {
+      "de": "DEC-11",
+      "a": "TEC-REDIS",
+      "relacion": "usa"
+    },
+    {
+      "de": "DEC-11",
+      "a": "TEC-ZXING",
+      "relacion": "usa"
+    },
+    {
+      "de": "DEC-13",
+      "a": "TEC-RESEND",
+      "relacion": "usa"
+    },
+    {
+      "de": "DEC-16",
+      "a": "TEC-JWT",
+      "relacion": "usa"
+    },
+    {
+      "de": "DEC-16",
+      "a": "TEC-REDIS",
+      "relacion": "usa"
+    },
+    {
+      "de": "DEC-16",
+      "a": "TEC-DATASTORE",
+      "relacion": "usa"
+    },
+    {
+      "de": "DEC-16",
+      "a": "TEC-KEYSTORE",
+      "relacion": "usa"
+    },
+    {
+      "de": "DEC-19",
+      "a": "TEC-PG",
+      "relacion": "usa"
+    },
+    {
+      "de": "DEC-20",
+      "a": "TEC-ZXCVBN",
+      "relacion": "usa"
+    },
+    {
+      "de": "DEC-20",
+      "a": "TEC-HIBP",
+      "relacion": "usa"
+    },
+    {
+      "de": "DEC-21",
+      "a": "TEC-HIBP",
+      "relacion": "usa"
+    },
+    {
+      "de": "DEC-21",
+      "a": "TEC-NET",
+      "relacion": "usa"
+    },
+    {
+      "de": "DEC-22",
+      "a": "TEC-TLS",
+      "relacion": "usa"
+    },
+    {
+      "de": "DEC-22",
+      "a": "TEC-LE",
+      "relacion": "usa"
+    },
+    {
+      "de": "DEC-22",
+      "a": "TEC-NET",
+      "relacion": "usa"
+    },
+    {
+      "de": "DEC-23",
+      "a": "TEC-DOCKER",
+      "relacion": "usa"
+    },
+    {
+      "de": "DEC-23",
+      "a": "TEC-PG",
+      "relacion": "usa"
+    },
+    {
+      "de": "DEC-23",
+      "a": "TEC-REDIS",
+      "relacion": "usa"
+    },
+    {
+      "de": "DEC-23",
+      "a": "TEC-NEST",
+      "relacion": "usa"
+    },
+    {
+      "de": "DEC-23",
+      "a": "TEC-LE",
+      "relacion": "usa"
+    },
+    {
+      "de": "DEC-29",
+      "a": "TEC-AESGCM",
+      "relacion": "usa"
+    },
+    {
+      "de": "DEC-32",
+      "a": "TEC-REDIS",
+      "relacion": "usa"
+    },
+    {
+      "de": "DEC-33",
+      "a": "TEC-KOTLIN",
+      "relacion": "usa"
+    },
+    {
+      "de": "DEC-33",
+      "a": "TEC-HILT",
+      "relacion": "usa"
+    },
+    {
+      "de": "DEC-33",
+      "a": "TEC-ROOM",
+      "relacion": "usa"
+    },
+    {
+      "de": "DEC-33",
+      "a": "TEC-WORK",
+      "relacion": "usa"
+    },
+    {
+      "de": "DEC-33",
+      "a": "TEC-NET",
+      "relacion": "usa"
+    },
+    {
+      "de": "DEC-33",
+      "a": "TEC-DATASTORE",
+      "relacion": "usa"
+    },
+    {
+      "de": "DEC-38",
+      "a": "TEC-CLAUDE",
+      "relacion": "usa"
+    },
+    {
+      "de": "DEC-44",
+      "a": "TEC-PG",
+      "relacion": "usa"
+    },
+    {
+      "de": "DEC-45",
+      "a": "TEC-PG",
+      "relacion": "usa"
+    },
+    {
+      "de": "DEC-46",
+      "a": "TEC-PG",
+      "relacion": "usa"
+    },
+    {
+      "de": "DEC-47",
+      "a": "TEC-ROOM",
+      "relacion": "usa"
+    },
+    {
+      "de": "DEC-47",
+      "a": "TEC-WORK",
+      "relacion": "usa"
+    },
+    {
+      "de": "DEC-48",
+      "a": "TEC-PG",
+      "relacion": "usa"
+    },
+    {
+      "de": "DEC-48",
+      "a": "TEC-DOCKER",
+      "relacion": "usa"
+    },
+    {
+      "de": "DEC-43",
+      "a": "TEC-PG",
+      "relacion": "usa"
+    },
+    {
+      "de": "DEC-02",
+      "a": "DEC-01",
+      "relacion": "depende_de"
+    },
+    {
+      "de": "DEC-02",
+      "a": "DEC-03",
+      "relacion": "depende_de"
+    },
+    {
+      "de": "DEC-17",
+      "a": "DEC-03",
+      "relacion": "depende_de"
+    },
+    {
+      "de": "DEC-08",
+      "a": "DEC-05",
+      "relacion": "depende_de"
+    },
+    {
+      "de": "DEC-09",
+      "a": "DEC-05",
+      "relacion": "depende_de"
+    },
+    {
+      "de": "DEC-07",
+      "a": "DEC-06",
+      "relacion": "depende_de"
+    },
+    {
+      "de": "DEC-12",
+      "a": "DEC-11",
+      "relacion": "depende_de"
+    },
+    {
+      "de": "DEC-20",
+      "a": "DEC-21",
+      "relacion": "depende_de"
+    },
+    {
+      "de": "DEC-20",
+      "a": "DEC-04",
+      "relacion": "depende_de"
+    },
+    {
+      "de": "DEC-15",
+      "a": "DEC-04",
+      "relacion": "depende_de"
+    },
+    {
+      "de": "DEC-29",
+      "a": "DEC-03",
+      "relacion": "depende_de"
+    },
+    {
+      "de": "DEC-34",
+      "a": "DEC-04",
+      "relacion": "depende_de"
+    },
+    {
+      "de": "DEC-18",
+      "a": "DEC-19",
+      "relacion": "depende_de"
+    },
+    {
+      "de": "DEC-22",
+      "a": "DEC-23",
+      "relacion": "depende_de"
+    },
+    {
+      "de": "DEC-39",
+      "a": "DEC-02",
+      "relacion": "depende_de"
+    },
+    {
+      "de": "DEC-40",
+      "a": "DEC-17",
+      "relacion": "depende_de"
+    },
+    {
+      "de": "DEC-40",
+      "a": "DEC-39",
+      "relacion": "depende_de"
+    },
+    {
+      "de": "DEC-41",
+      "a": "DEC-05",
+      "relacion": "depende_de"
+    },
+    {
+      "de": "DEC-47",
+      "a": "DEC-01",
+      "relacion": "depende_de"
+    },
+    {
+      "de": "DEC-47",
+      "a": "DEC-29",
+      "relacion": "depende_de"
+    },
+    {
+      "de": "DEC-44",
+      "a": "DEC-39",
+      "relacion": "depende_de"
+    },
+    {
+      "de": "DEC-44",
+      "a": "DEC-16",
+      "relacion": "depende_de"
+    },
+    {
+      "de": "DEC-12",
+      "a": "DEC-43",
+      "relacion": "depende_de"
+    },
+    {
+      "de": "DEC-13",
+      "a": "DEC-43",
+      "relacion": "depende_de"
+    },
+    {
+      "de": "DEC-49",
+      "a": "DEC-34",
+      "relacion": "depende_de"
+    },
+    {
+      "de": "DEC-48",
+      "a": "DEC-45",
+      "relacion": "depende_de"
+    },
+    {
+      "de": "RES-01",
+      "a": "DEC-36",
+      "relacion": "motiva"
+    },
+    {
+      "de": "RES-02",
+      "a": "DEC-36",
+      "relacion": "motiva"
+    },
+    {
+      "de": "RES-01",
+      "a": "DEC-02",
+      "relacion": "motiva"
+    },
+    {
+      "de": "RES-03",
+      "a": "DEC-28",
+      "relacion": "motiva"
+    },
+    {
+      "de": "RES-03",
+      "a": "DEC-33",
+      "relacion": "motiva"
+    },
+    {
+      "de": "RES-05",
+      "a": "DEC-22",
+      "relacion": "motiva"
+    },
+    {
+      "de": "RES-05",
+      "a": "DEC-23",
+      "relacion": "motiva"
+    },
+    {
+      "de": "RES-04",
+      "a": "DEC-37",
+      "relacion": "motiva"
+    },
+    {
+      "de": "RES-01",
+      "a": "DEC-14",
+      "relacion": "motiva"
+    },
+    {
+      "de": "RES-01",
+      "a": "DEC-15",
+      "relacion": "motiva"
+    },
+    {
+      "de": "RES-03",
+      "a": "DEC-38",
+      "relacion": "motiva"
+    },
+    {
+      "de": "RES-03",
+      "a": "DEC-44",
+      "relacion": "motiva"
+    },
+    {
+      "de": "DEC-14",
+      "a": "ACT-01",
+      "relacion": "asigna_monitoreo_a"
+    },
+    {
+      "de": "DEC-05",
+      "a": "ACT-03",
+      "relacion": "trata_como_no_confiable"
+    },
+    {
+      "de": "TEC-ESP",
+      "a": "DEC-16",
+      "relacion": "reemplazada_en"
+    },
+    {
+      "de": "TEC-OAUTH2",
+      "a": "DEC-35",
+      "relacion": "retirada_en"
+    },
+    {
+      "de": "DEC-05",
+      "a": "OBJ-01",
+      "relacion": "cumple"
+    },
+    {
+      "de": "DEC-28",
+      "a": "OBJ-01",
+      "relacion": "cumple"
+    },
+    {
+      "de": "DEC-29",
+      "a": "OBJ-01",
+      "relacion": "cumple"
+    },
+    {
+      "de": "DEC-16",
+      "a": "OBJ-02",
+      "relacion": "cumple"
+    },
+    {
+      "de": "DEC-11",
+      "a": "OBJ-02",
+      "relacion": "cumple"
+    },
+    {
+      "de": "DEC-19",
+      "a": "OBJ-02",
+      "relacion": "cumple"
+    },
+    {
+      "de": "DEC-02",
+      "a": "OBJ-02",
+      "relacion": "cumple"
+    },
+    {
+      "de": "DEC-21",
+      "a": "OBJ-03",
+      "relacion": "cumple"
+    },
+    {
+      "de": "DEC-30",
+      "a": "OBJ-04",
+      "relacion": "cumple"
+    },
+    {
+      "de": "DEC-22",
+      "a": "OBJ-04",
+      "relacion": "cumple"
+    },
+    {
+      "de": "DEC-20",
+      "a": "OBJ-05",
+      "relacion": "cumple"
+    }
+  ]
+}
