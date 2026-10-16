@@ -1,6 +1,6 @@
 # End Security — Modelo de datos
 
-> **Estado:** propuesta v1 · 2026-10-14 · pendiente de aprobación del equipo
+> **Estado:** propuesta v1.1 · 2026-10-15 · pendiente de aprobación del equipo (v1.1: tabla local `health_snapshots` y resolución de conflictos elegida por el usuario)
 > **Archivos:** `schema.sql` (DDL PostgreSQL) · `pruebas_esquema.sql` (36 pruebas automáticas + 1 de concurrencia; todas pasan en PostgreSQL 16) · diagrama ER en FigJam: <https://www.figma.com/board/w1hMfKUxNDxk6hFTV2h9JW>
 > **Base:** tabla de operaciones del equipo + `ai/context/knowledge-graph.json`
 
@@ -227,6 +227,21 @@ Las migraciones las ejecuta un tercer rol dueño del esquema. La API **nunca** s
 | nonce, ciphertext | BLOB | `{ "pwned_count": n }` |
 | checked_at | INTEGER | |
 
+**`health_snapshots`** — historial de la salud de la bóveda para las estadísticas de «Progreso» (DEC-55). **Cifrada** con la `vault_key`.
+
+| Columna | Tipo | Nota |
+|---|---|---|
+| day | TEXT PK | Fecha local `AAAA-MM-DD`; una fila por día como máximo |
+| format_version | INTEGER | |
+| nonce, ciphertext | BLOB | `{ "score": 78, "total": 24, "weak": 4, "fair": 6, "strong": 14, "reused": 3, "breached": 2, "old": 5 }` |
+| created_at | INTEGER | epoch ms |
+
+- Solo guarda **totales**: nunca contraseñas, ni anteriores ni actuales, ni la fuerza de cada una (INV-29).
+- Se escribe con la bóveda desbloqueada, después de calcular la salud (OP-45). Si ya hay fila de hoy, se reemplaza.
+- Se borran las filas de más de 12 meses y la tabla completa al cerrar sesión o eliminar la cuenta.
+- **No existe en el servidor**: PostgreSQL no cambia. Si algún día se quiere sincronizar, puede viajar como un elemento cifrado más.
+- Requiere subir la versión de Room (o incluirla desde la versión 1 si aún no hay código de Room).
+
 No hace falta SQLCipher: Room solo contiene bloques cifrados, y con `allowBackup=false` no sale del teléfono. Room no soporta CHECK en anotaciones, así que las reglas se hacen cumplir con tipos de Kotlin (enums) y en los DAO.
 
 ### 8.2 Ciclo de un elemento local
@@ -245,11 +260,13 @@ No hace falta SQLCipher: Room solo contiene bloques cifrados, y con `allowBackup
 | Cambio remoto sobre fila `pending` | `conflict` |
 | Respuesta **410** | Descarga completa y reconciliación |
 
-**Resolver un conflicto requiere la `vault_key`**, porque la copia "(conflicto)" lleva un id nuevo, el id forma parte del AAD y por eso hay que volver a cifrarla. Como `SyncWorker` puede correr con el almacén bloqueado, solo marca `conflict`. Al desbloquear, `ConflictResolver`:
-1. descarga la versión del servidor;
-2. descifra la local;
-3. la guarda como elemento nuevo `pending` con sufijo "(conflicto)";
-4. reemplaza la fila original con la del servidor.
+**Resolver un conflicto requiere la `vault_key`**, porque hay que descifrar las dos versiones para mostrarlas y volver a cifrar la elegida. Como `SyncWorker` puede correr con el almacén bloqueado, solo marca `conflict`. Al desbloquear (DEC-57):
+1. la Bóveda muestra un solo aviso agrupado: «N contraseñas cambiaron en dos dispositivos · Resolver»;
+2. `ConflictResolver` descarga la versión del servidor de cada elemento en `conflict` y descifra ambas;
+3. el usuario elige en «Elegir versión» cuál conservar (OP-46);
+4. si elige la del servidor: se reemplaza la fila local y queda `synced`. Si elige la local: se vuelve a cifrar, `server_version` = versión del servidor y queda `pending` para subirse.
+
+No se crean copias "(conflicto)" ni se guardan contraseñas anteriores (FDA-11). Mientras no se resuelve, el elemento se puede usar con la versión de este teléfono.
 
 ### 8.3 DataStore
 
@@ -293,4 +310,4 @@ Ninguna clave contiene un correo en claro: se usa `HMAC(secreto, correo)`.
 | Plazos (PEND-05) | Lápidas 90 días · gracia de baja 30 días · IPs 90 días. Son parámetros de `run_maintenance()` |
 | ORM (PEND-06) | Cualquiera sirve. Las funciones se llaman con SQL directo (`$queryRaw` en Prisma o `query()` en TypeORM). Recomiendo usar `schema.sql` como **migración 001** con node-pg-migrate o las migraciones del ORM |
 | Versión de PostgreSQL | Probado en **16**. Usar la imagen `postgres:16` o `postgres:17` en Docker. En desarrollo se puede montar `schema.sql` en `/docker-entrypoint-initdb.d/` |
-| Actualizar el grafo | Registrar MD-01…MD-12 y corregir el anti-replay (MD-06), el borrado de usuarios (MD-03) y la PII de la bitácora (MD-04) |
+| Versión de Room | Incluir `health_snapshots` desde la versión 1 si aún no hay código de Room; si ya existe, migración 1 → 2 |

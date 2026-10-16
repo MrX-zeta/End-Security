@@ -240,7 +240,7 @@ SinCuenta ──registro/login──► Bloqueado ◄──bloquear / autobloque
 
 1. **Subir:** por cada elemento `PENDIENTE` envía `{id, blob, nonce, expectedVersion}`.
    - Respuesta `200` → marca el elemento como `SINCRONIZADO` con la versión nueva.
-   - Respuesta `409` → `ConflictResolver` guarda la versión local como un elemento nuevo con sufijo "(conflicto)" y acepta la del servidor.
+   - Respuesta `409` → el elemento queda en `conflict`; al desbloquear, la Bóveda muestra un aviso agrupado y el usuario elige qué versión conservar en «Elegir versión» (DEC-57). No se crean copias "(conflicto)".
 2. **Bajar:** pide `GET /vault/changes?cursor=…`, aplica los cambios (incluidas las lápidas) y guarda el cursor nuevo.
 3. Ante un `401`, `TokenAuthenticator` renueva el token. Si la renovación falla, el worker termina sin reintentar y la app pide iniciar sesión de nuevo.
 
@@ -281,10 +281,10 @@ Verifiquen la compatibilidad de cada librería con **AGP 9** antes de agregarla.
 | Biometría | androidx.biometric | Decidido |
 | Fuerza de contraseñas | zxcvbn4j | Propuesto |
 | Argon2id | argon2kt / lazysodium-android / Bouncy Castle | **Pendiente (PEND-01)** |
-| QR del 2FA | ZXing core | Propuesto |
+| ~~QR del 2FA~~ | ~~ZXing core~~ | Descartado (DEC-53: el 2FA se configura copiando la clave) |
 | Pruebas | JUnit, kotlinx-coroutines-test, Turbine, MockK, MockWebServer | Propuesto |
 
-**Detalle de UX en el 2FA.** Si Google Authenticator está en el mismo teléfono, el usuario no puede escanear un QR de su propia pantalla. La pantalla de configuración debe ofrecer tres cosas: el QR (para escanearlo desde otro dispositivo), el secreto como texto copiable y un botón **"Abrir en app autenticadora"** que lance el intent `otpauth://`.
+**Detalle de UX en el 2FA (DEC-53).** Si Google Authenticator está en el mismo teléfono, el usuario no puede escanear un QR de su propia pantalla. Por eso no hay QR: la pantalla muestra una sola vez la clave en Base32 (grupos de 4) con botón de copiar e instrucciones para agregarla a mano, con FLAG_SECURE y portapapeles marcado como sensible.
 
 ---
 

@@ -1,9 +1,9 @@
 {
   "meta": {
     "nombre": "Grafo de conocimiento — End Security",
-    "version": "1.2.0",
-    "actualizado": "2026-10-14",
-    "fase": "Alcance, modelo de datos e identidad visual (Carbón y miel) definidos. Onboarding y login diseñados en Figma. Siguiente: componentes y resto de vistas.",
+    "version": "1.3.0",
+    "actualizado": "2026-10-15",
+    "fase": "Diseño completo en Figma: 45 pantallas con prototipo navegable, flujos, estadísticas, estados de carga y sin conexión. Siguiente: implementación.",
     "historial": [
       {
         "version": "1.0.0",
@@ -14,6 +14,11 @@
         "version": "1.2.0",
         "fecha": "2026-10-14",
         "cambio": "Modelo de datos (tablas, transacciones, DEC-39..49), uso exclusivo de Claude Code (DEC-38), anti-replay TOTP a PostgreSQL, usuarios anonimizados en vez de borrados, PII de bitácora separada, carpetas MVVM."
+      },
+      {
+        "version": "1.3.0",
+        "fecha": "2026-10-15",
+        "cambio": "Vistas y flujos: tema claro para la app (DEC-51), candado = bloquear ahora (DEC-52), 2FA sin QR (DEC-53), estadísticas propias e historial local health_snapshots (DEC-54, DEC-55, TBL-L-HEALTH), navegación y confirmaciones (DEC-56), conflictos agrupados (DEC-57), carga y sin conexión (DEC-58), iconografía (DEC-59), Figma y prototipo (DEC-60). 45 nodos 'pantalla' con aristas navega_a e invoca. PEND-11 resuelto."
       }
     ],
     "proposito": "Fuente de verdad del contexto, decisiones técnicas y huecos resueltos del proyecto, para personas y agentes de IA.",
@@ -24,7 +29,8 @@
       "Para buscar un nodo usa Grep con su id (p. ej. \"DEC-05\" o \"TBL-ITEMS\"); no hace falta leer el archivo completo.",
       "Los nodos con estado 'propuesto', 'pendiente' o 'preliminar' NO son definitivos: preguntar antes de asumir.",
       "Nada de lo que esté en 'fuera_de_alcance' se implementa sin aprobación.",
-      "Al tomar una decisión nueva, agregar el nodo y sus relaciones, subir la versión y actualizar 'actualizado'."
+      "Al tomar una decisión nueva, agregar el nodo y sus relaciones, subir la versión y actualizar 'actualizado'.",
+      "Para implementar una vista, buscar su nodo 'pantalla' (SCR-xx): trae el id del nodo en Figma, la pestaña activa, si requiere red, qué operaciones invoca y a qué pantallas navega."
     ],
     "tipos_de_nodo": {
       "proyecto": "Raíz del grafo",
@@ -43,7 +49,8 @@
       "transaccion": "Transacción del servidor (ver docs/bd/modelo-datos.md §6)",
       "fuera_de_alcance": "Excluido del MVP",
       "pregunta_abierta": "Pendiente de decidir",
-      "invariante": "Regla obligatoria para todo el código"
+      "invariante": "Regla obligatoria para todo el código",
+      "pantalla": "Vista o estado de la app diseñado en Figma (DEC-60)"
     },
     "estados": {
       "decidido": "Acordado",
@@ -86,29 +93,33 @@
       "asigna_monitoreo_a": "decisión → actor",
       "trata_como_no_confiable": "decisión → actor",
       "reemplazada_en": "tecnología descartada → decisión",
-      "retirada_en": "tecnología descartada → decisión"
+      "retirada_en": "tecnología descartada → decisión",
+      "parte_de": "pantalla → módulo",
+      "navega_a": "pantalla → pantalla (nota = disparador)",
+      "invoca": "pantalla → operación"
     },
     "estadisticas": {
-      "nodos": 282,
-      "aristas": 688,
+      "nodos": 351,
+      "aristas": 1001,
       "por_tipo": {
         "proyecto": 1,
         "objetivo": 6,
         "restriccion": 5,
         "actor": 3,
-        "tecnologia": 27,
-        "decision": 50,
+        "tecnologia": 28,
+        "decision": 60,
         "hueco": 37,
         "amenaza": 13,
         "riesgo_aceptado": 11,
         "modulo": 10,
-        "operacion": 42,
-        "tabla": 11,
+        "operacion": 47,
+        "tabla": 12,
         "almacen_clave_valor": 2,
         "transaccion": 15,
-        "fuera_de_alcance": 10,
+        "fuera_de_alcance": 13,
         "pregunta_abierta": 11,
-        "invariante": 28
+        "invariante": 32,
+        "pantalla": 45
       }
     }
   },
@@ -419,8 +430,15 @@
       "id": "TEC-ZXING",
       "tipo": "tecnologia",
       "nombre": "ZXing core",
-      "descripcion": "Generar el código QR otpauth:// en la configuración del 2FA.",
-      "estado": "propuesto"
+      "descripcion": "Iba a generar el código QR otpauth:// del 2FA. Retirada: la configuración del 2FA ya no usa QR (DEC-53).",
+      "estado": "descartado"
+    },
+    {
+      "id": "TEC-FIGMA",
+      "tipo": "tecnologia",
+      "nombre": "Figma",
+      "descripcion": "Diseño de pantallas, biblioteca de componentes, variables de color y prototipo navegable (DEC-60).",
+      "estado": "decidido"
     },
     {
       "id": "TEC-OAUTH2",
@@ -453,7 +471,7 @@
       "id": "DEC-02",
       "tipo": "decision",
       "nombre": "Multi-dispositivo con concurrencia optimista",
-      "descripcion": "Cada elemento tiene número de versión. El cliente envía la versión esperada; si no coincide el servidor responde 409. En conflicto gana el servidor y la versión local se guarda como copia nueva con sufijo '(conflicto)'. No hay fusión de campos.",
+      "descripcion": "Cada elemento tiene número de versión. El cliente envía la versión esperada; si no coincide el servidor responde 409. En conflicto el elemento queda marcado y el usuario elige qué versión conservar (DEC-57); la elegida se sube sobre la versión del servidor y la otra se descarta. No hay fusión de campos.",
       "estado": "decidido"
     },
     {
@@ -870,7 +888,7 @@
       "id": "DEC-47",
       "tipo": "decision",
       "nombre": "Modelo local (Room) y estados de sincronización",
-      "descripcion": "Tablas account (una fila), vault_items (espejo + server_version, server_revision, local_seq, sync_state) y breach_checks (caché HIBP cifrada). sync_state ∈ synced | pending | conflict. local_seq evita marcar como sincronizado algo editado durante la subida. Los conflictos se marcan en segundo plano y se resuelven al desbloquear, porque la copia '(conflicto)' lleva id nuevo y el id forma parte del AAD. Sin SQLCipher: Room solo contiene bloques cifrados.",
+      "descripcion": "Tablas account (una fila), vault_items (espejo + server_version, server_revision, local_seq, sync_state) y breach_checks (caché HIBP cifrada). sync_state ∈ synced | pending | conflict. local_seq evita marcar como sincronizado algo editado durante la subida. Los conflictos se marcan en segundo plano y se resuelven al desbloquear, porque mostrar las dos versiones y re-cifrar la elegida requiere la vault_key; el usuario elige (DEC-57). Sin SQLCipher: Room solo contiene bloques cifrados.",
       "estado": "decidido"
     },
     {
@@ -884,7 +902,7 @@
       "id": "DEC-50",
       "tipo": "decision",
       "nombre": "Identidad visual: Carbón y miel",
-      "descripcion": "Paleta propuesta por el equipo (#111111, #2F2F2F, #F6F6F6, #FFCB74) con tipografía Montserrat, estilo minimalista inspirado en la referencia de Rondesignlab. Tema claro para login y pantallas de trabajo; tema oscuro para onboarding y detalle. Diseño en Figma (página Minimalista).",
+      "descripcion": "Paleta propuesta por el equipo (#111111, #2F2F2F, #F6F6F6, #FFCB74) con tipografía Montserrat, estilo minimalista inspirado en la referencia de Rondesignlab. Tema oscuro solo en el onboarding; el resto de la app (login, registro, bóveda, salud, ajustes) usa el tema claro (DEC-51). Diseño en Figma (DEC-60).",
       "estado": "decidido",
       "detalles": {
         "temas": {
@@ -909,19 +927,21 @@
             "primary": "#FFCB74",
             "on-primary": "#111111",
             "blob": "#111111",
-            "shadow-light": "#FFFFFF 10%",
-            "shadow-dark": "#000000 55%"
+            "shadow-light": "#FFFFFF 7%",
+            "shadow-dark": "#000000 45%"
           }
         },
         "reglas": [
           "El amarillo #FFCB74 es el color de acción (botones, elemento activo, botón de ícono); siempre con texto o ícono #111111 encima. Nunca como color de texto sobre fondo claro (contraste 1.4:1).",
           "Títulos en dos pesos: primera línea Montserrat Bold, segunda Regular (p. ej. 'Hola' / 'de nuevo').",
           "Botón primario: alto 56, radio 16, texto Bold a la izquierda y flecha a la derecha.",
-          "Íconos destacados del onboarding: disco circular neumórfico (fondo igual al de la pantalla, sombra oscura abajo-derecha, luz arriba-izquierda, brillo interior) con ícono amarillo.",
+          "Íconos destacados del onboarding: disco circular de 112 px con neumorfismo sutil (fondo igual al de la pantalla, sombra oscura abajo-derecha y luz arriba-izquierda, desplazamiento 8 y difuminado 20; sin brillos interiores para no parecer botón) con ícono amarillo de 40 px.",
           "Campos de texto: superficie blanca, radio 16, borde #858585 de 1 px (contraste 3:1) y sombra suave; botón de ícono amarillo cuadrado redondeado para mostrar contraseña.",
           "Máximo dos manchas orgánicas por pantalla, una con grano; sin retículas de puntos.",
           "Enlaces subrayados, porque comparten color con el texto.",
-          "Textos simples y neutros; sin términos técnicos (cifrado, conocimiento cero, algoritmos) en la interfaz."
+          "Textos simples y neutros; sin términos técnicos (cifrado, conocimiento cero, algoritmos) en la interfaz.",
+          "Medidores de fuerza, gráficas y barras de progreso usan carbón (#111111) porque son información, no acción; el amarillo solo aparece en acciones, en el elemento activo y en el último punto de una gráfica.",
+          "El rojo (danger) solo aparece en acciones irreversibles y en alertas de filtración."
         ],
         "descartadas": [
           "Bóveda nocturna",
@@ -937,6 +957,127 @@
       "nombre": "Nombre visible opcional",
       "descripcion": "users.display_name opcional (1 a 50 caracteres), no único y no sirve para iniciar sesión.",
       "estado": "decidido"
+    },
+    {
+      "id": "DEC-51",
+      "tipo": "decision",
+      "nombre": "Tema: onboarding oscuro, app clara",
+      "descripcion": "El onboarding se queda en tema oscuro como bienvenida. Todo lo demás usa el tema claro, incluidas las pantallas que antes se diseñaron oscuras (detalle, salud y eliminar cuenta), para que la app se sienta consistente. Las variables del tema oscuro se conservan en Figma por si en el futuro se agrega un modo oscuro del sistema.",
+      "estado": "decidido"
+    },
+    {
+      "id": "DEC-52",
+      "tipo": "decision",
+      "nombre": "Candado de la Bóveda = bloquear ahora",
+      "descripcion": "El candado de la esquina superior de la Bóveda bloquea al instante: borra las llaves de memoria y lleva a la pantalla Desbloquear. No cierra la sesión: para volver basta la contraseña maestra o la huella. Al mantenerlo presionado muestra la etiqueta «Bloquear ahora».",
+      "estado": "decidido"
+    },
+    {
+      "id": "DEC-53",
+      "tipo": "decision",
+      "nombre": "Verificación en dos pasos sin código QR",
+      "descripcion": "Decisión del equipo: la configuración del 2FA no muestra QR. El servidor genera el secreto (DEC-11) y la app lo muestra una sola vez como clave para copiar (Base32 en grupos de 4) con instrucciones para agregarla a mano en la app de autenticación. Motivo: la app autenticadora suele estar en el mismo teléfono y no puede escanear su propia pantalla. Flujo de 3 pasos: copiar clave → escribir código → guardar códigos de respaldo.",
+      "estado": "decidido",
+      "detalles": {
+        "pasos": [
+          "Copiar clave",
+          "Confirmar código de 6 dígitos",
+          "Guardar 10 códigos de respaldo"
+        ]
+      }
+    },
+    {
+      "id": "DEC-54",
+      "tipo": "decision",
+      "nombre": "Estadísticas de la propia bóveda",
+      "descripcion": "Cuatro estadísticas, todas calculadas en el teléfono con la bóveda desbloqueada: (1) ranking de contraseñas más fuertes y más débiles, (2) contraseñas repetidas agrupadas por sitio, (3) distribución por fuerza (débiles, regulares, fuertes) y (4) evolución de la puntuación en el tiempo. No hay estadísticas entre usuarios: el servidor nunca ve contraseñas. Se muestran en la pestaña Salud, en el selector «Progreso».",
+      "estado": "decidido",
+      "detalles": {
+        "estadisticas": [
+          "Ranking de fuerza",
+          "Repetidas agrupadas",
+          "Distribución por fuerza",
+          "Evolución de la puntuación (12 semanas)"
+        ]
+      }
+    },
+    {
+      "id": "DEC-55",
+      "tipo": "decision",
+      "nombre": "Historial de salud local (health_snapshots)",
+      "descripcion": "Para la evolución en el tiempo se guarda una foto diaria de los totales del análisis en una tabla nueva de Room (TBL-L-HEALTH), cifrada con la vault_key igual que breach_checks. Se escribe solo con la bóveda desbloqueada, después de calcular la salud, como máximo una vez al día. Se conservan 12 meses y se borra al cerrar sesión o eliminar la cuenta. Sin cambios en PostgreSQL. Implica subir la versión de la base Room (o incluir la tabla desde la versión 1). Si en el futuro se quiere sincronizar, puede viajar como un elemento cifrado más sin tocar el esquema del servidor.",
+      "estado": "decidido"
+    },
+    {
+      "id": "DEC-56",
+      "tipo": "decision",
+      "nombre": "Navegación y flujos de la app",
+      "descripcion": "Barra inferior con 4 pestañas (Bóveda, Salud, Generador, Ajustes) en todas las vistas con sesión iniciada; no aparece en onboarding, registro ni acceso. La flecha de atrás regresa a la pantalla de origen; tocar una pestaña lleva a su raíz. Salud tiene un selector fijo «Resumen | Progreso» que no suma pasos al historial. El detalle de un elemento tiene el botón «Eliminar contraseña»; la confirmación aparece en una hoja inferior sobre el mismo detalle y, al confirmar, la lista muestra «… se eliminó · Deshacer» durante 5 s. Eliminar la cuenta pide contraseña maestra y código, luego una hoja de confirmación y termina en la pantalla «Tu cuenta fue eliminada», que regresa al onboarding.",
+      "estado": "decidido",
+      "detalles": {
+        "pestanas": [
+          "Bóveda",
+          "Salud",
+          "Generador",
+          "Ajustes"
+        ]
+      }
+    },
+    {
+      "id": "DEC-57",
+      "tipo": "decision",
+      "nombre": "Conflictos de sincronización agrupados",
+      "descripcion": "Los cambios hechos en otro dispositivo se sincronizan en silencio, sin avisos. Solo hay conflicto cuando la misma contraseña se editó en dos dispositivos antes de sincronizar. Al desbloquear, la Bóveda muestra un solo aviso agrupado («N contraseñas cambiaron en dos dispositivos · Resolver») que lleva a «Por resolver»; con 1 conflicto va directo a «Elegir versión». El usuario conserva una versión y la otra se descarta; al terminar el aviso desaparece. Mientras tanto la contraseña se puede seguir usando con la versión de este teléfono. No se guardan contraseñas anteriores (FDA-11).",
+      "estado": "decidido"
+    },
+    {
+      "id": "DEC-58",
+      "tipo": "decision",
+      "nombre": "Estados de carga y sin conexión",
+      "descripcion": "Esqueletos de carga solo en las 5 vistas que esperan al servidor: Bóveda en la primera sincronización, Salud en la primera revisión de filtraciones, Dispositivos, Actividad reciente y la clave del 2FA. La barra superior, el título y la barra inferior se dibujan reales; el contenido va en bloques grises (contorno al 20 %) con la forma de lo que viene, una línea de estado («Descargando tu bóveda…») y un pulso suave de opacidad que respeta «reducir animaciones». Login, registro, códigos y guardar usan un estado de carga dentro del botón, no esqueleto. Sin conexión: la Bóveda muestra un aviso discreto («Tus cambios se guardan y se subirán al reconectar») y las vistas que dependen del servidor muestran «No pudimos cargar… · Reintentar».",
+      "estado": "decidido",
+      "detalles": {
+        "vistas_con_esqueleto": [
+          "Bóveda (primera sincronización)",
+          "Salud (primera revisión)",
+          "Dispositivos",
+          "Actividad reciente",
+          "2FA · clave"
+        ]
+      }
+    },
+    {
+      "id": "DEC-59",
+      "tipo": "decision",
+      "nombre": "Iconografía",
+      "descripcion": "Íconos de trazo de 2 px en cuadro de 24 px, extremos redondeados, como componentes de Figma. El generador usa un dado en vista 3/4 (los destellos se asocian a IA y el generador no usa IA). Los interruptores del generador muestran el carácter que agregan (A, 1, #, Il) en vez de un ícono genérico. Se agregó el ícono «sin conexión».",
+      "estado": "decidido",
+      "detalles": {
+        "iconos_nuevos": [
+          "dado",
+          "mayusculas",
+          "numeros",
+          "simbolos",
+          "parecidos",
+          "sin-conexion"
+        ]
+      }
+    },
+    {
+      "id": "DEC-60",
+      "tipo": "decision",
+      "nombre": "Diseño en Figma y prototipo navegable",
+      "descripcion": "Archivo https://www.figma.com/design/K8GenUmR7GcNZAtJRjagER/End-security, página Minimalista. Biblioteca 'Componentes' (barra de estado, barra superior, navegación inferior con 4 variantes, botones primario/secundario/peligro, botón de ícono, campo, buscador, elemento de bóveda, interruptor, insignia, fila de ajuste e íconos) y variables 'Carbón y miel · claro/oscuro'. Las pantallas están sueltas en la página (requisito para prototipar). El prototipo tiene 4 puntos de inicio: App completa, Bóveda con sesión, Sin conexión · Bóveda y Sin conexión · Dispositivos. Las zonas táctiles se llaman 'Zona · …'.",
+      "estado": "decidido",
+      "detalles": {
+        "archivo": "K8GenUmR7GcNZAtJRjagER",
+        "flujos": [
+          "App completa",
+          "Bóveda con sesión",
+          "Sin conexión · Bóveda",
+          "Sin conexión · Dispositivos"
+        ]
+      }
     },
     {
       "id": "GAP-01",
@@ -1159,7 +1300,7 @@
       "id": "GAP-32",
       "tipo": "hueco",
       "nombre": "Resolver conflictos con el almacén bloqueado",
-      "descripcion": "La copia de conflicto requiere la vault_key para re-cifrar con un id nuevo.",
+      "descripcion": "Comparar las dos versiones y re-cifrar la elegida requiere la vault_key.",
       "estado": "parchado"
     },
     {
@@ -1479,7 +1620,7 @@
         "lugar": "Ambos",
         "requiere_red": false,
         "frecuencia": "Baja",
-        "datos_capturados": "id del elemento + versión esperada",
+        "datos_capturados": "id del elemento + versión esperada (tras confirmar en hoja inferior)",
         "datos_persistidos": "lápida: borrado=true, bloque vacío, versión+1"
       }
     },
@@ -1784,7 +1925,7 @@
         "requiere_red": true,
         "frecuencia": "Muy baja",
         "datos_capturados": "—",
-        "datos_persistidos": "secreto TOTP cifrado en estado 'pendiente'"
+        "datos_persistidos": "secreto TOTP cifrado en estado 'pendiente'; la app lo muestra una sola vez como clave para copiar (sin QR)"
       }
     },
     {
@@ -1879,8 +2020,8 @@
         "lugar": "Ambos",
         "requiere_red": true,
         "frecuencia": "Muy baja",
-        "datos_capturados": "reautenticación + confirmación explícita",
-        "datos_persistidos": "baja lógica; bloques y sesiones borrados; datos locales borrados"
+        "datos_capturados": "contraseña maestra + código TOTP + confirmación en hoja inferior",
+        "datos_persistidos": "baja lógica; bloques y sesiones borrados; datos locales borrados (incluido health_snapshots)"
       }
     },
     {
@@ -1976,7 +2117,7 @@
         "requiere_red": true,
         "frecuencia": "Alta",
         "datos_capturados": "cola local con versión esperada",
-        "datos_persistidos": "versión aceptada o copia '(conflicto)'"
+        "datos_persistidos": "versión aceptada o elemento marcado en conflicto (se resuelve con OP-46)"
       }
     },
     {
@@ -2105,6 +2246,86 @@
         "frecuencia": "Muy baja",
         "datos_capturados": "nombre visible (opcional)",
         "datos_persistidos": "users.display_name"
+      }
+    },
+    {
+      "id": "OP-43",
+      "tipo": "operacion",
+      "nombre": "Bloquear ahora (candado)",
+      "descripcion": "Operación del módulo MOD-UNLOCK.",
+      "estado": "decidido",
+      "detalles": {
+        "actor": "cliente",
+        "tipo_acceso": "Cálculo",
+        "lugar": "Local",
+        "requiere_red": false,
+        "frecuencia": "Media",
+        "datos_capturados": "toque en el candado de la Bóveda",
+        "datos_persistidos": "— (borra llaves de memoria; la sesión sigue abierta)"
+      }
+    },
+    {
+      "id": "OP-44",
+      "tipo": "operacion",
+      "nombre": "Ver estadísticas y progreso",
+      "descripcion": "Operación del módulo MOD-HEALTH.",
+      "estado": "decidido",
+      "detalles": {
+        "actor": "cliente",
+        "tipo_acceso": "Lectura",
+        "lugar": "Local",
+        "requiere_red": false,
+        "frecuencia": "Baja",
+        "datos_capturados": "almacén desbloqueado",
+        "datos_persistidos": "—"
+      }
+    },
+    {
+      "id": "OP-45",
+      "tipo": "operacion",
+      "nombre": "Guardar foto diaria de salud",
+      "descripcion": "Operación del módulo MOD-HEALTH.",
+      "estado": "decidido",
+      "detalles": {
+        "actor": "sistema",
+        "tipo_acceso": "Escritura",
+        "lugar": "Local",
+        "requiere_red": false,
+        "frecuencia": "Diaria",
+        "datos_capturados": "totales del análisis (en memoria)",
+        "datos_persistidos": "una fila cifrada con la vault_key por día; purga de filas con más de 12 meses"
+      }
+    },
+    {
+      "id": "OP-46",
+      "tipo": "operacion",
+      "nombre": "Resolver conflicto de versiones",
+      "descripcion": "Operación del módulo MOD-SYNC.",
+      "estado": "decidido",
+      "detalles": {
+        "actor": "cliente",
+        "tipo_acceso": "Escritura",
+        "lugar": "Local",
+        "requiere_red": false,
+        "frecuencia": "Muy baja",
+        "datos_capturados": "versión elegida por el usuario",
+        "datos_persistidos": "la versión elegida queda como cambio pendiente; la otra se descarta"
+      }
+    },
+    {
+      "id": "OP-47",
+      "tipo": "operacion",
+      "nombre": "Deshacer eliminación",
+      "descripcion": "Operación del módulo MOD-VAULT.",
+      "estado": "decidido",
+      "detalles": {
+        "actor": "cliente",
+        "tipo_acceso": "Escritura",
+        "lugar": "Local",
+        "requiere_red": false,
+        "frecuencia": "Baja",
+        "datos_capturados": "toque en 'Deshacer' (5 s)",
+        "datos_persistidos": "se retira la lápida pendiente antes de subirla"
       }
     },
     {
@@ -2352,6 +2573,24 @@
       }
     },
     {
+      "id": "TBL-L-HEALTH",
+      "tipo": "tabla",
+      "nombre": "health_snapshots",
+      "descripcion": "Una foto diaria de los totales del análisis de salud, cifrada con la vault_key. Solo totales: nunca contraseñas ni su fuerza individual. Se conserva 12 meses y se borra al cerrar sesión o eliminar la cuenta. No existe en el servidor.",
+      "estado": "propuesto",
+      "detalles": {
+        "almacen": "Room",
+        "campos": [
+          "day (PK, fecha local)",
+          "format_version",
+          "nonce",
+          "ciphertext (puntuación, total, débiles, regulares, fuertes, repetidas, filtradas, antiguas)",
+          "created_at"
+        ],
+        "referencia_doc": "docs/bd/modelo-datos.md"
+      }
+    },
+    {
       "id": "KV-DATASTORE",
       "tipo": "almacen_clave_valor",
       "nombre": "DataStore",
@@ -2567,6 +2806,27 @@
       "estado": "fuera_de_alcance"
     },
     {
+      "id": "FDA-11",
+      "tipo": "fuera_de_alcance",
+      "nombre": "Historial de contraseñas anteriores",
+      "descripcion": "Decisión del equipo (2026-10-15): solo se resuelven conflictos entre dispositivos; no se guardan ni muestran contraseñas anteriores de un elemento.",
+      "estado": "fuera_de_alcance"
+    },
+    {
+      "id": "FDA-12",
+      "tipo": "fuera_de_alcance",
+      "nombre": "Estadísticas entre usuarios",
+      "descripcion": "Imposible por diseño: el servidor nunca ve contraseñas (conocimiento cero). Las estadísticas son solo de la bóveda propia.",
+      "estado": "fuera_de_alcance"
+    },
+    {
+      "id": "FDA-13",
+      "tipo": "fuera_de_alcance",
+      "nombre": "Código QR en la configuración del 2FA",
+      "descripcion": "Retirado: la app autenticadora suele estar en el mismo teléfono y no puede escanear su propia pantalla. Se muestra la clave para copiarla.",
+      "estado": "fuera_de_alcance"
+    },
+    {
       "id": "PEND-01",
       "tipo": "pregunta_abierta",
       "nombre": "Parámetros y librería de Argon2id",
@@ -2591,7 +2851,7 @@
       "id": "PEND-04",
       "tipo": "pregunta_abierta",
       "nombre": "Duración de tokens y autobloqueo por defecto",
-      "descripcion": "Sugerido: access 15 min, refresh 30 días, autobloqueo 5 min.",
+      "descripcion": "Sugerido: access 15 min, refresh 30 días, autobloqueo 5 min. En Figma la fila de Ajustes muestra «1 min» solo como ejemplo.",
       "estado": "pendiente"
     },
     {
@@ -2633,8 +2893,8 @@
       "id": "PEND-11",
       "tipo": "pregunta_abierta",
       "nombre": "Componentes en Figma",
-      "descripcion": "Convertir campos, botones, disco neumórfico, barras e íconos en componentes de Figma antes de maquetar el resto de vistas.",
-      "estado": "pendiente"
+      "descripcion": "Resuelto: biblioteca de componentes en Figma y todas las vistas maquetadas con ella (DEC-60).",
+      "estado": "resuelto"
     },
     {
       "id": "PEND-10",
@@ -2833,11 +3093,669 @@
       "estado": "obligatorio"
     },
     {
+      "id": "INV-29",
+      "tipo": "invariante",
+      "nombre": "INV-29",
+      "descripcion": "Las estadísticas y el historial de salud solo se calculan y guardan en el teléfono, cifrados con la vault_key; nunca se envían al servidor y nunca guardan contraseñas anteriores ni la fuerza individual de cada una.",
+      "estado": "obligatorio"
+    },
+    {
+      "id": "INV-30",
+      "tipo": "invariante",
+      "nombre": "INV-30",
+      "descripcion": "Toda acción irreversible (eliminar elemento, eliminar cuenta) pide confirmación en una hoja inferior sobre la pantalla de origen; Cancelar regresa a esa misma pantalla.",
+      "estado": "obligatorio"
+    },
+    {
+      "id": "INV-31",
+      "tipo": "invariante",
+      "nombre": "INV-31",
+      "descripcion": "La clave TOTP y los códigos de respaldo se muestran una sola vez, en pantallas con FLAG_SECURE; la app nunca genera QR del secreto.",
+      "estado": "obligatorio"
+    },
+    {
+      "id": "INV-32",
+      "tipo": "invariante",
+      "nombre": "INV-32",
+      "descripcion": "Las pantallas de carga con esqueleto solo se usan donde la app espera al servidor (DEC-58); lo que vive en Room se muestra al instante.",
+      "estado": "obligatorio"
+    },
+    {
       "id": "INV-27",
       "tipo": "invariante",
       "nombre": "INV-27",
       "descripcion": "sync_state local solo toma los valores synced, pending o conflict; un elemento solo pasa a synced si local_seq no cambió durante la subida.",
       "estado": "obligatorio"
+    },
+    {
+      "id": "SCR-01",
+      "tipo": "pantalla",
+      "nombre": "Onboarding 1",
+      "descripcion": "Vista 'Onboarding 1' del módulo MOD-AUTH.",
+      "estado": "decidido",
+      "detalles": {
+        "figma_nodo": "19:5",
+        "tipo_vista": "pantalla",
+        "pestana_activa": null,
+        "requiere_red": false,
+        "tema": "oscuro"
+      }
+    },
+    {
+      "id": "SCR-02",
+      "tipo": "pantalla",
+      "nombre": "Onboarding 2",
+      "descripcion": "Vista 'Onboarding 2' del módulo MOD-AUTH.",
+      "estado": "decidido",
+      "detalles": {
+        "figma_nodo": "19:52",
+        "tipo_vista": "pantalla",
+        "pestana_activa": null,
+        "requiere_red": false,
+        "tema": "oscuro"
+      }
+    },
+    {
+      "id": "SCR-03",
+      "tipo": "pantalla",
+      "nombre": "Onboarding 3",
+      "descripcion": "Vista 'Onboarding 3' del módulo MOD-AUTH.",
+      "estado": "decidido",
+      "detalles": {
+        "figma_nodo": "19:99",
+        "tipo_vista": "pantalla",
+        "pestana_activa": null,
+        "requiere_red": false,
+        "tema": "oscuro"
+      }
+    },
+    {
+      "id": "SCR-04",
+      "tipo": "pantalla",
+      "nombre": "Iniciar sesión",
+      "descripcion": "Vista 'Iniciar sesión' del módulo MOD-AUTH.",
+      "estado": "decidido",
+      "detalles": {
+        "figma_nodo": "19:144",
+        "tipo_vista": "pantalla",
+        "pestana_activa": null,
+        "requiere_red": true,
+        "tema": "claro"
+      }
+    },
+    {
+      "id": "SCR-05",
+      "tipo": "pantalla",
+      "nombre": "Crear cuenta",
+      "descripcion": "Vista 'Crear cuenta' del módulo MOD-AUTH.",
+      "estado": "decidido",
+      "detalles": {
+        "figma_nodo": "36:119",
+        "tipo_vista": "pantalla",
+        "pestana_activa": null,
+        "requiere_red": true,
+        "tema": "claro"
+      }
+    },
+    {
+      "id": "SCR-06",
+      "tipo": "pantalla",
+      "nombre": "Verificar correo",
+      "descripcion": "Vista 'Verificar correo' del módulo MOD-AUTH.",
+      "estado": "decidido",
+      "detalles": {
+        "figma_nodo": "36:268",
+        "tipo_vista": "pantalla",
+        "pestana_activa": null,
+        "requiere_red": true,
+        "tema": "claro"
+      }
+    },
+    {
+      "id": "SCR-07",
+      "tipo": "pantalla",
+      "nombre": "Verificación en dos pasos (login)",
+      "descripcion": "Vista 'Verificación en dos pasos (login)' del módulo MOD-AUTH.",
+      "estado": "decidido",
+      "detalles": {
+        "figma_nodo": "36:341",
+        "tipo_vista": "pantalla",
+        "pestana_activa": null,
+        "requiere_red": true,
+        "tema": "claro"
+      }
+    },
+    {
+      "id": "SCR-08",
+      "tipo": "pantalla",
+      "nombre": "Código de respaldo (login)",
+      "descripcion": "Vista 'Código de respaldo (login)' del módulo MOD-AUTH.",
+      "estado": "decidido",
+      "detalles": {
+        "figma_nodo": "36:413",
+        "tipo_vista": "pantalla",
+        "pestana_activa": null,
+        "requiere_red": true,
+        "tema": "claro"
+      }
+    },
+    {
+      "id": "SCR-09",
+      "tipo": "pantalla",
+      "nombre": "Desbloquear",
+      "descripcion": "Vista 'Desbloquear' del módulo MOD-UNLOCK.",
+      "estado": "decidido",
+      "detalles": {
+        "figma_nodo": "36:491",
+        "tipo_vista": "pantalla",
+        "pestana_activa": null,
+        "requiere_red": false,
+        "tema": "claro"
+      }
+    },
+    {
+      "id": "SCR-10",
+      "tipo": "pantalla",
+      "nombre": "Bóveda · Lista",
+      "descripcion": "Vista 'Bóveda · Lista' del módulo MOD-VAULT.",
+      "estado": "decidido",
+      "detalles": {
+        "figma_nodo": "46:356",
+        "tipo_vista": "pantalla",
+        "pestana_activa": "Bóveda",
+        "requiere_red": false,
+        "tema": "claro"
+      }
+    },
+    {
+      "id": "SCR-11",
+      "tipo": "pantalla",
+      "nombre": "Bóveda · Vacía",
+      "descripcion": "Vista 'Bóveda · Vacía' del módulo MOD-VAULT.",
+      "estado": "decidido",
+      "detalles": {
+        "figma_nodo": "46:521",
+        "tipo_vista": "estado",
+        "pestana_activa": "Bóveda",
+        "requiere_red": false,
+        "tema": "claro"
+      }
+    },
+    {
+      "id": "SCR-12",
+      "tipo": "pantalla",
+      "nombre": "Bóveda · Detalle",
+      "descripcion": "Vista 'Bóveda · Detalle' del módulo MOD-VAULT.",
+      "estado": "decidido",
+      "detalles": {
+        "figma_nodo": "46:608",
+        "tipo_vista": "pantalla",
+        "pestana_activa": "Bóveda",
+        "requiere_red": false,
+        "tema": "claro"
+      }
+    },
+    {
+      "id": "SCR-13",
+      "tipo": "pantalla",
+      "nombre": "Bóveda · Detalle · copiada",
+      "descripcion": "Vista 'Bóveda · Detalle · copiada' del módulo MOD-VAULT.",
+      "estado": "decidido",
+      "detalles": {
+        "figma_nodo": "62:2946",
+        "tipo_vista": "estado",
+        "pestana_activa": "Bóveda",
+        "requiere_red": false,
+        "tema": "claro"
+      }
+    },
+    {
+      "id": "SCR-14",
+      "tipo": "pantalla",
+      "nombre": "Bóveda · Nueva / editar",
+      "descripcion": "Vista 'Bóveda · Nueva / editar' del módulo MOD-VAULT.",
+      "estado": "decidido",
+      "detalles": {
+        "figma_nodo": "46:793",
+        "tipo_vista": "pantalla",
+        "pestana_activa": "Bóveda",
+        "requiere_red": false,
+        "tema": "claro"
+      }
+    },
+    {
+      "id": "SCR-15",
+      "tipo": "pantalla",
+      "nombre": "Generador",
+      "descripcion": "Vista 'Generador' del módulo MOD-VAULT.",
+      "estado": "decidido",
+      "detalles": {
+        "figma_nodo": "46:996",
+        "tipo_vista": "pantalla",
+        "pestana_activa": "Generador",
+        "requiere_red": false,
+        "tema": "claro"
+      }
+    },
+    {
+      "id": "SCR-16",
+      "tipo": "pantalla",
+      "nombre": "Bóveda · Eliminar (hoja)",
+      "descripcion": "Vista 'Bóveda · Eliminar (hoja)' del módulo MOD-VAULT.",
+      "estado": "decidido",
+      "detalles": {
+        "figma_nodo": "62:2972",
+        "tipo_vista": "hoja",
+        "pestana_activa": null,
+        "requiere_red": false,
+        "tema": "claro"
+      }
+    },
+    {
+      "id": "SCR-17",
+      "tipo": "pantalla",
+      "nombre": "Bóveda · Lista · eliminada (Deshacer)",
+      "descripcion": "Vista 'Bóveda · Lista · eliminada (Deshacer)' del módulo MOD-VAULT.",
+      "estado": "decidido",
+      "detalles": {
+        "figma_nodo": "62:3009",
+        "tipo_vista": "estado",
+        "pestana_activa": "Bóveda",
+        "requiere_red": false,
+        "tema": "claro"
+      }
+    },
+    {
+      "id": "SCR-18",
+      "tipo": "pantalla",
+      "nombre": "Bóveda · Lista · conflicto",
+      "descripcion": "Vista 'Bóveda · Lista · conflicto' del módulo MOD-SYNC.",
+      "estado": "decidido",
+      "detalles": {
+        "figma_nodo": "62:3168",
+        "tipo_vista": "estado",
+        "pestana_activa": "Bóveda",
+        "requiere_red": false,
+        "tema": "claro"
+      }
+    },
+    {
+      "id": "SCR-19",
+      "tipo": "pantalla",
+      "nombre": "Por resolver",
+      "descripcion": "Vista 'Por resolver' del módulo MOD-SYNC.",
+      "estado": "decidido",
+      "detalles": {
+        "figma_nodo": "65:3017",
+        "tipo_vista": "pantalla",
+        "pestana_activa": "Bóveda",
+        "requiere_red": false,
+        "tema": "claro"
+      }
+    },
+    {
+      "id": "SCR-20",
+      "tipo": "pantalla",
+      "nombre": "Por resolver · 1 resuelta",
+      "descripcion": "Vista 'Por resolver · 1 resuelta' del módulo MOD-SYNC.",
+      "estado": "decidido",
+      "detalles": {
+        "figma_nodo": "65:3145",
+        "tipo_vista": "estado",
+        "pestana_activa": "Bóveda",
+        "requiere_red": false,
+        "tema": "claro"
+      }
+    },
+    {
+      "id": "SCR-21",
+      "tipo": "pantalla",
+      "nombre": "Elegir versión",
+      "descripcion": "Vista 'Elegir versión' del módulo MOD-SYNC.",
+      "estado": "decidido",
+      "detalles": {
+        "figma_nodo": "46:1196",
+        "tipo_vista": "pantalla",
+        "pestana_activa": "Bóveda",
+        "requiere_red": false,
+        "tema": "claro"
+      }
+    },
+    {
+      "id": "SCR-22",
+      "tipo": "pantalla",
+      "nombre": "Salud · Resumen",
+      "descripcion": "Vista 'Salud · Resumen' del módulo MOD-HEALTH.",
+      "estado": "decidido",
+      "detalles": {
+        "figma_nodo": "47:1045",
+        "tipo_vista": "pantalla",
+        "pestana_activa": "Salud",
+        "requiere_red": false,
+        "tema": "claro"
+      }
+    },
+    {
+      "id": "SCR-23",
+      "tipo": "pantalla",
+      "nombre": "Salud · Progreso",
+      "descripcion": "Vista 'Salud · Progreso' del módulo MOD-HEALTH.",
+      "estado": "decidido",
+      "detalles": {
+        "figma_nodo": "62:2357",
+        "tipo_vista": "pantalla",
+        "pestana_activa": "Salud",
+        "requiere_red": false,
+        "tema": "claro"
+      }
+    },
+    {
+      "id": "SCR-24",
+      "tipo": "pantalla",
+      "nombre": "Salud · Ranking · más fuertes",
+      "descripcion": "Vista 'Salud · Ranking · más fuertes' del módulo MOD-HEALTH.",
+      "estado": "decidido",
+      "detalles": {
+        "figma_nodo": "62:2477",
+        "tipo_vista": "pantalla",
+        "pestana_activa": "Salud",
+        "requiere_red": false,
+        "tema": "claro"
+      }
+    },
+    {
+      "id": "SCR-25",
+      "tipo": "pantalla",
+      "nombre": "Salud · Ranking · más débiles",
+      "descripcion": "Vista 'Salud · Ranking · más débiles' del módulo MOD-HEALTH.",
+      "estado": "decidido",
+      "detalles": {
+        "figma_nodo": "62:2634",
+        "tipo_vista": "estado",
+        "pestana_activa": "Salud",
+        "requiere_red": false,
+        "tema": "claro"
+      }
+    },
+    {
+      "id": "SCR-26",
+      "tipo": "pantalla",
+      "nombre": "Salud · Filtradas",
+      "descripcion": "Vista 'Salud · Filtradas' del módulo MOD-HEALTH.",
+      "estado": "decidido",
+      "detalles": {
+        "figma_nodo": "47:1186",
+        "tipo_vista": "pantalla",
+        "pestana_activa": "Salud",
+        "requiere_red": false,
+        "tema": "claro"
+      }
+    },
+    {
+      "id": "SCR-27",
+      "tipo": "pantalla",
+      "nombre": "Salud · Repetidas",
+      "descripcion": "Vista 'Salud · Repetidas' del módulo MOD-HEALTH.",
+      "estado": "decidido",
+      "detalles": {
+        "figma_nodo": "54:2496",
+        "tipo_vista": "pantalla",
+        "pestana_activa": "Salud",
+        "requiere_red": false,
+        "tema": "claro"
+      }
+    },
+    {
+      "id": "SCR-28",
+      "tipo": "pantalla",
+      "nombre": "Salud · Antiguas",
+      "descripcion": "Vista 'Salud · Antiguas' del módulo MOD-HEALTH.",
+      "estado": "decidido",
+      "detalles": {
+        "figma_nodo": "62:2788",
+        "tipo_vista": "pantalla",
+        "pestana_activa": "Salud",
+        "requiere_red": false,
+        "tema": "claro"
+      }
+    },
+    {
+      "id": "SCR-29",
+      "tipo": "pantalla",
+      "nombre": "Ajustes",
+      "descripcion": "Vista 'Ajustes' del módulo MOD-SETTINGS.",
+      "estado": "decidido",
+      "detalles": {
+        "figma_nodo": "47:1303",
+        "tipo_vista": "pantalla",
+        "pestana_activa": "Ajustes",
+        "requiere_red": false,
+        "tema": "claro"
+      }
+    },
+    {
+      "id": "SCR-30",
+      "tipo": "pantalla",
+      "nombre": "Dos pasos · clave",
+      "descripcion": "Vista 'Dos pasos · clave' del módulo MOD-2FA.",
+      "estado": "decidido",
+      "detalles": {
+        "figma_nodo": "47:1509",
+        "tipo_vista": "pantalla",
+        "pestana_activa": "Ajustes",
+        "requiere_red": true,
+        "tema": "claro"
+      }
+    },
+    {
+      "id": "SCR-31",
+      "tipo": "pantalla",
+      "nombre": "Dos pasos · confirmar",
+      "descripcion": "Vista 'Dos pasos · confirmar' del módulo MOD-2FA.",
+      "estado": "decidido",
+      "detalles": {
+        "figma_nodo": "47:1616",
+        "tipo_vista": "pantalla",
+        "pestana_activa": "Ajustes",
+        "requiere_red": true,
+        "tema": "claro"
+      }
+    },
+    {
+      "id": "SCR-32",
+      "tipo": "pantalla",
+      "nombre": "Dos pasos · códigos de respaldo",
+      "descripcion": "Vista 'Dos pasos · códigos de respaldo' del módulo MOD-2FA.",
+      "estado": "decidido",
+      "detalles": {
+        "figma_nodo": "47:1714",
+        "tipo_vista": "pantalla",
+        "pestana_activa": "Ajustes",
+        "requiere_red": true,
+        "tema": "claro"
+      }
+    },
+    {
+      "id": "SCR-33",
+      "tipo": "pantalla",
+      "nombre": "Dispositivos",
+      "descripcion": "Vista 'Dispositivos' del módulo MOD-ACTIVITY.",
+      "estado": "decidido",
+      "detalles": {
+        "figma_nodo": "47:1817",
+        "tipo_vista": "pantalla",
+        "pestana_activa": "Ajustes",
+        "requiere_red": true,
+        "tema": "claro"
+      }
+    },
+    {
+      "id": "SCR-34",
+      "tipo": "pantalla",
+      "nombre": "Actividad reciente",
+      "descripcion": "Vista 'Actividad reciente' del módulo MOD-ACTIVITY.",
+      "estado": "decidido",
+      "detalles": {
+        "figma_nodo": "47:1938",
+        "tipo_vista": "pantalla",
+        "pestana_activa": "Ajustes",
+        "requiere_red": true,
+        "tema": "claro"
+      }
+    },
+    {
+      "id": "SCR-35",
+      "tipo": "pantalla",
+      "nombre": "Contraseña maestra",
+      "descripcion": "Vista 'Contraseña maestra' del módulo MOD-ACCOUNT.",
+      "estado": "decidido",
+      "detalles": {
+        "figma_nodo": "47:2098",
+        "tipo_vista": "pantalla",
+        "pestana_activa": "Ajustes",
+        "requiere_red": true,
+        "tema": "claro"
+      }
+    },
+    {
+      "id": "SCR-36",
+      "tipo": "pantalla",
+      "nombre": "Eliminar cuenta",
+      "descripcion": "Vista 'Eliminar cuenta' del módulo MOD-ACCOUNT.",
+      "estado": "decidido",
+      "detalles": {
+        "figma_nodo": "47:2290",
+        "tipo_vista": "pantalla",
+        "pestana_activa": "Ajustes",
+        "requiere_red": true,
+        "tema": "claro"
+      }
+    },
+    {
+      "id": "SCR-37",
+      "tipo": "pantalla",
+      "nombre": "Eliminar cuenta · confirmar (hoja)",
+      "descripcion": "Vista 'Eliminar cuenta · confirmar (hoja)' del módulo MOD-ACCOUNT.",
+      "estado": "decidido",
+      "detalles": {
+        "figma_nodo": "62:3233",
+        "tipo_vista": "hoja",
+        "pestana_activa": null,
+        "requiere_red": true,
+        "tema": "claro"
+      }
+    },
+    {
+      "id": "SCR-38",
+      "tipo": "pantalla",
+      "nombre": "Cuenta eliminada",
+      "descripcion": "Vista 'Cuenta eliminada' del módulo MOD-ACCOUNT.",
+      "estado": "decidido",
+      "detalles": {
+        "figma_nodo": "62:3270",
+        "tipo_vista": "pantalla",
+        "pestana_activa": null,
+        "requiere_red": false,
+        "tema": "claro"
+      }
+    },
+    {
+      "id": "SCR-39",
+      "tipo": "pantalla",
+      "nombre": "Bóveda · cargando",
+      "descripcion": "Vista 'Bóveda · cargando' del módulo MOD-SYNC.",
+      "estado": "decidido",
+      "detalles": {
+        "figma_nodo": "69:3207",
+        "tipo_vista": "carga",
+        "pestana_activa": "Bóveda",
+        "requiere_red": true,
+        "tema": "claro"
+      }
+    },
+    {
+      "id": "SCR-40",
+      "tipo": "pantalla",
+      "nombre": "Salud · cargando",
+      "descripcion": "Vista 'Salud · cargando' del módulo MOD-HEALTH.",
+      "estado": "decidido",
+      "detalles": {
+        "figma_nodo": "69:3307",
+        "tipo_vista": "carga",
+        "pestana_activa": "Salud",
+        "requiere_red": true,
+        "tema": "claro"
+      }
+    },
+    {
+      "id": "SCR-41",
+      "tipo": "pantalla",
+      "nombre": "Dispositivos · cargando",
+      "descripcion": "Vista 'Dispositivos · cargando' del módulo MOD-ACTIVITY.",
+      "estado": "decidido",
+      "detalles": {
+        "figma_nodo": "69:3411",
+        "tipo_vista": "carga",
+        "pestana_activa": "Ajustes",
+        "requiere_red": true,
+        "tema": "claro"
+      }
+    },
+    {
+      "id": "SCR-42",
+      "tipo": "pantalla",
+      "nombre": "Actividad · cargando",
+      "descripcion": "Vista 'Actividad · cargando' del módulo MOD-ACTIVITY.",
+      "estado": "decidido",
+      "detalles": {
+        "figma_nodo": "69:3513",
+        "tipo_vista": "carga",
+        "pestana_activa": "Ajustes",
+        "requiere_red": true,
+        "tema": "claro"
+      }
+    },
+    {
+      "id": "SCR-43",
+      "tipo": "pantalla",
+      "nombre": "Dos pasos · cargando",
+      "descripcion": "Vista 'Dos pasos · cargando' del módulo MOD-2FA.",
+      "estado": "decidido",
+      "detalles": {
+        "figma_nodo": "69:3626",
+        "tipo_vista": "carga",
+        "pestana_activa": "Ajustes",
+        "requiere_red": true,
+        "tema": "claro"
+      }
+    },
+    {
+      "id": "SCR-44",
+      "tipo": "pantalla",
+      "nombre": "Bóveda · sin conexión",
+      "descripcion": "Vista 'Bóveda · sin conexión' del módulo MOD-SYNC.",
+      "estado": "decidido",
+      "detalles": {
+        "figma_nodo": "69:3744",
+        "tipo_vista": "sin_conexion",
+        "pestana_activa": "Bóveda",
+        "requiere_red": false,
+        "tema": "claro"
+      }
+    },
+    {
+      "id": "SCR-45",
+      "tipo": "pantalla",
+      "nombre": "Dispositivos · sin conexión",
+      "descripcion": "Vista 'Dispositivos · sin conexión' del módulo MOD-ACTIVITY.",
+      "estado": "decidido",
+      "detalles": {
+        "figma_nodo": "69:3850",
+        "tipo_vista": "sin_conexion",
+        "pestana_activa": "Ajustes",
+        "requiere_red": true,
+        "tema": "claro"
+      }
     }
   ],
   "aristas": [
@@ -3437,6 +4355,11 @@
       "relacion": "regida_por"
     },
     {
+      "de": "OP-03",
+      "a": "DEC-56",
+      "relacion": "regida_por"
+    },
+    {
       "de": "OP-04",
       "a": "MOD-VAULT",
       "relacion": "pertenece_a"
@@ -3752,6 +4675,11 @@
       "relacion": "regida_por"
     },
     {
+      "de": "OP-22",
+      "a": "DEC-53",
+      "relacion": "regida_por"
+    },
+    {
       "de": "OP-23",
       "a": "MOD-2FA",
       "relacion": "pertenece_a"
@@ -3862,6 +4790,11 @@
       "relacion": "regida_por"
     },
     {
+      "de": "OP-28",
+      "a": "DEC-56",
+      "relacion": "regida_por"
+    },
+    {
       "de": "OP-29",
       "a": "MOD-ACTIVITY",
       "relacion": "pertenece_a"
@@ -3954,6 +4887,11 @@
     {
       "de": "OP-34",
       "a": "DEC-02",
+      "relacion": "regida_por"
+    },
+    {
+      "de": "OP-34",
+      "a": "DEC-57",
       "relacion": "regida_por"
     },
     {
@@ -4089,6 +5027,101 @@
     {
       "de": "OP-42",
       "a": "DEC-49",
+      "relacion": "regida_por"
+    },
+    {
+      "de": "OP-43",
+      "a": "MOD-UNLOCK",
+      "relacion": "pertenece_a"
+    },
+    {
+      "de": "OP-43",
+      "a": "ACT-01",
+      "relacion": "ejecutada_por"
+    },
+    {
+      "de": "OP-43",
+      "a": "DEC-52",
+      "relacion": "regida_por"
+    },
+    {
+      "de": "OP-43",
+      "a": "DEC-27",
+      "relacion": "regida_por"
+    },
+    {
+      "de": "OP-44",
+      "a": "MOD-HEALTH",
+      "relacion": "pertenece_a"
+    },
+    {
+      "de": "OP-44",
+      "a": "ACT-01",
+      "relacion": "ejecutada_por"
+    },
+    {
+      "de": "OP-44",
+      "a": "DEC-54",
+      "relacion": "regida_por"
+    },
+    {
+      "de": "OP-44",
+      "a": "DEC-55",
+      "relacion": "regida_por"
+    },
+    {
+      "de": "OP-45",
+      "a": "MOD-HEALTH",
+      "relacion": "pertenece_a"
+    },
+    {
+      "de": "OP-45",
+      "a": "ACT-02",
+      "relacion": "ejecutada_por"
+    },
+    {
+      "de": "OP-45",
+      "a": "DEC-55",
+      "relacion": "regida_por"
+    },
+    {
+      "de": "OP-46",
+      "a": "MOD-SYNC",
+      "relacion": "pertenece_a"
+    },
+    {
+      "de": "OP-46",
+      "a": "ACT-01",
+      "relacion": "ejecutada_por"
+    },
+    {
+      "de": "OP-46",
+      "a": "DEC-57",
+      "relacion": "regida_por"
+    },
+    {
+      "de": "OP-46",
+      "a": "DEC-47",
+      "relacion": "regida_por"
+    },
+    {
+      "de": "OP-47",
+      "a": "MOD-VAULT",
+      "relacion": "pertenece_a"
+    },
+    {
+      "de": "OP-47",
+      "a": "ACT-01",
+      "relacion": "ejecutada_por"
+    },
+    {
+      "de": "OP-47",
+      "a": "DEC-56",
+      "relacion": "regida_por"
+    },
+    {
+      "de": "OP-47",
+      "a": "DEC-17",
       "relacion": "regida_por"
     },
     {
@@ -4248,6 +5281,16 @@
     },
     {
       "de": "TBL-L-BREACH",
+      "a": "DEC-47",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "TBL-L-HEALTH",
+      "a": "DEC-55",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "TBL-L-HEALTH",
       "a": "DEC-47",
       "relacion": "definida_por"
     },
@@ -5421,6 +6464,61 @@
       "relacion": "escribe"
     },
     {
+      "de": "OP-43",
+      "a": "KV-DATASTORE",
+      "relacion": "lee"
+    },
+    {
+      "de": "OP-44",
+      "a": "TBL-L-HEALTH",
+      "relacion": "lee"
+    },
+    {
+      "de": "OP-44",
+      "a": "TBL-L-ITEMS",
+      "relacion": "lee"
+    },
+    {
+      "de": "OP-44",
+      "a": "TBL-L-BREACH",
+      "relacion": "lee"
+    },
+    {
+      "de": "OP-45",
+      "a": "TBL-L-ITEMS",
+      "relacion": "lee"
+    },
+    {
+      "de": "OP-45",
+      "a": "TBL-L-BREACH",
+      "relacion": "lee"
+    },
+    {
+      "de": "OP-45",
+      "a": "TBL-L-HEALTH",
+      "relacion": "escribe"
+    },
+    {
+      "de": "OP-46",
+      "a": "TBL-L-ITEMS",
+      "relacion": "lee"
+    },
+    {
+      "de": "OP-46",
+      "a": "TBL-L-ITEMS",
+      "relacion": "escribe"
+    },
+    {
+      "de": "OP-47",
+      "a": "TBL-L-ITEMS",
+      "relacion": "lee"
+    },
+    {
+      "de": "OP-47",
+      "a": "TBL-L-ITEMS",
+      "relacion": "escribe"
+    },
+    {
       "de": "FDA-01",
       "a": "RES-03",
       "relacion": "excluido_por"
@@ -5521,6 +6619,26 @@
       "relacion": "excluye"
     },
     {
+      "de": "FDA-11",
+      "a": "RES-01",
+      "relacion": "excluido_por"
+    },
+    {
+      "de": "DEC-57",
+      "a": "FDA-11",
+      "relacion": "excluye"
+    },
+    {
+      "de": "DEC-54",
+      "a": "FDA-12",
+      "relacion": "excluye"
+    },
+    {
+      "de": "DEC-53",
+      "a": "FDA-13",
+      "relacion": "excluye"
+    },
+    {
       "de": "PEND-01",
       "a": "DEC-05",
       "relacion": "afina"
@@ -5579,6 +6697,11 @@
       "de": "PEND-11",
       "a": "DEC-50",
       "relacion": "afina"
+    },
+    {
+      "de": "PEND-11",
+      "a": "DEC-60",
+      "relacion": "resuelta_por"
     },
     {
       "de": "PEND-10",
@@ -5756,6 +6879,36 @@
       "relacion": "deriva_de"
     },
     {
+      "de": "INV-29",
+      "a": "DEC-54",
+      "relacion": "deriva_de"
+    },
+    {
+      "de": "INV-29",
+      "a": "DEC-55",
+      "relacion": "deriva_de"
+    },
+    {
+      "de": "INV-30",
+      "a": "DEC-56",
+      "relacion": "deriva_de"
+    },
+    {
+      "de": "INV-31",
+      "a": "DEC-53",
+      "relacion": "deriva_de"
+    },
+    {
+      "de": "INV-31",
+      "a": "DEC-26",
+      "relacion": "deriva_de"
+    },
+    {
+      "de": "INV-32",
+      "a": "DEC-58",
+      "relacion": "deriva_de"
+    },
+    {
       "de": "INV-27",
       "a": "DEC-47",
       "relacion": "deriva_de"
@@ -5823,11 +6976,6 @@
     {
       "de": "DEC-11",
       "a": "TEC-REDIS",
-      "relacion": "usa"
-    },
-    {
-      "de": "DEC-11",
-      "a": "TEC-ZXING",
       "relacion": "usa"
     },
     {
@@ -5971,6 +7119,11 @@
       "relacion": "usa"
     },
     {
+      "de": "DEC-50",
+      "a": "TEC-FIGMA",
+      "relacion": "usa"
+    },
+    {
       "de": "DEC-38",
       "a": "TEC-CLAUDE",
       "relacion": "usa"
@@ -6013,6 +7166,36 @@
     {
       "de": "DEC-43",
       "a": "TEC-PG",
+      "relacion": "usa"
+    },
+    {
+      "de": "DEC-53",
+      "a": "TEC-TOTP",
+      "relacion": "usa"
+    },
+    {
+      "de": "DEC-54",
+      "a": "TEC-ZXCVBN",
+      "relacion": "usa"
+    },
+    {
+      "de": "DEC-55",
+      "a": "TEC-ROOM",
+      "relacion": "usa"
+    },
+    {
+      "de": "DEC-55",
+      "a": "TEC-AESGCM",
+      "relacion": "usa"
+    },
+    {
+      "de": "DEC-60",
+      "a": "TEC-FIGMA",
+      "relacion": "usa"
+    },
+    {
+      "de": "DEC-58",
+      "a": "TEC-WORK",
       "relacion": "usa"
     },
     {
@@ -6156,6 +7339,96 @@
       "relacion": "depende_de"
     },
     {
+      "de": "DEC-51",
+      "a": "DEC-50",
+      "relacion": "depende_de"
+    },
+    {
+      "de": "DEC-52",
+      "a": "DEC-27",
+      "relacion": "depende_de"
+    },
+    {
+      "de": "DEC-52",
+      "a": "DEC-08",
+      "relacion": "depende_de"
+    },
+    {
+      "de": "DEC-53",
+      "a": "DEC-11",
+      "relacion": "depende_de"
+    },
+    {
+      "de": "DEC-53",
+      "a": "DEC-12",
+      "relacion": "depende_de"
+    },
+    {
+      "de": "DEC-54",
+      "a": "DEC-20",
+      "relacion": "depende_de"
+    },
+    {
+      "de": "DEC-55",
+      "a": "DEC-54",
+      "relacion": "depende_de"
+    },
+    {
+      "de": "DEC-55",
+      "a": "DEC-47",
+      "relacion": "depende_de"
+    },
+    {
+      "de": "DEC-55",
+      "a": "DEC-29",
+      "relacion": "depende_de"
+    },
+    {
+      "de": "DEC-56",
+      "a": "DEC-50",
+      "relacion": "depende_de"
+    },
+    {
+      "de": "DEC-56",
+      "a": "DEC-17",
+      "relacion": "depende_de"
+    },
+    {
+      "de": "DEC-57",
+      "a": "DEC-47",
+      "relacion": "depende_de"
+    },
+    {
+      "de": "DEC-57",
+      "a": "DEC-02",
+      "relacion": "depende_de"
+    },
+    {
+      "de": "DEC-58",
+      "a": "DEC-01",
+      "relacion": "depende_de"
+    },
+    {
+      "de": "DEC-58",
+      "a": "DEC-33",
+      "relacion": "depende_de"
+    },
+    {
+      "de": "DEC-59",
+      "a": "DEC-50",
+      "relacion": "depende_de"
+    },
+    {
+      "de": "DEC-60",
+      "a": "DEC-50",
+      "relacion": "depende_de"
+    },
+    {
+      "de": "DEC-60",
+      "a": "DEC-56",
+      "relacion": "depende_de"
+    },
+    {
       "de": "RES-01",
       "a": "DEC-36",
       "relacion": "motiva"
@@ -6236,6 +7509,11 @@
       "relacion": "retirada_en"
     },
     {
+      "de": "TEC-ZXING",
+      "a": "DEC-53",
+      "relacion": "retirada_en"
+    },
+    {
       "de": "DEC-05",
       "a": "OBJ-01",
       "relacion": "cumple"
@@ -6289,6 +7567,1289 @@
       "de": "DEC-20",
       "a": "OBJ-05",
       "relacion": "cumple"
+    },
+    {
+      "de": "DEC-54",
+      "a": "OBJ-05",
+      "relacion": "cumple"
+    },
+    {
+      "de": "SCR-01",
+      "a": "MOD-AUTH",
+      "relacion": "parte_de"
+    },
+    {
+      "de": "SCR-01",
+      "a": "DEC-60",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "SCR-01",
+      "a": "DEC-51",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "SCR-02",
+      "a": "MOD-AUTH",
+      "relacion": "parte_de"
+    },
+    {
+      "de": "SCR-02",
+      "a": "DEC-60",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "SCR-02",
+      "a": "DEC-51",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "SCR-03",
+      "a": "MOD-AUTH",
+      "relacion": "parte_de"
+    },
+    {
+      "de": "SCR-03",
+      "a": "DEC-60",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "SCR-03",
+      "a": "DEC-51",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "SCR-04",
+      "a": "MOD-AUTH",
+      "relacion": "parte_de"
+    },
+    {
+      "de": "SCR-04",
+      "a": "DEC-60",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "SCR-05",
+      "a": "MOD-AUTH",
+      "relacion": "parte_de"
+    },
+    {
+      "de": "SCR-05",
+      "a": "DEC-60",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "SCR-06",
+      "a": "MOD-AUTH",
+      "relacion": "parte_de"
+    },
+    {
+      "de": "SCR-06",
+      "a": "DEC-60",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "SCR-07",
+      "a": "MOD-AUTH",
+      "relacion": "parte_de"
+    },
+    {
+      "de": "SCR-07",
+      "a": "DEC-60",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "SCR-08",
+      "a": "MOD-AUTH",
+      "relacion": "parte_de"
+    },
+    {
+      "de": "SCR-08",
+      "a": "DEC-60",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "SCR-09",
+      "a": "MOD-UNLOCK",
+      "relacion": "parte_de"
+    },
+    {
+      "de": "SCR-09",
+      "a": "DEC-60",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "SCR-09",
+      "a": "DEC-52",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "SCR-10",
+      "a": "MOD-VAULT",
+      "relacion": "parte_de"
+    },
+    {
+      "de": "SCR-10",
+      "a": "DEC-60",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "SCR-10",
+      "a": "DEC-56",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "SCR-10",
+      "a": "DEC-52",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "SCR-11",
+      "a": "MOD-VAULT",
+      "relacion": "parte_de"
+    },
+    {
+      "de": "SCR-11",
+      "a": "DEC-60",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "SCR-12",
+      "a": "MOD-VAULT",
+      "relacion": "parte_de"
+    },
+    {
+      "de": "SCR-12",
+      "a": "DEC-60",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "SCR-12",
+      "a": "DEC-56",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "SCR-13",
+      "a": "MOD-VAULT",
+      "relacion": "parte_de"
+    },
+    {
+      "de": "SCR-13",
+      "a": "DEC-60",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "SCR-13",
+      "a": "DEC-25",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "SCR-14",
+      "a": "MOD-VAULT",
+      "relacion": "parte_de"
+    },
+    {
+      "de": "SCR-14",
+      "a": "DEC-60",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "SCR-15",
+      "a": "MOD-VAULT",
+      "relacion": "parte_de"
+    },
+    {
+      "de": "SCR-15",
+      "a": "DEC-60",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "SCR-15",
+      "a": "DEC-59",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "SCR-16",
+      "a": "MOD-VAULT",
+      "relacion": "parte_de"
+    },
+    {
+      "de": "SCR-16",
+      "a": "DEC-60",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "SCR-16",
+      "a": "DEC-56",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "SCR-17",
+      "a": "MOD-VAULT",
+      "relacion": "parte_de"
+    },
+    {
+      "de": "SCR-17",
+      "a": "DEC-60",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "SCR-17",
+      "a": "DEC-56",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "SCR-18",
+      "a": "MOD-SYNC",
+      "relacion": "parte_de"
+    },
+    {
+      "de": "SCR-18",
+      "a": "DEC-60",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "SCR-18",
+      "a": "DEC-57",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "SCR-19",
+      "a": "MOD-SYNC",
+      "relacion": "parte_de"
+    },
+    {
+      "de": "SCR-19",
+      "a": "DEC-60",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "SCR-19",
+      "a": "DEC-57",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "SCR-20",
+      "a": "MOD-SYNC",
+      "relacion": "parte_de"
+    },
+    {
+      "de": "SCR-20",
+      "a": "DEC-60",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "SCR-20",
+      "a": "DEC-57",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "SCR-21",
+      "a": "MOD-SYNC",
+      "relacion": "parte_de"
+    },
+    {
+      "de": "SCR-21",
+      "a": "DEC-60",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "SCR-21",
+      "a": "DEC-57",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "SCR-22",
+      "a": "MOD-HEALTH",
+      "relacion": "parte_de"
+    },
+    {
+      "de": "SCR-22",
+      "a": "DEC-60",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "SCR-22",
+      "a": "DEC-56",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "SCR-23",
+      "a": "MOD-HEALTH",
+      "relacion": "parte_de"
+    },
+    {
+      "de": "SCR-23",
+      "a": "DEC-60",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "SCR-23",
+      "a": "DEC-54",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "SCR-23",
+      "a": "DEC-55",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "SCR-24",
+      "a": "MOD-HEALTH",
+      "relacion": "parte_de"
+    },
+    {
+      "de": "SCR-24",
+      "a": "DEC-60",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "SCR-24",
+      "a": "DEC-54",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "SCR-25",
+      "a": "MOD-HEALTH",
+      "relacion": "parte_de"
+    },
+    {
+      "de": "SCR-25",
+      "a": "DEC-60",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "SCR-25",
+      "a": "DEC-54",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "SCR-26",
+      "a": "MOD-HEALTH",
+      "relacion": "parte_de"
+    },
+    {
+      "de": "SCR-26",
+      "a": "DEC-60",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "SCR-27",
+      "a": "MOD-HEALTH",
+      "relacion": "parte_de"
+    },
+    {
+      "de": "SCR-27",
+      "a": "DEC-60",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "SCR-27",
+      "a": "DEC-54",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "SCR-28",
+      "a": "MOD-HEALTH",
+      "relacion": "parte_de"
+    },
+    {
+      "de": "SCR-28",
+      "a": "DEC-60",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "SCR-29",
+      "a": "MOD-SETTINGS",
+      "relacion": "parte_de"
+    },
+    {
+      "de": "SCR-29",
+      "a": "DEC-60",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "SCR-30",
+      "a": "MOD-2FA",
+      "relacion": "parte_de"
+    },
+    {
+      "de": "SCR-30",
+      "a": "DEC-60",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "SCR-30",
+      "a": "DEC-53",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "SCR-31",
+      "a": "MOD-2FA",
+      "relacion": "parte_de"
+    },
+    {
+      "de": "SCR-31",
+      "a": "DEC-60",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "SCR-31",
+      "a": "DEC-53",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "SCR-32",
+      "a": "MOD-2FA",
+      "relacion": "parte_de"
+    },
+    {
+      "de": "SCR-32",
+      "a": "DEC-60",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "SCR-32",
+      "a": "DEC-53",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "SCR-33",
+      "a": "MOD-ACTIVITY",
+      "relacion": "parte_de"
+    },
+    {
+      "de": "SCR-33",
+      "a": "DEC-60",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "SCR-34",
+      "a": "MOD-ACTIVITY",
+      "relacion": "parte_de"
+    },
+    {
+      "de": "SCR-34",
+      "a": "DEC-60",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "SCR-35",
+      "a": "MOD-ACCOUNT",
+      "relacion": "parte_de"
+    },
+    {
+      "de": "SCR-35",
+      "a": "DEC-60",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "SCR-36",
+      "a": "MOD-ACCOUNT",
+      "relacion": "parte_de"
+    },
+    {
+      "de": "SCR-36",
+      "a": "DEC-60",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "SCR-36",
+      "a": "DEC-56",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "SCR-37",
+      "a": "MOD-ACCOUNT",
+      "relacion": "parte_de"
+    },
+    {
+      "de": "SCR-37",
+      "a": "DEC-60",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "SCR-37",
+      "a": "DEC-56",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "SCR-38",
+      "a": "MOD-ACCOUNT",
+      "relacion": "parte_de"
+    },
+    {
+      "de": "SCR-38",
+      "a": "DEC-60",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "SCR-38",
+      "a": "DEC-56",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "SCR-39",
+      "a": "MOD-SYNC",
+      "relacion": "parte_de"
+    },
+    {
+      "de": "SCR-39",
+      "a": "DEC-60",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "SCR-39",
+      "a": "DEC-58",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "SCR-40",
+      "a": "MOD-HEALTH",
+      "relacion": "parte_de"
+    },
+    {
+      "de": "SCR-40",
+      "a": "DEC-60",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "SCR-40",
+      "a": "DEC-58",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "SCR-41",
+      "a": "MOD-ACTIVITY",
+      "relacion": "parte_de"
+    },
+    {
+      "de": "SCR-41",
+      "a": "DEC-60",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "SCR-41",
+      "a": "DEC-58",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "SCR-42",
+      "a": "MOD-ACTIVITY",
+      "relacion": "parte_de"
+    },
+    {
+      "de": "SCR-42",
+      "a": "DEC-60",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "SCR-42",
+      "a": "DEC-58",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "SCR-43",
+      "a": "MOD-2FA",
+      "relacion": "parte_de"
+    },
+    {
+      "de": "SCR-43",
+      "a": "DEC-60",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "SCR-43",
+      "a": "DEC-58",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "SCR-44",
+      "a": "MOD-SYNC",
+      "relacion": "parte_de"
+    },
+    {
+      "de": "SCR-44",
+      "a": "DEC-60",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "SCR-44",
+      "a": "DEC-58",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "SCR-45",
+      "a": "MOD-ACTIVITY",
+      "relacion": "parte_de"
+    },
+    {
+      "de": "SCR-45",
+      "a": "DEC-60",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "SCR-45",
+      "a": "DEC-58",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "SCR-01",
+      "a": "SCR-02",
+      "relacion": "navega_a",
+      "nota": "Siguiente"
+    },
+    {
+      "de": "SCR-02",
+      "a": "SCR-03",
+      "relacion": "navega_a",
+      "nota": "Siguiente"
+    },
+    {
+      "de": "SCR-03",
+      "a": "SCR-04",
+      "relacion": "navega_a",
+      "nota": "Comenzar"
+    },
+    {
+      "de": "SCR-01",
+      "a": "SCR-04",
+      "relacion": "navega_a",
+      "nota": "Omitir"
+    },
+    {
+      "de": "SCR-02",
+      "a": "SCR-04",
+      "relacion": "navega_a",
+      "nota": "Omitir"
+    },
+    {
+      "de": "SCR-04",
+      "a": "SCR-07",
+      "relacion": "navega_a",
+      "nota": "Entrar (cuenta con 2FA)"
+    },
+    {
+      "de": "SCR-04",
+      "a": "SCR-05",
+      "relacion": "navega_a",
+      "nota": "Crea tu cuenta"
+    },
+    {
+      "de": "SCR-05",
+      "a": "SCR-06",
+      "relacion": "navega_a",
+      "nota": "Crear cuenta"
+    },
+    {
+      "de": "SCR-06",
+      "a": "SCR-11",
+      "relacion": "navega_a",
+      "nota": "Verificar (cuenta nueva)"
+    },
+    {
+      "de": "SCR-07",
+      "a": "SCR-39",
+      "relacion": "navega_a",
+      "nota": "Continuar (teléfono nuevo)"
+    },
+    {
+      "de": "SCR-07",
+      "a": "SCR-08",
+      "relacion": "navega_a",
+      "nota": "Usa un código de respaldo"
+    },
+    {
+      "de": "SCR-08",
+      "a": "SCR-39",
+      "relacion": "navega_a",
+      "nota": "Entrar"
+    },
+    {
+      "de": "SCR-39",
+      "a": "SCR-10",
+      "relacion": "navega_a",
+      "nota": "termina la descarga"
+    },
+    {
+      "de": "SCR-09",
+      "a": "SCR-10",
+      "relacion": "navega_a",
+      "nota": "Desbloquear"
+    },
+    {
+      "de": "SCR-09",
+      "a": "SCR-04",
+      "relacion": "navega_a",
+      "nota": "Cerrar sesión"
+    },
+    {
+      "de": "SCR-10",
+      "a": "SCR-12",
+      "relacion": "navega_a",
+      "nota": "tocar elemento"
+    },
+    {
+      "de": "SCR-10",
+      "a": "SCR-14",
+      "relacion": "navega_a",
+      "nota": "botón flotante +"
+    },
+    {
+      "de": "SCR-10",
+      "a": "SCR-09",
+      "relacion": "navega_a",
+      "nota": "candado"
+    },
+    {
+      "de": "SCR-10",
+      "a": "SCR-40",
+      "relacion": "navega_a",
+      "nota": "Revisar (primera vez)"
+    },
+    {
+      "de": "SCR-11",
+      "a": "SCR-14",
+      "relacion": "navega_a",
+      "nota": "Agregar contraseña"
+    },
+    {
+      "de": "SCR-12",
+      "a": "SCR-14",
+      "relacion": "navega_a",
+      "nota": "lápiz (editar)"
+    },
+    {
+      "de": "SCR-12",
+      "a": "SCR-13",
+      "relacion": "navega_a",
+      "nota": "Copiar contraseña"
+    },
+    {
+      "de": "SCR-13",
+      "a": "SCR-12",
+      "relacion": "navega_a",
+      "nota": "tras 2.5 s"
+    },
+    {
+      "de": "SCR-12",
+      "a": "SCR-16",
+      "relacion": "navega_a",
+      "nota": "Eliminar contraseña"
+    },
+    {
+      "de": "SCR-16",
+      "a": "SCR-12",
+      "relacion": "navega_a",
+      "nota": "Cancelar"
+    },
+    {
+      "de": "SCR-16",
+      "a": "SCR-17",
+      "relacion": "navega_a",
+      "nota": "Eliminar"
+    },
+    {
+      "de": "SCR-17",
+      "a": "SCR-10",
+      "relacion": "navega_a",
+      "nota": "Deshacer"
+    },
+    {
+      "de": "SCR-14",
+      "a": "SCR-10",
+      "relacion": "navega_a",
+      "nota": "Guardar"
+    },
+    {
+      "de": "SCR-15",
+      "a": "SCR-14",
+      "relacion": "navega_a",
+      "nota": "Guardar en la bóveda"
+    },
+    {
+      "de": "SCR-18",
+      "a": "SCR-19",
+      "relacion": "navega_a",
+      "nota": "Resolver (varios conflictos)"
+    },
+    {
+      "de": "SCR-18",
+      "a": "SCR-21",
+      "relacion": "navega_a",
+      "nota": "Resolver (un conflicto)"
+    },
+    {
+      "de": "SCR-19",
+      "a": "SCR-21",
+      "relacion": "navega_a",
+      "nota": "tocar elemento"
+    },
+    {
+      "de": "SCR-21",
+      "a": "SCR-20",
+      "relacion": "navega_a",
+      "nota": "Conservar esta versión"
+    },
+    {
+      "de": "SCR-20",
+      "a": "SCR-21",
+      "relacion": "navega_a",
+      "nota": "tocar elemento"
+    },
+    {
+      "de": "SCR-20",
+      "a": "SCR-10",
+      "relacion": "navega_a",
+      "nota": "último conflicto resuelto"
+    },
+    {
+      "de": "SCR-40",
+      "a": "SCR-22",
+      "relacion": "navega_a",
+      "nota": "termina la revisión"
+    },
+    {
+      "de": "SCR-22",
+      "a": "SCR-23",
+      "relacion": "navega_a",
+      "nota": "selector Progreso"
+    },
+    {
+      "de": "SCR-23",
+      "a": "SCR-22",
+      "relacion": "navega_a",
+      "nota": "selector Resumen"
+    },
+    {
+      "de": "SCR-22",
+      "a": "SCR-26",
+      "relacion": "navega_a",
+      "nota": "fila Filtradas"
+    },
+    {
+      "de": "SCR-22",
+      "a": "SCR-27",
+      "relacion": "navega_a",
+      "nota": "fila Repetidas"
+    },
+    {
+      "de": "SCR-22",
+      "a": "SCR-25",
+      "relacion": "navega_a",
+      "nota": "fila Débiles"
+    },
+    {
+      "de": "SCR-22",
+      "a": "SCR-28",
+      "relacion": "navega_a",
+      "nota": "fila Antiguas"
+    },
+    {
+      "de": "SCR-23",
+      "a": "SCR-24",
+      "relacion": "navega_a",
+      "nota": "Ver ranking de fuerza"
+    },
+    {
+      "de": "SCR-24",
+      "a": "SCR-25",
+      "relacion": "navega_a",
+      "nota": "selector Más débiles"
+    },
+    {
+      "de": "SCR-25",
+      "a": "SCR-24",
+      "relacion": "navega_a",
+      "nota": "selector Más fuertes"
+    },
+    {
+      "de": "SCR-26",
+      "a": "SCR-12",
+      "relacion": "navega_a",
+      "nota": "tocar elemento"
+    },
+    {
+      "de": "SCR-28",
+      "a": "SCR-12",
+      "relacion": "navega_a",
+      "nota": "tocar elemento"
+    },
+    {
+      "de": "SCR-29",
+      "a": "SCR-43",
+      "relacion": "navega_a",
+      "nota": "Verificación en 2 pasos"
+    },
+    {
+      "de": "SCR-43",
+      "a": "SCR-30",
+      "relacion": "navega_a",
+      "nota": "llega la clave"
+    },
+    {
+      "de": "SCR-30",
+      "a": "SCR-31",
+      "relacion": "navega_a",
+      "nota": "Continuar"
+    },
+    {
+      "de": "SCR-31",
+      "a": "SCR-32",
+      "relacion": "navega_a",
+      "nota": "Confirmar"
+    },
+    {
+      "de": "SCR-32",
+      "a": "SCR-29",
+      "relacion": "navega_a",
+      "nota": "Ya los guardé"
+    },
+    {
+      "de": "SCR-29",
+      "a": "SCR-41",
+      "relacion": "navega_a",
+      "nota": "Dispositivos"
+    },
+    {
+      "de": "SCR-41",
+      "a": "SCR-33",
+      "relacion": "navega_a",
+      "nota": "terminan de cargar"
+    },
+    {
+      "de": "SCR-29",
+      "a": "SCR-42",
+      "relacion": "navega_a",
+      "nota": "Actividad reciente"
+    },
+    {
+      "de": "SCR-42",
+      "a": "SCR-34",
+      "relacion": "navega_a",
+      "nota": "termina de cargar"
+    },
+    {
+      "de": "SCR-29",
+      "a": "SCR-35",
+      "relacion": "navega_a",
+      "nota": "Contraseña maestra"
+    },
+    {
+      "de": "SCR-35",
+      "a": "SCR-29",
+      "relacion": "navega_a",
+      "nota": "Cambiar contraseña"
+    },
+    {
+      "de": "SCR-29",
+      "a": "SCR-04",
+      "relacion": "navega_a",
+      "nota": "Cerrar sesión"
+    },
+    {
+      "de": "SCR-29",
+      "a": "SCR-36",
+      "relacion": "navega_a",
+      "nota": "Eliminar cuenta"
+    },
+    {
+      "de": "SCR-36",
+      "a": "SCR-37",
+      "relacion": "navega_a",
+      "nota": "Eliminar mi cuenta"
+    },
+    {
+      "de": "SCR-37",
+      "a": "SCR-36",
+      "relacion": "navega_a",
+      "nota": "Cancelar"
+    },
+    {
+      "de": "SCR-37",
+      "a": "SCR-38",
+      "relacion": "navega_a",
+      "nota": "Sí, eliminar mi cuenta"
+    },
+    {
+      "de": "SCR-38",
+      "a": "SCR-01",
+      "relacion": "navega_a",
+      "nota": "Ir al inicio"
+    },
+    {
+      "de": "SCR-45",
+      "a": "SCR-41",
+      "relacion": "navega_a",
+      "nota": "Reintentar"
+    },
+    {
+      "de": "SCR-44",
+      "a": "SCR-12",
+      "relacion": "navega_a",
+      "nota": "tocar elemento"
+    },
+    {
+      "de": "SCR-10",
+      "a": "SCR-22",
+      "relacion": "navega_a",
+      "nota": "pestaña Salud"
+    },
+    {
+      "de": "SCR-10",
+      "a": "SCR-15",
+      "relacion": "navega_a",
+      "nota": "pestaña Generador"
+    },
+    {
+      "de": "SCR-10",
+      "a": "SCR-29",
+      "relacion": "navega_a",
+      "nota": "pestaña Ajustes"
+    },
+    {
+      "de": "SCR-22",
+      "a": "SCR-10",
+      "relacion": "navega_a",
+      "nota": "pestaña Bóveda"
+    },
+    {
+      "de": "SCR-22",
+      "a": "SCR-15",
+      "relacion": "navega_a",
+      "nota": "pestaña Generador"
+    },
+    {
+      "de": "SCR-22",
+      "a": "SCR-29",
+      "relacion": "navega_a",
+      "nota": "pestaña Ajustes"
+    },
+    {
+      "de": "SCR-15",
+      "a": "SCR-10",
+      "relacion": "navega_a",
+      "nota": "pestaña Bóveda"
+    },
+    {
+      "de": "SCR-15",
+      "a": "SCR-22",
+      "relacion": "navega_a",
+      "nota": "pestaña Salud"
+    },
+    {
+      "de": "SCR-15",
+      "a": "SCR-29",
+      "relacion": "navega_a",
+      "nota": "pestaña Ajustes"
+    },
+    {
+      "de": "SCR-29",
+      "a": "SCR-10",
+      "relacion": "navega_a",
+      "nota": "pestaña Bóveda"
+    },
+    {
+      "de": "SCR-29",
+      "a": "SCR-22",
+      "relacion": "navega_a",
+      "nota": "pestaña Salud"
+    },
+    {
+      "de": "SCR-29",
+      "a": "SCR-15",
+      "relacion": "navega_a",
+      "nota": "pestaña Generador"
+    },
+    {
+      "de": "SCR-04",
+      "a": "OP-13",
+      "relacion": "invoca"
+    },
+    {
+      "de": "SCR-04",
+      "a": "OP-14",
+      "relacion": "invoca"
+    },
+    {
+      "de": "SCR-05",
+      "a": "OP-11",
+      "relacion": "invoca"
+    },
+    {
+      "de": "SCR-06",
+      "a": "OP-12",
+      "relacion": "invoca"
+    },
+    {
+      "de": "SCR-07",
+      "a": "OP-15",
+      "relacion": "invoca"
+    },
+    {
+      "de": "SCR-08",
+      "a": "OP-16",
+      "relacion": "invoca"
+    },
+    {
+      "de": "SCR-09",
+      "a": "OP-19",
+      "relacion": "invoca"
+    },
+    {
+      "de": "SCR-09",
+      "a": "OP-20",
+      "relacion": "invoca"
+    },
+    {
+      "de": "SCR-10",
+      "a": "OP-04",
+      "relacion": "invoca"
+    },
+    {
+      "de": "SCR-10",
+      "a": "OP-07",
+      "relacion": "invoca"
+    },
+    {
+      "de": "SCR-10",
+      "a": "OP-43",
+      "relacion": "invoca"
+    },
+    {
+      "de": "SCR-10",
+      "a": "OP-06",
+      "relacion": "invoca"
+    },
+    {
+      "de": "SCR-12",
+      "a": "OP-05",
+      "relacion": "invoca"
+    },
+    {
+      "de": "SCR-12",
+      "a": "OP-06",
+      "relacion": "invoca"
+    },
+    {
+      "de": "SCR-14",
+      "a": "OP-01",
+      "relacion": "invoca"
+    },
+    {
+      "de": "SCR-14",
+      "a": "OP-02",
+      "relacion": "invoca"
+    },
+    {
+      "de": "SCR-15",
+      "a": "OP-08",
+      "relacion": "invoca"
+    },
+    {
+      "de": "SCR-16",
+      "a": "OP-03",
+      "relacion": "invoca"
+    },
+    {
+      "de": "SCR-17",
+      "a": "OP-47",
+      "relacion": "invoca"
+    },
+    {
+      "de": "SCR-21",
+      "a": "OP-46",
+      "relacion": "invoca"
+    },
+    {
+      "de": "SCR-22",
+      "a": "OP-09",
+      "relacion": "invoca"
+    },
+    {
+      "de": "SCR-22",
+      "a": "OP-10",
+      "relacion": "invoca"
+    },
+    {
+      "de": "SCR-23",
+      "a": "OP-44",
+      "relacion": "invoca"
+    },
+    {
+      "de": "SCR-24",
+      "a": "OP-09",
+      "relacion": "invoca"
+    },
+    {
+      "de": "SCR-27",
+      "a": "OP-09",
+      "relacion": "invoca"
+    },
+    {
+      "de": "SCR-29",
+      "a": "OP-35",
+      "relacion": "invoca"
+    },
+    {
+      "de": "SCR-29",
+      "a": "OP-36",
+      "relacion": "invoca"
+    },
+    {
+      "de": "SCR-29",
+      "a": "OP-18",
+      "relacion": "invoca"
+    },
+    {
+      "de": "SCR-30",
+      "a": "OP-22",
+      "relacion": "invoca"
+    },
+    {
+      "de": "SCR-31",
+      "a": "OP-23",
+      "relacion": "invoca"
+    },
+    {
+      "de": "SCR-32",
+      "a": "OP-23",
+      "relacion": "invoca"
+    },
+    {
+      "de": "SCR-33",
+      "a": "OP-29",
+      "relacion": "invoca"
+    },
+    {
+      "de": "SCR-33",
+      "a": "OP-30",
+      "relacion": "invoca"
+    },
+    {
+      "de": "SCR-34",
+      "a": "OP-31",
+      "relacion": "invoca"
+    },
+    {
+      "de": "SCR-35",
+      "a": "OP-27",
+      "relacion": "invoca"
+    },
+    {
+      "de": "SCR-37",
+      "a": "OP-28",
+      "relacion": "invoca"
+    },
+    {
+      "de": "SCR-39",
+      "a": "OP-32",
+      "relacion": "invoca"
+    },
+    {
+      "de": "SCR-40",
+      "a": "OP-10",
+      "relacion": "invoca"
     }
   ]
 }

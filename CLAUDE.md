@@ -6,7 +6,7 @@ Todo el código lo escribe Claude y lo revisa una persona del equipo.
 
 ## Fuentes de verdad (léelas en este orden cuando las necesites)
 1. `ai/context/estado-actual.md`: qué está hecho, en curso y siguiente. **Léelo al empezar.**
-2. `ai/context/knowledge-graph.json`: decisiones (DEC-*), invariantes (INV-*), operaciones (OP-*), tablas (TBL-*), transacciones (TX-*).
+2. `ai/context/knowledge-graph.json`: decisiones (DEC-*), invariantes (INV-*), operaciones (OP-*), tablas (TBL-*), transacciones (TX-*), pantallas (SCR-*, con su nodo de Figma y navegación).
    Búscalo con Grep por id (p. ej. `"id": "DEC-05"`); no lo leas completo si no hace falta.
 3. `docs/arquitectura.md`: arquitectura MVVM de la app.
 4. `docs/bd/modelo-datos.md` y `docs/bd/schema.sql`: base de datos del servidor, Room, DataStore y Redis.
