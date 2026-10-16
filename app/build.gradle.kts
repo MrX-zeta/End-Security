@@ -19,8 +19,9 @@ android {
 
     buildTypes {
         release {
+            // DEC-37: R8 (minificación, ofuscación y recorte de recursos) en release.
             optimization {
-                enable = false
+                enable = true
             }
         }
     }
