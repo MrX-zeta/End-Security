@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    DEC-22 / DEC-37: sin tráfico en claro y solo con las autoridades del sistema
+    (se ignoran las que instale el usuario). El pinning SPKI se agrega en core/network
+    cuando exista la API propia.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>
