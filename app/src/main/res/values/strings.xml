@@ -1,11 +1,10 @@
 <resources>
-    <string name="app_name">End-Security</string>
+    <string name="app_name">End Security</string>
 
     <!-- Sistema de diseño -->
     <string name="page_indicator_description">Página %1$d de %2$d</string>
 
     <!-- Onboarding (SCR-01, SCR-02, SCR-03). Textos exactos de Figma. -->
-    <string name="onboarding_brand">End Security</string>
     <string name="onboarding_skip">Omitir</string>
     <string name="onboarding_next">Siguiente</string>
     <string name="onboarding_start">Comenzar</string>
