@@ -1,4 +1,4 @@
-package com.luis.end_security.ui.theme
+package com.luis.end_security.core.designsystem.theme
 
 import android.app.Activity
 import android.os.Build
