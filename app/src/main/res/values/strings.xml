@@ -3,4 +3,29 @@
 
     <!-- Sistema de diseño -->
     <string name="page_indicator_description">Página %1$d de %2$d</string>
+
+    <!-- Onboarding (SCR-01, SCR-02, SCR-03). Textos exactos de Figma. -->
+    <string name="onboarding_brand">End Security</string>
+    <string name="onboarding_skip">Omitir</string>
+    <string name="onboarding_next">Siguiente</string>
+    <string name="onboarding_start">Comenzar</string>
+    <string name="onboarding_have_account">Ya tengo una cuenta</string>
+
+    <string name="onboarding_page1_title_bold">Tus contraseñas</string>
+    <string name="onboarding_page1_title_regular">en un solo lugar</string>
+    <string name="onboarding_page1_body">Guárdalas una vez y úsalas cuando las necesites, desde tu teléfono.</string>
+    <string name="onboarding_page1_illustration">Llave</string>
+
+    <string name="onboarding_page2_title_bold">Solo tú</string>
+    <string name="onboarding_page2_title_regular">puedes verlas</string>
+    <string name="onboarding_page2_body">Las protegemos con una contraseña maestra que solo tú conoces. Ni siquiera nosotros podemos abrirlas.</string>
+    <string name="onboarding_page2_illustration">Candado</string>
+
+    <string name="onboarding_page3_title_bold">Te avisamos</string>
+    <string name="onboarding_page3_title_regular">si una está en riesgo</string>
+    <string name="onboarding_page3_body">Revisamos si alguna es débil, si la repites o si apareció en una filtración en internet.</string>
+    <string name="onboarding_page3_illustration">Escudo con una palomita</string>
+
+    <!-- Iniciar sesión (SCR-04). Marcador hasta implementar la pantalla. -->
+    <string name="login_title">Iniciar sesión</string>
 </resources>
