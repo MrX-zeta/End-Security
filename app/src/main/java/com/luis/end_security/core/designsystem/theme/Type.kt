@@ -2,33 +2,80 @@ package com.luis.end_security.core.designsystem.theme
 
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
+import com.luis.end_security.R
 
-// Set of Material typography styles to start with
+// Montserrat empaquetada (TEC-MONTSERRAT, licencia OFL en assets/licenses/montserrat/OFL.txt).
+val Montserrat = FontFamily(
+    Font(R.font.montserrat_regular, FontWeight.Normal),
+    Font(R.font.montserrat_medium, FontWeight.Medium),
+    Font(R.font.montserrat_semibold, FontWeight.SemiBold),
+    Font(R.font.montserrat_bold, FontWeight.Bold),
+)
+
+// Interletrado de −2 % que usan los títulos en Figma.
+private val TitleLetterSpacing = (-0.02).em
+
+private val Base = Typography()
+
+// Estilos tomados de Figma (página «Minimalista»). Los que no aparecen ahí conservan
+// los tamaños de Material 3, pero también usan Montserrat.
 val Typography = Typography(
-    bodyLarge = TextStyle(
-        fontFamily = FontFamily.Default,
+    displayLarge = Base.displayLarge.copy(fontFamily = Montserrat),
+    displayMedium = Base.displayMedium.copy(fontFamily = Montserrat),
+    displaySmall = Base.displaySmall.copy(fontFamily = Montserrat),
+    // Título de pantalla en dos pesos: la primera línea se pinta en Bold (TwoWeightTitle).
+    headlineLarge = TextStyle(
+        fontFamily = Montserrat,
         fontWeight = FontWeight.Normal,
-        fontSize = 16.sp,
-        lineHeight = 24.sp,
-        letterSpacing = 0.5.sp
-    )
-    /* Other default text styles to override
-    titleLarge = TextStyle(
-        fontFamily = FontFamily.Default,
-        fontWeight = FontWeight.Normal,
-        fontSize = 22.sp,
-        lineHeight = 28.sp,
-        letterSpacing = 0.sp
+        fontSize = 32.sp,
+        lineHeight = 40.sp,
+        letterSpacing = TitleLetterSpacing,
     ),
-    labelSmall = TextStyle(
-        fontFamily = FontFamily.Default,
-        fontWeight = FontWeight.Medium,
-        fontSize = 11.sp,
-        lineHeight = 16.sp,
-        letterSpacing = 0.5.sp
-    )
-    */
+    headlineMedium = Base.headlineMedium.copy(fontFamily = Montserrat),
+    headlineSmall = Base.headlineSmall.copy(fontFamily = Montserrat),
+    // Marca «End Security» en la barra superior.
+    titleLarge = TextStyle(
+        fontFamily = Montserrat,
+        fontWeight = FontWeight.Bold,
+        fontSize = 18.sp,
+        lineHeight = 26.sp,
+        letterSpacing = TitleLetterSpacing,
+    ),
+    // Enlaces de texto (se subrayan en el componente).
+    titleMedium = TextStyle(
+        fontFamily = Montserrat,
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 15.sp,
+        lineHeight = 20.sp,
+    ),
+    titleSmall = Base.titleSmall.copy(fontFamily = Montserrat),
+    // Texto de apoyo bajo los títulos.
+    bodyLarge = TextStyle(
+        fontFamily = Montserrat,
+        fontWeight = FontWeight.Normal,
+        fontSize = 15.sp,
+        lineHeight = 24.sp,
+    ),
+    bodyMedium = Base.bodyMedium.copy(fontFamily = Montserrat),
+    bodySmall = Base.bodySmall.copy(fontFamily = Montserrat),
+    // Texto del botón primario.
+    labelLarge = TextStyle(
+        fontFamily = Montserrat,
+        fontWeight = FontWeight.Bold,
+        fontSize = 15.sp,
+        lineHeight = 22.sp,
+    ),
+    // Botones secundarios pequeños, como «Omitir».
+    labelMedium = TextStyle(
+        fontFamily = Montserrat,
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 14.sp,
+        lineHeight = 20.sp,
+    ),
+    labelSmall = Base.labelSmall.copy(fontFamily = Montserrat),
 )

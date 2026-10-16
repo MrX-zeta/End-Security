@@ -1,58 +1,86 @@
 package com.luis.end_security.core.designsystem.theme
 
-import android.app.Activity
-import android.os.Build
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.platform.LocalContext
-
-private val DarkColorScheme = darkColorScheme(
-    primary = Purple80,
-    secondary = PurpleGrey80,
-    tertiary = Pink80
-)
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.graphics.Color
 
 private val LightColorScheme = lightColorScheme(
-    primary = Purple40,
-    secondary = PurpleGrey40,
-    tertiary = Pink40
-
-    /* Other default colors to override
-    background = Color(0xFFFFFBFE),
-    surface = Color(0xFFFFFBFE),
-    onPrimary = Color.White,
-    onSecondary = Color.White,
-    onTertiary = Color.White,
-    onBackground = Color(0xFF1C1B1F),
-    onSurface = Color(0xFF1C1B1F),
-    */
+    background = LightBackground,
+    onBackground = LightOnSurface,
+    surface = LightSurface,
+    onSurface = LightOnSurface,
+    onSurfaceVariant = LightOnSurfaceVariant,
+    outline = LightOutline,
+    primary = LightPrimary,
+    onPrimary = LightOnPrimary,
 )
 
+private val DarkColorScheme = darkColorScheme(
+    background = DarkBackground,
+    onBackground = DarkOnSurface,
+    surface = DarkSurface,
+    onSurface = DarkOnSurface,
+    onSurfaceVariant = DarkOnSurfaceVariant,
+    outline = DarkOutline,
+    primary = DarkPrimary,
+    onPrimary = DarkOnPrimary,
+)
+
+/** Tokens de DEC-50 que no tienen lugar en el [androidx.compose.material3.ColorScheme]. */
+@Immutable
+data class ExtendedColors(
+    val blob: Color,
+    val blobGrain: Color,
+    val shadowLight: Color,
+    val shadowDark: Color,
+)
+
+private val LightExtendedColors = ExtendedColors(
+    blob = LightBlob,
+    blobGrain = BlobGrain,
+    shadowLight = LightShadowLight,
+    shadowDark = LightShadowDark,
+)
+
+private val DarkExtendedColors = ExtendedColors(
+    blob = DarkBlob,
+    blobGrain = BlobGrain,
+    shadowLight = DarkShadowLight,
+    shadowDark = DarkShadowDark,
+)
+
+private val LocalExtendedColors = staticCompositionLocalOf { LightExtendedColors }
+
+/**
+ * Tema «Carbón y miel». La app es clara (DEC-51) y no sigue el modo oscuro del sistema;
+ * solo el onboarding pide `darkTheme = true`. No usa color dinámico: la paleta es la marca.
+ */
 @Composable
 fun EndSecurityTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
-    // Dynamic color is available on Android 12+
-    dynamicColor: Boolean = true,
-    content: @Composable () -> Unit
+    darkTheme: Boolean = false,
+    content: @Composable () -> Unit,
 ) {
-    val colorScheme = when {
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        }
-
-        darkTheme -> DarkColorScheme
-        else -> LightColorScheme
+    CompositionLocalProvider(
+        LocalExtendedColors provides if (darkTheme) DarkExtendedColors else LightExtendedColors,
+    ) {
+        MaterialTheme(
+            colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme,
+            typography = Typography,
+            content = content,
+        )
     }
+}
 
-    MaterialTheme(
-        colorScheme = colorScheme,
-        typography = Typography,
-        content = content
-    )
+/** Acceso a los tokens extendidos: `EndSecurityTheme.extendedColors.blob`. */
+object EndSecurityTheme {
+    val extendedColors: ExtendedColors
+        @Composable
+        @ReadOnlyComposable
+        get() = LocalExtendedColors.current
 }
