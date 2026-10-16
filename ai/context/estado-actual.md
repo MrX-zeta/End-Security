@@ -22,6 +22,8 @@
 
 ## En curso
 - Aprobación final del modelo de datos por el equipo.
+- Ícono de la app: 4 propuestas de cofre con los colores de C en Figma (tablero «Ícono de la app · propuestas»). Falta elegir.
+- Protección legal (PEND-12): lista de documentos en `docs/legal/README.md`; falta redactarlos y agregar la casilla en Crear cuenta y el grupo «Legal y ayuda» en Ajustes.
 
 ## Siguiente
 1. Mover `ui/theme` a `core/designsystem/theme` con *Refactor → Move* en Android Studio y pasar los tokens de Carbón y miel a Compose.

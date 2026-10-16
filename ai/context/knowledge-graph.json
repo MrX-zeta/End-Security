@@ -1,8 +1,8 @@
 {
   "meta": {
     "nombre": "Grafo de conocimiento — End Security",
-    "version": "1.3.0",
-    "actualizado": "2026-10-15",
+    "version": "1.3.1",
+    "actualizado": "2026-10-16",
     "fase": "Diseño completo en Figma: 45 pantallas con prototipo navegable, flujos, estadísticas, estados de carga y sin conexión. Siguiente: implementación.",
     "historial": [
       {
@@ -19,6 +19,11 @@
         "version": "1.3.0",
         "fecha": "2026-10-15",
         "cambio": "Vistas y flujos: tema claro para la app (DEC-51), candado = bloquear ahora (DEC-52), 2FA sin QR (DEC-53), estadísticas propias e historial local health_snapshots (DEC-54, DEC-55, TBL-L-HEALTH), navegación y confirmaciones (DEC-56), conflictos agrupados (DEC-57), carga y sin conexión (DEC-58), iconografía (DEC-59), Figma y prototipo (DEC-60). 45 nodos 'pantalla' con aristas navega_a e invoca. PEND-11 resuelto."
+      },
+      {
+        "version": "1.3.1",
+        "fecha": "2026-10-16",
+        "cambio": "PEND-12: documentos legales por redactar (docs/legal/README.md)."
       }
     ],
     "proposito": "Fuente de verdad del contexto, decisiones técnicas y huecos resueltos del proyecto, para personas y agentes de IA.",
@@ -99,8 +104,8 @@
       "invoca": "pantalla → operación"
     },
     "estadisticas": {
-      "nodos": 351,
-      "aristas": 1001,
+      "nodos": 352,
+      "aristas": 1002,
       "por_tipo": {
         "proyecto": 1,
         "objetivo": 6,
@@ -117,7 +122,7 @@
         "almacen_clave_valor": 2,
         "transaccion": 15,
         "fuera_de_alcance": 13,
-        "pregunta_abierta": 11,
+        "pregunta_abierta": 12,
         "invariante": 32,
         "pantalla": 45
       }
@@ -2895,6 +2900,13 @@
       "nombre": "Componentes en Figma",
       "descripcion": "Resuelto: biblioteca de componentes en Figma y todas las vistas maquetadas con ella (DEC-60).",
       "estado": "resuelto"
+    },
+    {
+      "id": "PEND-12",
+      "tipo": "pregunta_abierta",
+      "nombre": "Documentos legales",
+      "descripcion": "Pendiente de redactar (ver docs/legal/README.md): aviso de privacidad conforme a la nueva LFPDPPP (DOF 20-03-2025; autoridad: Secretaría Anticorrupción y Buen Gobierno), términos y condiciones con la cláusula de 'sin recuperación de la contraseña maestra', licencias de terceros (OFL, Apache 2.0, MIT), atribución de HIBP, política de divulgación responsable + security.txt, aviso académico. Internos: documento de seguridad, plan de respuesta a incidentes, política de retención (PEND-05) y lista de encargados (Resend, hosting). En la UI: casilla de aceptación en Crear cuenta y grupo 'Legal y ayuda' en Ajustes.",
+      "estado": "pendiente"
     },
     {
       "id": "PEND-10",
@@ -6702,6 +6714,11 @@
       "de": "PEND-11",
       "a": "DEC-60",
       "relacion": "resuelta_por"
+    },
+    {
+      "de": "PEND-12",
+      "a": "DEC-36",
+      "relacion": "afina"
     },
     {
       "de": "PEND-10",
