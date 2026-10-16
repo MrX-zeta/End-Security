@@ -1,6 +1,6 @@
 # End Security
 
-Gestor de contraseñas Android con cifrado de conocimiento cero, 2FA TOTP y detección de filtraciones (HIBP con k-anonimato).
+Gestor de contraseñas Androi con cifrado de conocimiento cero, 2FA TOTP y detección de filtraciones (HIBP con k-anonimato).
 Proyecto de Seguridad Informática (UP Chiapas), 2 personas, entrega a fines de noviembre de 2026.
 Todo el código lo escribe Claude y lo revisa una persona del equipo.
 
