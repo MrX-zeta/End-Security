@@ -53,7 +53,7 @@ data class ExtendedColors(
 
 private val LightExtendedColors = ExtendedColors(
     blob = LightBlob,
-    blobGrain = BlobGrain,
+    blobGrain = LightBlobGrain,
     shadowLight = LightShadowLight,
     shadowDark = LightShadowDark,
     success = LightSuccess,
@@ -62,7 +62,7 @@ private val LightExtendedColors = ExtendedColors(
 
 private val DarkExtendedColors = ExtendedColors(
     blob = DarkBlob,
-    blobGrain = BlobGrain,
+    blobGrain = DarkBlobGrain,
     shadowLight = DarkShadowLight,
     shadowDark = DarkShadowDark,
     success = DarkSuccess,

@@ -38,6 +38,7 @@ internal val DarkDangerContainer = Color(0xFF4A2523)
 internal val DarkSuccess = Color(0xFF7FD1A3)
 internal val DarkSuccessContainer = Color(0xFF1F3A2C)
 
-// Grano de las manchas orgánicas: efecto de ruido de Figma (blanco al 7 %).
-// No es una variable de DEC-50; está pendiente de registrarse en el grafo.
-internal val BlobGrain = Color(0x12FFFFFF)
+// Grano de las manchas orgánicas (blob-grain en DEC-50): ruido blanco de Figma,
+// al 12 % en el tema claro y al 7 % en el oscuro.
+internal val LightBlobGrain = Color(0x1FFFFFFF) // #FFFFFF al 12 %
+internal val DarkBlobGrain = Color(0x12FFFFFF) // #FFFFFF al 7 %
