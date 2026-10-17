@@ -40,3 +40,7 @@ CLAUDE.local.md
 
 # Backend (cuando exista)
 node_modules/
+
+# Respaldos del editor de draw.io (el .drawio sí se versiona)
+*.bkp
+.$*
