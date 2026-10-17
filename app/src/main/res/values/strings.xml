@@ -3,6 +3,8 @@
 
     <!-- Sistema de diseño -->
     <string name="page_indicator_description">Página %1$d de %2$d</string>
+    <string name="password_show">Mostrar contraseña</string>
+    <string name="password_hide">Ocultar contraseña</string>
 
     <!-- Onboarding (SCR-01, SCR-02, SCR-03). Textos exactos de Figma. -->
     <string name="onboarding_skip">Omitir</string>

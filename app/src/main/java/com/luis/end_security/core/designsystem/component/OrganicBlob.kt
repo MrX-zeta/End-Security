@@ -68,16 +68,18 @@ enum class BlobShape(
 
 /**
  * Mancha orgánica de fondo (DEC-50): máximo dos por pantalla y solo una con grano.
- * Es decorativa, así que no tiene semántica para TalkBack.
+ * Es decorativa, así que no tiene semántica para TalkBack. Por defecto usa el token `blob`;
+ * las pantallas de acceso de Figma ponen una pequeña en `primary`.
  */
 @Composable
 fun OrganicBlob(
     shape: BlobShape,
     modifier: Modifier = Modifier,
     grain: Boolean = false,
+    color: Color = EndSecurityTheme.extendedColors.blob,
 ) {
     val colors = EndSecurityTheme.extendedColors
-    val blobColor = colors.blob
+    val blobColor = color
     val grainTile = if (grain) rememberGrainTile(colors.blobGrain) else null
     Box(
         modifier = modifier.drawWithCache {

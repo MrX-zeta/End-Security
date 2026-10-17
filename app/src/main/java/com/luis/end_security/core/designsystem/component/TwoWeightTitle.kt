@@ -9,6 +9,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
@@ -19,7 +20,8 @@ import com.luis.end_security.core.designsystem.theme.PreviewSurface
 
 /**
  * Título en dos pesos (DEC-50): primera línea Montserrat Bold y segunda Regular,
- * con interletrado de −2 % (headlineLarge). TalkBack lo anuncia como encabezado.
+ * con interletrado de −2 %. `headlineLarge` (32/40) en el onboarding y `displaySmall`
+ * (34/42) en las pantallas de acceso. TalkBack lo anuncia como encabezado.
  */
 @Composable
 fun TwoWeightTitle(
@@ -27,6 +29,7 @@ fun TwoWeightTitle(
     regularLine: String,
     modifier: Modifier = Modifier,
     color: Color = MaterialTheme.colorScheme.onSurface,
+    style: TextStyle = MaterialTheme.typography.headlineLarge,
 ) {
     val text = remember(boldLine, regularLine) {
         buildAnnotatedString {
@@ -37,7 +40,7 @@ fun TwoWeightTitle(
     }
     Text(
         text = text,
-        style = MaterialTheme.typography.headlineLarge,
+        style = style,
         color = color,
         modifier = modifier.semantics { heading() },
     )

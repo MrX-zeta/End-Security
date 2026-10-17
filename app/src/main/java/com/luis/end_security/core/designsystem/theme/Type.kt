@@ -27,7 +27,14 @@ private val Base = Typography()
 val Typography = Typography(
     displayLarge = Base.displayLarge.copy(fontFamily = Montserrat),
     displayMedium = Base.displayMedium.copy(fontFamily = Montserrat),
-    displaySmall = Base.displaySmall.copy(fontFamily = Montserrat),
+    // Título en dos pesos de las pantallas de acceso (Iniciar sesión, Crear cuenta).
+    displaySmall = TextStyle(
+        fontFamily = Montserrat,
+        fontWeight = FontWeight.Normal,
+        fontSize = 34.sp,
+        lineHeight = 42.sp,
+        letterSpacing = TitleLetterSpacing,
+    ),
     // Título de pantalla en dos pesos: la primera línea se pinta en Bold (TwoWeightTitle).
     headlineLarge = TextStyle(
         fontFamily = Montserrat,
@@ -62,7 +69,13 @@ val Typography = Typography(
         lineHeight = 24.sp,
     ),
     bodyMedium = Base.bodyMedium.copy(fontFamily = Montserrat),
-    bodySmall = Base.bodySmall.copy(fontFamily = Montserrat),
+    // Texto de ayuda y de error bajo los campos.
+    bodySmall = TextStyle(
+        fontFamily = Montserrat,
+        fontWeight = FontWeight.Normal,
+        fontSize = 13.sp,
+        lineHeight = 18.sp,
+    ),
     // Texto del botón primario.
     labelLarge = TextStyle(
         fontFamily = Montserrat,
