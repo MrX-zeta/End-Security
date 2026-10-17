@@ -1,7 +1,7 @@
 {
   "meta": {
     "nombre": "Grafo de conocimiento — End Security",
-    "version": "1.3.6",
+    "version": "1.3.7",
     "actualizado": "2026-10-16",
     "fase": "Diseño completo en Figma: 45 pantallas con prototipo navegable, flujos, estadísticas, estados de carga y sin conexión. Siguiente: implementación.",
     "historial": [
@@ -49,6 +49,11 @@
         "version": "1.3.6",
         "fecha": "2026-10-17",
         "cambio": "Revisión de la tarea 05: regla de invisibles ampliada a Default_Ignorable_Code_Point, Cs y Unicode 10.0 fijo; se quitan U+FE0E/FE0F al normalizar; UTF-8 estricto (DEC-31)."
+      },
+      {
+        "version": "1.3.7",
+        "fecha": "2026-10-17",
+        "cambio": "Revisión de la tarea 06: FE0E/FE0F antes de NFKC, Co/no-caracteres/Cf rechazados (DEC-31); bloqueo local de desbloqueo (DEC-08); Bouncy Castle como librería de Argon2id y HKDF (TEC-ARGON2, PEND-01 solo falta medir)."
       }
     ],
     "proposito": "Fuente de verdad del contexto, decisiones técnicas y huecos resueltos del proyecto, para personas y agentes de IA.",
@@ -348,7 +353,7 @@
       "id": "TEC-ARGON2",
       "tipo": "tecnologia",
       "nombre": "Argon2id",
-      "descripcion": "Derivación de la llave maestra (cliente) y hash del hash de autenticación (servidor). Librería y parámetros pendientes.",
+      "descripcion": "Derivación de la llave maestra (cliente) y hash del hash de autenticación (servidor). En Android: Bouncy Castle (bcprov-jdk18on, Java puro: sin código nativo ni problema de páginas de 16 KB), también para HKDF. Parámetros: se miden en el teléfono más modesto del equipo (PEND-01).",
       "estado": "decidido"
     },
     {
@@ -547,7 +552,7 @@
           "protected_vault_key = AES-256-GCM(enc_key, vault_key) — se guarda en servidor y en local",
           "elemento_cifrado = AES-256-GCM(vault_key, json_elemento, nonce, AAD)"
         ],
-        "pendiente": "Parámetros concretos de Argon2id (memoria, iteraciones, paralelismo) y librería."
+        "pendiente": "Parámetros concretos de Argon2id (memoria, iteraciones, paralelismo). Librería: Bouncy Castle."
       }
     },
     {
@@ -568,7 +573,7 @@
       "id": "DEC-08",
       "tipo": "decision",
       "nombre": "Desbloqueo local sin red",
-      "descripcion": "Se deriva enc_key y se descifra protected_vault_key; si la etiqueta GCM falla, la contraseña es incorrecta. Retraso incremental tras intentos fallidos; sin borrado automático de datos.",
+      "descripcion": "Se deriva enc_key y se descifra protected_vault_key; si la etiqueta GCM falla, la contraseña es incorrecta. Retraso incremental tras intentos fallidos; sin borrado automático de datos. Valores: tras 5 fallos seguidos, espera de 1 min que se duplica con cada fallo siguiente (máx. 15 min); un acierto lo reinicia. Se guarda en DataStore (fallos, fin del bloqueo en reloj de pared y en elapsedRealtime) para que cerrar la app o cambiar la hora no lo reinicie; tras reiniciar el teléfono manda el reloj de pared.",
       "estado": "decidido"
     },
     {
@@ -780,7 +785,7 @@
       "id": "DEC-31",
       "tipo": "decision",
       "nombre": "Política de contraseña maestra",
-      "descripcion": "Medidor de fuerza en el registro (zxcvbn4j en el dispositivo, sin red) y mínimo exigido: 12 caracteres y puntaje zxcvbn ≥ 3. Medidor de 4 barras: puntaje 0–1 «Débil» (danger, 1 barra), 2 «Regular» (2 barras), 3 «Fuerte» (success, 3 barras), 4 «Muy fuerte» (success, 4 barras). «Crear cuenta» solo se habilita con el mínimo, la confirmación igual y la casilla legal marcada. Máximo 128 caracteres en los campos de contraseña maestra (acota zxcvbn y Argon2). Antes de medir, comparar o derivar, la contraseña se normaliza a NFKC (NIST SP 800-63B §5.1.1.2) y se codifica en UTF-8 para Argon2 (DEC-05); la longitud se cuenta en puntos de código después de normalizar (un emoji compuesto puede contar varios). NFKC unifica caracteres parecidos («２０２６» = «2026»), y el medidor ya mide el texto normalizado. Normalización completa (siempre, también al entrar y desbloquear): NFKC y después se quitan U+FE0E y U+FE0F (solo cambian la presentación; así «❤» y «❤️» dan la misma llave). Al fijar una contraseña nueva (registro y cambio) se rechazan: controles (Cc), surrogates solitarios (Cs) y todo Default_Ignorable_Code_Point salvo U+200C, U+200D y las etiquetas U+E0020–E007F (banderas); y los puntos de código que no estaban asignados en Unicode 10.0 (la versión de minSdk 28, medida con UCharacter.getAge), para que todos los teléfonos normalicen igual. Mensaje: «Tu contraseña tiene caracteres invisibles que no se pueden usar». Al entrar y desbloquear no se rechaza (respuesta genérica). Codificación a UTF-8 con CodingErrorAction.REPORT: si falla, al entrar es un fallo genérico.",
+      "descripcion": "Medidor de fuerza en el registro (zxcvbn4j en el dispositivo, sin red) y mínimo exigido: 12 caracteres y puntaje zxcvbn ≥ 3. Medidor de 4 barras: puntaje 0–1 «Débil» (danger, 1 barra), 2 «Regular» (2 barras), 3 «Fuerte» (success, 3 barras), 4 «Muy fuerte» (success, 4 barras). «Crear cuenta» solo se habilita con el mínimo, la confirmación igual y la casilla legal marcada. Máximo 128 caracteres en los campos de contraseña maestra (acota zxcvbn y Argon2). Antes de medir, comparar o derivar, la contraseña se normaliza a NFKC (NIST SP 800-63B §5.1.1.2) y se codifica en UTF-8 para Argon2 (DEC-05); la longitud se cuenta en puntos de código después de normalizar (un emoji compuesto puede contar varios). NFKC unifica caracteres parecidos («２０２６» = «2026»), y el medidor ya mide el texto normalizado. Normalización completa (siempre, también al entrar y desbloquear): se quitan U+FE0E y U+FE0F y después NFKC (solo cambian la presentación; así «❤» y «❤️» dan la misma llave). Al fijar una contraseña nueva (registro y cambio) se rechazan: controles (Cc), surrogates solitarios (Cs) y todo Default_Ignorable_Code_Point salvo U+200C, U+200D y las etiquetas U+E0020–E007F (banderas); y los puntos de código que no estaban asignados en Unicode 10.0 (la versión de minSdk 28, medida con UCharacter.getAge), para que todos los teléfonos normalicen igual. También se rechazan Cf no ignorables (U+FFF9–FFFB), uso privado (Co) y no-caracteres (U+FDD0–FDEF y los que terminan en FFFE/FFFF). La edad Unicode se revisa en el texto crudo y en el normalizado. ZWJ, ZWNJ y etiquetas se aceptan en cualquier posición (riesgo aceptado: no afecta la reproducibilidad). Riesgo conocido: NFKC no unifica ي/ی ni ك/ک. Mensaje: «Tu contraseña tiene caracteres que no se pueden usar (invisibles o emojis muy nuevos)». Al entrar y desbloquear no se rechaza (respuesta genérica). Codificación a UTF-8 con CodingErrorAction.REPORT: si falla, al entrar es un fallo genérico.",
       "estado": "decidido",
       "detalles": {
         "valores": {
@@ -2876,7 +2881,7 @@
       "id": "PEND-01",
       "tipo": "pregunta_abierta",
       "nombre": "Parámetros y librería de Argon2id",
-      "descripcion": "Elegir librería (argon2kt, lazysodium-android o Bouncy Castle) y medir memoria/iteraciones en un teléfono de gama baja. El esquema ya exige los mínimos de OWASP.",
+      "descripcion": "Librería elegida: Bouncy Castle (2026-10-17; argon2kt queda de respaldo si es demasiado lenta). Falta medir en el teléfono más modesto: 19 MiB/t=2, 46 MiB/t=1, 64 MiB/t=3 (p=1) y elegir la más fuerte cercana a 1 s. El esquema ya exige los mínimos de OWASP.",
       "estado": "pendiente"
     },
     {

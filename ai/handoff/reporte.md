@@ -1,126 +1,135 @@
-# Reporte · Tarea 06 · Regla de invisibles ampliada, Desbloquear (SCR-09) y Bóveda · cargando (SCR-39)
+# Reporte · Tarea 07 · Cierre de DEC-31, bloqueo local y primer código de `core/crypto`
 
 **Estado:** hecha
 **Fecha:** 2026-10-17
 
 ## Qué se hizo
-- **Commits de la tarea 05:** ya estaban en GitHub cuando empecé (`d678c22` y `4d5cecb` en `origin/development`).
-- **`.gitignore`:** agregué `*.bkp` y `.$*`. El `.drawio` se sigue subiendo.
 
-### Paso 1 · Regla ampliada (DEC-31 v1.3.6)
-- **`MasterPasswordNormalizer`:** aplica NFKC y después quita U+FE0E y U+FE0F. Así «❤» y «❤️» dan lo mismo.
-- **`MasterPasswordPolicy.hasForbiddenCharacters(raw, normalized, unicode)`:** sobre el texto normalizado rechaza:
-  - Cc y Cs;
-  - todo `Default_Ignorable_Code_Point`, salvo U+200C, U+200D y U+E0020–E007F;
-  - U+2028, U+2029 y U+2800, en una lista aparte;
-  - lo que no estaba asignado en Unicode 10.0.
-- **Edad también en el texto crudo** (hallazgo 1 de la revisión): la edad Unicode se revisa además en lo que escribió el usuario, antes de NFKC.
-- **Interfaz de dominio `UnicodeCharacterData`** (`isDefaultIgnorable` y `age`), con dos implementaciones:
-  - `IcuUnicodeCharacterData` en `data`, con `UCharacter.hasBinaryProperty` y `UCharacter.getAge`;
-  - `FakeUnicodeCharacterData` en las pruebas, con la tabla de DerivedCoreProperties.
-- **Crear cuenta:** `SignUpViewModel` la recibe por Hilt.
-- **UTF-8 con `CodingErrorAction.REPORT`:** queda anotado en los `TODO` de OP-11 (registro), OP-13 (entrar) y OP-19 (desbloquear).
-- **Escapes en las pruebas:** todos los caracteres invisibles se arman con `cp(0x…)`; no hay ningún `\u` en el código nuevo. Revisé con un script que no quedaran caracteres invisibles literales en los archivos tocados: 0.
+### Paso 1 · Ajustes de DEC-31 (v1.3.7)
+- **`MasterPasswordNormalizer`:** quita U+FE0E/FE0F **antes** de NFKC. «A»+FE0F+U+030A ahora da «Å», y normalizar dos veces da lo mismo.
+- **`MasterPasswordPolicy`:** además rechaza:
+  - U+FFF9–FFFB;
+  - el uso privado (U+E000–F8FF y los planos 15 y 16);
+  - los no-caracteres (U+FDD0–FDEF y los que terminan en FFFE o FFFF).
+  - ZWJ, ZWNJ y las etiquetas siguen aceptándose en cualquier posición: es el riesgo aceptado, y tiene una prueba que lo documenta.
+- **Mensaje nuevo:** «Tu contraseña tiene caracteres que no se pueden usar (invisibles o emojis muy nuevos)».
 
-### Paso 2 · Desbloquear (SCR-09, `Routes.UNLOCK`)
-- **De arriba abajo:** «End Security», manchas como en Iniciar sesión, «Tu bóveda / está bloqueada», texto, `PasswordField` «Contraseña maestra», fila con huella (56, contorno) y «Desbloquear», y abajo «¿No eres Ana? **Cerrar sesión**».
-- **Huella:** solo se muestra con `biometric_enabled`. Es una clave nueva en `SettingsStore` y se lee con `UnlockSettingsRepository`. Sin huella, «Desbloquear» ocupa todo el ancho. Al tocarla: `TODO(OP-20)`.
-- **«Desbloquear»:**
-  - se habilita con la contraseña escrita (`TODO(OP-19)`);
-  - con contraseña incorrecta muestra «Contraseña incorrecta.» y vacía el campo; el error se quita al volver a escribir;
-  - tiene el mismo bloqueo por intentos que Iniciar sesión.
-- **«Cerrar sesión»:** abre una hoja inferior con «¿Cerrar sesión?», el texto, «Cerrar sesión» (`DangerButton`) y «Cancelar» (`SecondaryButton`). Al confirmar: `TODO(OP-18)` y va a Iniciar sesión con la pila vacía.
-- **Seguridad:**
-  - `SecureScreen`, `ExcludeFromAutofill` y `TextFieldState` en memoria;
-  - se vacía en `ON_STOP` y al salir, máximo de 256 en el campo, la hoja con `SecureOn` y nada en `toString()`.
-- **Atrás del sistema:** `moveTaskToBack(true)`.
-- **Ruta de depuración:** solo en compilaciones de depuración, con `adb shell am start -n com.luis.end_security/.MainActivity --es debug_route unlock`. Solo acepta `unlock`.
-- **Nombre:** sale de un `TODO(TBL-L-ACCOUNT)`. En las vistas previas es «Ana».
+### Paso 2 · Bloqueo local de Desbloquear (DEC-08)
+- **`core/datastore/UnlockLockout`:** reglas puras. Después de 5 fallos, 1 min; luego 2, 4 y 8, hasta un tope de 15 min (sin desbordarse).
+  - Cuánto falta:
+    - en el mismo arranque manda `elapsedRealtime`;
+    - si `elapsedRealtime` es menor que cuando empezó el bloqueo, el teléfono se reinició y manda el reloj de pared;
+    - nunca devuelve más que la espera que toca.
+- **`core/datastore/UnlockAttemptStore`:**
+  - usa el archivo `settings` de DataStore;
+  - `recordFailure`, `recordSuccess` (borra todo) y `remainingLockout`;
+  - **claves nuevas para KV-DATASTORE:** `unlock_failures`, `unlock_locked_until_wall` y `unlock_locked_until_elapsed`.
+- **`core/common/DeviceClock`:** reloj de pared y `elapsedRealtime`, inyectados con `TimeModule`.
+- **`UnlockAttemptRepository`** (dominio) e implementación en `data`.
+- **`UnlockViewModel`:**
+  - al abrir, retoma un bloqueo que siga activo;
+  - `onWrongPassword()` cuenta el fallo;
+  - desde el quinto, el bloqueo reemplaza al error.
+  - Se quitó `onLockedOut(minutes)`, porque el bloqueo ya no viene del servidor.
 
-### Paso 3 · Bóveda · cargando (SCR-39) y barra inferior
-- **`BottomNavBar` (DEC-56):**
-  - Bóveda, Salud, Generador y Ajustes, con los íconos vault, shield-check, dado y settings de Figma, en 22 px;
-  - la pestaña activa lleva un cuadro `on-surface` de 44×36 con el ícono claro y la etiqueta en Bold;
-  - cada pestaña mide 76×54, tiene `Role.Tab` y `selectableGroup`;
-  - el margen inferior es la barra de gestos o 14 dp, lo que sea mayor.
-- **`SkeletonBlock` y `SkeletonPulse`:**
-  - `outline` al 20 % con un pulso de opacidad del 100 al 50 % (900 ms), compartido por todos los bloques de la pantalla;
-  - con «Quitar animaciones» queda fijo;
-  - oculto a TalkBack (`clearAndSetSemantics`).
-- **`VaultLoadingScreen`:**
-  - esqueleto de la inicial, candado «Bloquear ahora» deshabilitado, «Tu bóveda», punto `primary` con «Descargando tu bóveda…», buscador y 5 filas en esqueleto, y la barra con Bóveda activa;
-  - TalkBack anuncia «Descargando tu bóveda» una vez, como `paneTitle`.
-- **Navegación:**
-  - «Continuar» de 2FA y «Entrar» del código de respaldo navegan aquí con la pila vacía, de forma temporal y con sus `TODO(OP-15/16)`;
-  - en depuración pasa a `Routes.VAULT` (marcador) tras 2 s (`TODO(OP-32)`).
-- **Componentes nuevos:**
-  - `OutlinedIconButton` («Botón de ícono / Contorno»);
-  - `SecondaryButton` y `DangerButton` («Botón/Secundario» y «Botón/Peligro», en `BorderedButtons.kt`);
-  - estilos `headlineMedium` (30 Bold) y `labelSmall` (11/14 Medium).
+### Paso 3 · `core/crypto` (DEC-05, DEC-28), con el plan aprobado en el chat
+- **Dependencia:** `org.bouncycastle:bcprov-jdk18on:1.86` (última estable, septiembre de 2026). Solo la API ligera, sin registrar un proveedor JCA.
+- **`KdfParams`:**
+  - acepta si se alcanza alguna configuración de OWASP (46 MiB/t1, 19/t2, 12/t3, 9/t4, 7/t5);
+  - topes: 128 MiB, t ≤ 10, p ≤ 4 y memoria × pasadas ≤ 2 × (64 MiB × 3).
+- **`Argon2idKdf.derive`:** `ARGON2_id`, versión 0x13, salida de 32 B y sal de **exactamente 16 B** (DEC-06, `users_kdf_salt_chk`). En `finally` borra las copias de la sal y los parámetros que guarda Bouncy Castle (`clear()`).
+- **`Hkdf`:**
+  - HKDF-SHA256 sin sal, con `encKey` (`end-security/enc`) y `authKey` (`end-security/auth`);
+  - rechaza una `master_key` que no mida 32 B o que esté en ceros, por si se borró antes de tiempo.
+- **`MasterPasswordEncoder`:** UTF-8 con `REPORT`.
+  - Antes de codificar, busca surrogates sueltos (ICU y la JVM no tratan igual uno al final).
+  - `OVERFLOW` también es error.
+  - El búfer intermedio se borra en `finally`.
+- **`wipe()`:** las llaves intermedias de las pruebas se borran en `finally`.
+- Las funciones internas sin validación llevan `@VisibleForTesting(otherwise = PRIVATE)`.
+- **Nada está conectado a las pantallas.**
+- **`tools/vectors/master_key_chain.py`:** recalcula el vector propio con argon2-cffi 25.1.0 y `hmac`, y comprueba su HKDF contra RFC 5869.
+
+### Paso 4 · Medición (PEND-01)
+`Argon2BenchmarkTest` (instrumentada, sin interfaz) mide 1 calentamiento más 5 corridas por configuración. Deja la tabla en logcat (`Argon2Benchmark`) y en la salida de `am instrument`. Atrapa `OutOfMemoryError`.
+
+**Emulador** (Google sdk_gphone64_x86_64 · Android 16, API 36 · `Runtime.maxMemory()` = 192 MiB · APK depurable: sí):
+
+| Memoria | t | p | Mediana (ms) | Peor (ms) | Corridas (ms) |
+|---|---|---|---|---|---|
+| 19 MiB | 2 | 1 | 416 | 447 | 397, 416, 378, 447, 444 |
+| 46 MiB | 1 | 1 | 549 | 625 | 496, 525, 605, 625, 549 |
+| 64 MiB | 3 | 1 | 1736 | 1929 | 1858, 1736, 1712, 1717, 1929 |
+
+**Teléfono más modesto del equipo:** pendiente. Debe correrla una persona del equipo con el teléfono conectado (yo no toco los teléfonos físicos):
+
+```bash
+./gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.luis.end_security.core.crypto.Argon2BenchmarkTest
+```
+
+La tabla aparece en `adb logcat -s Argon2Benchmark:I`. **Aviso (hallazgo 2):** la medición corre en un APK depurable, y en ART eso puede hacer a Bouncy Castle varias veces más lento que en release. Los números sirven para comparar las configuraciones entre sí, pero probablemente exageran el tiempo real.
 
 ## Compilación y pruebas (salida real)
-- `assembleDebug`, `assembleDebugAndroidTest`, `testDebugUnitTest` y `assembleRelease`: `BUILD SUCCESSFUL in 1m 48s`.
-- **Pruebas unitarias: 143, 0 fallas.** Nuevas o ampliadas:
-  - **`ForbiddenCharactersTest` (17):**
-    - se rechazan U+00AD, U+115F, U+3164 y U+FE00; U+2028, U+2029 y U+2800; surrogates D800 y DC00; U+1FA70 (12.0, con el falso); U+1FBF0 (13.0, que NFKC vuelve «0»); U+E0001; U+034F y U+061C;
-    - se aceptan 🇲🇽, 🏴󠁧󠁢󠁳󠁣󠁴󠁿, 👨‍👩‍👧, ❤️ y U+200C.
-  - **`MasterPasswordNormalizerTest` (9):** «❤», «❤» + FE0F y «❤» + FE0E normalizan igual.
-  - **`UnlockViewModelTest` (8):** habilitación, error y su limpieza, bloqueo con cuenta regresiva, huella según `biometric_enabled`, hoja, confirmación hacia Iniciar sesión y `toString` sin nombre.
-  - **`TwoFactorViewModelTest` (7) y `BackupCodeViewModelTest` (6):** navegan a la bóveda.
-- **Pruebas instrumentadas** (emulador, `am instrument`): **6, OK.**
-  - `BottomNavBarTest`: con cada pestaña activa, esa es `Role.Tab` seleccionada y las demás no; además revisa el toque.
-  - `IcuUnicodeCharacterDataTest`: con el ICU real, 🧡 = 10.0, U+0378 sin edad, e ignorables (U+180E, U+FFA0, U+E0001, U+E0100…).
-- **Release:** `debug_route` no aparece en el dex de release y `mapping.txt` existe, así que R8 quitó la ruta de depuración.
-- **Emulador** (Pixel 7 Pro, API 36, solo `emulator-5554`):
-  - Desbloquear por la ruta de depuración: ventana con FLAG_SECURE, título a 317 dp (Figma 316), «Desbloquear» a todo el ancho sin huella, y se habilita al escribir.
-  - «Cerrar sesión» abre la hoja, «Cancelar» la cierra y confirmar lleva a Iniciar sesión.
-  - Atrás en Desbloquear manda la app al fondo.
-  - Onboarding → Omitir → Iniciar sesión → 2FA → 6 dígitos → «Continuar» → Bóveda · cargando, igual a Figma (captura) → a los 2 s, el marcador. Atrás ahí sale de la app: la pila quedó vacía.
+- `testDebugUnitTest`, `assembleDebug`, `assembleDebugAndroidTest` y `assembleRelease`: `BUILD SUCCESSFUL`. **181 pruebas unitarias, 0 fallas.** Nuevas:
+  - **`Argon2idKdfTest` (4):** **RFC 9106 §5.3** (`0d640df5…6b01e659`); no toca la contraseña ni la sal; otra sal da otra llave; la sal debe medir 16 B.
+  - **`HkdfTest` (5):** **RFC 5869, casos 1, 2 y 3**; sal vacía igual a sin sal; `enc_key` ≠ `auth_key`.
+  - **`MasterKeyChainTest` (6):**
+    - vector propio «ñ» (NFD) + «２０２６» + «❤» con U+FE0F → UTF-8 → `master_key` `0bfa616a…`, `enc_key` `3d11ddea…` y `auth_key` `146cb3e7…`, calculados aparte con argon2-cffi;
+    - surrogates sueltos al inicio, al final y en medio; emoji con su pareja; HKDF rechaza una llave en ceros.
+  - **`KdfParamsTest` (4):** OWASP, mínimos, topes y costo conjunto.
+  - **`UnlockLockoutTest` (9):** 5 → 1 min, 6 → 2 min, tope de 15; adelantar o atrasar la hora no cambia nada; tras un reinicio manda el reloj de pared.
+  - **`UnlockAttemptStoreTest` (5):** usa un DataStore en memoria, porque el de archivo falla al renombrar en la JVM de Windows. Cubre: cerrar la app no reinicia el bloqueo, un acierto reinicia, cambiar la hora, reinicio.
+  - **`UnlockViewModelTest` (9):** el quinto fallo bloquea 1 min; un bloqueo guardado sigue al abrir.
+  - **`ForbiddenCharactersTest` (19)** y **`MasterPasswordNormalizerTest` (11):** casos nuevos del Paso 1.
+- **Instrumentadas en el emulador: 11, OK.** Nuevas:
+  - `MasterKeyChainDeviceTest` (3): **el mismo vector con el ICU del teléfono**, más el surrogate al final y el orden FE0F antes de NFKC;
+  - `UnlockAttemptStoreDeviceTest` (1): DataStore de archivo real;
+  - `Argon2BenchmarkTest`.
+- **R8:** compila sin reglas.
+  - Como todavía nada usa `core/crypto`, R8 quita Bouncy Castle entero.
+  - Hice una compilación de prueba con `-keep` sobre `core/crypto`: R8 no dio ninguna advertencia de clases faltantes y el APK creció 27 KiB. Quité la regla temporal; `rules.keep` no cambió.
+  - **No hizo falta ningún `-dontwarn`.**
+- **Código fuente de Bouncy Castle 1.86, revisado:**
+  - `Argon2BytesGenerator` borra sus bloques al devolverlos (`deallocate` → `clear`);
+  - `Argon2Parameters` y su `Builder` tienen `clear()`;
+  - `HKDFParameters` clona el IKM y no tiene `clear()`.
 
-## Revisión de seguridad (`security-reviewer`, Paso 1 y Desbloquear)
-Sin hallazgos críticos ni altos.
+## Revisión de seguridad (`security-reviewer`, Pasos 1 y 3, y vistazo al 2)
+Sin hallazgos críticos ni altos. Confirmó Argon2id y HKDF bien usados, los vectores de RFC y el Paso 1.
 
 | # | Gravedad | Hallazgo | Qué se hizo |
 |---|---|---|---|
-| 1 | Media | Un carácter posterior a Unicode 10.0 que NFKC vuelve antiguo (U+1FBF0 → «0», U+1CCF0…, U+10780…) pasaba, porque la edad se medía después de normalizar; en un teléfono viejo la llave saldría distinta | **Corregido:** la edad también se revisa en el texto crudo, con prueba |
-| 2 | Media | Compose pone el texto real del campo de contraseña en el nodo de accesibilidad (`password=true`). En API 28–33 un servicio de accesibilidad activo podría leerlo; en 34+ lo frena `ACCESSIBILITY_DATA_SENSITIVE_YES`. Lo vi con `uiautomator dump` (que es una herramienta privilegiada) | **No implementado:** afecta a `PasswordField` desde la tarea 02 y cambia DEC-26 (ver dudas) |
-| 3 | Baja | U+200C, U+200D y las etiquetas se aceptan en cualquier posición (sueltas, repetidas, al final) | **No implementado:** pide reglas de contexto (RFC 5892) que DEC-31 no tiene |
-| 4 | Baja | Pasan Cf no ignorables (U+FFF9–FFFB), los no-caracteres (U+FDD0–FDEF, U+FFFE…, que sí tienen edad) y el uso privado | **No implementado:** amplía DEC-31 |
-| 5 | Baja | Quitar FE0E/FE0F después de NFKC no es idempotente: «A»+FE0F+U+030A da «A»+U+030A y no «Å» | **No implementado:** DEC-31 dice «NFKC y después se quitan»; propongo quitarlos antes (da lo mismo en todo lo demás) |
-| 6 | Baja | El bloqueo de Desbloquear vive en la memoria del ViewModel: cerrar la app lo reinicia | **No implementado:** OP-19 es local y el grafo no dice dónde se cuentan los intentos |
-| 7 | Baja | La ruta de depuración aceptaba `vault` y `vault_loading` (la actividad es exported) | **Corregido:** solo `unlock`. En release no existe (R8, comprobado) |
-| 8 | Baja | Los emojis nuevos (🥰 de Unicode 11, 🫶 de 14) se rechazan con «caracteres invisibles» | **No implementado:** el texto lo fija DEC-31 |
-| 9 | Info | Las pruebas no tocaban el ICU real | **Corregido:** `IcuUnicodeCharacterDataTest` instrumentada, más casos de U+E0001 y U+1FBF0 |
-| 10 | Info | Cuando llegue `LockGuard`, debe navegar con la pila limpia y bloquear `VaultSession`, no apilar Desbloquear | Anotado para la tarea de `VaultSession` |
-| 11 | Info | NFKC no unifica ي/ی ni ك/ک (persa con teclado árabe) | Anotado como riesgo conocido de DEC-31 |
+| 1 | Media | Un servidor malicioso puede bajar los parámetros del KDF hasta el mínimo de OWASP, o mandar una sal fija para todos, y el cliente no lo nota. Atacar `auth_key` sin conexión le saldría unas 5 veces más barato | **No implementado:** cuando cierres PEND-01, subir el piso del cliente a los parámetros elegidos y recordar en `account` los parámetros y la sal de cada cuenta (ver dudas) |
+| 2 | Media | La medición corre en un APK depurable, que en ART es más lento y empujaría a elegir parámetros más débiles | **En parte:** la tabla dice si el APK es depurable. Medir en release requiere un `buildType` de medición (ver dudas) |
+| 3 | Media | El codificador y el vector solo se probaban en la JVM; el ICU de Android podría descartar en silencio un surrogate al final | **Corregido:** se buscan los surrogates sueltos antes de codificar, y el vector también corre en el teléfono (`MasterKeyChainDeviceTest`) |
+| 4 | Media | Contar el fallo después de Argon2 y en `viewModelScope` permite esquivar el bloqueo matando la app; el bloqueo solo lo aplica la UI | **Anotado** en el `TODO(OP-19)`: contar el intento antes de derivar, en `NonCancellable`, y consultar al repositorio antes de cada intento. Se hace al conectar OP-19 |
+| 5 | Baja | El tope de 256 MiB pasaba del heap por app de muchos teléfonos, y memoria × pasadas no tenía tope | **Corregido:** 128 MiB y tope de memoria × pasadas |
+| 6 | Baja | La sal aceptaba `>= 16` B; DEC-06 dice 16 exactos, y el largo podría delatar la sal falsa de DEC-07 | **Corregido:** exactamente 16 B. Conviene anotar en DEC-07 que la sal falsa se trunca a 16 B |
+| 7 | Baja | Una `master_key` ya borrada daría llaves calculables sin ningún error | **Corregido:** HKDF exige 32 B que no estén en ceros. `SecureBytes` lo resolvería del todo (ver dudas) |
+| 8 | Baja | Copias en Bouncy Castle: H0 (72 B), `tmpBlockBytes`; en HKDF, IKM, PRK, estados de HMAC y T(1); en Android, ICU copia la entrada si es `String` | **Documentado** en los comentarios. No hay API para borrarlas (DEC-27) |
+| 9 | Baja | La prueba de no-caracteres pasaba por la regla de «sin asignar» del falso, no por `isNoncharacter` | **Corregido:** se les da edad 1.1 en esa prueba |
+| 10 | Baja | `OVERFLOW` no se trataba como error | **Corregido** |
+| 11 | Baja | Las funciones `internal` sin validación se podían usar en todo el módulo | **Corregido:** `@VisibleForTesting(otherwise = PRIVATE)` |
+| 12 | Baja/Info | Un error de disco (o un archivo corrupto) deja intentar sin límite; reiniciar más cambiar la hora esquiva el bloqueo (DEC-08 lo acepta) | **Documentado.** Mejora opcional: `Settings.Global.BOOT_COUNT` (cambia DEC-08) |
+| 13 | Info | El script del vector propio no estaba en el repo | **Corregido:** `tools/vectors/master_key_chain.py` |
 
-## Diferencias con Figma o con la tarea
-- **Candado de Bóveda · cargando:** en Figma es un esqueleto. Como pide la tarea, es el botón real deshabilitado (contorno al 40 %).
-- **Contraseña incorrecta en Desbloquear vacía el campo**, como el código de respaldo. Así el error se quita al volver a escribir y la contraseña rechazada no se queda en pantalla. Iniciar sesión no lo hace.
-- **Sin nombre de la cuenta**, el enlace dice «¿No eres tú?». Es un texto nuevo: hasta que exista TBL-L-ACCOUNT, la app real no tiene el nombre.
-- **Hoja «¿Cerrar sesión?»:** no está en Figma. Usa los botones de peligro y secundario de la biblioteca, sobre `background`, como la hoja de documentos legales.
-- **Marcador de `Routes.VAULT`:** «Tu bóveda», «Próximamente» y la barra inferior.
-- **Las pestañas de la barra aún no navegan** (`TODO(DEC-56)`), porque Salud, Generador y Ajustes no existen.
-- **Activé `buildConfig = true`** en `app/build.gradle.kts` para usar `BuildConfig.DEBUG`, así R8 quita el código de depuración.
+## Diferencias con la tarea
+- **Sal de 16 B exactos**, no «al menos 16», por DEC-06 y el hallazgo 6.
+- **Topes de `KdfParams`:** la tarea pedía validar solo los mínimos de OWASP; agregué los topes para que un servidor malicioso no pueda congelar la app.
+- **`.claude/rules/crypto.md` pide envolver los secretos en `SecureBytes`.** La tarea pide firmas con `ByteArray` y seguí la tarea.
+- **Pruebas del store:** el `UnlockAttemptStoreTest` unitario usa un DataStore en memoria; la prueba con archivo real es instrumentada.
 
 ## Dudas o decisiones que tomé
-- **Accesibilidad y contraseña (hallazgo 2):** ¿se verifica con un servicio de prueba en API 33 y, si se confirma, se cambia `PasswordField` para que el nodo solo exponga la máscara? Cambia DEC-26.
-- **Ampliar DEC-31 (hallazgos 3, 4, 5 y 8):**
-  - contexto para ZWJ, ZWNJ y etiquetas;
-  - rechazar Cf, Co y Cn;
-  - quitar FE0E/FE0F **antes** de NFKC;
-  - y un mensaje que mencione emojis demasiado nuevos.
-
-  Conviene decidir antes de la primera cuenta real, igual que lo anterior.
-- **Bloqueo local en Desbloquear (hallazgo 6):** ¿cuántos intentos, cuánto tiempo y dónde se guardan (DataStore con reloj de pared y `elapsedRealtime`)? Hace falta antes de OP-19.
-- **Emulador:**
-  - Está al 94 %. `connectedDebugAndroidTest` no pudo instalar los dos APK juntos, así que instalé y corrí `am instrument` a mano y desinstalé el APK de prueba al terminar. No toqué las otras apps del emulador.
-  - Cambié por error el tiempo de apagado de pantalla del emulador (`screen_off_timeout` a 10 min) con `settings put`. No sé cuál era el valor anterior; si importa, se restaura en Ajustes → Pantalla.
+- **Parámetros finales (PEND-01):**
+  - Falta la tabla del teléfono más modesto.
+  - En el emulador (depurable), 64 MiB/t=3 tarda 1,7 s, y 19 MiB/t=2 y 46 MiB/t=1 tardan 0,4–0,6 s.
+  - ¿Agrego un `buildType` de medición no depurable (`initWith(release)`, firma de depuración, sin R8) para medir como en release?
+- **Piso de parámetros en el cliente (hallazgo 1):** al elegir los parámetros, ¿subo el mínimo de `KdfParams` a esos valores? ¿Y `account` guarda los parámetros y la sal de cada cuenta para rechazar una bajada en el prelogin?
+- **`SecureBytes`:** el revisor recomienda `ByteArray` solo dentro de las primitivas de `core/crypto`, y `SecureBytes` (`toString` «***», `wipe`, `AutoCloseable` y error si se lee después de borrar) en cuanto un secreto sale de ahí, empezando por `VaultSession`. ¿Se ajusta así `.claude/rules/crypto.md`?
+- **Tema aparte:** el bloqueo local se muestra con el mismo texto de DEC-32 («Demasiados intentos. Vuelve a intentarlo en N min.»).
 
 ## Revisión
-- [x] REQUIERE REVISIÓN HUMANA: no se tocó `core/crypto`, `core/session` ni SQL. Sí se tocaron:
-  - la política y la normalización de la contraseña maestra (cambian la llave derivada);
-  - la pantalla de Desbloquear (un secreto);
-  - la navegación de la sesión (pila limpia, ruta de depuración).
-
-  El Paso 1 y Desbloquear pasaron por `security-reviewer`.
+- [x] **REQUIERE REVISIÓN HUMANA:** el Paso 3 es el primer código de `core/crypto`.
+  - Revisar `KdfParams`, `Argon2idKdf`, `Hkdf`, `MasterPasswordEncoder` y sus vectores.
+  - El vector propio se puede volver a calcular con `tools/vectors/master_key_chain.py`.
+  - Los Pasos 1 y 3 pasaron por `security-reviewer`.
