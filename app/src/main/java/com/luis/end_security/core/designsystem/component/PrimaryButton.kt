@@ -17,6 +17,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.dropShadow
 import androidx.compose.ui.graphics.shadow.Shadow
 import androidx.compose.ui.res.painterResource
@@ -28,10 +29,13 @@ import com.luis.end_security.R
 import com.luis.end_security.core.designsystem.theme.EndSecurityTheme
 import com.luis.end_security.core.designsystem.theme.PreviewSurface
 
+private const val DisabledAlpha = 0.4f
+
 /**
  * Botón primario de Figma («Botón/Primario»): alto 56, radio 16, texto Bold a la izquierda
  * y flecha a la derecha, fondo amarillo de acción con texto carbón (DEC-50).
  * Sin ancho fijo: quien lo usa decide (`widthIn(min = 168.dp)` o `fillMaxWidth()`).
+ * Deshabilitado baja su opacidad al 40 %: Figma no tiene ese estado (convención de Material).
  */
 @Composable
 fun PrimaryButton(
@@ -44,7 +48,9 @@ fun PrimaryButton(
     Surface(
         onClick = onClick,
         enabled = enabled,
-        modifier = modifier.dropShadow(
+        modifier = modifier
+            .alpha(if (enabled) 1f else DisabledAlpha)
+            .dropShadow(
             shape = shape,
             shadow = Shadow(
                 radius = 22.dp,
