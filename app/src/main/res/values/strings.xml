@@ -27,4 +27,7 @@
 
     <!-- Iniciar sesión (SCR-04). Marcador hasta implementar la pantalla. -->
     <string name="login_title">Iniciar sesión</string>
+
+    <!-- Crear cuenta (SCR-05). Marcador hasta la tarea 03. -->
+    <string name="sign_up_title">Crear cuenta</string>
 </resources>

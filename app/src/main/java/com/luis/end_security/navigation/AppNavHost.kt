@@ -14,6 +14,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.luis.end_security.feature.auth.ui.login.LoginScreen
 import com.luis.end_security.feature.auth.ui.onboarding.OnboardingRoute
+import com.luis.end_security.feature.auth.ui.signup.SignUpScreen
 
 @Composable
 fun AppNavHost(
@@ -31,10 +32,15 @@ fun AppNavHost(
     val navController = rememberNavController()
     NavHost(navController = navController, startDestination = route, modifier = modifier) {
         composable(Routes.ONBOARDING) {
+            // El onboarding no vuelve a aparecer: cualquier salida lo saca de la pila.
             OnboardingRoute(
-                onFinished = {
-                    // El onboarding no vuelve a aparecer: se saca de la pila.
+                onNavigateToLogin = {
                     navController.navigate(Routes.LOGIN) {
+                        popUpTo(Routes.ONBOARDING) { inclusive = true }
+                    }
+                },
+                onNavigateToSignUp = {
+                    navController.navigate(Routes.SIGN_UP) {
                         popUpTo(Routes.ONBOARDING) { inclusive = true }
                     }
                 },
@@ -42,6 +48,9 @@ fun AppNavHost(
         }
         composable(Routes.LOGIN) {
             LoginScreen()
+        }
+        composable(Routes.SIGN_UP) {
+            SignUpScreen()
         }
     }
 }

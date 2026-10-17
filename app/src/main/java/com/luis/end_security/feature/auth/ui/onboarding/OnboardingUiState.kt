@@ -20,10 +20,20 @@ sealed interface OnboardingAction {
     /** El usuario deslizó y el pager se detuvo en [page]. */
     data class PageSettled(val page: Int) : OnboardingAction
 
-    /** «Omitir», «Comenzar» o «Ya tengo una cuenta»: todos terminan el onboarding. */
-    data object Finish : OnboardingAction
+    /** «Omitir» (páginas 1 y 2): termina y va a Iniciar sesión. */
+    data object Skip : OnboardingAction
+
+    /** «Comenzar» (página 3): termina y va a Crear cuenta (DEC-56). */
+    data object Start : OnboardingAction
+
+    /** «Ya tengo una cuenta» (página 3): termina y va a Iniciar sesión. */
+    data object AlreadyHaveAccount : OnboardingAction
 }
 
 sealed interface OnboardingEffect {
+    /** SCR-04. */
     data object NavigateToLogin : OnboardingEffect
+
+    /** SCR-05. */
+    data object NavigateToSignUp : OnboardingEffect
 }

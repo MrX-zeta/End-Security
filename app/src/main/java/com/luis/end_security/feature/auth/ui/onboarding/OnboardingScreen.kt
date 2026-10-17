@@ -69,15 +69,18 @@ private val ContentHorizontalPadding = 32.dp
 
 @Composable
 fun OnboardingRoute(
-    onFinished: () -> Unit,
+    onNavigateToLogin: () -> Unit,
+    onNavigateToSignUp: () -> Unit,
     viewModel: OnboardingViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    val currentOnFinished by rememberUpdatedState(onFinished)
+    val currentOnNavigateToLogin by rememberUpdatedState(onNavigateToLogin)
+    val currentOnNavigateToSignUp by rememberUpdatedState(onNavigateToSignUp)
     LaunchedEffect(viewModel) {
         viewModel.effects.collect { effect ->
             when (effect) {
-                OnboardingEffect.NavigateToLogin -> currentOnFinished()
+                OnboardingEffect.NavigateToLogin -> currentOnNavigateToLogin()
+                OnboardingEffect.NavigateToSignUp -> currentOnNavigateToSignUp()
             }
         }
     }
@@ -142,7 +145,7 @@ fun OnboardingScreen(
             OnboardingHeader(
                 showSkip = !state.isLastPage,
                 reducedMotion = reducedMotion,
-                onSkip = { onAction(OnboardingAction.Finish) },
+                onSkip = { onAction(OnboardingAction.Skip) },
                 modifier = Modifier
                     .align(Alignment.TopCenter)
                     .statusBarsPadding()
@@ -296,12 +299,12 @@ private fun OnboardingFooter(
             ) {
                 PrimaryButton(
                     text = stringResource(R.string.onboarding_start),
-                    onClick = { onAction(OnboardingAction.Finish) },
+                    onClick = { onAction(OnboardingAction.Start) },
                     modifier = Modifier.fillMaxWidth(),
                 )
                 TextLink(
                     text = stringResource(R.string.onboarding_have_account),
-                    onClick = { onAction(OnboardingAction.Finish) },
+                    onClick = { onAction(OnboardingAction.AlreadyHaveAccount) },
                     modifier = Modifier.fillMaxWidth(),
                 )
             }

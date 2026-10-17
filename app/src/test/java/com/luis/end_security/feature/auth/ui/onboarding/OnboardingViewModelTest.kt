@@ -86,8 +86,28 @@ class OnboardingViewModelTest {
     }
 
     @Test
-    fun `terminar guarda que ya se vio y navega a iniciar sesion`() = runTest(dispatcher) {
-        viewModel.onAction(OnboardingAction.Finish)
+    fun `comenzar guarda que ya se vio y navega a crear cuenta`() = runTest(dispatcher) {
+        viewModel.onAction(OnboardingAction.PageSettled(2))
+        viewModel.onAction(OnboardingAction.Start)
+
+        assertEquals(1, repository.markCompletedCalls)
+        assertTrue(repository.isCompleted.first())
+        assertEquals(OnboardingEffect.NavigateToSignUp, viewModel.effects.first())
+    }
+
+    @Test
+    fun `ya tengo una cuenta guarda y navega a iniciar sesion`() = runTest(dispatcher) {
+        viewModel.onAction(OnboardingAction.PageSettled(2))
+        viewModel.onAction(OnboardingAction.AlreadyHaveAccount)
+
+        assertEquals(1, repository.markCompletedCalls)
+        assertEquals(OnboardingEffect.NavigateToLogin, viewModel.effects.first())
+    }
+
+    @Test
+    fun `omitir guarda y navega a iniciar sesion`() = runTest(dispatcher) {
+        viewModel.onAction(OnboardingAction.Next) // página 2
+        viewModel.onAction(OnboardingAction.Skip)
 
         assertEquals(1, repository.markCompletedCalls)
         assertTrue(repository.isCompleted.first())
@@ -95,21 +115,12 @@ class OnboardingViewModelTest {
     }
 
     @Test
-    fun `terminar desde cualquier pagina tambien funciona (Omitir)`() = runTest(dispatcher) {
-        viewModel.onAction(OnboardingAction.Next) // página 2, «Omitir»
-        viewModel.onAction(OnboardingAction.Finish)
-
-        assertEquals(1, repository.markCompletedCalls)
-        assertEquals(OnboardingEffect.NavigateToLogin, viewModel.effects.first())
-    }
-
-    @Test
     fun `un doble toque al terminar solo guarda y navega una vez`() = runTest(dispatcher) {
-        viewModel.onAction(OnboardingAction.Finish)
-        viewModel.onAction(OnboardingAction.Finish)
+        viewModel.onAction(OnboardingAction.Start)
+        viewModel.onAction(OnboardingAction.Skip)
 
         assertEquals(1, repository.markCompletedCalls)
-        assertEquals(OnboardingEffect.NavigateToLogin, viewModel.effects.first())
+        assertEquals(OnboardingEffect.NavigateToSignUp, viewModel.effects.first())
         assertNull(withTimeoutOrNull(100) { viewModel.effects.first() })
     }
 

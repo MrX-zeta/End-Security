@@ -7,4 +7,7 @@ object Routes {
 
     /** SCR-04. */
     const val LOGIN = "login"
+
+    /** SCR-05. */
+    const val SIGN_UP = "sign_up"
 }

@@ -30,7 +30,10 @@ class OnboardingViewModel @Inject constructor(
             OnboardingAction.Next -> goTo(_state.value.currentPage + 1)
             OnboardingAction.Previous -> goTo(_state.value.currentPage - 1)
             is OnboardingAction.PageSettled -> goTo(action.page)
-            OnboardingAction.Finish -> finish()
+            OnboardingAction.Skip,
+            OnboardingAction.AlreadyHaveAccount,
+            -> finish(OnboardingEffect.NavigateToLogin)
+            OnboardingAction.Start -> finish(OnboardingEffect.NavigateToSignUp)
         }
     }
 
@@ -38,12 +41,12 @@ class OnboardingViewModel @Inject constructor(
         _state.update { it.copy(currentPage = page.coerceIn(0, it.pageCount - 1)) }
     }
 
-    private fun finish() {
+    private fun finish(destination: OnboardingEffect) {
         if (_state.value.isFinishing) return
         _state.update { it.copy(isFinishing = true) }
         viewModelScope.launch {
             repository.markCompleted()
-            _effects.send(OnboardingEffect.NavigateToLogin)
+            _effects.send(destination)
         }
     }
 }
