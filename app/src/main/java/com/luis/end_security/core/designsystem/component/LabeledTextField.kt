@@ -45,7 +45,7 @@ import com.luis.end_security.core.designsystem.theme.PreviewSurface
 // Medidas de Figma («Campo · Correo», nodo 19:176): etiqueta 14 SemiBold, 8 de separación,
 // contenedor de 56 de alto con 18 de margen interno y 12 entre ícono y texto.
 private val FieldHeight = 56.dp
-private val FieldStartPadding = 18.dp
+internal val FieldStartPadding = 18.dp
 private val FieldIconSize = 20.dp
 
 /**

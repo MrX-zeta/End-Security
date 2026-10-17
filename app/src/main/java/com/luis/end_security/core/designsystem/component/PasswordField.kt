@@ -39,7 +39,8 @@ private val PasswordFieldEndPadding = 4.dp
 
 /**
  * Campo de contraseña (DEC-50, regla no negociable 6): mismo marco que [LabeledTextField]
- * con un botón amarillo cuadrado para mostrar u ocultar.
+ * con un botón amarillo cuadrado para mostrar u ocultar. Con `onVisibleChange = null` no lleva
+ * el botón (como «Confirma tu contraseña maestra» en Figma) y siempre está oculto.
  *
  * El texto vive en [state], que la pantalla crea con `remember { TextFieldState() }`:
  * nunca `rememberTextFieldState()` ni `rememberSaveable`, que lo guardarían en el Bundle.
@@ -50,7 +51,7 @@ fun PasswordField(
     state: TextFieldState,
     label: String,
     visible: Boolean,
-    onVisibleChange: (Boolean) -> Unit,
+    onVisibleChange: ((Boolean) -> Unit)?,
     modifier: Modifier = Modifier,
     supportingText: String? = null,
     isError: Boolean = false,
@@ -58,14 +59,16 @@ fun PasswordField(
     onKeyboardAction: KeyboardActionHandler? = null,
 ) {
     FieldLayout(label = label, supportingText = supportingText, isError = isError, modifier = modifier) {
+        // Sin botón del ojo no hay forma de ocultarla otra vez: siempre va oculta.
+        val shown = visible && onVisibleChange != null
         val baseStyle = fieldTextStyle()
         // Los puntos llevan el interletrado de Figma (1.8 px a 15 px).
-        val textStyle = if (visible) baseStyle else baseStyle.copy(letterSpacing = 0.12.em)
+        val textStyle = if (shown) baseStyle else baseStyle.copy(letterSpacing = 0.12.em)
         BasicSecureTextField(
             state = state,
             textStyle = textStyle,
             cursorBrush = SolidColor(MaterialTheme.colorScheme.onSurface),
-            textObfuscationMode = if (visible) TextObfuscationMode.Visible else TextObfuscationMode.Hidden,
+            textObfuscationMode = if (shown) TextObfuscationMode.Visible else TextObfuscationMode.Hidden,
             keyboardOptions = KeyboardOptions(
                 keyboardType = KeyboardType.Password,
                 capitalization = KeyboardCapitalization.None,
@@ -79,8 +82,10 @@ fun PasswordField(
             decorator = TextFieldDecorator { innerTextField ->
                 FieldContainer(
                     leadingIcon = R.drawable.ic_lock_20,
-                    endPadding = PasswordFieldEndPadding,
-                    trailing = { VisibilityToggle(visible = visible, onVisibleChange = onVisibleChange) },
+                    endPadding = if (onVisibleChange != null) PasswordFieldEndPadding else FieldStartPadding,
+                    trailing = onVisibleChange?.let { onChange ->
+                        { VisibilityToggle(visible = visible, onVisibleChange = onChange) }
+                    },
                 ) {
                     innerTextField()
                 }
