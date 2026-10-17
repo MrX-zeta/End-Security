@@ -34,6 +34,7 @@ class LoginViewModel @Inject constructor() : ViewModel() {
     private fun submit() {
         if (!_state.value.canSubmit) return
         // TODO(OP-13, OP-14): prelogin + login. La pantalla copiará la contraseña a un CharArray
+        //  (normalizada con MasterPasswordNormalizer, NFKC + UTF-8, DEC-31)
         //  al tocar «Entrar», se derivará auth_key (DEC-05) y el arreglo se sobrescribirá.
         //  Falta PEND-01 (Argon2) para crear AuthRepository; por ahora no se envía nada.
     }

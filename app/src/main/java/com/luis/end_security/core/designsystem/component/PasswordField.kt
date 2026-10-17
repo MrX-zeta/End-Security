@@ -8,7 +8,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicSecureTextField
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.input.InputTransformation
 import androidx.compose.foundation.text.input.KeyboardActionHandler
+import androidx.compose.foundation.text.input.maxLength
 import androidx.compose.foundation.text.input.TextFieldDecorator
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.text.input.TextObfuscationMode
@@ -57,6 +59,7 @@ fun PasswordField(
     isError: Boolean = false,
     imeAction: ImeAction = ImeAction.Done,
     onKeyboardAction: KeyboardActionHandler? = null,
+    maxLength: Int? = null,
 ) {
     FieldLayout(label = label, supportingText = supportingText, isError = isError, modifier = modifier) {
         // Sin botón del ojo no hay forma de ocultarla otra vez: siempre va oculta.
@@ -66,6 +69,7 @@ fun PasswordField(
         val textStyle = if (shown) baseStyle else baseStyle.copy(letterSpacing = 0.12.em)
         BasicSecureTextField(
             state = state,
+            inputTransformation = maxLength?.let { InputTransformation.maxLength(it) },
             textStyle = textStyle,
             cursorBrush = SolidColor(MaterialTheme.colorScheme.onSurface),
             textObfuscationMode = if (shown) TextObfuscationMode.Visible else TextObfuscationMode.Hidden,

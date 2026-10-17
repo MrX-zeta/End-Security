@@ -69,6 +69,7 @@ import com.luis.end_security.core.designsystem.component.TwoWeightTitle
 import com.luis.end_security.core.designsystem.theme.PreviewSurface
 import com.luis.end_security.core.security.ExcludeFromAutofill
 import com.luis.end_security.core.security.SecureScreen
+import com.luis.end_security.feature.auth.domain.MasterPasswordPolicy
 
 // Medidas de Figma (nodo 19:144). La cabecera ocupa hasta y = 300 del frame (260 bajo la
 // barra de estado) y deja espacio a las manchas de arriba a la derecha.
@@ -191,6 +192,7 @@ fun LoginScreen(
                     isError = state.error != null,
                     imeAction = ImeAction.Done,
                     onKeyboardAction = { if (state.canSubmit) submit() else focusManager.clearFocus() },
+                    maxLength = MasterPasswordPolicy.MAX_FIELD_LENGTH,
                 )
                 Spacer(Modifier.height(32.dp))
                 PrimaryButton(
