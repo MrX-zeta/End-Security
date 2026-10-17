@@ -1,66 +1,66 @@
-# Tarea 04 · Ajustes de Crear cuenta y Verificar correo (SCR-06)
+# Tarea 05 · Caracteres invisibles, 2FA al entrar (SCR-07) y código de respaldo (SCR-08)
 
 **Estado:** hecha
 **Escrita:** 2026-10-16 · sesión de diseño
 
-## Revisión de la tarea 03
-Aprobada. Fue muy buena la detección de que `Strength.wipe()` borraba la entrada del llamador; también la corrección
-para que `Submit` verifique la política sobre el mismo texto. Respuestas a tus dudas (grafo v1.3.4):
-- **Documentos legales:** desde Crear cuenta se abren en una **hoja inferior** (`ModalBottomSheet` a pantalla casi completa)
-  sobre la misma pantalla, así que las contraseñas escritas se conservan. Desde Ajustes (más adelante) serán una pantalla.
-  Reutiliza el mismo contenido en los dos casos.
-- **Máximo 128 caracteres** en los campos de contraseña maestra. Queda en DEC-31.
-- **Normalización:** **NFKC** (NIST SP 800-63B §5.1.1.2) antes de medir, comparar o derivar, y **UTF-8** como entrada de
-  Argon2. La longitud se cuenta en **puntos de código** después de normalizar. Queda en DEC-31.
-- **Prueba instrumentada de zxcvbn bajo R8:** no por ahora; la prueba manual basta.
-- `LegalDocument` en `feature/settings/ui/legal`: bien.
-- **Push:** ya veo tus commits en GitHub, así que la persona del equipo sí los está subiendo.
+## Revisión de la tarea 04
+Aprobada. Contar el máximo después de NFKC (por el caso «ﷺ») y el tope de 256 en el campo fue mejor que lo que pedí. También
+aprobado: el disco de 104, el borde de 2 y el cursor fijo. Respuestas (grafo v1.3.5):
+- **Caracteres invisibles (hallazgo 2): sí, con una variante de PRECIS** (DEC-31):
+  - **Al fijar una contraseña nueva** (registro y, más adelante, cambio de contraseña) se **rechazan**:
+    - controles (Cc);
+    - espacios de ancho cero y marcas de dirección: U+200B, U+2060, U+FEFF, U+200E, U+200F, U+202A–202E y U+2066–2069;
+    - puntos de código **sin asignar** en el dispositivo.
+  - **Se permiten U+200D (ZWJ) y U+FE0F**, porque los emojis compuestos los necesitan. Por eso no se rechaza toda la categoría Cf ni todos los selectores de variación.
+  - No se quitan en silencio: se rechazan con el mensaje «Tu contraseña tiene caracteres invisibles que no se pueden usar», en el lugar de la etiqueta del medidor.
+  - **Al entrar y al desbloquear solo se normaliza**, sin rechazar, para no dar pistas.
+- Hallazgos 3 y 7 (NFKC unifica caracteres parecidos; puntos de código, no grafemas): documentados en DEC-31.
+- **Pendiente de la tarea 04:** prueba en el emulador las correcciones de seguridad que quedaron sin ver (máximo tras NFKC y `SecureOn` en la hoja).
 
-## Paso 1 · Ajustes de Crear cuenta
-1. Términos y Aviso de privacidad en `ModalBottomSheet` (con `SecureScreen` si muestra algo de la pantalla de abajo; si no,
-   no hace falta). Ya no navegan a `Routes.LEGAL_DOCUMENT` desde Crear cuenta; deja la ruta para Ajustes.
-2. Límite de 128 en los dos campos de contraseña maestra (`InputTransformation.maxLength(128)` o equivalente) y en Iniciar sesión.
-3. `MasterPasswordNormalizer` en dominio: NFKC con `java.text.Normalizer` y conteo con `codePointCount`.
-   - `MasterPasswordPolicy` y el estimador trabajan sobre el texto normalizado.
-   - `Normalizer` devuelve `String`; es la limitación aceptada en DEC-27. Haz la copia lo más corta posible.
-   - Agrega pruebas: un texto en NFC y su equivalente en NFD dan el mismo resultado, un emoji cuenta como 1 y un texto de 11 caracteres con un carácter compuesto no pasa.
+## Paso 1 · Rechazo de caracteres invisibles
+- `MasterPasswordPolicy` (o una función nueva en dominio, `findForbiddenCodePoints`) aplica la regla de arriba sobre el texto normalizado.
+- Crear cuenta: no se puede crear la cuenta mientras haya caracteres prohibidos, y aparece el mensaje.
+- Pruebas: contraseña con U+200B rechazada; con U+202E rechazada; emoji 👨‍👩‍👧 (lleva ZWJ) aceptado; ❤️ (lleva FE0F) aceptado; con U+0007 rechazada.
 
-## Paso 2 · Verificar correo (SCR-06)
-**Figma:** https://www.figma.com/design/K8GenUmR7GcNZAtJRjagER/End-security?node-id=36-268 (tema claro).
-De arriba hacia abajo:
-- `BackTopBar`.
-- `NeumorphicDisc` con el ícono de sobre, versión clara: fondo `background` y sombras del tema claro.
-- `TwoWeightTitle` «Revisa» / «tu correo».
-- El texto «Te enviamos un código de 6 dígitos a» seguido del correo.
-- Seis casillas del código.
-- La línea con ícono de reloj «Puedes pedir otro código en 0:45».
-- `PrimaryButton` «Verificar», pegado abajo.
+## Paso 2 · Bloqueo por intentos (DEC-32), solo en la interfaz
+- En Iniciar sesión, en 2FA y en el código de respaldo hay un estado de error nuevo: «Demasiados intentos. Vuelve a intentarlo en N min.», en `error` y con el ícono de información.
+- Mientras dura, el botón está deshabilitado.
+- Los minutos vienen del servidor (por ahora del estado de la vista previa) y la cuenta regresiva reutiliza la `TimeSource` de Verificar correo.
 
-**Componente nuevo `CodeField`** en `core/designsystem/component`. Se reutiliza en 2FA (SCR-07) y en Desbloquear.
-- Es un solo campo de texto oculto (no seis) dibujado como 6 casillas. La casilla activa lleva un borde `on-surface` de 1.5 y un cursor.
-- Solo admite dígitos (`KeyboardType.NumberPassword`) y un máximo de 6. Al pegar, se aceptan 6 dígitos de una vez.
-- Usa `ContentType.SmsOtpCode` para que el teclado sugiera el código si lo detecta.
-- En estado de error, las casillas llevan borde `error`.
-- Accesibilidad: un solo nodo, «Código de verificación, 3 de 6 dígitos». No anuncia cada casilla.
+## Paso 3 · Verificación en dos pasos al entrar (SCR-07)
+**Figma:** https://www.figma.com/design/K8GenUmR7GcNZAtJRjagER/End-security?node-id=36-341
+- De arriba hacia abajo:
+  - `BackTopBar`;
+  - disco de 104 con el ícono de teléfono;
+  - «Confirma» / «que eres tú», con el texto «Abre tu app de códigos (como Google Authenticator) y escribe el número de 6 dígitos que aparece para End Security.»;
+  - `CodeField`;
+  - `PrimaryButton` «Continuar»;
+  - abajo, «¿Sin tu teléfono? **Usa un código de respaldo**». Corregí ese texto en Figma porque se cortaba.
+- Navegación temporal: en Iniciar sesión, `Submit` con los campos válidos va a `Routes.TWO_FACTOR` con `// TODO(OP-14): solo si la cuenta tiene 2FA; si no, a la bóveda`. Atrás regresa a Iniciar sesión.
+- `Continuar` se habilita con 6 dígitos y lleva `// TODO(OP-15)`. Su destino real será «Bóveda · cargando» (SCR-39).
+- El error de código es «Código incorrecto. Revisa que la hora de tu teléfono sea automática.» No muestra intentos restantes (DEC-32 bloquea al quinto). Las casillas se vacían.
+- Sin `SecureScreen`: el código dura 30 s y no se vuelve a aceptar (anti-replay). Pero el código no va en logs ni en `toString()`.
 
-**Comportamiento:**
-- **Navegación:**
-  - En Crear cuenta, `Submit` con la política cumplida navega a `Routes.VERIFY_EMAIL` con el correo como argumento y saca Crear cuenta de la pila (`popUpTo(SIGN_UP) { inclusive = true }`).
-  - Atrás regresa a donde estaba antes de Crear cuenta: Onboarding o Iniciar sesión.
-  - Marca la navegación con `// TODO(OP-11): navegar solo si el registro responde bien`.
-- **Reenvío:** la espera es de 60 s. Mientras dura se muestra «Puedes pedir otro código en m:ss»; al llegar a 0, se muestra `TextLink` «Reenviar código», que reinicia la espera y lleva `// TODO(OP-11 reenvío)`. La cuenta regresiva vive en el ViewModel con una fuente de tiempo inyectada, para probarla con `TestScope` sin esperas reales.
-- **Verificar:** se habilita con 6 dígitos. «Listo» en el teclado también envía. No se envía solo al escribir el sexto dígito. `Submit` → `// TODO(OP-12)`.
-- **Estados de error** (en Figma no existen; van bajo las casillas, en `error`, con el ícono de información):
-  - código incorrecto: «Código incorrecto. Te quedan N intentos.»; el máximo es 5 (`email_verifications.attempts`). Las casillas se vacían;
-  - código vencido o sin intentos: «Este código ya no sirve. Pide uno nuevo.» Además se oculta la cuenta regresiva y se muestra «Reenviar código» de inmediato.
-- **Sin `SecureScreen` ni `ExcludeFromAutofill`:** el código es de un solo uso y el servidor limita los intentos. Aun así,
-  el código no va en `toString()` ni en logs.
+## Paso 4 · Código de respaldo (SCR-08)
+**Figma:** https://www.figma.com/design/K8GenUmR7GcNZAtJRjagER/End-security?node-id=36-413
+- De arriba hacia abajo:
+  - `BackTopBar`;
+  - disco con la llave;
+  - «Usa un código» / «de respaldo», con el texto «Escribe uno de los códigos que guardaste cuando activaste la verificación en dos pasos. Cada código sirve una sola vez.»;
+  - campo «Código de respaldo» con ícono de llave;
+  - `PrimaryButton` «Entrar».
+- **Formato (DEC-12):** 8 caracteres en Base32 de Crockford, mostrados como `XXXX-XXXX`.
+  - Un `InputTransformation` pasa a mayúsculas, quita espacios y guiones, convierte O→0 e I/L→1, descarta lo que no sea del alfabeto (`0-9 A-Z` sin I, L, O ni U) y agrega el guion después del cuarto carácter.
+  - Teclado `KeyboardType.Ascii` sin autocorrección ni mayúsculas automáticas (`KeyboardCapitalization.Characters`).
+- **Es un secreto de larga vida hasta que se usa.** Va en `remember { TextFieldState() }` (no en `UiState`), con `SecureScreen()` y `ExcludeFromAutofill()`, y se vacía en `ON_STOP` y al salir, igual que la contraseña.
+- `Entrar` se habilita con 8 caracteres válidos y lleva `// TODO(OP-16)`. El error es «Ese código no es válido o ya se usó.»
+- Atrás regresa a 2FA.
 
 ## Terminado cuando
-- Hay pruebas de `MasterPasswordNormalizer`, del ViewModel de Verificar (habilitación, cuenta regresiva, reenvío y los dos errores) y del filtro de `CodeField` (solo dígitos, máximo 6, pegar), y pasan.
-- Hay `@Preview` de Verificar vacía, a medias, completa, con cada error, con «Reenviar código» y en pantalla baja. También de la hoja legal sobre Crear cuenta.
+- Hay pruebas del Paso 1, del filtro del código de respaldo (incluye «k7qd 2m9x» → «K7QD-2M9X» y «O»→«0»), de los dos ViewModels nuevos y del estado de bloqueo, y pasan.
+- Hay `@Preview` de 2FA (vacía, completa, error y bloqueo), del código de respaldo (vacío, completo, error y bloqueo) y de Iniciar sesión con bloqueo.
 - `assembleDebug`, `testDebugUnitTest` y `assembleRelease` pasan.
-- `security-reviewer` revisa solo el Paso 1 (normalización y límite).
+- `security-reviewer` revisa el Paso 1 y el Paso 4.
 
 ## Al terminar
 Llena `ai/handoff/reporte.md`, cambia el estado de arriba a `hecha` y detente.
