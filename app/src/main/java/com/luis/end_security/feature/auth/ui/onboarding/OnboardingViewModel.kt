@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.luis.end_security.feature.auth.domain.OnboardingRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -25,6 +26,8 @@ class OnboardingViewModel @Inject constructor(
     private val _effects = Channel<OnboardingEffect>(Channel.BUFFERED)
     val effects: Flow<OnboardingEffect> = _effects.receiveAsFlow()
 
+    private var finishJob: Job? = null
+
     fun onAction(action: OnboardingAction) {
         when (action) {
             OnboardingAction.Next -> goTo(_state.value.currentPage + 1)
@@ -42,11 +45,14 @@ class OnboardingViewModel @Inject constructor(
     }
 
     private fun finish(destination: OnboardingEffect) {
-        if (_state.value.isFinishing) return
+        // Evita el doble toque mientras se guarda. Al terminar se libera: con «Comenzar» el
+        // onboarding queda en la pila y, si el usuario regresa, puede volver a terminar.
+        if (finishJob?.isActive == true) return
         _state.update { it.copy(isFinishing = true) }
-        viewModelScope.launch {
+        finishJob = viewModelScope.launch {
             repository.markCompleted()
             _effects.send(destination)
+            _state.update { it.copy(isFinishing = false) }
         }
     }
 }
