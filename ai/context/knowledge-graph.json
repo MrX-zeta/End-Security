@@ -1,7 +1,7 @@
 {
   "meta": {
     "nombre": "Grafo de conocimiento — End Security",
-    "version": "1.3.2",
+    "version": "1.3.3",
     "actualizado": "2026-10-16",
     "fase": "Diseño completo en Figma: 45 pantallas con prototipo navegable, flujos, estadísticas, estados de carga y sin conexión. Siguiente: implementación.",
     "historial": [
@@ -29,6 +29,11 @@
         "version": "1.3.2",
         "fecha": "2026-10-16",
         "cambio": "Revisión de la tarea 01: tokens danger/success y grano en DEC-50, nombre «End Security», onboarding_completed en KV-DATASTORE, «Comenzar» → Crear cuenta (DEC-56)."
+      },
+      {
+        "version": "1.3.3",
+        "fecha": "2026-10-16",
+        "cambio": "Revisión de la tarea 02: protecciones implementadas en DEC-26, grano 12 % en claro, excepción de la mancha amarilla y estado deshabilitado (DEC-50). PEND-03 resuelto: política de contraseña maestra (DEC-31). Casilla legal en Crear cuenta (Figma)."
       }
     ],
     "proposito": "Fuente de verdad del contexto, decisiones técnicas y huecos resueltos del proyecto, para personas y agentes de IA.",
@@ -110,7 +115,7 @@
     },
     "estadisticas": {
       "nodos": 352,
-      "aristas": 1003,
+      "aristas": 1004,
       "por_tipo": {
         "proyecto": 1,
         "objetivo": 6,
@@ -720,7 +725,7 @@
       "id": "DEC-26",
       "tipo": "decision",
       "nombre": "Protecciones de pantalla y autobloqueo",
-      "descripcion": "FLAG_SECURE en pantallas con secretos (bloquea capturas y vista de recientes). Autobloqueo por inactividad y al pasar a segundo plano, configurable.",
+      "descripcion": "FLAG_SECURE en pantallas con secretos (bloquea capturas y vista de recientes). Autobloqueo por inactividad y al pasar a segundo plano, configurable. Implementado en core/security: SecureScreen (FLAG_SECURE con conteo por ventana y, en Android 14+, datos sensibles para accesibilidad) y ExcludeFromAutofill (las pantallas con contraseña maestra quedan fuera del autocompletado del sistema; el correo tampoco se autocompleta). Al pasar a segundo plano el campo de contraseña se vacía y se oculta. Riesgo aceptado: en Android 9 a 13 un servicio de accesibilidad malicioso podría leer el campo de contraseña.",
       "estado": "decidido",
       "detalles": {
         "sugerido": {
@@ -760,10 +765,10 @@
       "id": "DEC-31",
       "tipo": "decision",
       "nombre": "Política de contraseña maestra",
-      "descripcion": "Medidor de fuerza en el registro y mínimo exigido.",
-      "estado": "propuesto",
+      "descripcion": "Medidor de fuerza en el registro (zxcvbn4j en el dispositivo, sin red) y mínimo exigido: 12 caracteres y puntaje zxcvbn ≥ 3. Medidor de 4 barras: puntaje 0–1 «Débil» (danger, 1 barra), 2 «Regular» (2 barras), 3 «Fuerte» (success, 3 barras), 4 «Muy fuerte» (success, 4 barras). «Crear cuenta» solo se habilita con el mínimo, la confirmación igual y la casilla legal marcada.",
+      "estado": "decidido",
       "detalles": {
-        "sugerido": {
+        "valores": {
           "longitud_minima": 12,
           "zxcvbn_minimo": 3
         }
@@ -931,7 +936,7 @@
             "danger-container": "#FDE8E6",
             "success": "#1E6B45",
             "success-container": "#E3F1EA",
-            "blob-grain": "#FFFFFF 7%"
+            "blob-grain": "#FFFFFF 12%"
           },
           "oscuro": {
             "background": "#2F2F2F",
@@ -953,6 +958,8 @@
         },
         "reglas": [
           "El amarillo #FFCB74 es el color de acción (botones, elemento activo, botón de ícono); siempre con texto o ícono #111111 encima. Nunca como color de texto sobre fondo claro (contraste 1.4:1).",
+          "Excepción decorativa: en Iniciar sesión una mancha pequeña #FFCB74 acompaña a la mancha oscura (no es interactiva).",
+          "Estado deshabilitado de botones: opacidad 40 %.",
           "Títulos en dos pesos: primera línea Montserrat Bold, segunda Regular (p. ej. 'Hola' / 'de nuevo').",
           "Botón primario: alto 56, radio 16, texto Bold a la izquierda y flecha a la derecha.",
           "Íconos destacados del onboarding: disco circular de 112 px con neumorfismo sutil (fondo igual al de la pantalla, sombra oscura abajo-derecha y luz arriba-izquierda, desplazamiento 8 y difuminado 20; sin brillos interiores para no parecer botón) con ícono amarillo de 40 px.",
@@ -2865,8 +2872,8 @@
       "id": "PEND-03",
       "tipo": "pregunta_abierta",
       "nombre": "Política exacta de contraseña maestra",
-      "descripcion": "Sugerido: mínimo 12 caracteres y zxcvbn ≥ 3.",
-      "estado": "pendiente"
+      "descripcion": "Resuelto en la tarea 03: mínimo 12 caracteres y zxcvbn ≥ 3 (DEC-31).",
+      "estado": "resuelto"
     },
     {
       "id": "PEND-04",
@@ -6680,6 +6687,11 @@
       "de": "PEND-03",
       "a": "DEC-31",
       "relacion": "afina"
+    },
+    {
+      "de": "PEND-03",
+      "a": "DEC-31",
+      "relacion": "resuelta_por"
     },
     {
       "de": "PEND-04",

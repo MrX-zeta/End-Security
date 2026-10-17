@@ -1,69 +1,67 @@
-# Tarea 02 · Ajuste del onboarding e Iniciar sesión (SCR-04)
+# Tarea 03 · Crear cuenta (SCR-05)
 
-**Estado:** hecha
+**Estado:** pendiente
 **Escrita:** 2026-10-16 · sesión de diseño
 
-## Revisión de la tarea 01
-Aprobada. El código del onboarding y del sistema de diseño está bien hecho: UDF, accesibilidad, «Quitar animaciones»,
-sin hex fuera de `Color.kt`, respaldos y tráfico en claro cerrados. Tus pendientes del grafo ya quedaron registrados
-(grafo v1.3.2): `danger`/`success`/`blob-grain` en DEC-50, el nombre «End Security», `onboarding_completed` en KV-DATASTORE.
-Mapear `danger` a `colorScheme.error` y `success` a los colores extendidos es correcto; `on-danger` no hace falta todavía.
-Revisé GitHub hasta `1e2eda7`. Los commits `ca82968`, `a4347c0` y `df91dd6` no están en GitHub, así que no los vi.
+## Revisión de la tarea 02
+Aprobada. La revisión de seguridad y sus correcciones (`SharedRequest`, exclusión sobre la raíz, datos sensibles para
+accesibilidad y vaciado en `ON_STOP`) son correctas, y la prueba en el emulador con el autocompletado de Google
+convence. Tus decisiones quedan así (grafo v1.3.3):
+- Radio 16 y una sola sombra en los campos: tenías razón, mi dato estaba mal.
+- `displaySmall` 34/42 y la corrección del interlineado: bien.
+- **Grano:** en tema claro va al **12 %** (Figma manda); en oscuro sigue al 7 %. Actualiza el token.
+- Mancha amarilla pequeña: es una excepción decorativa, ya registrada en DEC-50.
+- Botón deshabilitado al 40 %: queda como regla en DEC-50.
+- Sin autocompletado en toda la pantalla, también para el correo: se acepta (DEC-26).
+- Riesgo de accesibilidad en Android 9 a 13 y memoria de `TextFieldState`: aceptados y registrados en DEC-26 y DEC-27.
+- El mensaje del commit `b8739a2` está bien así.
 
-## Paso 0 · Orden
-1. Haz un commit con `CLAUDE.md` y `ai/handoff/README.md`: `docs: protocolo de relevo entre sesiones`. El equipo ya lo aprobó.
-2. Al terminar esta tarea, haz `git push` de la rama para que pueda revisar todo desde GitHub.
+## Objetivo
+Pantalla Crear cuenta, solo la interfaz. El envío real (OP-11) espera a PEND-01 (Argon2), igual que el inicio de sesión.
 
-## Paso 1 · Cambio de navegación en el onboarding (DEC-56, actualizado)
-- «Comenzar» (página 3) → **Crear cuenta (SCR-05)**. Quien empieza de cero quiere registrarse, no entrar.
-- «Ya tengo una cuenta» y «Omitir» → Iniciar sesión (SCR-04), como ahora.
-- Crea `Routes.SIGN_UP` con un marcador como el de `LoginScreen` (tema claro y título «Crear cuenta»). Se implementa en la tarea 03.
-- El efecto del ViewModel necesita indicar el destino (por ejemplo `NavigateToSignUp` / `NavigateToLogin`). Las dos rutas
-  sacan el onboarding de la pila. Actualiza `OnboardingViewModelTest`.
+**Figma:** https://www.figma.com/design/K8GenUmR7GcNZAtJRjagER/End-security?node-id=36-119 (tema claro).
+De arriba hacia abajo:
+- Botón de atrás (barra superior, nodo `36:144`).
+- `TwoWeightTitle` «Crea tu cuenta» / «en un minuto», con el texto «Solo necesitas tu correo y una contraseña maestra.»
+- Campos «Correo», «Contraseña maestra» (con ojo) y «Confirma tu contraseña maestra». Reutiliza `LabeledTextField` y `PasswordField`.
+- Medidor de fuerza entre la contraseña y la confirmación (nodo `36:221`).
+- «Aviso importante»: tarjeta `primary` con ícono de información y el texto «Es la única llave de tu bóveda. Si la olvidas, no podremos recuperarla.»
+- **Nuevo (PEND-12):** la casilla «Acepto los **Términos** y el **Aviso de privacidad**» (nodo «Casilla · Términos» dentro de `36:158`). Mide 24 × 24, tiene radio 7 y relleno `primary` con la palomita `on-primary` cuando está marcada; sin marcar, solo el borde `outline`. El área táctil es de 48 dp.
+- `PrimaryButton` «Crear cuenta», pegado abajo.
 
-## Paso 2 · Iniciar sesión (SCR-04)
-**Figma:** https://www.figma.com/design/K8GenUmR7GcNZAtJRjagER/End-security?node-id=19-144 (tema claro, DEC-51).
-Si no tienes el MCP de Figma, este es el contenido de arriba hacia abajo:
-- La barra superior con «End Security». Arriba a la derecha, una mancha oscura grande con grano y una mancha `primary` pequeña encima (reutiliza `OrganicBlob`).
-- `TwoWeightTitle` «Hola» / «de nuevo». Debajo, el texto «Entra con tu correo y tu contraseña maestra.»
-- Campo «Correo» con ícono de sobre.
-- Campo «Contraseña maestra» con ícono de candado y, a la derecha, un botón cuadrado `primary` con el ojo para mostrar u ocultar la contraseña.
-- La línea de ayuda «Si la olvidas, no podremos recuperarla.» con ícono de información. No hay «¿Olvidaste tu contraseña?» y no se agrega, porque el diseño es de conocimiento cero.
-- `PrimaryButton` «Entrar».
-- La línea «¿Primera vez? **Crea tu cuenta**», donde el enlace lleva a `SIGN_UP`.
-- Los íconos que falten (sobre, ojo, ojo tachado, información) salen de la fila de íconos de Figma, nodo `35:14`.
+## Política de contraseña maestra (DEC-31, PEND-03 resuelto)
+- Mínimo **12 caracteres** y puntaje **zxcvbn ≥ 3**.
+- Fuerza con **zxcvbn4j** (TEC-ZXCVBN), en el dispositivo y sin red. Antes de agregarla, verifica que sea compatible con
+  AGP 9 y R8, y agrégala a `libs.versions.toml`. Si no lo es, detente y repórtalo; no la sustituyas por una heurística propia.
+- Medidor de 4 barras:
+  - puntaje 0–1: «Débil», 1 barra `error`;
+  - puntaje 2: «Regular», 2 barras `on-surface-variant`;
+  - puntaje 3: «Fuerte», 3 barras `success`;
+  - puntaje 4: «Muy fuerte», 4 barras `success`.
+  Las barras vacías van en `outline` al 30 %. Con el campo vacío no se muestra la etiqueta.
+- Si la contraseña tiene menos de 12 caracteres, en el lugar de la etiqueta va «Usa al menos 12 caracteres».
+- La confirmación, si no coincide, muestra bajo su campo en `error`: «Las contraseñas no coinciden.» Solo se muestra cuando el campo pierde el foco o al tocar «Crear cuenta», no mientras se escribe.
+- «Crear cuenta» se habilita solo con un correo válido, la política cumplida, la confirmación igual y la casilla marcada.
 
-**Componentes nuevos** en `core/designsystem/component`: `LabeledTextField` (etiqueta arriba, ícono al inicio, superficie
-`surface`, radio 14, sombra neumórfica igual que en Figma) y `PasswordField` (usa el anterior y agrega el botón del ojo).
-Servirán también para Crear cuenta y Desbloquear.
+## Seguridad (las mismas reglas que en Iniciar sesión)
+- Los dos campos de contraseña usan `remember { TextFieldState() }`, `SecureScreen()` y `ExcludeFromAutofill()`, y se vacían en `ON_STOP` y al salir.
+- **Ningún texto de contraseña entra al `UiState` ni a un `StateFlow`.**
+  - El estimador es una interfaz de dominio (`PasswordStrengthEstimator`, Kotlin puro) que recibe `CharSequence` y devuelve el puntaje. La implementación con zxcvbn4j va en `data`.
+  - El ViewModel solo guarda `strengthScore`, `meetsLength` y `confirmationMatches`, y los recalcula en `snapshotFlow` con `debounce` de unos 150 ms.
+  - La comparación de las dos contraseñas se hace con `contentEquals` sobre los `CharSequence`, sin crear `String`.
+- Nunca registres en logs el puntaje junto con la longitud. El puntaje solo vive en memoria.
 
-**Seguridad (reglas no negociables 5, 6 y 7):**
-- La contraseña vive en un `TextFieldState` creado con `remember { TextFieldState() }`. **No uses
-  `rememberTextFieldState()` ni `rememberSaveable`**, porque guardan el texto en el Bundle. Usa `SecureTextField` o
-  `BasicSecureTextField` con `TextObfuscationMode` para el ojo.
-- La contraseña nunca pasa por `UiState`, `StateFlow`, `SavedStateHandle` ni logs. El ViewModel solo recibe
-  `passwordIsEmpty: Boolean` para habilitar el botón. Cuando exista el envío (OP-13/OP-14), se copiará a `CharArray` al tocar «Entrar».
-- Crea `core/security/SecureScreen.kt`, un composable que activa `FLAG_SECURE` en la ventana mientras la pantalla está
-  visible y lo quita al salir. Úsalo en esta pantalla.
-- La contraseña maestra no usa autocompletado (`ContentType` vacío, o `importantForAutofill = no`): no queremos que otro
-  gestor la guarde. El correo sí puede usar autocompletado (`ContentType.EmailAddress`).
-- Teclado: el correo usa `KeyboardType.Email` e `ImeAction.Next`; la contraseña usa `KeyboardType.Password`, sin autocorrección, e `ImeAction.Done`.
-
-**Comportamiento:**
-- `LoginViewModel` con estado `email`, `isEmailValid`, `canSubmit`, `isLoading` y `error`. «Entrar» se habilita con un
-  correo de forma válida y una contraseña no vacía.
-- **Todavía no hay backend.** `Submit` no llama nada: deja un `// TODO(OP-13, OP-14)` y no crees `AuthRepository` aún,
-  porque depende de PEND-01 (Argon2).
-- El estado de error no está en Figma. Muéstralo bajo el campo de contraseña, en color `error`, con el ícono de
-  información: «Correo o contraseña incorrectos.» Es el mismo texto para los dos casos, para no revelar si el correo existe.
-- Con el teclado abierto, el contenido se desplaza (`imePadding` + `verticalScroll`) y «Entrar» queda visible.
-- Accesibilidad: el botón del ojo dice «Mostrar contraseña» u «Ocultar contraseña», con área de 48 dp; las etiquetas se asocian a sus campos.
+## Comportamiento
+- **Términos** y **Aviso de privacidad** abren una pantalla `Routes.LEGAL_DOCUMENT` con un marcador («Documento en redacción»), porque los textos de PEND-12 aún no existen. La casilla no se marca sola al volver.
+- `Submit` → `// TODO(OP-11)`. No crees `AuthRepository`.
+- Atrás regresa a la pantalla de origen: Onboarding o Iniciar sesión.
+- Con el teclado abierto: `imePadding` + `verticalScroll`; el botón se queda abajo cuando cabe y se desplaza con el contenido cuando no.
 
 ## Terminado cuando
-- `assembleDebug` y `testDebugUnitTest` pasan, con pruebas del `LoginViewModel` (validación y `canSubmit`).
-- Hay `@Preview` vacía, llena, con contraseña visible, con error y en pantalla baja (360 × 740).
-- Todos los textos están en `strings.xml` y los commits son atómicos.
-- No tocaste `core/crypto`, `core/session` ni SQL. Si `SecureScreen` te hace dudar, márcalo para revisión humana.
+- Hay pruebas del ViewModel (habilitación del botón y momento de mostrar «no coinciden») y del mapeo puntaje → etiqueta y color, y pasan.
+- Hay `@Preview` vacía, débil, regular, fuerte con todo válido, con «no coinciden» y en pantalla baja (360 × 740).
+- `assembleDebug`, `testDebugUnitTest` y `assembleRelease` pasan (este último porque se agrega una librería y debe sobrevivir a R8).
+- Pasa por `security-reviewer` antes de cerrar.
 
 ## Al terminar
-Llena `ai/handoff/reporte.md`, cambia el estado de arriba a `hecha`, haz `git push` y detente.
+Llena `ai/handoff/reporte.md`, cambia el estado de arriba a `hecha`, haz `git push` (o déjalo listo si el push lo hace la persona) y detente.
