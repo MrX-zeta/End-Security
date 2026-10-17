@@ -2,17 +2,13 @@ package com.luis.end_security.feature.auth.ui.login
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -46,13 +42,10 @@ import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -65,11 +58,13 @@ import com.luis.end_security.core.designsystem.component.LabeledTextField
 import com.luis.end_security.core.designsystem.component.OrganicBlob
 import com.luis.end_security.core.designsystem.component.PasswordField
 import com.luis.end_security.core.designsystem.component.PrimaryButton
+import com.luis.end_security.core.designsystem.component.PromptLink
 import com.luis.end_security.core.designsystem.component.TwoWeightTitle
 import com.luis.end_security.core.designsystem.theme.PreviewSurface
 import com.luis.end_security.core.security.ExcludeFromAutofill
 import com.luis.end_security.core.security.SecureScreen
 import com.luis.end_security.feature.auth.domain.MasterPasswordPolicy
+import com.luis.end_security.feature.auth.ui.lockoutMessage
 
 // Medidas de Figma (nodo 19:144). La cabecera ocupa hasta y = 300 del frame (260 bajo la
 // barra de estado) y deja espacio a las manchas de arriba a la derecha.
@@ -79,6 +74,7 @@ private val ContentHorizontalPadding = 32.dp
 @Composable
 fun LoginRoute(
     onCreateAccount: () -> Unit,
+    onNavigateToTwoFactor: () -> Unit,
     viewModel: LoginViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -87,6 +83,14 @@ fun LoginRoute(
     val passwordState = remember { TextFieldState() }
     var passwordVisible by remember { mutableStateOf(false) }
     val currentOnAction by rememberUpdatedState(viewModel::onAction)
+    val currentOnNavigateToTwoFactor by rememberUpdatedState(onNavigateToTwoFactor)
+    LaunchedEffect(viewModel) {
+        viewModel.effects.collect { effect ->
+            when (effect) {
+                LoginEffect.NavigateToTwoFactor -> currentOnNavigateToTwoFactor()
+            }
+        }
+    }
 
     SecureScreen()
     ExcludeFromAutofill()
@@ -186,10 +190,13 @@ fun LoginScreen(
                     label = stringResource(R.string.login_password_label),
                     visible = passwordVisible,
                     onVisibleChange = onPasswordVisibleChange,
-                    supportingText = stringResource(
-                        if (state.error != null) R.string.login_error_invalid_credentials else R.string.login_password_help,
-                    ),
-                    isError = state.error != null,
+                    // Prioridad: bloqueo por intentos (DEC-32) > credenciales incorrectas > ayuda.
+                    supportingText = when {
+                        state.isLockedOut -> lockoutMessage(state.lockoutSecondsLeft)
+                        state.error != null -> stringResource(R.string.login_error_invalid_credentials)
+                        else -> stringResource(R.string.login_password_help)
+                    },
+                    isError = state.isLockedOut || state.error != null,
                     imeAction = ImeAction.Done,
                     onKeyboardAction = { if (state.canSubmit) submit() else focusManager.clearFocus() },
                     maxLength = MasterPasswordPolicy.MAX_FIELD_LENGTH,
@@ -203,7 +210,11 @@ fun LoginScreen(
                 )
             }
             Spacer(Modifier.height(8.dp))
-            CreateAccountLink(onClick = onCreateAccount)
+            PromptLink(
+                prompt = stringResource(R.string.login_first_time),
+                action = stringResource(R.string.login_create_account),
+                onClick = onCreateAccount,
+            )
             Spacer(Modifier.height(24.dp))
         }
     }
@@ -239,34 +250,6 @@ private fun LoginHeader() {
             style = MaterialTheme.typography.titleLarge,
             color = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.padding(start = 28.dp, top = 22.dp),
-        )
-    }
-}
-
-/** «¿Primera vez? Crea tu cuenta»: toda la línea es el botón (48 dp de alto) hacia SCR-05. */
-@Composable
-private fun CreateAccountLink(onClick: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .heightIn(min = 48.dp)
-            .clickable(role = Role.Button, onClick = onClick)
-            .semantics(mergeDescendants = true) {},
-        horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterHorizontally),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            text = stringResource(R.string.login_first_time),
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Normal,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Text(
-            text = stringResource(R.string.login_create_account),
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface,
-            textDecoration = TextDecoration.Underline,
         )
     }
 }
@@ -323,4 +306,13 @@ private fun LoginErrorPreview() {
 @Composable
 private fun LoginSmallScreenPreview() {
     LoginPreviewContent(state = FilledState, password = "contraseña de ejemplo")
+}
+
+@Preview(name = "Iniciar sesión · bloqueo por intentos", device = "spec:width=412dp,height=917dp")
+@Composable
+private fun LoginLockedOutPreview() {
+    LoginPreviewContent(
+        state = FilledState.copy(canSubmit = false, lockoutSecondsLeft = 14 * 60),
+        password = "contraseña de ejemplo",
+    )
 }

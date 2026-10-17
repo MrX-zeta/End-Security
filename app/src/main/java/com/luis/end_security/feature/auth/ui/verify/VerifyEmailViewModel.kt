@@ -3,19 +3,15 @@ package com.luis.end_security.feature.auth.ui.verify
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.luis.end_security.core.common.Countdown
 import com.luis.end_security.core.designsystem.component.CodeFieldFilter
 import com.luis.end_security.feature.auth.domain.EmailVerificationResult
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.launch
 import javax.inject.Inject
-import kotlin.math.ceil
-import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.TimeSource
 
@@ -31,7 +27,7 @@ class VerifyEmailViewModel @Inject constructor(
     )
     val state: StateFlow<VerifyEmailUiState> = _state.asStateFlow()
 
-    private var countdownJob: Job? = null
+    private val resendCountdown = Countdown(timeSource)
 
     init {
         startResendCountdown()
@@ -83,18 +79,8 @@ class VerifyEmailViewModel @Inject constructor(
     }
 
     private fun startResendCountdown() {
-        countdownJob?.cancel()
-        val deadline = timeSource.markNow() + RESEND_WAIT
-        countdownJob = viewModelScope.launch {
-            while (true) {
-                // Antes del plazo, elapsedNow() es negativo: lo que falta es su opuesto.
-                val left = (-deadline.elapsedNow()).coerceAtLeast(Duration.ZERO)
-                val secondsLeft = ceil(left / 1.seconds).toInt()
-                _state.update { it.copy(resendSecondsLeft = secondsLeft) }
-                if (secondsLeft == 0) break
-                // Espera justo hasta que cambie el número que se muestra.
-                delay(left - (secondsLeft - 1).seconds)
-            }
+        resendCountdown.start(viewModelScope, RESEND_WAIT) { secondsLeft ->
+            _state.update { it.copy(resendSecondsLeft = secondsLeft) }
         }
     }
 

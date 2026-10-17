@@ -14,6 +14,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.input.InputTransformation
+import androidx.compose.foundation.text.input.KeyboardActionHandler
+import androidx.compose.foundation.text.input.OutputTransformation
+import androidx.compose.foundation.text.input.TextFieldDecorator
+import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -79,6 +85,47 @@ fun LabeledTextField(
                 .fillMaxWidth()
                 .fieldSemantics(label, supportingText, isError, contentType),
             decorationBox = { innerTextField ->
+                FieldContainer(leadingIcon = leadingIcon, endPadding = FieldStartPadding) {
+                    innerTextField()
+                }
+            },
+        )
+    }
+}
+
+/**
+ * Variante con [TextFieldState] para un secreto que se ve mientras se escribe (como el código de
+ * respaldo): el texto vive en el estado del campo y no pasa por el estado de la pantalla.
+ * [inputTransformation] filtra lo que se escribe y [outputTransformation] solo cambia cómo se ve
+ * (p. ej. el guion de «XXXX-XXXX»), sin guardarlo.
+ */
+@Composable
+fun LabeledTextField(
+    state: TextFieldState,
+    label: String,
+    @DrawableRes leadingIcon: Int,
+    modifier: Modifier = Modifier,
+    supportingText: String? = null,
+    isError: Boolean = false,
+    inputTransformation: InputTransformation? = null,
+    outputTransformation: OutputTransformation? = null,
+    keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
+    onKeyboardAction: KeyboardActionHandler? = null,
+) {
+    FieldLayout(label = label, supportingText = supportingText, isError = isError, modifier = modifier) {
+        BasicTextField(
+            state = state,
+            inputTransformation = inputTransformation,
+            outputTransformation = outputTransformation,
+            lineLimits = TextFieldLineLimits.SingleLine,
+            textStyle = fieldTextStyle(),
+            cursorBrush = SolidColor(MaterialTheme.colorScheme.onSurface),
+            keyboardOptions = keyboardOptions,
+            onKeyboardAction = onKeyboardAction,
+            modifier = Modifier
+                .fillMaxWidth()
+                .fieldSemantics(label, supportingText, isError, contentType = null),
+            decorator = TextFieldDecorator { innerTextField ->
                 FieldContainer(leadingIcon = leadingIcon, endPadding = FieldStartPadding) {
                     innerTextField()
                 }

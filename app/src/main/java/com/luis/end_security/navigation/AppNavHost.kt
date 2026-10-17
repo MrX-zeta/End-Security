@@ -15,7 +15,9 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.luis.end_security.core.designsystem.theme.SystemBarsAppearance
+import com.luis.end_security.feature.auth.ui.backupcode.BackupCodeRoute
 import com.luis.end_security.feature.auth.ui.login.LoginRoute
+import com.luis.end_security.feature.auth.ui.twofactor.TwoFactorRoute
 import com.luis.end_security.feature.auth.ui.onboarding.OnboardingRoute
 import com.luis.end_security.feature.auth.ui.signup.SignUpRoute
 import com.luis.end_security.feature.auth.ui.verify.VerifyEmailRoute
@@ -58,7 +60,18 @@ fun AppNavHost(
         composable(Routes.LOGIN) {
             LoginRoute(
                 onCreateAccount = { navController.navigate(Routes.SIGN_UP) { launchSingleTop = true } },
+                // TODO(OP-14): solo si la cuenta tiene 2FA; si no, a la bóveda.
+                onNavigateToTwoFactor = { navController.navigate(Routes.TWO_FACTOR) { launchSingleTop = true } },
             )
+        }
+        composable(Routes.TWO_FACTOR) {
+            TwoFactorRoute(
+                onBack = { navController.popBackStack() },
+                onUseBackupCode = { navController.navigate(Routes.BACKUP_CODE) { launchSingleTop = true } },
+            )
+        }
+        composable(Routes.BACKUP_CODE) {
+            BackupCodeRoute(onBack = { navController.popBackStack() })
         }
         composable(Routes.SIGN_UP) {
             // Términos y Aviso de privacidad se abren en una hoja inferior dentro de Crear cuenta;

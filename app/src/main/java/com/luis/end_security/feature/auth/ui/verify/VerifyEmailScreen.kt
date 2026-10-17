@@ -29,9 +29,6 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.LiveRegionMode
-import androidx.compose.ui.semantics.liveRegion
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -39,6 +36,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.luis.end_security.R
 import com.luis.end_security.core.designsystem.component.BackTopBar
 import com.luis.end_security.core.designsystem.component.CodeField
+import com.luis.end_security.core.designsystem.component.InlineErrorMessage
 import com.luis.end_security.core.designsystem.component.NeumorphicDisc
 import com.luis.end_security.core.designsystem.component.PrimaryButton
 import com.luis.end_security.core.designsystem.component.TextLink
@@ -138,7 +136,7 @@ fun VerifyEmailScreen(
     }
 }
 
-/** Error bajo las casillas (no está en Figma): ícono de información y texto en `error`. */
+/** Error bajo las casillas (no está en Figma). */
 @Composable
 private fun ErrorLine(error: VerifyEmailError) {
     val text = when (error) {
@@ -146,21 +144,7 @@ private fun ErrorLine(error: VerifyEmailError) {
             pluralStringResource(R.plurals.verify_error_wrong_code, error.attemptsLeft, error.attemptsLeft)
         VerifyEmailError.Expired -> stringResource(R.string.verify_error_expired)
     }
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .semantics { liveRegion = LiveRegionMode.Polite },
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Icon(
-            painter = painterResource(R.drawable.ic_info_16),
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.error,
-            modifier = Modifier.size(16.dp),
-        )
-        Text(text = text, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
-    }
+    InlineErrorMessage(text = text)
 }
 
 /** «Puedes pedir otro código en m:ss» durante la espera; después, «Reenviar código». */

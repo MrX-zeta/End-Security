@@ -15,6 +15,12 @@ object Routes {
     /** SCR-05. */
     const val SIGN_UP = "sign_up"
 
+    /** SCR-07: verificación en dos pasos al entrar. */
+    const val TWO_FACTOR = "two_factor"
+
+    /** SCR-08: código de respaldo. */
+    const val BACKUP_CODE = "backup_code"
+
     /** SCR-06; el argumento es el correo al que se envió el código. */
     const val VERIFY_EMAIL = "verify_email/{${VerifyEmailViewModel.EMAIL_ARG}}"
 
