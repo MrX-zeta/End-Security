@@ -26,41 +26,61 @@ object MasterPasswordPolicy {
 
     /**
      * Caracteres que no se aceptan **al fijar** una contraseña nueva (registro y cambio de
-     * contraseña), variante de PRECIS OpaqueString (RFC 8265, DEC-31). No se ven, así que el
-     * usuario podría no volver a escribirlos igual y perder su bóveda:
-     * - controles (categoría Cc);
-     * - espacios de ancho cero y marcas de dirección: U+200B, U+2060, U+FEFF, U+200E, U+200F,
-     *   U+202A–U+202E y U+2066–U+2069;
-     * - puntos de código sin asignar en este dispositivo (su normalización podría cambiar en
-     *   otra versión de Unicode).
+     * contraseña), variante de PRECIS OpaqueString (RFC 8265, DEC-31). No se ven o no se escriben
+     * igual en todos los teléfonos, así que el usuario podría no repetirlos y perder su bóveda:
+     * - controles (Cc) y surrogates solitarios (Cs);
+     * - todo `Default_Ignorable_Code_Point` (espacios de ancho cero, marcas de dirección, guion
+     *   suave, rellenos hangul, selectores de variación…), salvo U+200C, U+200D y las etiquetas
+     *   U+E0020–U+E007F, que necesitan el persa, los emojis compuestos y las banderas con etiquetas;
+     * - U+2028, U+2029 y U+2800, que no son ignorables pero tampoco se ven;
+     * - los puntos de código que no estaban asignados en Unicode 10.0, para que todos los
+     *   teléfonos (minSdk 28) normalicen igual.
      *
-     * Se permiten U+200D (ZWJ) y U+FE0F porque los emojis compuestos los necesitan (👨\u200D👩\u200D👧, ❤\uFE0F).
+     * La edad se revisa también en lo que escribió el usuario, antes de normalizar: un carácter
+     * posterior a Unicode 10.0 que NFKC convierte en uno antiguo (p. ej. U+1FBF0 → «0») solo se
+     * convierte en los teléfonos que lo conocen; en los demás la llave saldría distinta.
+     *
      * Al entrar y al desbloquear no se usa: ahí solo se normaliza, para no dar pistas.
      *
-     * @param normalized texto ya normalizado con [MasterPasswordNormalizer].
+     * @param raw lo que escribió el usuario.
+     * @param normalized [raw] normalizado con [MasterPasswordNormalizer].
      */
-    fun hasForbiddenCharacters(normalized: CharSequence): Boolean {
+    fun hasForbiddenCharacters(raw: CharSequence, normalized: CharSequence, unicode: UnicodeCharacterData): Boolean =
+        normalized.anyCodePoint { isForbidden(it, unicode) } || raw.anyCodePoint { isNewerThanUnicode10(it, unicode) }
+
+    private inline fun CharSequence.anyCodePoint(predicate: (Int) -> Boolean): Boolean {
         var index = 0
-        while (index < normalized.length) {
-            val codePoint = Character.codePointAt(normalized, index)
-            if (isForbidden(codePoint)) return true
+        while (index < length) {
+            val codePoint = Character.codePointAt(this, index)
+            if (predicate(codePoint)) return true
             index += Character.charCount(codePoint)
         }
         return false
     }
 
-    private fun isForbidden(codePoint: Int): Boolean {
-        if (codePoint == ZERO_WIDTH_JOINER || codePoint == VARIATION_SELECTOR_16) return false
-        if (codePoint in INVISIBLE_MARKS) return true
-        if (BIDI_EMBEDDINGS.any { codePoint in it }) return true
-        return when (Character.getType(codePoint)) {
-            Character.CONTROL.toInt(), Character.UNASSIGNED.toInt() -> true
-            else -> false
-        }
+    private fun isNewerThanUnicode10(codePoint: Int, unicode: UnicodeCharacterData): Boolean {
+        val age = unicode.age(codePoint) ?: return true
+        return age > UnicodeVersion.UNICODE_10
     }
 
+    private fun isForbidden(codePoint: Int, unicode: UnicodeCharacterData): Boolean {
+        if (CONTROLS.any { codePoint in it }) return true
+        // Un surrogate solitario llega como su propio valor; en UTF-8 se volvería «?».
+        if (codePoint in SURROGATES) return true
+        if (codePoint in VISIBLE_BUT_BLANK) return true
+        if (unicode.isDefaultIgnorable(codePoint) && !isAllowedIgnorable(codePoint)) return true
+        return isNewerThanUnicode10(codePoint, unicode)
+    }
+
+    private fun isAllowedIgnorable(codePoint: Int): Boolean =
+        codePoint == ZERO_WIDTH_NON_JOINER || codePoint == ZERO_WIDTH_JOINER || codePoint in TAGS
+
+    private val CONTROLS = listOf(0x0000..0x001F, 0x007F..0x009F)
+    private val SURROGATES = 0xD800..0xDFFF
+    private const val ZERO_WIDTH_NON_JOINER = 0x200C
     private const val ZERO_WIDTH_JOINER = 0x200D
-    private const val VARIATION_SELECTOR_16 = 0xFE0F
-    private val INVISIBLE_MARKS = setOf(0x200B, 0x2060, 0xFEFF, 0x200E, 0x200F)
-    private val BIDI_EMBEDDINGS = listOf(0x202A..0x202E, 0x2066..0x2069)
+    private val TAGS = 0xE0020..0xE007F
+
+    /** Separadores de línea y de párrafo, y el patrón braille vacío. */
+    private val VISIBLE_BUT_BLANK = setOf(0x2028, 0x2029, 0x2800)
 }

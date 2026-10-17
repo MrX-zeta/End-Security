@@ -7,6 +7,7 @@ import com.luis.end_security.feature.auth.domain.EmailFormat
 import com.luis.end_security.feature.auth.domain.MasterPasswordNormalizer
 import com.luis.end_security.feature.auth.domain.MasterPasswordPolicy
 import com.luis.end_security.feature.auth.domain.PasswordStrengthEstimator
+import com.luis.end_security.feature.auth.domain.UnicodeCharacterData
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
@@ -28,6 +29,7 @@ import javax.inject.Inject
 @HiltViewModel
 class SignUpViewModel @Inject constructor(
     private val estimator: PasswordStrengthEstimator,
+    private val unicode: UnicodeCharacterData,
     @param:DefaultDispatcher private val scoringDispatcher: CoroutineDispatcher,
 ) : ViewModel() {
 
@@ -78,7 +80,7 @@ class SignUpViewModel @Inject constructor(
         // Pasado el máximo no se mide: acota el costo de zxcvbn (y después el de Argon2).
         val exceedsMax = MasterPasswordPolicy.exceedsMaxLength(passwordLength)
         // Con caracteres invisibles tampoco: no se puede usar, así que no hace falta su puntaje.
-        val forbidden = MasterPasswordPolicy.hasForbiddenCharacters(normalizedPassword)
+        val forbidden = MasterPasswordPolicy.hasForbiddenCharacters(password, normalizedPassword, unicode)
         val needsScore = password.isNotEmpty() && !exceedsMax && !forbidden
         scoringJob?.cancel()
         scorePending = needsScore
@@ -138,11 +140,12 @@ class SignUpViewModel @Inject constructor(
         if (submitJob?.isActive == true) return
         _state.update { it.copy(isLoading = true).withCanSubmit() }
         submitJob = viewModelScope.launch {
-            val accepted = passesNormalizedPolicy(normalizedPassword, normalizedConfirmation)
+            val accepted = passesNormalizedPolicy(password, normalizedPassword, normalizedConfirmation)
             _state.update { it.copy(isLoading = false).withCanSubmit() }
             if (!accepted) return@launch
             // TODO(OP-11): registro. La pantalla copiará la contraseña a un CharArray, se derivarán
-            //  enc_key y auth_key (DEC-05) y el arreglo se sobrescribirá. Falta PEND-01 (Argon2)
+            //  enc_key y auth_key (DEC-05) y el arreglo se sobrescribirá. La codificación a UTF-8 usa
+            //  CodingErrorAction.REPORT (DEC-31): si falla, no se registra. Falta PEND-01 (Argon2)
             //  para crear AuthRepository; por ahora no se envía nada.
             // TODO(OP-11): navegar solo si el registro responde bien.
             _effects.send(SignUpEffect.NavigateToVerifyEmail(_state.value.email.trim()))
@@ -155,17 +158,22 @@ class SignUpViewModel @Inject constructor(
      */
     internal suspend fun passesPolicy(password: CharSequence, confirmation: CharSequence): Boolean =
         passesNormalizedPolicy(
+            password,
             MasterPasswordNormalizer.normalize(password),
             MasterPasswordNormalizer.normalize(confirmation),
         )
 
-    private suspend fun passesNormalizedPolicy(normalizedPassword: String, normalizedConfirmation: String): Boolean {
+    private suspend fun passesNormalizedPolicy(
+        password: CharSequence,
+        normalizedPassword: String,
+        normalizedConfirmation: String,
+    ): Boolean {
         val codePoints = MasterPasswordNormalizer.codePointLength(normalizedPassword)
         // Largo y coincidencia antes de puntuar: pasado el máximo, zxcvbn ni siquiera corre.
         if (!MasterPasswordPolicy.meetsLength(codePoints) || MasterPasswordPolicy.exceedsMaxLength(codePoints)) {
             return false
         }
-        if (MasterPasswordPolicy.hasForbiddenCharacters(normalizedPassword)) return false
+        if (MasterPasswordPolicy.hasForbiddenCharacters(password, normalizedPassword, unicode)) return false
         if (!matches(normalizedPassword, normalizedConfirmation)) return false
         val score = scoreOrNull(normalizedPassword) ?: return false
         return MasterPasswordPolicy.isAcceptable(codePoints, score)

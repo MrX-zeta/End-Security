@@ -1,5 +1,6 @@
 package com.luis.end_security.feature.auth.ui.signup
 
+import com.luis.end_security.feature.auth.domain.FakeUnicodeCharacterData
 import com.luis.end_security.feature.auth.domain.PasswordStrengthEstimator
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -28,7 +29,7 @@ class SignUpViewModelTest {
     @Before
     fun setUp() {
         Dispatchers.setMain(dispatcher)
-        viewModel = SignUpViewModel(estimator, dispatcher)
+        viewModel = SignUpViewModel(estimator, FakeUnicodeCharacterData(), dispatcher)
     }
 
     @After
@@ -111,7 +112,7 @@ class SignUpViewModelTest {
     fun `mientras se calcula el puntaje nuevo el anterior no habilita el boton`() {
         // El cálculo queda en cola hasta que el planificador avanza.
         val scoring = StandardTestDispatcher(dispatcher.scheduler)
-        viewModel = SignUpViewModel(estimator, scoring)
+        viewModel = SignUpViewModel(estimator, FakeUnicodeCharacterData(), scoring)
         fillValidForm()
         scoring.scheduler.runCurrent()
         assertTrue(state.canSubmit)
@@ -159,7 +160,7 @@ class SignUpViewModelTest {
     fun `crear cuenta verifica la politica aunque el medidor siga calculando`() {
         // Antes, Submit se rechazaba siempre porque el cálculo del medidor seguía pendiente.
         val scoring = StandardTestDispatcher(dispatcher.scheduler)
-        viewModel = SignUpViewModel(estimator, scoring)
+        viewModel = SignUpViewModel(estimator, FakeUnicodeCharacterData(), scoring)
         fillValidForm()
 
         viewModel.onAction(SignUpAction.Submit(StringBuilder(STRONG), StringBuilder(STRONG)))

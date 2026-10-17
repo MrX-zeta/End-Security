@@ -48,8 +48,9 @@ class LoginViewModel @Inject constructor(
     private fun submit() {
         if (!_state.value.canSubmit) return
         // TODO(OP-13, OP-14): prelogin + login. La pantalla copiará la contraseña a un CharArray
-        //  (normalizada con MasterPasswordNormalizer, NFKC + UTF-8, DEC-31)
-        //  al tocar «Entrar», se derivará auth_key (DEC-05) y el arreglo se sobrescribirá.
+        //  (normalizada con MasterPasswordNormalizer, DEC-31) al tocar «Entrar», se derivará
+        //  auth_key (DEC-05) y el arreglo se sobrescribirá. La codificación a UTF-8 usa
+        //  CodingErrorAction.REPORT: si falla, es el mismo fallo genérico de credenciales.
         //  Falta PEND-01 (Argon2) para crear AuthRepository; por ahora no se envía nada.
         // TODO(OP-14): solo si la cuenta tiene 2FA; si no, a la bóveda.
         viewModelScope.launch { _effects.send(LoginEffect.NavigateToTwoFactor) }

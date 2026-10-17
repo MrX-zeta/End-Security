@@ -72,4 +72,13 @@ class MasterPasswordNormalizerTest {
     fun `NFKC unifica variantes de compatibilidad como los digitos de ancho completo`() {
         assertEquals("2026", MasterPasswordNormalizer.normalize("\uFF12\uFF10\uFF12\uFF16"))
     }
+
+    @Test
+    fun `el corazon con y sin selector de emoji normaliza igual`() {
+        val plain = "te quiero " + String(Character.toChars(0x2764)) + " mucho"
+        val emojiStyle = "te quiero " + String(intArrayOf(0x2764, 0xFE0F), 0, 2) + " mucho"
+        val textStyle = "te quiero " + String(intArrayOf(0x2764, 0xFE0E), 0, 2) + " mucho"
+        assertEquals(MasterPasswordNormalizer.normalize(plain), MasterPasswordNormalizer.normalize(emojiStyle))
+        assertEquals(MasterPasswordNormalizer.normalize(plain), MasterPasswordNormalizer.normalize(textStyle))
+    }
 }
