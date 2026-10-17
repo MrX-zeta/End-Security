@@ -150,8 +150,70 @@ class SignUpViewModelTest {
     fun `no coinciden se muestra al intentar crear la cuenta`() {
         estimator.nextScore = 3
         passwords(STRONG, "tortuga")
-        viewModel.onAction(SignUpAction.Submit)
+        viewModel.onAction(SignUpAction.Submit(StringBuilder(STRONG), StringBuilder("tortuga")))
         assertTrue(state.showMismatchError)
+    }
+
+    @Test
+    fun `crear cuenta verifica la politica aunque el medidor siga calculando`() {
+        // Antes, Submit se rechazaba siempre porque el cálculo del medidor seguía pendiente.
+        val scoring = StandardTestDispatcher(dispatcher.scheduler)
+        viewModel = SignUpViewModel(estimator, scoring)
+        fillValidForm()
+
+        viewModel.onAction(SignUpAction.Submit(StringBuilder(STRONG), StringBuilder(STRONG)))
+        assertTrue("se está verificando", state.isLoading)
+        assertFalse(state.canSubmit)
+
+        scoring.scheduler.runCurrent()
+        assertFalse(state.isLoading)
+        assertTrue(state.canSubmit)
+    }
+
+    @Test
+    fun `la politica se revisa sobre el texto enviado y no sobre el ultimo puntaje`() = kotlinx.coroutines.test.runTest(dispatcher) {
+        fillValidForm() // el estado dice «fuerte y válido»
+        estimator.nextScore = 2 // pero el texto que se envía puntúa 2
+        assertFalse(viewModel.passesPolicy(StringBuilder("contraseña2026"), StringBuilder("contraseña2026")))
+
+        estimator.nextScore = 4
+        assertFalse("menos de 12", viewModel.passesPolicy(StringBuilder("Tr0ub4dor&3"), StringBuilder("Tr0ub4dor&3")))
+        assertFalse("no coinciden", viewModel.passesPolicy(StringBuilder(STRONG), StringBuilder("$STRONG!")))
+        assertTrue(viewModel.passesPolicy(StringBuilder(STRONG), StringBuilder(STRONG)))
+    }
+
+    @Test
+    fun `al vaciar los campos se olvida todo lo calculado`() {
+        fillValidForm()
+        viewModel.onAction(SignUpAction.ConfirmationFocusLost)
+
+        viewModel.onAction(SignUpAction.PasswordsCleared)
+
+        assertNull(state.strengthScore)
+        assertFalse(state.meetsLength)
+        assertFalse(state.confirmationMatches)
+        assertFalse(state.showMismatchError)
+        assertFalse(state.canSubmit)
+        assertTrue("la casilla no cambia", state.termsAccepted)
+    }
+
+    @Test
+    fun `si el estimador falla no se puede crear la cuenta y no se cierra la app`() {
+        viewModel.onAction(SignUpAction.EmailChanged("ana.lopez@correo.com"))
+        viewModel.onAction(SignUpAction.TermsAcceptedChanged(true))
+        estimator.failNext = true
+        passwords(STRONG, STRONG)
+
+        assertNull(state.strengthScore)
+        assertFalse(state.canSubmit)
+    }
+
+    @Test
+    fun `el estado no imprime el correo ni el puntaje`() {
+        fillValidForm()
+        val text = state.toString() + SignUpAction.EmailChanged("ana.lopez@correo.com").toString()
+        assertFalse(text.contains("ana.lopez"))
+        assertFalse(text.contains("strengthScore"))
     }
 
     @Test
@@ -186,10 +248,15 @@ class SignUpViewModelTest {
 
     private class FakeEstimator : PasswordStrengthEstimator {
         var nextScore = 0
+        var failNext = false
         var lastLength = -1
 
         override fun score(password: CharSequence): Int {
             lastLength = password.length
+            if (failNext) {
+                failNext = false
+                error("no se pudieron cargar los diccionarios")
+            }
             return nextScore
         }
     }

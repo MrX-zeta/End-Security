@@ -103,21 +103,19 @@ fun SignUpRoute(
             }
     }
     // Al salir y al pasar a segundo plano se vacían los dos campos y se vuelve a ocultar (DEC-26).
+    // El ViewModel se entera al momento: no debe quedarse con el puntaje de un texto que ya no está.
     DisposableEffect(passwordState, confirmationState) {
         onDispose {
             passwordState.clearText()
             confirmationState.clearText()
+            currentOnAction(SignUpAction.PasswordsCleared)
         }
     }
     LifecycleEventEffect(Lifecycle.Event.ON_STOP) {
         passwordState.clearText()
         confirmationState.clearText()
         passwordVisible = false
-    }
-
-    // Antes de evaluar la coincidencia se manda el texto actual sin esperar el debounce.
-    val flushPasswords = {
-        viewModel.onAction(SignUpAction.PasswordsChanged(passwordState.text, confirmationState.text))
+        currentOnAction(SignUpAction.PasswordsCleared)
     }
 
     SignUpScreen(
@@ -127,12 +125,13 @@ fun SignUpRoute(
         passwordVisible = passwordVisible,
         onPasswordVisibleChange = { passwordVisible = it },
         onConfirmationFocusLost = {
-            flushPasswords()
+            // La coincidencia se evalúa con el texto actual, sin esperar el debounce.
+            viewModel.onAction(SignUpAction.PasswordsChanged(passwordState.text, confirmationState.text))
             viewModel.onAction(SignUpAction.ConfirmationFocusLost)
         },
         onSubmit = {
-            flushPasswords()
-            viewModel.onAction(SignUpAction.Submit)
+            // La política se revisa sobre este mismo texto (no sobre el último cálculo del medidor).
+            viewModel.onAction(SignUpAction.Submit(passwordState.text, confirmationState.text))
         },
         onAction = viewModel::onAction,
         onBack = onBack,
