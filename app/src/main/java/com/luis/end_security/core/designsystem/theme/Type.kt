@@ -54,7 +54,14 @@ val Typography = Typography(
         letterSpacing = TitleLetterSpacing,
     ),
     headlineMedium = Base.headlineMedium.copy(fontFamily = Montserrat),
-    headlineSmall = Base.headlineSmall.copy(fontFamily = Montserrat),
+    // Dígitos de las casillas de código (CodeField).
+    headlineSmall = TextStyle(
+        fontFamily = Montserrat,
+        fontWeight = FontWeight.Bold,
+        fontSize = 22.sp,
+        lineHeight = 28.sp,
+        lineHeightStyle = FigmaLineHeightStyle,
+    ),
     // Marca «End Security» en la barra superior.
     titleLarge = TextStyle(
         fontFamily = Montserrat,

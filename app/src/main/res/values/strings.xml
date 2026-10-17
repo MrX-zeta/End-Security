@@ -6,6 +6,7 @@
     <string name="password_show">Mostrar contraseña</string>
     <string name="password_hide">Ocultar contraseña</string>
     <string name="navigate_back">Regresar</string>
+    <string name="code_field_description">Código de verificación, %1$d de %2$d dígitos</string>
 
     <!-- Onboarding (SCR-01, SCR-02, SCR-03). Textos exactos de Figma. -->
     <string name="onboarding_skip">Omitir</string>
@@ -49,11 +50,26 @@
     <string name="signup_password_label">Contraseña maestra</string>
     <string name="signup_confirm_label">Confirma tu contraseña maestra</string>
     <string name="signup_min_length">Usa al menos 12 caracteres</string>
+    <string name="signup_max_length">Usa como máximo 128 caracteres</string>
     <string name="signup_mismatch">Las contraseñas no coinciden.</string>
     <string name="signup_notice">Es la única llave de tu bóveda. Si la olvidas, no podremos recuperarla.</string>
     <!-- %1$s = «Términos», %2$s = «Aviso de privacidad»; los dos son enlaces. -->
     <string name="signup_terms_sentence">Acepto los %1$s y el %2$s</string>
     <string name="signup_submit">Crear cuenta</string>
+
+    <!-- Verificar correo (SCR-06). Textos de Figma (nodo 36:268); los errores no están en Figma. -->
+    <string name="verify_title_bold">Revisa</string>
+    <string name="verify_title_regular">tu correo</string>
+    <string name="verify_body">Te enviamos un código de 6 dígitos a %1$s</string>
+    <string name="verify_resend_wait">Puedes pedir otro código en %1$s</string>
+    <string name="verify_resend">Reenviar código</string>
+    <string name="verify_submit">Verificar</string>
+    <plurals name="verify_error_wrong_code">
+        <item quantity="one">Código incorrecto. Te queda %d intento.</item>
+        <item quantity="many">Código incorrecto. Te quedan %d intentos.</item>
+        <item quantity="other">Código incorrecto. Te quedan %d intentos.</item>
+    </plurals>
+    <string name="verify_error_expired">Este código ya no sirve. Pide uno nuevo.</string>
 
     <!-- Medidor de fuerza (DEC-31) -->
     <string name="strength_weak">Débil</string>
