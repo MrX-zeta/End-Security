@@ -84,7 +84,7 @@ class SignUpViewModelTest {
     fun `con puntaje menor a 3 no se puede crear la cuenta aunque sea larga`() {
         fillValidForm()
         estimator.nextScore = 2
-        passwords("contraseña2026", "contraseña2026")
+        passwords("contrase\u00F1a2026", "contrase\u00F1a2026")
         assertEquals(2, state.strengthScore)
         assertTrue(state.meetsLength)
         assertFalse(state.canSubmit)
@@ -116,7 +116,7 @@ class SignUpViewModelTest {
         scoring.scheduler.runCurrent()
         assertTrue(state.canSubmit)
 
-        passwords("otra contraseña cualquiera", "otra contraseña cualquiera")
+        passwords("otra contrase\u00F1a cualquiera", "otra contrase\u00F1a cualquiera")
         assertFalse(state.canSubmit)
 
         scoring.scheduler.runCurrent()
@@ -175,7 +175,7 @@ class SignUpViewModelTest {
     fun `la politica se revisa sobre el texto enviado y no sobre el ultimo puntaje`() = kotlinx.coroutines.test.runTest(dispatcher) {
         fillValidForm() // el estado dice «fuerte y válido»
         estimator.nextScore = 2 // pero el texto que se envía puntúa 2
-        assertFalse(viewModel.passesPolicy(StringBuilder("contraseña2026"), StringBuilder("contraseña2026")))
+        assertFalse(viewModel.passesPolicy(StringBuilder("contrase\u00F1a2026"), StringBuilder("contrase\u00F1a2026")))
 
         estimator.nextScore = 4
         assertFalse("menos de 12", viewModel.passesPolicy(StringBuilder("Tr0ub4dor&3"), StringBuilder("Tr0ub4dor&3")))
@@ -220,7 +220,7 @@ class SignUpViewModelTest {
     fun `crear cuenta sin la politica no navega`() = kotlinx.coroutines.test.runTest(dispatcher) {
         fillValidForm()
         estimator.nextScore = 2
-        viewModel.onAction(SignUpAction.Submit(StringBuilder("contraseña2026"), StringBuilder("contraseña2026")))
+        viewModel.onAction(SignUpAction.Submit(StringBuilder("contrase\u00F1a2026"), StringBuilder("contrase\u00F1a2026")))
         assertNull(kotlinx.coroutines.withTimeoutOrNull(100) { viewModel.effects.first() })
     }
 
@@ -228,7 +228,7 @@ class SignUpViewModelTest {
     fun `pasado el maximo tras NFKC no se mide ni se puede crear la cuenta`() = kotlinx.coroutines.test.runTest(dispatcher) {
         fillValidForm()
         estimator.lastLength = -1
-        val expanding = "ﷺ".repeat(20) // 20 unidades, 360 caracteres tras NFKC
+        val expanding = "\uFDFA".repeat(20) // 20 unidades, 360 caracteres tras NFKC
         estimator.nextScore = 4
         passwords(expanding, expanding)
 
@@ -241,24 +241,46 @@ class SignUpViewModelTest {
     }
 
     @Test
+    fun `con caracteres invisibles no se mide ni se puede crear la cuenta`() = kotlinx.coroutines.test.runTest(dispatcher) {
+        fillValidForm()
+        estimator.lastLength = -1
+        val withZeroWidth = "tortuga\u200Bvioleta-salta-29-nubes"
+        passwords(withZeroWidth, withZeroWidth)
+
+        assertTrue(state.hasForbiddenCharacters)
+        assertNull(state.strengthScore)
+        assertEquals("zxcvbn no se llamó", -1, estimator.lastLength)
+        assertFalse(state.canSubmit)
+        assertFalse(viewModel.passesPolicy(StringBuilder(withZeroWidth), StringBuilder(withZeroWidth)))
+    }
+
+    @Test
+    fun `un emoji compuesto no cuenta como caracter invisible`() {
+        estimator.nextScore = 4
+        val family = "familia 👨\u200D👩\u200D👧 en casa grande"
+        passwords(family, family)
+        assertFalse(state.hasForbiddenCharacters)
+    }
+
+    @Test
     fun `la confirmacion en NFD coincide con la contrasena en NFC`() {
         estimator.nextScore = 3
-        passwords("contraseña-de-tortugas", "contraseña-de-tortugas")
+        passwords("contrase\u00F1a-de-tortugas", "contrasen\u0303a-de-tortugas")
         assertTrue(state.confirmationMatches)
     }
 
     @Test
     fun `la longitud se cuenta en caracteres normalizados`() {
         estimator.nextScore = 4
-        passwords("contraseña1", "contraseña1") // 12 unidades UTF-16, 11 caracteres
+        passwords("contrasen\u0303a1", "contrasen\u0303a1") // 12 unidades UTF-16, 11 caracteres
         assertFalse(state.meetsLength)
     }
 
     @Test
     fun `el estimador recibe el texto normalizado`() {
         estimator.nextScore = 3
-        passwords("contraseña-de-tortugas", "")
-        assertEquals("contraseña-de-tortugas".length, estimator.lastLength)
+        passwords("contrasen\u0303a-de-tortugas", "")
+        assertEquals("contrase\u00F1a-de-tortugas".length, estimator.lastLength)
     }
 
     @Test

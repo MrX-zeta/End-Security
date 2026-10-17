@@ -51,6 +51,7 @@
     <string name="signup_confirm_label">Confirma tu contraseña maestra</string>
     <string name="signup_min_length">Usa al menos 12 caracteres</string>
     <string name="signup_max_length">Usa como máximo 128 caracteres</string>
+    <string name="signup_forbidden_characters">Tu contraseña tiene caracteres invisibles que no se pueden usar</string>
     <string name="signup_mismatch">Las contraseñas no coinciden.</string>
     <string name="signup_notice">Es la única llave de tu bóveda. Si la olvidas, no podremos recuperarla.</string>
     <!-- %1$s = «Términos», %2$s = «Aviso de privacidad»; los dos son enlaces. -->
@@ -70,6 +71,26 @@
         <item quantity="other">Código incorrecto. Te quedan %d intentos.</item>
     </plurals>
     <string name="verify_error_expired">Este código ya no sirve. Pide uno nuevo.</string>
+
+    <!-- Bloqueo por intentos (DEC-32): Iniciar sesión, 2FA y código de respaldo. No está en Figma. -->
+    <string name="auth_lockout">Demasiados intentos. Vuelve a intentarlo en %1$d min.</string>
+
+    <!-- Verificación en dos pasos al entrar (SCR-07). Textos de Figma (nodo 36:341). -->
+    <string name="two_factor_title_bold">Confirma</string>
+    <string name="two_factor_title_regular">que eres tú</string>
+    <string name="two_factor_body">Abre tu app de códigos (como Google Authenticator) y escribe el número de 6 dígitos que aparece para End Security.</string>
+    <string name="two_factor_submit">Continuar</string>
+    <string name="two_factor_no_phone">¿Sin tu teléfono?</string>
+    <string name="two_factor_use_backup_code">Usa un código de respaldo</string>
+    <string name="two_factor_error_wrong_code">Código incorrecto. Revisa que la hora de tu teléfono sea automática.</string>
+
+    <!-- Código de respaldo (SCR-08). Textos de Figma (nodo 36:413). -->
+    <string name="backup_code_title_bold">Usa un código</string>
+    <string name="backup_code_title_regular">de respaldo</string>
+    <string name="backup_code_body">Escribe uno de los códigos que guardaste cuando activaste la verificación en dos pasos. Cada código sirve una sola vez.</string>
+    <string name="backup_code_label">Código de respaldo</string>
+    <string name="backup_code_submit">Entrar</string>
+    <string name="backup_code_error_invalid">Ese código no es válido o ya se usó.</string>
 
     <!-- Medidor de fuerza (DEC-31) -->
     <string name="strength_weak">Débil</string>

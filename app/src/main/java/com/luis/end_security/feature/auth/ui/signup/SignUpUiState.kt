@@ -12,6 +12,8 @@ data class SignUpUiState(
     val meetsLength: Boolean = false,
     /** Más de 128 caracteres tras normalizar: no se calcula el puntaje. */
     val exceedsMaxLength: Boolean = false,
+    /** Tiene caracteres invisibles o de control que no se aceptan al fijar la contraseña (DEC-31). */
+    val hasForbiddenCharacters: Boolean = false,
     val confirmationMatches: Boolean = false,
     /** «Las contraseñas no coinciden.» Solo al perder el foco o al intentar crear la cuenta. */
     val showMismatchError: Boolean = false,

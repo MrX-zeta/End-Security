@@ -272,6 +272,7 @@ private fun PasswordStrength(state: SignUpUiState) {
     val level = score?.let { PasswordStrengthLevel.fromScore(it) }
     val levelColor = level?.colorRole?.toColor() ?: MaterialTheme.colorScheme.outline
     val label = when {
+        state.hasForbiddenCharacters -> stringResource(R.string.signup_forbidden_characters)
         state.exceedsMaxLength -> stringResource(R.string.signup_max_length)
         level == null -> null
         !state.meetsLength -> stringResource(R.string.signup_min_length)
@@ -279,7 +280,12 @@ private fun PasswordStrength(state: SignUpUiState) {
     }
     // Los avisos de longitud son información neutra; las barras siguen mostrando el puntaje.
     val lengthNotice = state.exceedsMaxLength || (level != null && !state.meetsLength)
-    val labelColor = if (lengthNotice) MaterialTheme.colorScheme.onSurfaceVariant else levelColor
+    // Los caracteres invisibles impiden crear la cuenta: va en error, no como aviso neutro.
+    val labelColor = when {
+        state.hasForbiddenCharacters -> MaterialTheme.colorScheme.error
+        lengthNotice -> MaterialTheme.colorScheme.onSurfaceVariant
+        else -> levelColor
+    }
     StrengthMeter(
         filledBars = level?.filledBars ?: 0,
         color = levelColor,

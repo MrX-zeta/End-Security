@@ -7,9 +7,10 @@ import org.junit.Test
 
 class MasterPasswordNormalizerTest {
 
-    // «contraseña» con la ñ compuesta (NFC) y como «n» + tilde combinante (NFD).
-    private val nfc = "contraseña"
-    private val nfd = "contraseña"
+    // «contraseña» con la «ñ» compuesta (NFC) y como «n» + tilde combinante (NFD). Van como
+    // escapes para que un editor que normalice el archivo no borre la diferencia.
+    private val nfc = "contrase\u00F1a"
+    private val nfd = "contrasen\u0303a"
 
     @Test
     fun `NFC y NFD dan el mismo texto normalizado`() {
@@ -33,7 +34,7 @@ class MasterPasswordNormalizerTest {
 
     @Test
     fun `11 caracteres con uno compuesto no cumplen el minimo`() {
-        val elevenWithCombining = "contraseña1" // 12 unidades UTF-16, 11 caracteres
+        val elevenWithCombining = "contrasen\u0303a1" // 12 unidades UTF-16, 11 caracteres
         assertEquals(12, elevenWithCombining.length)
         val length = MasterPasswordNormalizer.codePointLength(MasterPasswordNormalizer.normalize(elevenWithCombining))
         assertEquals(11, length)
@@ -42,14 +43,14 @@ class MasterPasswordNormalizerTest {
 
     @Test
     fun `12 caracteres con uno compuesto si cumplen el minimo`() {
-        val twelve = "contraseña12"
+        val twelve = "contrasen\u0303a12"
         val length = MasterPasswordNormalizer.codePointLength(MasterPasswordNormalizer.normalize(twelve))
         assertTrue(MasterPasswordPolicy.meetsLength(length))
     }
 
     @Test
     fun `NFKC puede expandir un caracter y pasar el maximo`() {
-        val expanding = "ﷺ".repeat(MasterPasswordPolicy.MAX_LENGTH) // «ﷺ»: 1 unidad, 18 tras NFKC
+        val expanding = "\uFDFA".repeat(MasterPasswordPolicy.MAX_LENGTH) // «\uFDFA»: 1 unidad, 18 tras NFKC
         assertEquals(MasterPasswordPolicy.MAX_LENGTH, expanding.length)
         val length = MasterPasswordNormalizer.codePointLength(MasterPasswordNormalizer.normalize(expanding))
         assertTrue(MasterPasswordPolicy.exceedsMaxLength(length))
@@ -69,6 +70,6 @@ class MasterPasswordNormalizerTest {
 
     @Test
     fun `NFKC unifica variantes de compatibilidad como los digitos de ancho completo`() {
-        assertEquals("2026", MasterPasswordNormalizer.normalize("２０２６"))
+        assertEquals("2026", MasterPasswordNormalizer.normalize("\uFF12\uFF10\uFF12\uFF16"))
     }
 }

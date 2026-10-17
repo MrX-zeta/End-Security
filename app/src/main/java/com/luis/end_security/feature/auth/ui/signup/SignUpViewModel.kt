@@ -77,7 +77,9 @@ class SignUpViewModel @Inject constructor(
         val matches = matches(normalizedPassword, normalizedConfirmation)
         // Pasado el máximo no se mide: acota el costo de zxcvbn (y después el de Argon2).
         val exceedsMax = MasterPasswordPolicy.exceedsMaxLength(passwordLength)
-        val needsScore = password.isNotEmpty() && !exceedsMax
+        // Con caracteres invisibles tampoco: no se puede usar, así que no hace falta su puntaje.
+        val forbidden = MasterPasswordPolicy.hasForbiddenCharacters(normalizedPassword)
+        val needsScore = password.isNotEmpty() && !exceedsMax && !forbidden
         scoringJob?.cancel()
         scorePending = needsScore
         _state.update {
@@ -85,6 +87,7 @@ class SignUpViewModel @Inject constructor(
                 strengthScore = if (needsScore) it.strengthScore else null,
                 meetsLength = MasterPasswordPolicy.meetsLength(passwordLength),
                 exceedsMaxLength = exceedsMax,
+                hasForbiddenCharacters = forbidden,
                 confirmationMatches = matches,
                 // Si ya coinciden se quita el error; si no, no se muestra mientras se escribe.
                 showMismatchError = it.showMismatchError && !matches,
@@ -109,6 +112,7 @@ class SignUpViewModel @Inject constructor(
                 strengthScore = null,
                 meetsLength = false,
                 exceedsMaxLength = false,
+                hasForbiddenCharacters = false,
                 confirmationMatches = false,
                 showMismatchError = false,
             ).withCanSubmit()
@@ -161,6 +165,7 @@ class SignUpViewModel @Inject constructor(
         if (!MasterPasswordPolicy.meetsLength(codePoints) || MasterPasswordPolicy.exceedsMaxLength(codePoints)) {
             return false
         }
+        if (MasterPasswordPolicy.hasForbiddenCharacters(normalizedPassword)) return false
         if (!matches(normalizedPassword, normalizedConfirmation)) return false
         val score = scoreOrNull(normalizedPassword) ?: return false
         return MasterPasswordPolicy.isAcceptable(codePoints, score)
@@ -187,6 +192,7 @@ class SignUpViewModel @Inject constructor(
     private fun SignUpUiState.withCanSubmit(): SignUpUiState = copy(
         canSubmit = isEmailValid &&
             !scorePending &&
+            !hasForbiddenCharacters &&
             MasterPasswordPolicy.isAcceptable(passwordLength, strengthScore) &&
             confirmationMatches &&
             termsAccepted &&
