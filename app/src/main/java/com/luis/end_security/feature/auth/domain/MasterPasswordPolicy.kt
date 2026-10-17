@@ -33,12 +33,18 @@ object MasterPasswordPolicy {
      *   suave, rellenos hangul, selectores de variación…), salvo U+200C, U+200D y las etiquetas
      *   U+E0020–U+E007F, que necesitan el persa, los emojis compuestos y las banderas con etiquetas;
      * - U+2028, U+2029 y U+2800, que no son ignorables pero tampoco se ven;
+     * - los de formato U+FFF9–U+FFFB (anotación interlineal), el uso privado (Co) y los
+     *   no-caracteres (U+FDD0–U+FDEF y los que terminan en FFFE o FFFF), que cada teléfono o
+     *   teclado puede dibujar, quitar o cambiar distinto;
      * - los puntos de código que no estaban asignados en Unicode 10.0, para que todos los
      *   teléfonos (minSdk 28) normalicen igual.
      *
      * La edad se revisa también en lo que escribió el usuario, antes de normalizar: un carácter
      * posterior a Unicode 10.0 que NFKC convierte en uno antiguo (p. ej. U+1FBF0 → «0») solo se
      * convierte en los teléfonos que lo conocen; en los demás la llave saldría distinta.
+     *
+     * ZWJ, ZWNJ y las etiquetas se aceptan en cualquier posición: no cambian la llave entre
+     * teléfonos (riesgo aceptado en DEC-31).
      *
      * Al entrar y al desbloquear no se usa: ahí solo se normaliza, para no dar pistas.
      *
@@ -68,6 +74,9 @@ object MasterPasswordPolicy {
         // Un surrogate solitario llega como su propio valor; en UTF-8 se volvería «?».
         if (codePoint in SURROGATES) return true
         if (codePoint in VISIBLE_BUT_BLANK) return true
+        if (codePoint in INTERLINEAR_ANNOTATIONS) return true
+        if (PRIVATE_USE.any { codePoint in it }) return true
+        if (isNoncharacter(codePoint)) return true
         if (unicode.isDefaultIgnorable(codePoint) && !isAllowedIgnorable(codePoint)) return true
         return isNewerThanUnicode10(codePoint, unicode)
     }
@@ -75,7 +84,13 @@ object MasterPasswordPolicy {
     private fun isAllowedIgnorable(codePoint: Int): Boolean =
         codePoint == ZERO_WIDTH_NON_JOINER || codePoint == ZERO_WIDTH_JOINER || codePoint in TAGS
 
+    /** U+FDD0–U+FDEF y los dos últimos de cada plano (U+FFFE, U+FFFF, U+1FFFE, …, U+10FFFF). */
+    private fun isNoncharacter(codePoint: Int): Boolean =
+        codePoint in 0xFDD0..0xFDEF || (codePoint and 0xFFFE) == 0xFFFE
+
     private val CONTROLS = listOf(0x0000..0x001F, 0x007F..0x009F)
+    private val INTERLINEAR_ANNOTATIONS = 0xFFF9..0xFFFB
+    private val PRIVATE_USE = listOf(0xE000..0xF8FF, 0xF0000..0xFFFFD, 0x100000..0x10FFFD)
     private val SURROGATES = 0xD800..0xDFFF
     private const val ZERO_WIDTH_NON_JOINER = 0x200C
     private const val ZERO_WIDTH_JOINER = 0x200D

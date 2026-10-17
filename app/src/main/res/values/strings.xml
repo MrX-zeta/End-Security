@@ -51,7 +51,7 @@
     <string name="signup_confirm_label">Confirma tu contraseña maestra</string>
     <string name="signup_min_length">Usa al menos 12 caracteres</string>
     <string name="signup_max_length">Usa como máximo 128 caracteres</string>
-    <string name="signup_forbidden_characters">Tu contraseña tiene caracteres invisibles que no se pueden usar</string>
+    <string name="signup_forbidden_characters">Tu contraseña tiene caracteres que no se pueden usar (invisibles o emojis muy nuevos)</string>
     <string name="signup_mismatch">Las contraseñas no coinciden.</string>
     <string name="signup_notice">Es la única llave de tu bóveda. Si la olvidas, no podremos recuperarla.</string>
     <!-- %1$s = «Términos», %2$s = «Aviso de privacidad»; los dos son enlaces. -->

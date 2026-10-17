@@ -85,6 +85,23 @@ class ForbiddenCharactersTest {
     }
 
     @Test
+    fun `uso privado, no-caracteres y anotacion interlineal se rechazan`() {
+        val codePoints = listOf(0xE000, 0xF8FF, 0xF0000, 0x10FFFD, 0xFDD0, 0xFDEF, 0xFFFE, 0xFFFF, 0x1FFFE, 0x10FFFF, 0xFFF9, 0xFFFB)
+        // Con ICU real todos tienen edad (1.1 a 3.1): se dan aquí para que los rechace su propia
+        // regla y no la de «sin asignar» de la implementación falsa.
+        val withAges = FakeUnicodeCharacterData(ages = codePoints.associateWith { UnicodeVersion(1, 1) })
+        codePoints.forEach { codePoint ->
+            val raw = "tortuga" + cp(codePoint) + "violeta"
+            assertTrue("U+%04X".format(codePoint), MasterPasswordPolicy.hasForbiddenCharacters(raw, MasterPasswordNormalizer.normalize(raw), withAges))
+        }
+    }
+
+    @Test
+    fun `ZWJ suelto se acepta (riesgo aceptado)`() {
+        assertFalse(forbidden("contrasena" + cp(0x200D) + "2026-tortuga"))
+    }
+
+    @Test
     fun `un punto de codigo sin asignar se rechaza`() {
         // U+0378 no está asignado en ninguna versión de Unicode hasta hoy.
         assertTrue(forbidden("tortuga" + cp(0x0378) + "violeta"))

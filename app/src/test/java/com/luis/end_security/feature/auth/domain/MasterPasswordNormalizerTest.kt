@@ -81,4 +81,23 @@ class MasterPasswordNormalizerTest {
         assertEquals(MasterPasswordNormalizer.normalize(plain), MasterPasswordNormalizer.normalize(emojiStyle))
         assertEquals(MasterPasswordNormalizer.normalize(plain), MasterPasswordNormalizer.normalize(textStyle))
     }
+
+    @Test
+    fun `el selector se quita antes de NFKC y A con anillo queda compuesta`() {
+        val withSelector = "A" + String(intArrayOf(0xFE0F, 0x030A), 0, 2)
+        assertEquals(String(Character.toChars(0x00C5)), MasterPasswordNormalizer.normalize(withSelector))
+    }
+
+    @Test
+    fun `normalizar dos veces da lo mismo`() {
+        val samples = listOf(
+            "A" + String(intArrayOf(0xFE0F, 0x030A), 0, 2),
+            "te quiero " + String(intArrayOf(0x2764, 0xFE0F), 0, 2),
+            "contrasen" + String(Character.toChars(0x0303)) + "a",
+        )
+        samples.forEach { sample ->
+            val once = MasterPasswordNormalizer.normalize(sample)
+            assertEquals(once, MasterPasswordNormalizer.normalize(once))
+        }
+    }
 }
