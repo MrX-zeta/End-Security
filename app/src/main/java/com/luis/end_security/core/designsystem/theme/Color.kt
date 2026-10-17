@@ -17,6 +17,10 @@ internal val LightOnPrimary = Color(0xFF111111)
 internal val LightBlob = Color(0xFF2F2F2F)
 internal val LightShadowLight = Color(0xF2FFFFFF) // #FFFFFF al 95 %
 internal val LightShadowDark = Color(0x1F111111) // #111111 al 12 %
+internal val LightDanger = Color(0xFFB42318)
+internal val LightDangerContainer = Color(0xFFFDE8E6)
+internal val LightSuccess = Color(0xFF1E6B45)
+internal val LightSuccessContainer = Color(0xFFE3F1EA)
 
 // Tema oscuro: solo el onboarding (DEC-51).
 internal val DarkBackground = Color(0xFF2F2F2F)
@@ -29,6 +33,10 @@ internal val DarkOnPrimary = Color(0xFF111111)
 internal val DarkBlob = Color(0xFF111111)
 internal val DarkShadowLight = Color(0x12FFFFFF) // #FFFFFF al 7 %
 internal val DarkShadowDark = Color(0x73000000) // #000000 al 45 %
+internal val DarkDanger = Color(0xFFF28B82)
+internal val DarkDangerContainer = Color(0xFF4A2523)
+internal val DarkSuccess = Color(0xFF7FD1A3)
+internal val DarkSuccessContainer = Color(0xFF1F3A2C)
 
 // Grano de las manchas orgánicas: efecto de ruido de Figma (blanco al 7 %).
 // No es una variable de DEC-50; está pendiente de registrarse en el grafo.

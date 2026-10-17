@@ -19,6 +19,8 @@ private val LightColorScheme = lightColorScheme(
     outline = LightOutline,
     primary = LightPrimary,
     onPrimary = LightOnPrimary,
+    error = LightDanger,
+    errorContainer = LightDangerContainer,
 )
 
 private val DarkColorScheme = darkColorScheme(
@@ -30,15 +32,23 @@ private val DarkColorScheme = darkColorScheme(
     outline = DarkOutline,
     primary = DarkPrimary,
     onPrimary = DarkOnPrimary,
+    error = DarkDanger,
+    errorContainer = DarkDangerContainer,
 )
 
-/** Tokens de DEC-50 que no tienen lugar en el [androidx.compose.material3.ColorScheme]. */
+/**
+ * Tokens de DEC-50 que no tienen lugar en el [androidx.compose.material3.ColorScheme].
+ * `danger` y `danger-container` de Figma van en `colorScheme.error` y `errorContainer`,
+ * para que los componentes de Material (p. ej. un campo con error) los usen solos.
+ */
 @Immutable
 data class ExtendedColors(
     val blob: Color,
     val blobGrain: Color,
     val shadowLight: Color,
     val shadowDark: Color,
+    val success: Color,
+    val successContainer: Color,
 )
 
 private val LightExtendedColors = ExtendedColors(
@@ -46,6 +56,8 @@ private val LightExtendedColors = ExtendedColors(
     blobGrain = BlobGrain,
     shadowLight = LightShadowLight,
     shadowDark = LightShadowDark,
+    success = LightSuccess,
+    successContainer = LightSuccessContainer,
 )
 
 private val DarkExtendedColors = ExtendedColors(
@@ -53,6 +65,8 @@ private val DarkExtendedColors = ExtendedColors(
     blobGrain = BlobGrain,
     shadowLight = DarkShadowLight,
     shadowDark = DarkShadowDark,
+    success = DarkSuccess,
+    successContainer = DarkSuccessContainer,
 )
 
 private val LocalExtendedColors = staticCompositionLocalOf { LightExtendedColors }
