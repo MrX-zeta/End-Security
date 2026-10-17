@@ -53,7 +53,15 @@ val Typography = Typography(
         lineHeightStyle = FigmaLineHeightStyle,
         letterSpacing = TitleLetterSpacing,
     ),
-    headlineMedium = Base.headlineMedium.copy(fontFamily = Montserrat),
+    // Título de las pestañas, como «Tu bóveda» (Figma: 30 Bold, alto de línea «normal»).
+    headlineMedium = TextStyle(
+        fontFamily = Montserrat,
+        fontWeight = FontWeight.Bold,
+        fontSize = 30.sp,
+        lineHeight = 37.sp,
+        lineHeightStyle = FigmaLineHeightStyle,
+        letterSpacing = TitleLetterSpacing,
+    ),
     // Dígitos de las casillas de código (CodeField).
     headlineSmall = TextStyle(
         fontFamily = Montserrat,
@@ -113,5 +121,12 @@ val Typography = Typography(
         lineHeight = 20.sp,
         lineHeightStyle = FigmaLineHeightStyle,
     ),
-    labelSmall = Base.labelSmall.copy(fontFamily = Montserrat),
+    // Etiquetas de la barra inferior (la activa va en Bold).
+    labelSmall = TextStyle(
+        fontFamily = Montserrat,
+        fontWeight = FontWeight.Medium,
+        fontSize = 11.sp,
+        lineHeight = 14.sp,
+        lineHeightStyle = FigmaLineHeightStyle,
+    ),
 )

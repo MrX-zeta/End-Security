@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Figma: Icono/fingerprint (22 px en el botón de huella de Desbloquear). El color se aplica con tint desde el tema. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="22dp"
+    android:height="22dp"
+    android:viewportWidth="22"
+    android:viewportHeight="22">
+    <path
+        android:pathData="M11 9.16667C10.5138 9.16667 10.0475 9.35982 9.70364 9.70364C9.35982 10.0475 9.16667 10.5138 9.16667 11C9.16667 11.935 9.075 13.3008 8.92833 14.6667"
+        android:strokeWidth="1.83333"
+        android:strokeColor="@android:color/white"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <path
+        android:pathData="M12.8333 12.0267C12.8333 14.2083 12.8333 17.875 11.9167 20.1667"
+        android:strokeWidth="1.83333"
+        android:strokeColor="@android:color/white"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <path
+        android:pathData="M15.8492 19.2683C15.9592 18.7183 16.2433 17.16 16.3075 16.5"
+        android:strokeWidth="1.83333"
+        android:strokeColor="@android:color/white"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <path
+        android:pathData="M1.83333 11C1.83333 9.07608 2.43868 7.20092 3.56361 5.64016C4.68855 4.07939 6.27605 2.91213 8.10125 2.30374C9.92644 1.69534 11.8968 1.67664 13.7332 2.25029C15.5696 2.82394 17.179 3.96086 18.3333 5.5"
+        android:strokeWidth="1.83333"
+        android:strokeColor="@android:color/white"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <path
+        android:pathData="M1.83333 14.6667H1.8425"
+        android:strokeWidth="1.83333"
+        android:strokeColor="@android:color/white"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <path
+        android:pathData="M19.9833 14.6667C20.1667 12.8333 20.1034 9.75883 19.9833 9.16667"
+        android:strokeWidth="1.83333"
+        android:strokeColor="@android:color/white"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <path
+        android:pathData="M4.58333 17.875C5.04167 16.5 5.5 13.75 5.5 11C5.49907 10.3756 5.60447 9.75566 5.81167 9.16667"
+        android:strokeWidth="1.83333"
+        android:strokeColor="@android:color/white"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <path
+        android:pathData="M7.92917 20.1667C8.12167 19.5617 8.34167 18.9567 8.45167 18.3333"
+        android:strokeWidth="1.83333"
+        android:strokeColor="@android:color/white"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <path
+        android:pathData="M8.25 6.23333C9.08636 5.75046 10.0351 5.49632 11.0009 5.49647C11.9666 5.49663 12.9153 5.75107 13.7515 6.23422C14.5877 6.71736 15.282 7.41217 15.7645 8.24876C16.2469 9.08536 16.5006 10.0342 16.5 11V12.8333"
+        android:strokeWidth="1.83333"
+        android:strokeColor="@android:color/white"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+</vector>

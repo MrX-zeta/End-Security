@@ -102,4 +102,34 @@
     <string name="legal_terms_title">Términos</string>
     <string name="legal_privacy_title">Aviso de privacidad</string>
     <string name="legal_in_progress">Documento en redacción</string>
+
+    <!-- Desbloquear (SCR-09). Textos de Figma (nodo 36:491); la hoja de cerrar sesión no está en Figma. -->
+    <string name="unlock_title_bold">Tu bóveda</string>
+    <string name="unlock_title_regular">está bloqueada</string>
+    <string name="unlock_body">Escribe tu contraseña maestra para abrirla.</string>
+    <string name="unlock_password_label">Contraseña maestra</string>
+    <string name="unlock_submit">Desbloquear</string>
+    <string name="unlock_biometric">Desbloquear con huella</string>
+    <string name="unlock_error_wrong_password">Contraseña incorrecta.</string>
+    <string name="unlock_not_you">¿No eres %1$s?</string>
+    <string name="unlock_not_you_unknown">¿No eres tú?</string>
+    <string name="unlock_sign_out">Cerrar sesión</string>
+    <string name="unlock_sign_out_title">¿Cerrar sesión?</string>
+    <string name="unlock_sign_out_body">Para volver a entrar necesitarás tu correo, tu contraseña maestra y tu código de 2 pasos.</string>
+    <string name="unlock_sign_out_confirm">Cerrar sesión</string>
+    <string name="unlock_sign_out_cancel">Cancelar</string>
+
+    <!-- Barra inferior (DEC-56). -->
+    <string name="nav_vault">Bóveda</string>
+    <string name="nav_health">Salud</string>
+    <string name="nav_generator">Generador</string>
+    <string name="nav_settings">Ajustes</string>
+
+    <!-- Bóveda · cargando (SCR-39). Textos de Figma (nodo 69:3207). -->
+    <string name="vault_title">Tu bóveda</string>
+    <string name="vault_loading">Descargando tu bóveda…</string>
+    <string name="vault_loading_announcement">Descargando tu bóveda</string>
+    <string name="vault_lock_now">Bloquear ahora</string>
+    <!-- Marcador de la Bóveda (SCR-10) hasta que se implemente. -->
+    <string name="vault_placeholder">Próximamente</string>
 </resources>
