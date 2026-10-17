@@ -1,13 +1,19 @@
 package com.luis.end_security.feature.auth.data
 
 import com.luis.end_security.feature.auth.domain.PasswordStrengthEstimator
+import com.nulabinc.zxcvbn.WipeableString
 import com.nulabinc.zxcvbn.Zxcvbn
 import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
  * zxcvbn4j: todo ocurre en memoria, con sus diccionarios empaquetados; no hay red.
- * `measure` copia la contraseña a un búfer propio que `Strength.wipe()` llena de ceros.
+ *
+ * `Strength.wipe()` llena de ceros la contraseña que recibió `measure` si es mutable
+ * (`StringBuilder` o `WipeableString`), así que se mide sobre una copia propia: la entrada del
+ * llamador nunca se modifica. La copia y lo que `wipe()` alcanza se borran al terminar. Limitación
+ * (DEC-27): zxcvbn crea por dentro subcadenas y `String` temporales (diccionarios, expresiones
+ * regulares) que no se pueden borrar; quedan en memoria hasta el recolector de basura.
  */
 @Singleton
 class ZxcvbnPasswordStrengthEstimator @Inject constructor() : PasswordStrengthEstimator {
@@ -18,11 +24,16 @@ class ZxcvbnPasswordStrengthEstimator @Inject constructor() : PasswordStrengthEs
     @Synchronized
     override fun score(password: CharSequence): Int {
         if (password.isEmpty()) return 0
-        val strength = zxcvbn.measure(password)
-        return try {
-            strength.score
+        val copy = WipeableString(password)
+        try {
+            val strength = zxcvbn.measure(copy)
+            try {
+                return strength.score
+            } finally {
+                strength.wipe()
+            }
         } finally {
-            strength.wipe()
+            copy.wipe()
         }
     }
 }

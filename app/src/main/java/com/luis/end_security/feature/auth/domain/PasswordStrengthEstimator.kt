@@ -5,6 +5,9 @@ package com.luis.end_security.feature.auth.domain
  * Recibe `CharSequence` para no crear un `String` con la contraseña.
  */
 interface PasswordStrengthEstimator {
-    /** Puntaje de 0 (muy débil) a 4 (muy fuerte). Bloquea: llámalo fuera del hilo principal. */
+    /**
+     * Puntaje de 0 (muy débil) a 4 (muy fuerte). Bloquea: llámalo fuera del hilo principal.
+     * No modifica [password].
+     */
     fun score(password: CharSequence): Int
 }

@@ -32,6 +32,14 @@ class ZxcvbnPasswordStrengthEstimatorTest {
     }
 
     @Test
+    fun `no modifica la entrada aunque sea mutable`() {
+        // zxcvbn4j llena de ceros la entrada mutable al hacer wipe(): se mide sobre una copia.
+        val buffer = StringBuilder("tortuga-violeta-salta-29-nubes")
+        estimator.score(buffer)
+        assertEquals("tortuga-violeta-salta-29-nubes", buffer.toString())
+    }
+
+    @Test
     fun `el puntaje siempre esta entre 0 y 4`() {
         listOf("a", "abc123", "Tr0ub4dor&3", "correct horse battery staple").forEach {
             assertTrue(estimator.score(it) in 0..4)
