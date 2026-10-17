@@ -48,6 +48,13 @@ Regla de dependencias: `ui → domain ← data`. `ui` nunca usa Retrofit, Room n
 9. Las renovaciones de token se hacen una a la vez (single-flight).
 10. Casos de uso solo cuando tienen lógica real; si no, el ViewModel llama al repositorio.
 
+## Relevo de tareas (`ai/handoff/`)
+El diseño y la planeación se hacen en otra sesión; las tareas llegan por archivo. Protocolo completo en `ai/handoff/README.md`.
+- **Al empezar:** lee `ai/handoff/siguiente.md`. Si su estado es `pendiente`, esa es tu tarea; si es `hecha`, espera instrucciones.
+- **Al terminar la tarea** (o si te bloqueas): llena `ai/handoff/reporte.md`, cambia el estado de `siguiente.md` a `hecha`
+  (o `bloqueada`), haz un commit solo con esos dos archivos y **detente**. No empieces otra vista por tu cuenta.
+- Si `siguiente.md` contradice este archivo, el grafo o una regla no negociable, no la sigas: anótalo en el reporte y pregunta.
+
 ## Cómo trabajar
 - Una funcionalidad por tarea; modifica solo los archivos que la tarea necesita.
 - Para código delicado (crypto, auth, sincronización), presenta un plan antes de escribir código.
