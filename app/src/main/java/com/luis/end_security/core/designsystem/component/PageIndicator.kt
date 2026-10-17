@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -29,7 +28,6 @@ import com.luis.end_security.core.designsystem.theme.rememberReducedMotion
 
 private val DotSize = 8.dp
 private val ActiveDotWidth = 24.dp
-private val DotShape = RoundedCornerShape(4.dp)
 
 /**
  * Indicador de páginas de Figma: la página activa es una píldora amarilla de 24 × 8
@@ -71,7 +69,7 @@ private fun PageDot(active: Boolean) {
         modifier = Modifier
             .height(DotSize)
             .width(width)
-            .background(color, DotShape),
+            .background(color, MaterialTheme.shapes.extraSmall),
     )
 }
 

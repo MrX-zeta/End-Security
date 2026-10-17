@@ -86,6 +86,7 @@ fun EndSecurityTheme(
         MaterialTheme(
             colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme,
             typography = Typography,
+            shapes = Shapes,
             content = content,
         )
     }

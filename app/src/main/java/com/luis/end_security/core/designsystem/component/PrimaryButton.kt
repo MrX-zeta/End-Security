@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -29,8 +28,6 @@ import com.luis.end_security.R
 import com.luis.end_security.core.designsystem.theme.EndSecurityTheme
 import com.luis.end_security.core.designsystem.theme.PreviewSurface
 
-private val PrimaryButtonShape = RoundedCornerShape(16.dp)
-
 /**
  * Botón primario de Figma («Botón/Primario»): alto 56, radio 16, texto Bold a la izquierda
  * y flecha a la derecha, fondo amarillo de acción con texto carbón (DEC-50).
@@ -43,18 +40,19 @@ fun PrimaryButton(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
 ) {
+    val shape = MaterialTheme.shapes.medium
     Surface(
         onClick = onClick,
         enabled = enabled,
         modifier = modifier.dropShadow(
-            shape = PrimaryButtonShape,
+            shape = shape,
             shadow = Shadow(
                 radius = 22.dp,
                 color = EndSecurityTheme.extendedColors.shadowDark,
                 offset = DpOffset(x = 0.dp, y = 10.dp),
             ),
         ),
-        shape = PrimaryButtonShape,
+        shape = shape,
         color = MaterialTheme.colorScheme.primary,
         contentColor = MaterialTheme.colorScheme.onPrimary,
     ) {
