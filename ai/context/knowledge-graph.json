@@ -1,7 +1,7 @@
 {
   "meta": {
     "nombre": "Grafo de conocimiento — End Security",
-    "version": "1.3.3",
+    "version": "1.3.4",
     "actualizado": "2026-10-16",
     "fase": "Diseño completo en Figma: 45 pantallas con prototipo navegable, flujos, estadísticas, estados de carga y sin conexión. Siguiente: implementación.",
     "historial": [
@@ -34,6 +34,11 @@
         "version": "1.3.3",
         "fecha": "2026-10-16",
         "cambio": "Revisión de la tarea 02: protecciones implementadas en DEC-26, grano 12 % en claro, excepción de la mancha amarilla y estado deshabilitado (DEC-50). PEND-03 resuelto: política de contraseña maestra (DEC-31). Casilla legal en Crear cuenta (Figma)."
+      },
+      {
+        "version": "1.3.4",
+        "fecha": "2026-10-16",
+        "cambio": "Revisión de la tarea 03: máximo 128, normalización NFKC y UTF-8 (DEC-31); documentos legales en hoja inferior desde Crear cuenta (DEC-56)."
       }
     ],
     "proposito": "Fuente de verdad del contexto, decisiones técnicas y huecos resueltos del proyecto, para personas y agentes de IA.",
@@ -389,8 +394,8 @@
       "id": "TEC-ZXCVBN",
       "tipo": "tecnologia",
       "nombre": "zxcvbn4j",
-      "descripcion": "Estimación de fuerza de contraseñas en el dispositivo.",
-      "estado": "propuesto"
+      "descripcion": "Estimación de fuerza de contraseñas en el dispositivo. Versión 1.9.0 (MIT); se mide sobre un WipeableString propio porque Strength.wipe() borra la entrada del llamador.",
+      "estado": "decidido"
     },
     {
       "id": "TEC-ROOM",
@@ -765,12 +770,15 @@
       "id": "DEC-31",
       "tipo": "decision",
       "nombre": "Política de contraseña maestra",
-      "descripcion": "Medidor de fuerza en el registro (zxcvbn4j en el dispositivo, sin red) y mínimo exigido: 12 caracteres y puntaje zxcvbn ≥ 3. Medidor de 4 barras: puntaje 0–1 «Débil» (danger, 1 barra), 2 «Regular» (2 barras), 3 «Fuerte» (success, 3 barras), 4 «Muy fuerte» (success, 4 barras). «Crear cuenta» solo se habilita con el mínimo, la confirmación igual y la casilla legal marcada.",
+      "descripcion": "Medidor de fuerza en el registro (zxcvbn4j en el dispositivo, sin red) y mínimo exigido: 12 caracteres y puntaje zxcvbn ≥ 3. Medidor de 4 barras: puntaje 0–1 «Débil» (danger, 1 barra), 2 «Regular» (2 barras), 3 «Fuerte» (success, 3 barras), 4 «Muy fuerte» (success, 4 barras). «Crear cuenta» solo se habilita con el mínimo, la confirmación igual y la casilla legal marcada. Máximo 128 caracteres en los campos de contraseña maestra (acota zxcvbn y Argon2). Antes de medir, comparar o derivar, la contraseña se normaliza a NFKC (NIST SP 800-63B §5.1.1.2) y se codifica en UTF-8 para Argon2 (DEC-05); la longitud se cuenta en puntos de código después de normalizar.",
       "estado": "decidido",
       "detalles": {
         "valores": {
           "longitud_minima": 12,
-          "zxcvbn_minimo": 3
+          "longitud_maxima": 128,
+          "zxcvbn_minimo": 3,
+          "normalizacion": "NFKC",
+          "codificacion": "UTF-8"
         }
       }
     },
@@ -1039,7 +1047,7 @@
       "id": "DEC-56",
       "tipo": "decision",
       "nombre": "Navegación y flujos de la app",
-      "descripcion": "Barra inferior con 4 pestañas (Bóveda, Salud, Generador, Ajustes) en todas las vistas con sesión iniciada; no aparece en onboarding, registro ni acceso. La flecha de atrás regresa a la pantalla de origen; tocar una pestaña lleva a su raíz. Salud tiene un selector fijo «Resumen | Progreso» que no suma pasos al historial. El detalle de un elemento tiene el botón «Eliminar contraseña»; la confirmación aparece en una hoja inferior sobre el mismo detalle y, al confirmar, la lista muestra «… se eliminó · Deshacer» durante 5 s. Eliminar la cuenta pide contraseña maestra y código, luego una hoja de confirmación y termina en la pantalla «Tu cuenta fue eliminada», que regresa al onboarding. En el último paso del onboarding, «Comenzar» lleva a Crear cuenta y «Ya tengo una cuenta» a Iniciar sesión; «Omitir» lleva a Iniciar sesión.",
+      "descripcion": "Barra inferior con 4 pestañas (Bóveda, Salud, Generador, Ajustes) en todas las vistas con sesión iniciada; no aparece en onboarding, registro ni acceso. La flecha de atrás regresa a la pantalla de origen; tocar una pestaña lleva a su raíz. Salud tiene un selector fijo «Resumen | Progreso» que no suma pasos al historial. El detalle de un elemento tiene el botón «Eliminar contraseña»; la confirmación aparece en una hoja inferior sobre el mismo detalle y, al confirmar, la lista muestra «… se eliminó · Deshacer» durante 5 s. Eliminar la cuenta pide contraseña maestra y código, luego una hoja de confirmación y termina en la pantalla «Tu cuenta fue eliminada», que regresa al onboarding. En el último paso del onboarding, «Comenzar» lleva a Crear cuenta y «Ya tengo una cuenta» a Iniciar sesión; «Omitir» lleva a Iniciar sesión. Términos y Aviso de privacidad se abren desde Crear cuenta en una hoja inferior a pantalla casi completa (las contraseñas escritas se conservan); desde Ajustes, como pantalla.",
       "estado": "decidido",
       "detalles": {
         "pestanas": [
