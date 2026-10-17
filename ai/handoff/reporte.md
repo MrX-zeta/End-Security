@@ -1,102 +1,91 @@
-# Reporte · Tarea 03 · Crear cuenta (SCR-05)
+# Reporte · Tarea 04 · Ajustes de Crear cuenta y Verificar correo (SCR-06)
 
 **Estado:** hecha
 **Fecha:** 2026-10-16
 
 ## Qué se hizo
-- **Grano de las manchas:** 12 % en tema claro y 7 % en oscuro (grafo v1.3.3).
-- **Estimador de fuerza (DEC-31):**
-  - `PasswordStrengthEstimator` vive en dominio (Kotlin puro y recibe `CharSequence`) y `ZxcvbnPasswordStrengthEstimator` en datos.
-  - Se agregó zxcvbn4j 1.9.0 (`com.nulab-inc:zxcvbn`, licencia MIT, sin dependencias).
-  - `MasterPasswordPolicy` fija el mínimo: 12 caracteres y puntaje ≥ 3.
-  - Calificador `@DefaultDispatcher` para el trabajo de CPU.
-- **Componentes nuevos:**
-  - `BackTopBar` y `BackButton`: barra superior con el botón de atrás («Regresar»).
-  - `Checkbox`: 24 × 24, radio 7, área táctil de 48 y rol de casilla.
-  - `StrengthMeter`: 4 barras con su etiqueta.
-  - `NoticeCard`: aviso importante.
-  - `PasswordField` ahora puede ir sin el ojo; en ese caso siempre va oculto.
-- **Crear cuenta:**
-  - `SignUpRoute`, `SignUpScreen`, `SignUpViewModel`, `SignUpUiState` y `PasswordStrengthLevel` (mapeo puntaje → barras, etiqueta y color).
-  - Textos y medidas de Figma (nodo 36:119).
-  - `Submit` → `// TODO(OP-11)`; no se creó `AuthRepository`.
-- **Documentos legales:** `Routes.LEGAL_DOCUMENT` con un marcador «Documento en redacción» para Términos y Aviso de privacidad (`feature/settings/ui/legal`).
-- **Navegación (DEC-56):**
-  - «Comenzar» deja el onboarding en la pila, así que atrás desde Crear cuenta regresa a él. Lo confirmó la persona del equipo.
-  - Desde Iniciar sesión, atrás regresa a Iniciar sesión. Todas las rutas usan `launchSingleTop`.
-  - El onboarding se puede volver a terminar al regresar: la protección contra el doble toque ahora usa un `Job`.
-- **Seguridad:**
-  - Los dos campos usan `remember { TextFieldState() }`, `SecureScreen()` y `ExcludeFromAutofill()`.
-  - Se vacían en `ON_STOP` y al salir.
-  - Ningún texto de contraseña entra al estado: el ViewModel recibe `PasswordsChanged` y `Submit`, que no son `data class` y tienen `toString()` oculto.
-  - La fuerza se calcula fuera del hilo principal con debounce de 150 ms, y la coincidencia con `contentEquals`.
+### Paso 1 · Ajustes de Crear cuenta
+- **Documentos legales en hoja inferior:**
+  - Se usa `LegalDocumentSheet` (un `ModalBottomSheet` casi a pantalla completa) sobre Crear cuenta, así que las contraseñas escritas se conservan.
+  - El contenido se comparte con la pantalla mediante `LegalDocumentContent`.
+  - `Routes.LEGAL_DOCUMENT` sigue existiendo para Ajustes.
+  - La hoja lleva `securePolicy = SecureOn` de forma explícita: así no depende de heredar FLAG_SECURE.
+- **Normalización (DEC-31):**
+  - `MasterPasswordNormalizer` en dominio: NFKC con `java.text.Normalizer` y conteo con `codePointCount`.
+  - El ViewModel normaliza una sola vez por cambio y por envío. Mide la longitud, compara y puntúa sobre el texto normalizado. Las copias `String` solo viven en variables locales y en el cálculo del puntaje (DEC-27).
+- **Máximo de 128:**
+  - Se cuenta en puntos de código **después** de NFKC (`MasterPasswordPolicy.MAX_LENGTH`). Se revisa antes de puntuar (zxcvbn ni siquiera corre), en `passesPolicy` y en `canSubmit`.
+  - Cuando se pasa del máximo, el medidor dice «Usa como máximo 128 caracteres».
+  - Los campos de Crear cuenta e Iniciar sesión tienen además un tope grueso (`InputTransformation.maxLength`) de 256 unidades UTF-16. Ver diferencias.
 
-## Commits
-| Hash | Mensaje |
-|---|---|
-| `cd2c472` | docs: grafo v1.3.3 y tarea 03 del relevo (cambios de la sesión de diseño) |
-| `a58573a` | fix: grano de las manchas al 12 % en el tema claro (DEC-50) |
-| `5c9a3d8` | feat: estimador de fuerza de contraseña con zxcvbn4j (tarea 03, DEC-31) |
-| `c34aac4` | feat: componentes para Crear cuenta en el sistema de diseño (tarea 03) |
-| `6641549` | fix: el onboarding se puede terminar otra vez al volver de Crear cuenta |
-| `fcddf85` | feat: pantalla Crear cuenta SCR-05 (tarea 03) |
-| `1b76b3a` | test: pruebas del SignUpViewModel y del medidor de fuerza |
-| `bfb1806` | fix: el estimador de fuerza mide sobre una copia y no toca la entrada |
-| `99eb7bb` | fix: Crear cuenta verifica la política sobre el texto que se envía |
+### Paso 2 · Verificar correo (SCR-06)
+- **`CodeField`** en `core/designsystem/component`:
+  - Un solo `BasicTextField` dibujado como 6 casillas de 48 × 60.
+  - `CodeFieldFilter`: solo dígitos 0–9 y como máximo 6; al pegar «123 456» queda «123456».
+  - Teclado `NumberPassword`, `ContentType.SmsOtpCode`, borde `error` en estado de error.
+  - Un solo nodo de accesibilidad: «Código de verificación, 3 de 6 dígitos».
+- **`VerifyEmailViewModel`:**
+  - Toma el correo del argumento de la ruta.
+  - La cuenta regresiva de 60 s usa una `TimeSource` inyectada (`core/di/TimeModule`); en las pruebas corre con el reloj virtual de `TestScope`.
+  - «Verificar» se habilita con 6 dígitos. «Listo» también envía. No se envía solo al escribir el sexto dígito.
+  - `Submit` → `// TODO(OP-12)`. Reenviar → `// TODO(OP-11 reenvío)`.
+  - Errores mediante `onVerificationResult(EmailVerificationResult)` (dominio):
+    - código incorrecto: «Código incorrecto. Te quedan N intentos.» y se vacían las casillas;
+    - vencido o sin intentos: «Este código ya no sirve. Pide uno nuevo.», con «Reenviar código» de inmediato.
+- **Navegación:**
+  - `Submit` de Crear cuenta, con la política cumplida, manda el efecto `NavigateToVerifyEmail(email)`. Se navega a `Routes.VERIFY_EMAIL` con `popUpTo(SIGN_UP) { inclusive = true }` y el `// TODO(OP-11)` pedido.
+  - Atrás regresa a Onboarding o Iniciar sesión.
+- **Sin `SecureScreen` ni `ExcludeFromAutofill`** en Verificar, como pide la tarea. El código y el correo no salen en `toString()`.
+- `NeumorphicDisc` ahora acepta tamaño, tamaño de ícono y color.
 
 ## Compilación y pruebas (salida real)
-- `assembleDebug`: `BUILD SUCCESSFUL in 10s` (41 actionable tasks: 3 executed, 38 up-to-date). Sin errores ni avisos de Kotlin.
-- `testDebugUnitTest`: `BUILD SUCCESSFUL in 1m 18s` · **58 pruebas, 0 fallas**:
-  - `SignUpViewModelTest` 21/21: habilitación del botón con cada requisito, cálculo pendiente, momento de «no coinciden», envío con el medidor atrasado, reinicio al vaciar, falla del estimador y `toString`.
-  - `PasswordStrengthLevelTest` 4/4: puntaje → barras, etiqueta y color.
-  - `ZxcvbnPasswordStrengthEstimatorTest` 6/6: incluye que no modifica la entrada.
-  - `MasterPasswordPolicyTest` 2/2.
-  - `OnboardingViewModelTest` 10/10: doble toque con escritura en curso y regreso desde Crear cuenta.
-  - Las 15 pruebas restantes son de tareas anteriores y siguen pasando.
-- `assembleRelease`: `BUILD SUCCESSFUL in 2m 7s`. Los diccionarios de zxcvbn4j quedan en el APK con sus rutas originales. El APK sin firmar crece de 3.0 a 3.9 MB.
-- **Emulador (Pixel 7 Pro, API 36).** Había un teléfono físico conectado; todos los comandos fueron solo al emulador.
-  - **Debug:**
-    - Posiciones en dp frente a Figma: título 113 (112), correo 299 (298), contraseña 397 (396), confirmación 523 (522), casilla 697 (696).
-    - FLAG_SECURE activo en Crear cuenta e inactivo en el onboarding y en los documentos.
-    - Atrás → onboarding (página 3), y «Comenzar» funciona otra vez.
-    - Medidor: con 7 caracteres «Usa al menos 12 caracteres»; con una frase larga «Muy fuerte».
-    - «No coinciden» no aparece mientras se escribe, aparece al salir de la confirmación y se quita al coincidir.
-    - El botón se habilita solo con la casilla marcada.
-    - Términos y Aviso de privacidad abren su marcador. Al volver, la casilla sigue como estaba y las contraseñas están vacías.
-  - **Release con R8:** lo firmé solo para probar, con la llave de depuración estándar de Android pasada por línea de comandos; no se cambió nada del proyecto.
-    - El medidor funciona («Muy fuerte»).
-    - Con el formulario completo, «Crear cuenta» verifica y no se cierra la app.
-    - Al volver de Términos, los campos están vacíos y el botón deshabilitado.
-    - Sin crashes ni clases faltantes en logcat.
+- `assembleDebug`: `BUILD SUCCESSFUL in 21s` · sin errores ni avisos de Kotlin.
+- `assembleRelease`: `BUILD SUCCESSFUL in 6m 6s`.
+- `testDebugUnitTest`: `BUILD SUCCESSFUL` · **91 pruebas, 0 fallas**. Nuevas o ampliadas:
+  - `MasterPasswordNormalizerTest` 8: NFC = NFD, emoji = 1, 11 caracteres con uno compuesto no pasan, ancho completo → ASCII, «ﷺ» × 128 se pasa del máximo, 128 emojis caben y 129 no.
+  - `CodeFieldFilterTest` 4: solo dígitos, máximo 6, pegar con espacios o guiones, sin dígitos de otros alfabetos.
+  - `VerifyEmailViewModelTest` 15: habilitación, filtro, cuenta regresiva (60 → 45 → 0), reenviar durante y después de la espera, los dos errores, sin intentos = vencido, `toString` y formato m:ss.
+  - `SignUpViewModelTest` 27: además de las anteriores, NFD contra NFC, longitud normalizada, el estimador recibe el texto normalizado, el máximo tras NFKC no mide ni deja crear la cuenta, y crear cuenta navega o no según la política.
+- **Emulador (Pixel 7 Pro, API 36, solo `-s emulator-5554`):**
+  - La hoja de Términos se abre sobre Crear cuenta y, al cerrarla, las dos contraseñas siguen escritas.
+  - «Crear cuenta» lleva a Verificar correo con el correo correcto, y Verificar no tiene FLAG_SECURE.
+  - Posiciones frente a Figma: título 289 dp (288) y casillas 453 (452).
+  - La cuenta regresiva corre («0:56»). Escribir «48a1» deja «481» y se anuncia como «3 de 6 dígitos». Al agregar dígitos se corta en 6 y «Verificar» se habilita.
+  - «Regresar» lleva a Iniciar sesión, el origen. Sin crashes.
+  - Las correcciones de la revisión de seguridad (máximo tras NFKC, una sola normalización, `SecureOn` en la hoja) se aplicaron **después** de la prueba en el emulador. Las cubren las pruebas unitarias y las compilaciones, pero no las vi en el emulador.
 
-## Revisión de seguridad (`security-reviewer`)
-Sin hallazgos críticos ni altos; los seis requisitos de seguridad de la tarea se cumplen.
+## Revisión de seguridad del Paso 1 (`security-reviewer`)
+Sin hallazgos críticos ni altos.
 
 | # | Gravedad | Hallazgo | Qué se hizo |
 |---|---|---|---|
-| 1 | Media | «Crear cuenta» nunca pasaba la verificación (el cálculo pendiente lo rechazaba). Al conectar OP-11 era fácil «arreglarlo» abriendo una carrera contra la política | **Corregido** (`99eb7bb`): `Submit` lleva las contraseñas y `passesPolicy` revisa largo, coincidencia y puntaje sobre ese mismo texto |
-| 2 | Media/baja | zxcvbn4j deja copias internas, y **comprobé en el bytecode** que `Strength.wipe()` borra la entrada del llamador si es `StringBuilder` o `WipeableString`. En OP-11 podría dejar en ceros el búfer del que se deriva la llave | **Corregido** (`bfb1806`): se mide sobre un `WipeableString` propio. Prueba de que la entrada queda intacta. Las copias internas (subcadenas, expresiones regulares) son una limitación de DEC-27 |
-| 3 | Baja | Al salir, el ViewModel conservaba el puntaje y `canSubmit` de un texto ya borrado | **Corregido:** acción `PasswordsCleared` al salir y en `ON_STOP` |
-| 4 | Baja | Cálculos cancelados seguían corriendo; sin límite de longitud | **Corregido en parte:** un `Mutex` deja un cálculo a la vez y los cancelados en espera no corren. **El límite de longitud no se puso** (ver dudas) |
-| 5 | Baja | Si el estimador fallaba, la app se cerraba | **Corregido:** el puntaje queda vacío y el botón deshabilitado. La prueba en release fue manual; no hay prueba instrumentada |
-| 6 | Info | `toString()` del estado imprimía correo, puntaje y longitud | **Corregido:** `toString()` sin datos en `SignUpUiState` y `EmailChanged` |
-| 7 | Info | Accesibilidad: el medidor anuncia el cambio de etiqueta (canal de audio mínimo) | Aceptado; sin cambios |
-| 8 | Info | La longitud se cuenta en unidades UTF-16 y no hay normalización Unicode definida | Pendiente para OP-11 (ver dudas) |
-| 9 | Info | Dos actualizaciones de estado no atómicas | **Corregido:** una sola actualización con `canSubmit` |
+| 1 | Media | El máximo de 128 se aplicaba antes de NFKC, que puede expandir un carácter en muchos («ﷺ» → 18): 128 unidades podían ser unos 2 300 caracteres para zxcvbn y Argon2. El dominio no tenía máximo | **Corregido:** `MAX_LENGTH` en puntos de código tras NFKC, revisado antes de puntuar, en `passesPolicy` y en `canSubmit`; aviso en el medidor; pruebas |
+| 2 | Media | NFKC no quita caracteres invisibles ni de control (ancho cero, marcas bidi, selectores de variación, Cc). Cuentan para el mínimo y la fuerza sin verse, y un teclado distinto podría impedir el acceso para siempre | **No implementado:** cambia una decisión (ver dudas) |
+| 3 | Baja | NFKC unifica símbolos que se ven distintos («２０２６» → «2026», «ﬁ» → «fi») | Sin cambios: el medidor ya mide el texto normalizado. Conviene una línea en DEC-31 |
+| 4 | Baja | Con 128 unidades UTF-16, una contraseña solo de emojis se cortaba en 64 | **Corregido:** el tope del campo es de 256 unidades y el máximo real lo revisa el dominio |
+| 5 | Baja | Se normalizaba 4 veces por envío | **Corregido:** una vez por envío |
+| 6 | Info | Puntos de código sin asignar pueden cambiar con versiones futuras de Unicode | Entra en la decisión del punto 2 |
+| 7 | Info | La longitud cuenta puntos de código, no grafemas (un emoji de familia son 7) | Solo documentar |
+| 8 | Info | La hoja inferior no expone nada | **Reforzado:** `SecureFlagPolicy.SecureOn` explícito |
+| 9 | Info | La comparación no es de tiempo constante | Sin riesgo (local, mismo usuario) |
 
-## Diferencias con Figma o con el grafo
-- **Confirmación sin ojo:** así está en Figma; sin el botón, el campo va siempre oculto.
-- **«Usa al menos 12 caracteres»** va en `on-surface-variant` (información neutra) mientras las barras siguen mostrando el puntaje. La tarea no dice de qué color va.
-- **«No coinciden» al tocar «Crear cuenta»:** el botón está deshabilitado mientras no coinciden, así que en la práctica ese caso entra por «Listo» del teclado de la confirmación (que también hace `Submit`) o al salir del campo.
-- **Enlaces dentro del texto** («Términos», «Aviso de privacidad»): su área táctil es la del texto (menos de 48 dp), lo usual para enlaces en línea. La casilla sí tiene 48.
+## Diferencias con Figma o con la tarea
+- **Disco de Verificar:** 104 dp con el sobre de 38 en `on-surface` (Figma, nodo 36:304), no 112 con ícono amarillo como en el onboarding.
+- **Casilla activa de `CodeField`:** borde de **2** como en Figma (nodo 36:321); la tarea decía 1.5.
+- **Tope del campo:** la tarea pedía `InputTransformation.maxLength(128)`. Lo dejé en 256 unidades UTF-16 y el máximo de 128 lo revisa el dominio en puntos de código tras NFKC, que es como DEC-31 cuenta la longitud. Con 128 unidades, 128 emojis no cabrían y un texto que NFKC expande sí pasaría.
+- **Errores de Verificar:** no están en Figma. Van bajo las casillas, en `error`, con el ícono de información. Con 1 intento dice «Te queda 1 intento.» (plural correcto).
+- **Cursor de `CodeField`:** es fijo, sin parpadeo; así funciona también con «Quitar animaciones».
 
 ## Dudas o decisiones que tomé
-- **Push:** no lo hice; dijiste que el push lo haces tú. Vas 9 commits adelante (10 con el de este reporte).
-- **Las contraseñas se vacían al abrir Términos o el Aviso:** la pantalla sale de composición y se aplica la regla «se vacían al salir». Desde seguridad es lo correcto (lo confirmó el revisor), pero obliga a escribirlas de nuevo. La alternativa sería mostrar el documento en un diálogo sobre la misma pantalla, a costa de mantener la contraseña viva en memoria mientras se lee.
-- **Límite de longitud (hallazgo 4):** el revisor propone `maxLength` (por ejemplo 128) en los campos de contraseña maestra, para acotar zxcvbn y Argon2. No está en el grafo (INV-19), así que no lo puse. ¿Lo registramos en DEC-31?
-- **Normalización Unicode (hallazgo 8):** antes de OP-11 hay que decidir NFC o NFKC y la codificación de entrada a Argon2 (DEC-05). Si no, la misma frase escrita con otro teclado podría derivar otra llave.
-- **Prueba de release:** zxcvbn4j bajo R8 lo comprobé a mano en el emulador. Una prueba instrumentada (`score("password") <= 1`) lo dejaría automatizado.
-- **`LegalDocument`** quedó en `feature/settings/ui/legal`, porque Ajustes tendrá el grupo «Legal y ayuda» (PEND-12).
+- **Caracteres invisibles (hallazgo 2):** ¿se adopta una regla tipo PRECIS OpaqueString (RFC 8265) para la contraseña maestra? Sería:
+  - rechazar controles (Cc);
+  - rechazar o quitar los ignorables por defecto (Cf, selectores de variación);
+  - opcionalmente, rechazar puntos de código sin asignar;
+  - la misma función en registro, inicio de sesión, desbloqueo y cambio de contraseña.
+
+  No la implementé porque no está en el grafo (INV-19). Si se aprueba, va en DEC-31 y en `MasterPasswordNormalizer`.
+- **Iniciar sesión** solo tiene el tope del campo. La normalización se aplicará al derivar en OP-13/OP-14 (quedó anotado en su `TODO`).
+- **Commits:** como acordamos, no hice commits. Al final de esta sesión van los comandos. Son menos y más grandes que antes, porque varios archivos (por ejemplo `strings.xml` y `SignUpScreen.kt`) mezclan cambios de los dos pasos y no se pueden separar sin `git add -p`. Solo compilé el estado final, no cada commit intermedio.
 
 ## Revisión
-- [x] REQUIERE REVISIÓN HUMANA: no se tocó `core/crypto`, `core/session` ni SQL, pero sí la pantalla de registro (autenticación), el manejo de la contraseña maestra en memoria y una librería nueva (zxcvbn4j). Ya pasó por `security-reviewer`; ver la tabla de arriba.
+- [x] REQUIERE REVISIÓN HUMANA: no se tocó `core/crypto`, `core/session` ni SQL, pero sí el manejo de la contraseña maestra (normalización y límite) en registro e inicio de sesión. El Paso 1 ya pasó por `security-reviewer`.
