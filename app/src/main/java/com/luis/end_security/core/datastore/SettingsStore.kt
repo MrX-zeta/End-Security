@@ -25,11 +25,20 @@ class SettingsStore @Inject constructor(
         .catch { error -> if (error is IOException) emit(emptyPreferences()) else throw error }
         .map { preferences -> preferences[Keys.ONBOARDING_COMPLETED] ?: false }
 
+    /**
+     * `true` si el usuario activó el desbloqueo con huella (DEC-09). Desactivado por defecto;
+     * se activa desde Ajustes cuando exista OP-20.
+     */
+    val biometricEnabled: Flow<Boolean> = dataStore.data
+        .catch { error -> if (error is IOException) emit(emptyPreferences()) else throw error }
+        .map { preferences -> preferences[Keys.BIOMETRIC_ENABLED] ?: false }
+
     suspend fun setOnboardingCompleted() {
         dataStore.edit { preferences -> preferences[Keys.ONBOARDING_COMPLETED] = true }
     }
 
     private object Keys {
         val ONBOARDING_COMPLETED = booleanPreferencesKey("onboarding_completed")
+        val BIOMETRIC_ENABLED = booleanPreferencesKey("biometric_enabled")
     }
 }
