@@ -54,6 +54,8 @@ dependencies {
     implementation(libs.hilt.android)
     implementation(libs.androidx.hilt.lifecycle.viewmodel.compose)
     implementation(libs.zxcvbn)
+    // DEC-28 / PEND-01: Argon2id y HKDF (API ligera de Bouncy Castle, Java puro).
+    implementation(libs.bouncycastle.bcprov)
     ksp(libs.hilt.compiler)
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
