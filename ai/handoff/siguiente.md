@@ -1,6 +1,6 @@
 # Tarea 02 · Ajuste del onboarding e Iniciar sesión (SCR-04)
 
-**Estado:** pendiente
+**Estado:** hecha
 **Escrita:** 2026-10-16 · sesión de diseño
 
 ## Revisión de la tarea 01
