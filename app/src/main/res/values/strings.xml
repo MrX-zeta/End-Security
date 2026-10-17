@@ -41,6 +41,28 @@
     <!-- Mismo texto para correo y contraseña: no revela si el correo tiene cuenta. -->
     <string name="login_error_invalid_credentials">Correo o contraseña incorrectos.</string>
 
-    <!-- Crear cuenta (SCR-05). Marcador hasta la tarea 03. -->
-    <string name="sign_up_title">Crear cuenta</string>
+    <!-- Crear cuenta (SCR-05). Textos exactos de Figma (nodo 36:119). -->
+    <string name="signup_title_bold">Crea tu cuenta</string>
+    <string name="signup_title_regular">en un minuto</string>
+    <string name="signup_subtitle">Solo necesitas tu correo y una contraseña maestra.</string>
+    <string name="signup_email_label">Correo</string>
+    <string name="signup_password_label">Contraseña maestra</string>
+    <string name="signup_confirm_label">Confirma tu contraseña maestra</string>
+    <string name="signup_min_length">Usa al menos 12 caracteres</string>
+    <string name="signup_mismatch">Las contraseñas no coinciden.</string>
+    <string name="signup_notice">Es la única llave de tu bóveda. Si la olvidas, no podremos recuperarla.</string>
+    <!-- %1$s = «Términos», %2$s = «Aviso de privacidad»; los dos son enlaces. -->
+    <string name="signup_terms_sentence">Acepto los %1$s y el %2$s</string>
+    <string name="signup_submit">Crear cuenta</string>
+
+    <!-- Medidor de fuerza (DEC-31) -->
+    <string name="strength_weak">Débil</string>
+    <string name="strength_fair">Regular</string>
+    <string name="strength_strong">Fuerte</string>
+    <string name="strength_very_strong">Muy fuerte</string>
+
+    <!-- Documentos legales (PEND-12). Marcador hasta que exista el texto. -->
+    <string name="legal_terms_title">Términos</string>
+    <string name="legal_privacy_title">Aviso de privacidad</string>
+    <string name="legal_in_progress">Documento en redacción</string>
 </resources>

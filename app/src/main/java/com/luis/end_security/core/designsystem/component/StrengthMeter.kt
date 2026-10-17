@@ -31,8 +31,8 @@ private val BarShape = RoundedCornerShape(3.dp)
 
 /**
  * Medidor de fuerza de Figma (nodo 36:221): 4 barras de 52 × 6 con 6 de separación y la
- * etiqueta en SemiBold 13 del mismo color que las barras llenas. Las vacías van en `outline`
- * al 30 %. Es información, no acción, así que nunca usa amarillo (DEC-50).
+ * etiqueta en SemiBold 13, por defecto del mismo color que las barras llenas. Las vacías van
+ * en `outline` al 30 %. Es información, no acción, así que nunca usa amarillo (DEC-50).
  * TalkBack lee solo la etiqueta y la anuncia cuando cambia.
  */
 @Composable
@@ -41,6 +41,7 @@ fun StrengthMeter(
     color: Color,
     label: String?,
     modifier: Modifier = Modifier,
+    labelColor: Color = color,
 ) {
     val emptyColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
     Row(
@@ -67,7 +68,7 @@ fun StrengthMeter(
                 text = label,
                 style = MaterialTheme.typography.bodySmall,
                 fontWeight = FontWeight.SemiBold,
-                color = color,
+                color = labelColor,
                 maxLines = 1,
             )
         }
