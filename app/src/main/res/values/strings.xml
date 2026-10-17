@@ -27,8 +27,18 @@
     <string name="onboarding_page3_body">Revisamos si alguna es débil, si la repites o si apareció en una filtración en internet.</string>
     <string name="onboarding_page3_illustration">Escudo con una palomita</string>
 
-    <!-- Iniciar sesión (SCR-04). Marcador hasta implementar la pantalla. -->
-    <string name="login_title">Iniciar sesión</string>
+    <!-- Iniciar sesión (SCR-04). Textos exactos de Figma (nodo 19:144). -->
+    <string name="login_title_bold">Hola</string>
+    <string name="login_title_regular">de nuevo</string>
+    <string name="login_subtitle">Entra con tu correo y tu contraseña maestra.</string>
+    <string name="login_email_label">Correo</string>
+    <string name="login_password_label">Contraseña maestra</string>
+    <string name="login_password_help">Si la olvidas, no podremos recuperarla.</string>
+    <string name="login_submit">Entrar</string>
+    <string name="login_first_time">¿Primera vez?</string>
+    <string name="login_create_account">Crea tu cuenta</string>
+    <!-- Mismo texto para correo y contraseña: no revela si el correo tiene cuenta. -->
+    <string name="login_error_invalid_credentials">Correo o contraseña incorrectos.</string>
 
     <!-- Crear cuenta (SCR-05). Marcador hasta la tarea 03. -->
     <string name="sign_up_title">Crear cuenta</string>

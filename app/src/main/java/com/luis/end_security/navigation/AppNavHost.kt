@@ -12,7 +12,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.luis.end_security.feature.auth.ui.login.LoginScreen
+import com.luis.end_security.core.designsystem.theme.SystemBarsAppearance
+import com.luis.end_security.feature.auth.ui.login.LoginRoute
 import com.luis.end_security.feature.auth.ui.onboarding.OnboardingRoute
 import com.luis.end_security.feature.auth.ui.signup.SignUpScreen
 
@@ -29,6 +30,8 @@ fun AppNavHost(
         return
     }
 
+    // La app es clara (DEC-51): íconos oscuros en las barras; el onboarding los cambia mientras se ve.
+    SystemBarsAppearance(darkBackground = false)
     val navController = rememberNavController()
     NavHost(navController = navController, startDestination = route, modifier = modifier) {
         composable(Routes.ONBOARDING) {
@@ -47,7 +50,7 @@ fun AppNavHost(
             )
         }
         composable(Routes.LOGIN) {
-            LoginScreen()
+            LoginRoute(onCreateAccount = { navController.navigate(Routes.SIGN_UP) })
         }
         composable(Routes.SIGN_UP) {
             SignUpScreen()
