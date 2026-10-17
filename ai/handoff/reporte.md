@@ -77,3 +77,46 @@
 - [x] REQUIERE REVISIÓN HUMANA — no se tocó `core/crypto`, `core/session` ni SQL, pero sí la **pantalla de autenticación** y
   `core/security` (`SecureScreen`, `ExcludeFromAutofill`). Sugiero pasar `LoginScreen.kt`, `PasswordField.kt`,
   `SecureScreen.kt` y `ExcludeFromAutofill.kt` por el subagente `security-reviewer`, en especial el punto de accesibilidad.
+
+## Revisión de seguridad (subagente `security-reviewer`) y correcciones
+Revisó `LoginScreen`, `LoginViewModel`, `PasswordField`, `LabeledTextField`, `SecureScreen` y `ExcludeFromAutofill`.
+Sin hallazgos críticos; los seis requisitos de seguridad de la tarea se cumplen. Se corrigieron los hallazgos 1, 2, 5 y 6:
+
+| # | Gravedad | Hallazgo | Corrección | Commit |
+|---|---|---|---|---|
+| — | — | Base común para las correcciones | `SharedRequest`: aplica con la primera pantalla, guarda el valor original y lo restaura con la última; con 5 pruebas | `a26966b` |
+| 1 | Media (alta con Crear cuenta) | `ExcludeFromAutofill` guardaba y restauraba sin conteo: en una transición entre dos pantallas que lo piden, la que sale reactivaba el autocompletado de la que entra | Conteo con `SharedRequest` y exclusión sobre la **vista raíz** de la ventana (Compose no la toca) | `a3a1f66` |
+| 2 | Media | Compose expone el texto real de la contraseña en el árbol de accesibilidad; FLAG_SECURE no lo cubre | En Android 14+, `SecureScreen` marca la raíz con `ACCESSIBILITY_DATA_SENSITIVE_YES`: solo las herramientas de accesibilidad (TalkBack) ven el contenido | `bf1008f` |
+| 5 | Baja | Al volver de segundo plano la contraseña seguía escrita y, con el ojo abierto, visible | `LifecycleEventEffect(ON_STOP)`: vacía el campo y lo vuelve a ocultar (DEC-26) | `e0bb4a3` |
+| 6 | Baja | `SecureScreen` protegía la ventana de la actividad aunque se llamara dentro de un diálogo u hoja inferior, y fallaba abierto sin ventana | Usa la ventana del diálogo (`DialogWindowProvider`, también en `ModalBottomSheet`); sin ventana lanza error en depuración; todo FLAG_SECURE pasa por `SecureWindowFlag` | `7b207b8` |
+
+No se corrigieron (los dejo a decisión de la sesión de diseño):
+- **3 (media-baja):** que la exclusión dependa del atributo de vista. Ya se mitigó al marcar la raíz; la prueba de abajo muestra que funciona con el autocompletado de Google.
+- **4 (baja):** `TextFieldState` no permite borrar su memoria. Ya está en DEC-27; se resuelve en OP-13/OP-14 copiando a `CharArray` carácter por carácter y sobrescribiéndolo en `finally`.
+- **7 (informativo):** `canSubmit` puede quedar desfasado un cuadro tras rotar. Cuando exista el envío, validar contra el `CharArray`, no solo contra el `Boolean`.
+
+### Pruebas de las correcciones (salida real)
+- `assembleDebug`: `BUILD SUCCESSFUL in 28s`. `lintDebug`: 0 errores; los 15 avisos son anteriores (versiones nuevas
+  disponibles, colores sin usar de la plantilla en `colors.xml`, orden del parámetro `modifier` en `PreviewSurface`).
+- `testDebugUnitTest`: `BUILD SUCCESSFUL in 16s` · 24 pruebas, 0 fallas (`SharedRequestTest` 5/5 nuevas).
+- **Emulador (Pixel 7 Pro, API 36, con «Autocompletar con Google» activo).** Había un teléfono físico conectado; todos
+  los comandos fueron solo al emulador (`-s emulator-5554`).
+  - **Hallazgo 1:** con el registro detallado de autocompletado activado un momento (y regresado a `off`), al enfocar el
+    correo y la contraseña el sistema **sí abre** una petición de autocompletado. Pero la estructura que recibe el servicio
+    de Google trae **1 sola vista** (la raíz excluida), el sistema registra «no node» para el correo (`i18`) y la contraseña
+    (`i28`), el autocompletado aumentado no se activa («not whitelisted») y al navegar fuera **no aparece «Guardar contraseña»**.
+    Ni el correo ni la contraseña aparecieron en el log.
+  - **Hallazgo 5:** con contraseña escrita y ojo abierto, Inicio → volver: el campo está vacío, el ojo dice «Mostrar
+    contraseña» y el correo se conserva. FLAG_SECURE sigue activo.
+  - **Hallazgo 2:** **no comprobado en el dispositivo.** `uiautomator` tiene privilegios y sigue viendo el texto; para
+    probarlo hace falta un servicio de accesibilidad de prueba que no sea herramienta. El código compila y lint no marca
+    nada (se usa solo en API 34+). En Android 9 a 13 sigue siendo un riesgo aceptado.
+  - **Hallazgo 6:** la app todavía no tiene diálogos con secretos; solo se comprobó que Iniciar sesión conserva FLAG_SECURE
+    y que no hay errores al abrirla.
+
+### Riesgos que quedan
+- El sistema (no el servicio de terceros) mantiene una sesión de autocompletado con los valores mientras la pantalla está
+  abierta; se cancela al entrar y al salir. Quitarla del todo requiere que Compose permita sacar un campo del autocompletado.
+- Accesibilidad en Android 9 a 13 (hallazgo 2) y memoria de `TextFieldState` (hallazgo 4).
+- REQUIERE REVISIÓN HUMANA de `core/security/SecureScreen.kt`, `ExcludeFromAutofill.kt` y `SharedRequest.kt`.
+
