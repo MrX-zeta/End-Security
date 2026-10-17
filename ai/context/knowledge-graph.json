@@ -1,7 +1,7 @@
 {
   "meta": {
     "nombre": "Grafo de conocimiento — End Security",
-    "version": "1.3.1",
+    "version": "1.3.2",
     "actualizado": "2026-10-16",
     "fase": "Diseño completo en Figma: 45 pantallas con prototipo navegable, flujos, estadísticas, estados de carga y sin conexión. Siguiente: implementación.",
     "historial": [
@@ -24,6 +24,11 @@
         "version": "1.3.1",
         "fecha": "2026-10-16",
         "cambio": "PEND-12: documentos legales por redactar (docs/legal/README.md)."
+      },
+      {
+        "version": "1.3.2",
+        "fecha": "2026-10-16",
+        "cambio": "Revisión de la tarea 01: tokens danger/success y grano en DEC-50, nombre «End Security», onboarding_completed en KV-DATASTORE, «Comenzar» → Crear cuenta (DEC-56)."
       }
     ],
     "proposito": "Fuente de verdad del contexto, decisiones técnicas y huecos resueltos del proyecto, para personas y agentes de IA.",
@@ -105,7 +110,7 @@
     },
     "estadisticas": {
       "nodos": 352,
-      "aristas": 1002,
+      "aristas": 1003,
       "por_tipo": {
         "proyecto": 1,
         "objetivo": 6,
@@ -907,7 +912,7 @@
       "id": "DEC-50",
       "tipo": "decision",
       "nombre": "Identidad visual: Carbón y miel",
-      "descripcion": "Paleta propuesta por el equipo (#111111, #2F2F2F, #F6F6F6, #FFCB74) con tipografía Montserrat, estilo minimalista inspirado en la referencia de Rondesignlab. Tema oscuro solo en el onboarding; el resto de la app (login, registro, bóveda, salud, ajustes) usa el tema claro (DEC-51). Diseño en Figma (DEC-60).",
+      "descripcion": "Paleta propuesta por el equipo (#111111, #2F2F2F, #F6F6F6, #FFCB74) con tipografía Montserrat, estilo minimalista inspirado en la referencia de Rondesignlab. Nombre visible de la app: «End Security». En Compose, danger se mapea a colorScheme.error y success va en los colores extendidos. Tema oscuro solo en el onboarding; el resto de la app (login, registro, bóveda, salud, ajustes) usa el tema claro (DEC-51). Diseño en Figma (DEC-60).",
       "estado": "decidido",
       "detalles": {
         "temas": {
@@ -921,7 +926,12 @@
             "on-primary": "#111111",
             "blob": "#2F2F2F",
             "shadow-light": "#FFFFFF 95%",
-            "shadow-dark": "#111111 12%"
+            "shadow-dark": "#111111 12%",
+            "danger": "#B42318",
+            "danger-container": "#FDE8E6",
+            "success": "#1E6B45",
+            "success-container": "#E3F1EA",
+            "blob-grain": "#FFFFFF 7%"
           },
           "oscuro": {
             "background": "#2F2F2F",
@@ -933,7 +943,12 @@
             "on-primary": "#111111",
             "blob": "#111111",
             "shadow-light": "#FFFFFF 7%",
-            "shadow-dark": "#000000 45%"
+            "shadow-dark": "#000000 45%",
+            "danger": "#F28B82",
+            "danger-container": "#4A2523",
+            "success": "#7FD1A3",
+            "success-container": "#1F3A2C",
+            "blob-grain": "#FFFFFF 7%"
           }
         },
         "reglas": [
@@ -1017,7 +1032,7 @@
       "id": "DEC-56",
       "tipo": "decision",
       "nombre": "Navegación y flujos de la app",
-      "descripcion": "Barra inferior con 4 pestañas (Bóveda, Salud, Generador, Ajustes) en todas las vistas con sesión iniciada; no aparece en onboarding, registro ni acceso. La flecha de atrás regresa a la pantalla de origen; tocar una pestaña lleva a su raíz. Salud tiene un selector fijo «Resumen | Progreso» que no suma pasos al historial. El detalle de un elemento tiene el botón «Eliminar contraseña»; la confirmación aparece en una hoja inferior sobre el mismo detalle y, al confirmar, la lista muestra «… se eliminó · Deshacer» durante 5 s. Eliminar la cuenta pide contraseña maestra y código, luego una hoja de confirmación y termina en la pantalla «Tu cuenta fue eliminada», que regresa al onboarding.",
+      "descripcion": "Barra inferior con 4 pestañas (Bóveda, Salud, Generador, Ajustes) en todas las vistas con sesión iniciada; no aparece en onboarding, registro ni acceso. La flecha de atrás regresa a la pantalla de origen; tocar una pestaña lleva a su raíz. Salud tiene un selector fijo «Resumen | Progreso» que no suma pasos al historial. El detalle de un elemento tiene el botón «Eliminar contraseña»; la confirmación aparece en una hoja inferior sobre el mismo detalle y, al confirmar, la lista muestra «… se eliminó · Deshacer» durante 5 s. Eliminar la cuenta pide contraseña maestra y código, luego una hoja de confirmación y termina en la pantalla «Tu cuenta fue eliminada», que regresa al onboarding. En el último paso del onboarding, «Comenzar» lleva a Crear cuenta y «Ya tengo una cuenta» a Iniciar sesión; «Omitir» lleva a Iniciar sesión.",
       "estado": "decidido",
       "detalles": {
         "pestanas": [
@@ -2604,6 +2619,7 @@
       "detalles": {
         "almacen": "DataStore",
         "campos": [
+          "onboarding_completed",
           "autolock_minutes",
           "clipboard_clear_seconds",
           "biometric_enabled",
@@ -8224,9 +8240,15 @@
     },
     {
       "de": "SCR-03",
-      "a": "SCR-04",
+      "a": "SCR-05",
       "relacion": "navega_a",
       "nota": "Comenzar"
+    },
+    {
+      "de": "SCR-03",
+      "a": "SCR-04",
+      "relacion": "navega_a",
+      "nota": "Ya tengo una cuenta"
     },
     {
       "de": "SCR-01",
