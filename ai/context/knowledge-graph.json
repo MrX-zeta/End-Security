@@ -1,7 +1,7 @@
 {
   "meta": {
     "nombre": "Grafo de conocimiento — End Security",
-    "version": "1.3.5",
+    "version": "1.3.6",
     "actualizado": "2026-10-16",
     "fase": "Diseño completo en Figma: 45 pantallas con prototipo navegable, flujos, estadísticas, estados de carga y sin conexión. Siguiente: implementación.",
     "historial": [
@@ -44,6 +44,11 @@
         "version": "1.3.5",
         "fecha": "2026-10-16",
         "cambio": "Revisión de la tarea 04: caracteres invisibles rechazados al fijar contraseña (DEC-31), formato de códigos de respaldo (DEC-12), mensaje de bloqueo (DEC-32)."
+      },
+      {
+        "version": "1.3.6",
+        "fecha": "2026-10-17",
+        "cambio": "Revisión de la tarea 05: regla de invisibles ampliada a Default_Ignorable_Code_Point, Cs y Unicode 10.0 fijo; se quitan U+FE0E/FE0F al normalizar; UTF-8 estricto (DEC-31)."
       }
     ],
     "proposito": "Fuente de verdad del contexto, decisiones técnicas y huecos resueltos del proyecto, para personas y agentes de IA.",
@@ -775,7 +780,7 @@
       "id": "DEC-31",
       "tipo": "decision",
       "nombre": "Política de contraseña maestra",
-      "descripcion": "Medidor de fuerza en el registro (zxcvbn4j en el dispositivo, sin red) y mínimo exigido: 12 caracteres y puntaje zxcvbn ≥ 3. Medidor de 4 barras: puntaje 0–1 «Débil» (danger, 1 barra), 2 «Regular» (2 barras), 3 «Fuerte» (success, 3 barras), 4 «Muy fuerte» (success, 4 barras). «Crear cuenta» solo se habilita con el mínimo, la confirmación igual y la casilla legal marcada. Máximo 128 caracteres en los campos de contraseña maestra (acota zxcvbn y Argon2). Antes de medir, comparar o derivar, la contraseña se normaliza a NFKC (NIST SP 800-63B §5.1.1.2) y se codifica en UTF-8 para Argon2 (DEC-05); la longitud se cuenta en puntos de código después de normalizar (un emoji compuesto puede contar varios). NFKC unifica caracteres parecidos («２０２６» = «2026»), y el medidor ya mide el texto normalizado. Al fijar una contraseña nueva (registro y cambio) se rechazan: controles (Cc), espacios de ancho cero y marcas de dirección (U+200B, U+2060, U+FEFF, U+200E/F, U+202A–202E, U+2066–2069) y puntos de código sin asignar en el dispositivo; se permiten U+200D y U+FE0F porque los emojis los usan. Mensaje: «Tu contraseña tiene caracteres invisibles que no se pueden usar». Al entrar y desbloquear solo se normaliza, sin rechazar (la respuesta sigue siendo genérica).",
+      "descripcion": "Medidor de fuerza en el registro (zxcvbn4j en el dispositivo, sin red) y mínimo exigido: 12 caracteres y puntaje zxcvbn ≥ 3. Medidor de 4 barras: puntaje 0–1 «Débil» (danger, 1 barra), 2 «Regular» (2 barras), 3 «Fuerte» (success, 3 barras), 4 «Muy fuerte» (success, 4 barras). «Crear cuenta» solo se habilita con el mínimo, la confirmación igual y la casilla legal marcada. Máximo 128 caracteres en los campos de contraseña maestra (acota zxcvbn y Argon2). Antes de medir, comparar o derivar, la contraseña se normaliza a NFKC (NIST SP 800-63B §5.1.1.2) y se codifica en UTF-8 para Argon2 (DEC-05); la longitud se cuenta en puntos de código después de normalizar (un emoji compuesto puede contar varios). NFKC unifica caracteres parecidos («２０２６» = «2026»), y el medidor ya mide el texto normalizado. Normalización completa (siempre, también al entrar y desbloquear): NFKC y después se quitan U+FE0E y U+FE0F (solo cambian la presentación; así «❤» y «❤️» dan la misma llave). Al fijar una contraseña nueva (registro y cambio) se rechazan: controles (Cc), surrogates solitarios (Cs) y todo Default_Ignorable_Code_Point salvo U+200C, U+200D y las etiquetas U+E0020–E007F (banderas); y los puntos de código que no estaban asignados en Unicode 10.0 (la versión de minSdk 28, medida con UCharacter.getAge), para que todos los teléfonos normalicen igual. Mensaje: «Tu contraseña tiene caracteres invisibles que no se pueden usar». Al entrar y desbloquear no se rechaza (respuesta genérica). Codificación a UTF-8 con CodingErrorAction.REPORT: si falla, al entrar es un fallo genérico.",
       "estado": "decidido",
       "detalles": {
         "valores": {

@@ -1,92 +1,126 @@
-# Reporte · Tarea 05 · Caracteres invisibles, 2FA al entrar (SCR-07) y código de respaldo (SCR-08)
+# Reporte · Tarea 06 · Regla de invisibles ampliada, Desbloquear (SCR-09) y Bóveda · cargando (SCR-39)
 
 **Estado:** hecha
 **Fecha:** 2026-10-17
 
 ## Qué se hizo
-- **Pendiente de la tarea 04 (emulador):**
-  - Con 140 caracteres el medidor dice «Usa como máximo 128 caracteres».
-  - Con la hoja de Términos abierta, la app tiene 2 ventanas con FLAG_SECURE: la actividad y la hoja (`SecureOn`).
-  - El caso «ﷺ» no se puede escribir con `adb`; lo cubren las pruebas unitarias.
-- **Paso 1 · Caracteres invisibles (DEC-31):**
-  - `MasterPasswordPolicy.hasForbiddenCharacters` rechaza, sobre el texto normalizado:
-    - controles (Cc);
-    - U+200B, U+2060, U+FEFF, U+200E, U+200F, U+202A–202E y U+2066–2069;
-    - puntos de código sin asignar.
-  - Permite U+200D y U+FE0F.
-  - En Crear cuenta: no se calcula el puntaje, no se puede crear la cuenta, `passesPolicy` lo vuelve a revisar y el medidor dice «Tu contraseña tiene caracteres invisibles que no se pueden usar» en `error`.
-  - Al entrar no se usa.
-- **Paso 2 · Bloqueo por intentos (DEC-32):**
-  - `core/common/Countdown`: cuenta regresiva común con la `TimeSource` inyectada. Verificar correo ahora también la usa.
-  - En Iniciar sesión, 2FA y código de respaldo: «Demasiados intentos. Vuelve a intentarlo en N min.» en `error` con el ícono de información, y el botón deshabilitado mientras dura. Los minutos se redondean hacia arriba.
-  - Los minutos llegan por `onLockedOut(minutes)` o `onResult(LockedOut)` (por ahora solo en las vistas previas y las pruebas).
-- **Paso 3 · 2FA al entrar (SCR-07):**
-  - Disco de 104 con el teléfono, «Confirma / que eres tú», `CodeField`, «Continuar» y «¿Sin tu teléfono? **Usa un código de respaldo**» (componente nuevo `PromptLink`, que también usa ahora Iniciar sesión).
-  - Iniciar sesión con campos válidos → `Routes.TWO_FACTOR`, con `// TODO(OP-14)`.
-  - «Continuar» se habilita con 6 dígitos (`// TODO(OP-15)`, destino SCR-39).
-  - Error «Código incorrecto. Revisa que la hora de tu teléfono sea automática.»: vacía las casillas y no muestra intentos.
-  - Sin `SecureScreen`; el código no sale en `toString()`.
-- **Paso 4 · Código de respaldo (SCR-08):**
-  - Disco con la llave, campo «Código de respaldo» con ícono de llave y «Entrar».
-  - `BackupCodeFormat` (Crockford): mayúsculas, quita espacios y guiones, O→0, I/L→1, descarta lo que no es del alfabeto (también U), máximo 8.
-    - `InputTransformation` guarda los 8 caracteres.
-    - `OutputTransformation` dibuja el guion «XXXX-XXXX» sin guardarlo (ver diferencias).
-  - El código vive en `remember { TextFieldState() }` (nueva variante de `LabeledTextField` con `TextFieldState`). Lleva `SecureScreen()` y `ExcludeFromAutofill()`, y se vacía en `ON_STOP`, al salir, tras un rechazo y tras un bloqueo.
-  - El ViewModel solo sabe el largo; `Submit` lleva el código de paso, con `toString` oculto, y lo vuelve a validar.
-  - «Entrar» se habilita con 8 caracteres (`// TODO(OP-16)`). Error «Ese código no es válido o ya se usó.» Atrás regresa a 2FA.
-- **Componentes nuevos:** `InlineErrorMessage`, `PromptLink` y `PasteOnlyTextToolbar` (`core/security`).
+- **Commits de la tarea 05:** ya estaban en GitHub cuando empecé (`d678c22` y `4d5cecb` en `origin/development`).
+- **`.gitignore`:** agregué `*.bkp` y `.$*`. El `.drawio` se sigue subiendo.
+
+### Paso 1 · Regla ampliada (DEC-31 v1.3.6)
+- **`MasterPasswordNormalizer`:** aplica NFKC y después quita U+FE0E y U+FE0F. Así «❤» y «❤️» dan lo mismo.
+- **`MasterPasswordPolicy.hasForbiddenCharacters(raw, normalized, unicode)`:** sobre el texto normalizado rechaza:
+  - Cc y Cs;
+  - todo `Default_Ignorable_Code_Point`, salvo U+200C, U+200D y U+E0020–E007F;
+  - U+2028, U+2029 y U+2800, en una lista aparte;
+  - lo que no estaba asignado en Unicode 10.0.
+- **Edad también en el texto crudo** (hallazgo 1 de la revisión): la edad Unicode se revisa además en lo que escribió el usuario, antes de NFKC.
+- **Interfaz de dominio `UnicodeCharacterData`** (`isDefaultIgnorable` y `age`), con dos implementaciones:
+  - `IcuUnicodeCharacterData` en `data`, con `UCharacter.hasBinaryProperty` y `UCharacter.getAge`;
+  - `FakeUnicodeCharacterData` en las pruebas, con la tabla de DerivedCoreProperties.
+- **Crear cuenta:** `SignUpViewModel` la recibe por Hilt.
+- **UTF-8 con `CodingErrorAction.REPORT`:** queda anotado en los `TODO` de OP-11 (registro), OP-13 (entrar) y OP-19 (desbloquear).
+- **Escapes en las pruebas:** todos los caracteres invisibles se arman con `cp(0x…)`; no hay ningún `\u` en el código nuevo. Revisé con un script que no quedaran caracteres invisibles literales en los archivos tocados: 0.
+
+### Paso 2 · Desbloquear (SCR-09, `Routes.UNLOCK`)
+- **De arriba abajo:** «End Security», manchas como en Iniciar sesión, «Tu bóveda / está bloqueada», texto, `PasswordField` «Contraseña maestra», fila con huella (56, contorno) y «Desbloquear», y abajo «¿No eres Ana? **Cerrar sesión**».
+- **Huella:** solo se muestra con `biometric_enabled`. Es una clave nueva en `SettingsStore` y se lee con `UnlockSettingsRepository`. Sin huella, «Desbloquear» ocupa todo el ancho. Al tocarla: `TODO(OP-20)`.
+- **«Desbloquear»:**
+  - se habilita con la contraseña escrita (`TODO(OP-19)`);
+  - con contraseña incorrecta muestra «Contraseña incorrecta.» y vacía el campo; el error se quita al volver a escribir;
+  - tiene el mismo bloqueo por intentos que Iniciar sesión.
+- **«Cerrar sesión»:** abre una hoja inferior con «¿Cerrar sesión?», el texto, «Cerrar sesión» (`DangerButton`) y «Cancelar» (`SecondaryButton`). Al confirmar: `TODO(OP-18)` y va a Iniciar sesión con la pila vacía.
+- **Seguridad:**
+  - `SecureScreen`, `ExcludeFromAutofill` y `TextFieldState` en memoria;
+  - se vacía en `ON_STOP` y al salir, máximo de 256 en el campo, la hoja con `SecureOn` y nada en `toString()`.
+- **Atrás del sistema:** `moveTaskToBack(true)`.
+- **Ruta de depuración:** solo en compilaciones de depuración, con `adb shell am start -n com.luis.end_security/.MainActivity --es debug_route unlock`. Solo acepta `unlock`.
+- **Nombre:** sale de un `TODO(TBL-L-ACCOUNT)`. En las vistas previas es «Ana».
+
+### Paso 3 · Bóveda · cargando (SCR-39) y barra inferior
+- **`BottomNavBar` (DEC-56):**
+  - Bóveda, Salud, Generador y Ajustes, con los íconos vault, shield-check, dado y settings de Figma, en 22 px;
+  - la pestaña activa lleva un cuadro `on-surface` de 44×36 con el ícono claro y la etiqueta en Bold;
+  - cada pestaña mide 76×54, tiene `Role.Tab` y `selectableGroup`;
+  - el margen inferior es la barra de gestos o 14 dp, lo que sea mayor.
+- **`SkeletonBlock` y `SkeletonPulse`:**
+  - `outline` al 20 % con un pulso de opacidad del 100 al 50 % (900 ms), compartido por todos los bloques de la pantalla;
+  - con «Quitar animaciones» queda fijo;
+  - oculto a TalkBack (`clearAndSetSemantics`).
+- **`VaultLoadingScreen`:**
+  - esqueleto de la inicial, candado «Bloquear ahora» deshabilitado, «Tu bóveda», punto `primary` con «Descargando tu bóveda…», buscador y 5 filas en esqueleto, y la barra con Bóveda activa;
+  - TalkBack anuncia «Descargando tu bóveda» una vez, como `paneTitle`.
+- **Navegación:**
+  - «Continuar» de 2FA y «Entrar» del código de respaldo navegan aquí con la pila vacía, de forma temporal y con sus `TODO(OP-15/16)`;
+  - en depuración pasa a `Routes.VAULT` (marcador) tras 2 s (`TODO(OP-32)`).
+- **Componentes nuevos:**
+  - `OutlinedIconButton` («Botón de ícono / Contorno»);
+  - `SecondaryButton` y `DangerButton` («Botón/Secundario» y «Botón/Peligro», en `BorderedButtons.kt`);
+  - estilos `headlineMedium` (30 Bold) y `labelSmall` (11/14 Medium).
 
 ## Compilación y pruebas (salida real)
-- `assembleDebug` y `testDebugUnitTest`: `BUILD SUCCESSFUL in 1m 41s` · **123 pruebas, 0 fallas**. Nuevas o ampliadas:
-  - `ForbiddenCharactersTest` 8: U+200B, U+202E y U+0007 rechazados; el resto de la lista; 👨‍👩‍👧 y ❤️ aceptados; U+0378 sin asignar rechazado.
-  - `BackupCodeFormatTest` 7: «k7qd 2m9x» → «K7QD-2M9X», O→0, I/L→1, U descartada, tope de 8, guion, `isValid`.
-  - `TwoFactorViewModelTest` 6.
-  - `BackupCodeViewModelTest` 5.
-  - `LoginViewModelTest` 11: navegación a 2FA, bloqueo con cuenta regresiva y redondeo de minutos.
-  - `SignUpViewModelTest` 29: caracteres invisibles y emoji compuesto.
-- `assembleRelease`: `BUILD SUCCESSFUL in 2m 3s`.
-- **Emulador (Pixel 7 Pro, API 36, solo `-s emulator-5554`):**
-  - Onboarding → «Ya tengo una cuenta» → Iniciar sesión → «Entrar» → 2FA.
-    - Casillas en 473 dp (Figma 472). El enlace cabe en una línea.
-    - Sin FLAG_SECURE. Con 6 dígitos se habilita «Continuar».
-  - «Usa un código de respaldo» → código de respaldo.
-    - Con FLAG_SECURE.
-    - Escribir «k7qd 2m9x» deja «K7QD-2M9X» y habilita «Entrar».
-  - Atrás → 2FA → Iniciar sesión. Sin crashes.
-  - Para reinstalar tuve que liberar cachés del emulador (`pm trim-caches`), porque estaba al 94 %.
+- `assembleDebug`, `assembleDebugAndroidTest`, `testDebugUnitTest` y `assembleRelease`: `BUILD SUCCESSFUL in 1m 48s`.
+- **Pruebas unitarias: 143, 0 fallas.** Nuevas o ampliadas:
+  - **`ForbiddenCharactersTest` (17):**
+    - se rechazan U+00AD, U+115F, U+3164 y U+FE00; U+2028, U+2029 y U+2800; surrogates D800 y DC00; U+1FA70 (12.0, con el falso); U+1FBF0 (13.0, que NFKC vuelve «0»); U+E0001; U+034F y U+061C;
+    - se aceptan 🇲🇽, 🏴󠁧󠁢󠁳󠁣󠁴󠁿, 👨‍👩‍👧, ❤️ y U+200C.
+  - **`MasterPasswordNormalizerTest` (9):** «❤», «❤» + FE0F y «❤» + FE0E normalizan igual.
+  - **`UnlockViewModelTest` (8):** habilitación, error y su limpieza, bloqueo con cuenta regresiva, huella según `biometric_enabled`, hoja, confirmación hacia Iniciar sesión y `toString` sin nombre.
+  - **`TwoFactorViewModelTest` (7) y `BackupCodeViewModelTest` (6):** navegan a la bóveda.
+- **Pruebas instrumentadas** (emulador, `am instrument`): **6, OK.**
+  - `BottomNavBarTest`: con cada pestaña activa, esa es `Role.Tab` seleccionada y las demás no; además revisa el toque.
+  - `IcuUnicodeCharacterDataTest`: con el ICU real, 🧡 = 10.0, U+0378 sin edad, e ignorables (U+180E, U+FFA0, U+E0001, U+E0100…).
+- **Release:** `debug_route` no aparece en el dex de release y `mapping.txt` existe, así que R8 quitó la ruta de depuración.
+- **Emulador** (Pixel 7 Pro, API 36, solo `emulator-5554`):
+  - Desbloquear por la ruta de depuración: ventana con FLAG_SECURE, título a 317 dp (Figma 316), «Desbloquear» a todo el ancho sin huella, y se habilita al escribir.
+  - «Cerrar sesión» abre la hoja, «Cancelar» la cierra y confirmar lleva a Iniciar sesión.
+  - Atrás en Desbloquear manda la app al fondo.
+  - Onboarding → Omitir → Iniciar sesión → 2FA → 6 dígitos → «Continuar» → Bóveda · cargando, igual a Figma (captura) → a los 2 s, el marcador. Atrás ahí sale de la app: la pila quedó vacía.
 
-## Revisión de seguridad (`security-reviewer`, Pasos 1 y 4)
+## Revisión de seguridad (`security-reviewer`, Paso 1 y Desbloquear)
 Sin hallazgos críticos ni altos.
 
 | # | Gravedad | Hallazgo | Qué se hizo |
 |---|---|---|---|
-| 1 | Media | El teclado podía sugerir y **aprender** el código de respaldo (`KeyboardType.Ascii`; confirmado en el emulador: `inputType=0x1001`) | **Corregido:** `KeyboardType.Password` (`inputType=0x1081`, confirmado); las mayúsculas las pone el filtro |
-| 2 | Media | DEC-31 deja pasar invisibles comunes: U+00AD guion suave, U+061C, U+034F, U+180E, U+2061–2064, U+206A–206F, otros selectores de variación, U+2028/2029, rellenos hangul, U+2800 | **No implementado:** cambia DEC-31 (ver dudas) |
-| 3 | Baja | «Sin asignar» depende de la versión de Unicode del teléfono: un carácter nuevo aceptado en un teléfono reciente podría normalizarse distinto en uno viejo | **No implementado:** decisión (ver dudas) |
-| 4 | Baja | El campo del código ofrecía Copiar/Cortar: el código podía quedar en el portapapeles sin marca de sensible ni borrado | **Corregido:** `PasteOnlyTextToolbar` deja solo Pegar y Seleccionar todo |
-| 5 | Baja | Se aceptan surrogates solitarios (Cs), que en UTF-8 se vuelven «?» y harían iguales contraseñas distintas | **No implementado:** cambia DEC-31. Para OP-11: codificar con `CodingErrorAction.REPORT` |
-| 6 | Baja | `submit` del código solo revisaba el largo; falta evitar envíos dobles | **Corregido en parte:** se vuelve a validar con `BackupCodeFormat.isValid`. El «uno a la vez» queda en el `TODO(OP-16)`, porque sin backend `isLoading` nunca volvería a `false` |
-| 7 | Info | **Mis pruebas tenían caracteres invisibles literales, incluido U+202E** («Trojan Source»): la herramienta de escritura convirtió los escapes | **Corregido:** todos van como `\uXXXX`, también los combinantes de las pruebas NFC/NFD, para que un editor no los altere |
-| 8 | Info | Autocompletado con `ContentType` nulo | Ya probado en la tarea 02: la exclusión de la ventana raíz deja al servicio sin nodos |
-| 9 | Info | Copias en las transformaciones | Límite de DEC-27 |
-| 10 | Info | Crockford con «ı» o «ſ» | No junta códigos válidos distintos; sin cambios |
+| 1 | Media | Un carácter posterior a Unicode 10.0 que NFKC vuelve antiguo (U+1FBF0 → «0», U+1CCF0…, U+10780…) pasaba, porque la edad se medía después de normalizar; en un teléfono viejo la llave saldría distinta | **Corregido:** la edad también se revisa en el texto crudo, con prueba |
+| 2 | Media | Compose pone el texto real del campo de contraseña en el nodo de accesibilidad (`password=true`). En API 28–33 un servicio de accesibilidad activo podría leerlo; en 34+ lo frena `ACCESSIBILITY_DATA_SENSITIVE_YES`. Lo vi con `uiautomator dump` (que es una herramienta privilegiada) | **No implementado:** afecta a `PasswordField` desde la tarea 02 y cambia DEC-26 (ver dudas) |
+| 3 | Baja | U+200C, U+200D y las etiquetas se aceptan en cualquier posición (sueltas, repetidas, al final) | **No implementado:** pide reglas de contexto (RFC 5892) que DEC-31 no tiene |
+| 4 | Baja | Pasan Cf no ignorables (U+FFF9–FFFB), los no-caracteres (U+FDD0–FDEF, U+FFFE…, que sí tienen edad) y el uso privado | **No implementado:** amplía DEC-31 |
+| 5 | Baja | Quitar FE0E/FE0F después de NFKC no es idempotente: «A»+FE0F+U+030A da «A»+U+030A y no «Å» | **No implementado:** DEC-31 dice «NFKC y después se quitan»; propongo quitarlos antes (da lo mismo en todo lo demás) |
+| 6 | Baja | El bloqueo de Desbloquear vive en la memoria del ViewModel: cerrar la app lo reinicia | **No implementado:** OP-19 es local y el grafo no dice dónde se cuentan los intentos |
+| 7 | Baja | La ruta de depuración aceptaba `vault` y `vault_loading` (la actividad es exported) | **Corregido:** solo `unlock`. En release no existe (R8, comprobado) |
+| 8 | Baja | Los emojis nuevos (🥰 de Unicode 11, 🫶 de 14) se rechazan con «caracteres invisibles» | **No implementado:** el texto lo fija DEC-31 |
+| 9 | Info | Las pruebas no tocaban el ICU real | **Corregido:** `IcuUnicodeCharacterDataTest` instrumentada, más casos de U+E0001 y U+1FBF0 |
+| 10 | Info | Cuando llegue `LockGuard`, debe navegar con la pila limpia y bloquear `VaultSession`, no apilar Desbloquear | Anotado para la tarea de `VaultSession` |
+| 11 | Info | NFKC no unifica ي/ی ni ك/ک (persa con teclado árabe) | Anotado como riesgo conocido de DEC-31 |
 
 ## Diferencias con Figma o con la tarea
-- **Guion del código de respaldo:** la tarea decía que el `InputTransformation` agrega el guion. Lo dibuja un `OutputTransformation`, y el campo guarda los 8 caracteres sin guion. Así borrar y mover el cursor funcionan sobre los caracteres reales y no hay un guion que el usuario tenga que borrar.
-- **Teclado del código de respaldo:** la tarea pedía `KeyboardType.Ascii`; se usa `Password` (hallazgo 1). Las mayúsculas automáticas siguen pedidas, y el filtro las garantiza.
-- **Bloqueo en Iniciar sesión:** va en la línea bajo la contraseña, con prioridad sobre «Correo o contraseña incorrectos» y la ayuda.
-- **«Usa un código de respaldo»** va en 14/20 (`labelMedium`), como en Figma.
+- **Candado de Bóveda · cargando:** en Figma es un esqueleto. Como pide la tarea, es el botón real deshabilitado (contorno al 40 %).
+- **Contraseña incorrecta en Desbloquear vacía el campo**, como el código de respaldo. Así el error se quita al volver a escribir y la contraseña rechazada no se queda en pantalla. Iniciar sesión no lo hace.
+- **Sin nombre de la cuenta**, el enlace dice «¿No eres tú?». Es un texto nuevo: hasta que exista TBL-L-ACCOUNT, la app real no tiene el nombre.
+- **Hoja «¿Cerrar sesión?»:** no está en Figma. Usa los botones de peligro y secundario de la biblioteca, sobre `background`, como la hoja de documentos legales.
+- **Marcador de `Routes.VAULT`:** «Tu bóveda», «Próximamente» y la barra inferior.
+- **Las pestañas de la barra aún no navegan** (`TODO(DEC-56)`), porque Salud, Generador y Ajustes no existen.
+- **Activé `buildConfig = true`** en `app/build.gradle.kts` para usar `BuildConfig.DEBUG`, así R8 quita el código de depuración.
 
 ## Dudas o decisiones que tomé
-- **¿Ampliar la regla de invisibles (hallazgos 2, 3 y 5)?** La propuesta es:
-  - rechazar la propiedad Unicode *Default_Ignorable_Code_Point*, salvo U+200D, U+FE0F, U+200C (persa) y las etiquetas U+E0020–E007F (banderas);
-  - rechazar también Cs y los rellenos hangul;
-  - medir «asignado» contra una versión fija de Unicode (10.0, la de minSdk 28) en vez de la del teléfono;
-  - y aparte, decidir si se quita U+FE0E/FE0F al normalizar, porque hoy «❤» y «❤️» dan llaves distintas según el teclado.
+- **Accesibilidad y contraseña (hallazgo 2):** ¿se verifica con un servicio de prueba en API 33 y, si se confirma, se cambia `PasswordField` para que el nodo solo exponga la máscara? Cambia DEC-26.
+- **Ampliar DEC-31 (hallazgos 3, 4, 5 y 8):**
+  - contexto para ZWJ, ZWNJ y etiquetas;
+  - rechazar Cf, Co y Cn;
+  - quitar FE0E/FE0F **antes** de NFKC;
+  - y un mensaje que mencione emojis demasiado nuevos.
 
-  Todo esto cambia DEC-31 y la derivación, así que debería decidirse antes de la primera cuenta real.
-- **Archivos sin commit que no son míos:** `docs/bd/end_security_db.drawio` y `docs/bd/.$end_security_db.drawio.bkp`. No están en mis comandos de commit; el `.bkp` parece un respaldo del editor y probablemente no debería subirse.
-- **Commits:** van como comandos en el mensaje final. Son tres grupos porque `strings.xml` y la navegación mezclan varios pasos.
+  Conviene decidir antes de la primera cuenta real, igual que lo anterior.
+- **Bloqueo local en Desbloquear (hallazgo 6):** ¿cuántos intentos, cuánto tiempo y dónde se guardan (DataStore con reloj de pared y `elapsedRealtime`)? Hace falta antes de OP-19.
+- **Emulador:**
+  - Está al 94 %. `connectedDebugAndroidTest` no pudo instalar los dos APK juntos, así que instalé y corrí `am instrument` a mano y desinstalé el APK de prueba al terminar. No toqué las otras apps del emulador.
+  - Cambié por error el tiempo de apagado de pantalla del emulador (`screen_off_timeout` a 10 min) con `settings put`. No sé cuál era el valor anterior; si importa, se restaura en Ajustes → Pantalla.
 
 ## Revisión
-- [x] REQUIERE REVISIÓN HUMANA: no se tocó `core/crypto`, `core/session` ni SQL, pero sí la política de la contraseña maestra, el manejo del código de respaldo (un secreto) y `core/security` (`PasteOnlyTextToolbar`). Los pasos 1 y 4 pasaron por `security-reviewer`.
+- [x] REQUIERE REVISIÓN HUMANA: no se tocó `core/crypto`, `core/session` ni SQL. Sí se tocaron:
+  - la política y la normalización de la contraseña maestra (cambian la llave derivada);
+  - la pantalla de Desbloquear (un secreto);
+  - la navegación de la sesión (pila limpia, ruta de depuración).
+
+  El Paso 1 y Desbloquear pasaron por `security-reviewer`.
