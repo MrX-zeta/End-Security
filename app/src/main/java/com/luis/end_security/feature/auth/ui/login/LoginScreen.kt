@@ -56,6 +56,8 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.luis.end_security.R
 import com.luis.end_security.core.designsystem.component.BlobShape
@@ -96,6 +98,12 @@ fun LoginRoute(
     // memoria; cuando exista el envío, la copia en CharArray sí se llenará de ceros.
     DisposableEffect(passwordState) {
         onDispose { passwordState.clearText() }
+    }
+    // Lo mismo al pasar a segundo plano (DEC-26): quien tome el teléfono y vuelva a la app no
+    // encuentra la contraseña escrita ni a la vista.
+    LifecycleEventEffect(Lifecycle.Event.ON_STOP) {
+        passwordState.clearText()
+        passwordVisible = false
     }
 
     LoginScreen(
