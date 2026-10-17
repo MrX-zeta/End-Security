@@ -13,8 +13,9 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Ajustes locales sin secretos (KV-DATASTORE). Aquí viven todas las claves del archivo
- * `settings`; los tokens irán en un TokenStore aparte, cifrados con el Keystore (DEC-16).
+ * Ajustes locales sin secretos (KV-DATASTORE), en el archivo `settings`. Los intentos de
+ * Desbloquear están en [UnlockAttemptStore] (mismo archivo); los tokens irán en un TokenStore
+ * aparte, cifrados con el Keystore (DEC-16).
  */
 @Singleton
 class SettingsStore @Inject constructor(

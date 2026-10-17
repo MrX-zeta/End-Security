@@ -1,5 +1,7 @@
 package com.luis.end_security.feature.unlock.ui
 
+import com.luis.end_security.core.datastore.UnlockLockout
+import com.luis.end_security.feature.unlock.domain.UnlockAttemptRepository
 import com.luis.end_security.feature.unlock.domain.UnlockSettingsRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -18,6 +20,8 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class UnlockViewModelTest {
@@ -25,6 +29,7 @@ class UnlockViewModelTest {
     private val dispatcher = StandardTestDispatcher()
     private val scope = TestScope(dispatcher)
     private val settings = FakeUnlockSettings()
+    private val attempts = FakeUnlockAttempts()
     private lateinit var viewModel: UnlockViewModel
 
     private val state get() = viewModel.state.value
@@ -32,7 +37,7 @@ class UnlockViewModelTest {
     @Before
     fun setUp() {
         Dispatchers.setMain(dispatcher)
-        viewModel = UnlockViewModel(settings, dispatcher.scheduler.timeSource)
+        viewModel = UnlockViewModel(settings, attempts, dispatcher.scheduler.timeSource)
     }
 
     @After
@@ -52,17 +57,20 @@ class UnlockViewModelTest {
     }
 
     @Test
-    fun `contrasena incorrecta muestra el error y pide vaciar el campo`() {
+    fun `contrasena incorrecta muestra el error, cuenta el fallo y pide vaciar el campo`() = scope.runTest {
         typePassword()
         viewModel.onWrongPassword()
+        runCurrent()
         assertTrue(state.wrongPassword)
+        assertEquals(1, attempts.failures)
         assertEquals(1, viewModel.clearRequests.value)
     }
 
     @Test
-    fun `el error sigue con el campo vacio y se quita al escribir otra vez`() {
+    fun `el error sigue con el campo vacio y se quita al escribir otra vez`() = scope.runTest {
         typePassword()
         viewModel.onWrongPassword()
+        runCurrent()
         viewModel.onAction(UnlockAction.PasswordEmptinessChanged(isEmpty = true))
         assertTrue(state.wrongPassword)
         typePassword()
@@ -70,14 +78,18 @@ class UnlockViewModelTest {
     }
 
     @Test
-    fun `el bloqueo deshabilita desbloquear hasta que pasa el tiempo`() = scope.runTest {
+    fun `el quinto fallo bloquea 1 min y desbloquear vuelve al terminar`() = scope.runTest {
+        repeat(5) {
+            typePassword()
+            viewModel.onWrongPassword()
+            runCurrent()
+        }
         typePassword()
-        viewModel.onLockedOut(minutes = 1)
-        runCurrent()
         assertTrue(state.isLockedOut)
+        assertEquals(60, state.lockoutSecondsLeft)
         assertFalse(state.canSubmit)
         assertFalse("el bloqueo reemplaza al error", state.wrongPassword)
-        assertEquals(1, viewModel.clearRequests.value)
+        assertEquals(5, viewModel.clearRequests.value)
 
         advanceTimeBy(30_000)
         runCurrent()
@@ -87,6 +99,14 @@ class UnlockViewModelTest {
         runCurrent()
         assertFalse(state.isLockedOut)
         assertTrue(state.canSubmit)
+    }
+
+    @Test
+    fun `un bloqueo guardado sigue al abrir la pantalla`() = scope.runTest {
+        attempts.remaining = 40.seconds
+        viewModel = UnlockViewModel(settings, attempts, dispatcher.scheduler.timeSource)
+        runCurrent()
+        assertEquals(40, state.lockoutSecondsLeft)
     }
 
     @Test
@@ -125,5 +145,24 @@ class UnlockViewModelTest {
 
     private class FakeUnlockSettings : UnlockSettingsRepository {
         override val biometricEnabled = MutableStateFlow(false)
+    }
+
+    /** Lleva la cuenta en memoria con las reglas reales de [UnlockLockout]. */
+    private class FakeUnlockAttempts : UnlockAttemptRepository {
+        var failures = 0
+        var remaining = Duration.ZERO
+
+        override suspend fun remainingLockout(): Duration = remaining
+
+        override suspend fun recordFailure(): Duration {
+            failures++
+            remaining = UnlockLockout.durationAfter(failures)
+            return remaining
+        }
+
+        override suspend fun recordSuccess() {
+            failures = 0
+            remaining = Duration.ZERO
+        }
     }
 }

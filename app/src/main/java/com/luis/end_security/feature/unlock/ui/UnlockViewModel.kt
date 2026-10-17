@@ -3,6 +3,7 @@ package com.luis.end_security.feature.unlock.ui
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.luis.end_security.core.common.Countdown
+import com.luis.end_security.feature.unlock.domain.UnlockAttemptRepository
 import com.luis.end_security.feature.unlock.domain.UnlockSettingsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
@@ -14,7 +15,7 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
-import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration
 import kotlin.time.TimeSource
 
 /**
@@ -30,7 +31,7 @@ data class UnlockUiState(
     val isLoading: Boolean = false,
     /** «Contraseña incorrecta.» */
     val wrongPassword: Boolean = false,
-    /** Segundos de bloqueo por demasiados intentos (DEC-32); 0 sin bloqueo. */
+    /** Segundos de bloqueo por demasiados intentos (DEC-08); 0 sin bloqueo. */
     val lockoutSecondsLeft: Int = 0,
     /** Hoja «¿Cerrar sesión?» abierta. */
     val showSignOutConfirmation: Boolean = false,
@@ -70,6 +71,7 @@ sealed interface UnlockEffect {
 @HiltViewModel
 class UnlockViewModel @Inject constructor(
     settings: UnlockSettingsRepository,
+    private val attempts: UnlockAttemptRepository,
     timeSource: TimeSource,
 ) : ViewModel() {
 
@@ -93,6 +95,11 @@ class UnlockViewModel @Inject constructor(
             settings.biometricEnabled.collect { enabled ->
                 _state.update { it.copy(biometricAvailable = enabled) }
             }
+        }
+        // Un bloqueo que empezó antes de cerrar la app sigue al volver (DEC-08).
+        viewModelScope.launch {
+            val remaining = attempts.remainingLockout()
+            if (remaining > Duration.ZERO) startLockout(remaining)
         }
     }
 
@@ -119,7 +126,12 @@ class UnlockViewModel @Inject constructor(
         //  MasterPasswordNormalizer (DEC-31) y codificado en UTF-8 con CodingErrorAction.REPORT
         //  (si falla, es «Contraseña incorrecta.»); se derivará enc_key con Argon2 (PEND-01), se
         //  abrirá pvk para obtener vault_key en VaultSession y el arreglo se sobrescribirá. Sin red.
-        //  Mientras dure, isLoading = true y no se aceptan más envíos.
+        //  Mientras dure, isLoading = true y no se aceptan más envíos. Si la etiqueta GCM falla,
+        //  onWrongPassword(); si abre, attempts.recordSuccess().
+        //  Antes de derivar (revisión de la tarea 07): volver a preguntar attempts.remainingLockout()
+        //  al repositorio, no solo al estado de la UI, y contar el intento ANTES de Argon2 en un
+        //  scope que no se cancele (NonCancellable): si se cuenta después, cerrar la app justo al
+        //  terminar Argon2 evitaría que el fallo se guarde.
     }
 
     private fun signOut() {
@@ -128,17 +140,25 @@ class UnlockViewModel @Inject constructor(
         viewModelScope.launch { _effects.send(UnlockEffect.NavigateToLogin) }
     }
 
-    /** La contraseña no abrió la bóveda (OP-19). El campo se vacía. */
+    /**
+     * La contraseña no abrió la bóveda (OP-19). Se cuenta el fallo y el campo se vacía; desde el
+     * quinto fallo seguido empieza el bloqueo (DEC-08), que reemplaza al error.
+     */
     internal fun onWrongPassword() {
-        _state.update { it.copy(wrongPassword = true).withCanSubmit() }
         _clearRequests.update { it + 1 }
+        viewModelScope.launch {
+            val lockout = attempts.recordFailure()
+            if (lockout > Duration.ZERO) {
+                startLockout(lockout)
+            } else {
+                _state.update { it.copy(wrongPassword = true).withCanSubmit() }
+            }
+        }
     }
 
-    /** Demasiados intentos (DEC-32): minutos que hay que esperar. El campo se vacía. */
-    internal fun onLockedOut(minutes: Int) {
+    private fun startLockout(duration: Duration) {
         _state.update { it.copy(wrongPassword = false) }
-        _clearRequests.update { it + 1 }
-        lockoutCountdown.start(viewModelScope, minutes.minutes) { secondsLeft ->
+        lockoutCountdown.start(viewModelScope, duration) { secondsLeft ->
             _state.update { it.copy(lockoutSecondsLeft = secondsLeft).withCanSubmit() }
         }
     }
