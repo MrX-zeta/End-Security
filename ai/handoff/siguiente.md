@@ -1,6 +1,6 @@
 # Tarea 03 · Crear cuenta (SCR-05)
 
-**Estado:** pendiente
+**Estado:** hecha
 **Escrita:** 2026-10-16 · sesión de diseño
 
 ## Revisión de la tarea 02

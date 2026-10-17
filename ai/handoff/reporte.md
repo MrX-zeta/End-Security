@@ -1,122 +1,102 @@
-# Reporte · Tarea 02 · Ajuste del onboarding e Iniciar sesión (SCR-04)
+# Reporte · Tarea 03 · Crear cuenta (SCR-05)
 
 **Estado:** hecha
 **Fecha:** 2026-10-16
 
 ## Qué se hizo
-- **Paso 0.1:** ya estaba hecho antes de esta tarea en `b8739a2` («docs: protocolo de relevo de tareas en ai/handoff»), con un mensaje un poco distinto al pedido.
-- **Paso 1 · navegación del onboarding (DEC-56):** «Comenzar» → Crear cuenta (SCR-05); «Omitir» y «Ya tengo una cuenta» → Iniciar sesión.
-  Acciones `Skip`, `Start` y `AlreadyHaveAccount`; efectos `NavigateToLogin` y `NavigateToSignUp`. Las dos rutas sacan el
-  onboarding de la pila. `Routes.SIGN_UP` con un marcador claro «Crear cuenta». `OnboardingViewModelTest` actualizado.
-- **Paso 2 · componentes:** `LabeledTextField` y `PasswordField` en `core/designsystem/component` (comparten el marco
-  interno `FieldLayout`/`FieldContainer`), íconos de Figma (sobre, candado, ojo, ojo tachado, información) y tipografía
-  `displaySmall` 34/42 (título de acceso) y `bodySmall` 13/18 (ayuda y error).
-- **Paso 2 · Iniciar sesión:** `LoginRoute`/`LoginScreen` + `LoginViewModel` + `LoginUiState`, `EmailFormat` (dominio, Kotlin puro).
-  «Crea tu cuenta» → `SIGN_UP`. `Submit` no llama nada: `// TODO(OP-13, OP-14)`; no se creó `AuthRepository`.
+- **Grano de las manchas:** 12 % en tema claro y 7 % en oscuro (grafo v1.3.3).
+- **Estimador de fuerza (DEC-31):**
+  - `PasswordStrengthEstimator` vive en dominio (Kotlin puro y recibe `CharSequence`) y `ZxcvbnPasswordStrengthEstimator` en datos.
+  - Se agregó zxcvbn4j 1.9.0 (`com.nulab-inc:zxcvbn`, licencia MIT, sin dependencias).
+  - `MasterPasswordPolicy` fija el mínimo: 12 caracteres y puntaje ≥ 3.
+  - Calificador `@DefaultDispatcher` para el trabajo de CPU.
+- **Componentes nuevos:**
+  - `BackTopBar` y `BackButton`: barra superior con el botón de atrás («Regresar»).
+  - `Checkbox`: 24 × 24, radio 7, área táctil de 48 y rol de casilla.
+  - `StrengthMeter`: 4 barras con su etiqueta.
+  - `NoticeCard`: aviso importante.
+  - `PasswordField` ahora puede ir sin el ojo; en ese caso siempre va oculto.
+- **Crear cuenta:**
+  - `SignUpRoute`, `SignUpScreen`, `SignUpViewModel`, `SignUpUiState` y `PasswordStrengthLevel` (mapeo puntaje → barras, etiqueta y color).
+  - Textos y medidas de Figma (nodo 36:119).
+  - `Submit` → `// TODO(OP-11)`; no se creó `AuthRepository`.
+- **Documentos legales:** `Routes.LEGAL_DOCUMENT` con un marcador «Documento en redacción» para Términos y Aviso de privacidad (`feature/settings/ui/legal`).
+- **Navegación (DEC-56):**
+  - «Comenzar» deja el onboarding en la pila, así que atrás desde Crear cuenta regresa a él. Lo confirmó la persona del equipo.
+  - Desde Iniciar sesión, atrás regresa a Iniciar sesión. Todas las rutas usan `launchSingleTop`.
+  - El onboarding se puede volver a terminar al regresar: la protección contra el doble toque ahora usa un `Job`.
 - **Seguridad:**
-  - Contraseña en `remember { TextFieldState() }`, `BasicSecureTextField` con `TextObfuscationMode` (Hidden/Visible); nunca en `UiState`, `StateFlow`, `SavedStateHandle` ni logs. El ViewModel solo recibe `PasswordEmptinessChanged(isEmpty)`.
-  - Al salir de la pantalla se vacía el campo (`clearText()`).
-  - `core/security/SecureScreen.kt`: FLAG_SECURE con conteo por ventana (para no quitarlo en las transiciones).
-  - `core/security/ExcludeFromAutofill.kt`: la pantalla queda fuera del autocompletado del sistema y se cancela la sesión de autocompletado al entrar y al salir.
-  - Teclado: correo `Email` + `Next` (sin autocorrección); contraseña `Password` sin autocorrección + `Done`.
-- **Comportamiento:** «Entrar» se habilita con un correo de forma válida y una contraseña no vacía; error único
-  «Correo o contraseña incorrectos.» bajo la contraseña, en `error`, con ícono de información y anuncio para TalkBack;
-  `imePadding` + `verticalScroll` + `bringIntoView` para que «Entrar» quede visible con el teclado abierto.
-- **Ajuste global:** el interlineado de la tipografía ahora es igual que en Figma (ver diferencias).
+  - Los dos campos usan `remember { TextFieldState() }`, `SecureScreen()` y `ExcludeFromAutofill()`.
+  - Se vacían en `ON_STOP` y al salir.
+  - Ningún texto de contraseña entra al estado: el ViewModel recibe `PasswordsChanged` y `Submit`, que no son `data class` y tienen `toString()` oculto.
+  - La fuerza se calcula fuera del hilo principal con debounce de 150 ms, y la coincidencia con `contentEquals`.
 
 ## Commits
 | Hash | Mensaje |
 |---|---|
-| `2dfe72f` | feat: «Comenzar» del onboarding lleva a Crear cuenta (tarea 02, DEC-56) |
-| `1f8bbde` | feat: campos de texto del sistema de diseño (tarea 02) |
-| `0192d5c` | feat: SecureScreen y exclusión del autocompletado en core/security (tarea 02) |
-| `f1080e6` | fix: interlineado de los textos igual que en Figma |
-| `1807eaf` | feat: estado deshabilitado del botón primario |
-| `fbf0d7f` | feat: pantalla Iniciar sesión SCR-04 (tarea 02) |
-| `1d1c21c` | test: pruebas del LoginViewModel y de EmailFormat |
+| `cd2c472` | docs: grafo v1.3.3 y tarea 03 del relevo (cambios de la sesión de diseño) |
+| `a58573a` | fix: grano de las manchas al 12 % en el tema claro (DEC-50) |
+| `5c9a3d8` | feat: estimador de fuerza de contraseña con zxcvbn4j (tarea 03, DEC-31) |
+| `c34aac4` | feat: componentes para Crear cuenta en el sistema de diseño (tarea 03) |
+| `6641549` | fix: el onboarding se puede terminar otra vez al volver de Crear cuenta |
+| `fcddf85` | feat: pantalla Crear cuenta SCR-05 (tarea 03) |
+| `1b76b3a` | test: pruebas del SignUpViewModel y del medidor de fuerza |
+| `bfb1806` | fix: el estimador de fuerza mide sobre una copia y no toca la entrada |
+| `99eb7bb` | fix: Crear cuenta verifica la política sobre el texto que se envía |
 
 ## Compilación y pruebas (salida real)
-- `assembleDebug`: `BUILD SUCCESSFUL in 2s` · 41 actionable tasks: 41 up-to-date (la compilación anterior, con todos los cambios, terminó sin errores ni avisos de Kotlin).
-- `testDebugUnitTest`: `BUILD SUCCESSFUL in 8s` · 19 pruebas, 0 fallas:
-  `LoginViewModelTest` 7/7, `EmailFormatTest` 2/2, `OnboardingViewModelTest` 9/9, `ExampleUnitTest` 1/1.
-- **Revisión en el emulador (Pixel 7 Pro, API 36):**
-  - Capturas de Iniciar sesión salen negras y la ventana tiene `fl=… SECURE …` (FLAG_SECURE activo); en Crear cuenta el flag ya no está.
-  - Posiciones frente a Figma (dp desde arriba): correo 475 (474), contraseña 579 (578), ayuda 643 (642), «Entrar» 693 (692), enlace 757 (756).
-  - Ojo 48 × 48 táctil, enlace «Crea tu cuenta» 48 de alto, etiquetas asociadas a los campos («Correo», «Contraseña maestra»), ojo anuncia «Mostrar/Ocultar contraseña».
-  - «Entrar» deshabilitado con datos incompletos o correo inválido y habilitado con ambos válidos; con el teclado abierto queda completo a la vista.
-  - Navegación: «Crea tu cuenta» → Crear cuenta → atrás vuelve a Iniciar sesión; onboarding «Comenzar» → Crear cuenta y atrás sale de la app (onboarding fuera de la pila). Sin crashes en logcat.
+- `assembleDebug`: `BUILD SUCCESSFUL in 10s` (41 actionable tasks: 3 executed, 38 up-to-date). Sin errores ni avisos de Kotlin.
+- `testDebugUnitTest`: `BUILD SUCCESSFUL in 1m 18s` · **58 pruebas, 0 fallas**:
+  - `SignUpViewModelTest` 21/21: habilitación del botón con cada requisito, cálculo pendiente, momento de «no coinciden», envío con el medidor atrasado, reinicio al vaciar, falla del estimador y `toString`.
+  - `PasswordStrengthLevelTest` 4/4: puntaje → barras, etiqueta y color.
+  - `ZxcvbnPasswordStrengthEstimatorTest` 6/6: incluye que no modifica la entrada.
+  - `MasterPasswordPolicyTest` 2/2.
+  - `OnboardingViewModelTest` 10/10: doble toque con escritura en curso y regreso desde Crear cuenta.
+  - Las 15 pruebas restantes son de tareas anteriores y siguen pasando.
+- `assembleRelease`: `BUILD SUCCESSFUL in 2m 7s`. Los diccionarios de zxcvbn4j quedan en el APK con sus rutas originales. El APK sin firmar crece de 3.0 a 3.9 MB.
+- **Emulador (Pixel 7 Pro, API 36).** Había un teléfono físico conectado; todos los comandos fueron solo al emulador.
+  - **Debug:**
+    - Posiciones en dp frente a Figma: título 113 (112), correo 299 (298), contraseña 397 (396), confirmación 523 (522), casilla 697 (696).
+    - FLAG_SECURE activo en Crear cuenta e inactivo en el onboarding y en los documentos.
+    - Atrás → onboarding (página 3), y «Comenzar» funciona otra vez.
+    - Medidor: con 7 caracteres «Usa al menos 12 caracteres»; con una frase larga «Muy fuerte».
+    - «No coinciden» no aparece mientras se escribe, aparece al salir de la confirmación y se quita al coincidir.
+    - El botón se habilita solo con la casilla marcada.
+    - Términos y Aviso de privacidad abren su marcador. Al volver, la casilla sigue como estaba y las contraseñas están vacías.
+  - **Release con R8:** lo firmé solo para probar, con la llave de depuración estándar de Android pasada por línea de comandos; no se cambió nada del proyecto.
+    - El medidor funciona («Muy fuerte»).
+    - Con el formulario completo, «Crear cuenta» verifica y no se cierra la app.
+    - Al volver de Términos, los campos están vacíos y el botón deshabilitado.
+    - Sin crashes ni clases faltantes en logcat.
+
+## Revisión de seguridad (`security-reviewer`)
+Sin hallazgos críticos ni altos; los seis requisitos de seguridad de la tarea se cumplen.
+
+| # | Gravedad | Hallazgo | Qué se hizo |
+|---|---|---|---|
+| 1 | Media | «Crear cuenta» nunca pasaba la verificación (el cálculo pendiente lo rechazaba). Al conectar OP-11 era fácil «arreglarlo» abriendo una carrera contra la política | **Corregido** (`99eb7bb`): `Submit` lleva las contraseñas y `passesPolicy` revisa largo, coincidencia y puntaje sobre ese mismo texto |
+| 2 | Media/baja | zxcvbn4j deja copias internas, y **comprobé en el bytecode** que `Strength.wipe()` borra la entrada del llamador si es `StringBuilder` o `WipeableString`. En OP-11 podría dejar en ceros el búfer del que se deriva la llave | **Corregido** (`bfb1806`): se mide sobre un `WipeableString` propio. Prueba de que la entrada queda intacta. Las copias internas (subcadenas, expresiones regulares) son una limitación de DEC-27 |
+| 3 | Baja | Al salir, el ViewModel conservaba el puntaje y `canSubmit` de un texto ya borrado | **Corregido:** acción `PasswordsCleared` al salir y en `ON_STOP` |
+| 4 | Baja | Cálculos cancelados seguían corriendo; sin límite de longitud | **Corregido en parte:** un `Mutex` deja un cálculo a la vez y los cancelados en espera no corren. **El límite de longitud no se puso** (ver dudas) |
+| 5 | Baja | Si el estimador fallaba, la app se cerraba | **Corregido:** el puntaje queda vacío y el botón deshabilitado. La prueba en release fue manual; no hay prueba instrumentada |
+| 6 | Info | `toString()` del estado imprimía correo, puntaje y longitud | **Corregido:** `toString()` sin datos en `SignUpUiState` y `EmailChanged` |
+| 7 | Info | Accesibilidad: el medidor anuncia el cambio de etiqueta (canal de audio mínimo) | Aceptado; sin cambios |
+| 8 | Info | La longitud se cuenta en unidades UTF-16 y no hay normalización Unicode definida | Pendiente para OP-11 (ver dudas) |
+| 9 | Info | Dos actualizaciones de estado no atómicas | **Corregido:** una sola actualización con `canSubmit` |
 
 ## Diferencias con Figma o con el grafo
-- **Campo: radio 16 y una sola sombra, no radio 14 ni sombra neumórfica.** La tarea pide «radio 14, sombra neumórfica
-  igual que en Figma», pero Figma (nodo 19:178) y DEC-50 tienen radio 16 y una sola sombra `0 8 20 shadow-dark`. Seguí Figma y DEC-50.
-- **Título 34/42**, no 32/40 como el onboarding: así está en Figma; se usa `displaySmall`.
-- **Grano de la mancha:** Figma usa blanco al 12 % en esta pantalla; el grafo (DEC-50 v1.3.2) dice blanco al 7 % en ambos
-  temas. Usé el token del grafo. Si debe ser 12 % en claro, hay que actualizar DEC-50.
-- **Mancha pequeña amarilla:** está en Figma y en la tarea, aunque DEC-50 reserva el amarillo para acciones. Usa `primary`.
-- **Estado deshabilitado de «Entrar»:** Figma no lo define; usé opacidad al 40 % (convención de Material).
-- **Error:** reemplaza a la línea «Si la olvidas…» mientras se muestra (las dos van en el mismo lugar bajo la contraseña).
-- **Interlineado:** Compose recortaba el interlineado de la primera y última línea (≈6 dp menos por texto que Figma).
-  Lo corregí en `Type.kt`; también mueve un poco el onboarding hacia sus medidas de Figma.
+- **Confirmación sin ojo:** así está en Figma; sin el botón, el campo va siempre oculto.
+- **«Usa al menos 12 caracteres»** va en `on-surface-variant` (información neutra) mientras las barras siguen mostrando el puntaje. La tarea no dice de qué color va.
+- **«No coinciden» al tocar «Crear cuenta»:** el botón está deshabilitado mientras no coinciden, así que en la práctica ese caso entra por «Listo» del teclado de la confirmación (que también hace `Submit`) o al salir del campo.
+- **Enlaces dentro del texto** («Términos», «Aviso de privacidad»): su área táctil es la del texto (menos de 48 dp), lo usual para enlaces en línea. La casilla sí tiene 48.
 
 ## Dudas o decisiones que tomé
-- **Paso 0.2 (`git push`):** no lo hice. En esta sesión me pediste que el push lo hagas tú. Vas 7 commits adelante
-  (8 con el de este reporte).
-- **Autocompletado:** `BasicSecureTextField` se marca solo como `ContentType.Password` y Compose no deja quitarlo campo por
-  campo, así que excluí **toda la pantalla** del autocompletado. Consecuencia: el correo tampoco se autocompleta.
-- **Accesibilidad expone la contraseña:** en el árbol de accesibilidad el `EditText` de la contraseña trae el texto real
-  (marcado `password=true`). TalkBack no lo lee, pero un servicio de accesibilidad malicioso podría leerlo; los `EditText`
-  de vistas exponen puntos. No lo parcheé (sobrescribir la semántica de Compose es frágil). Propuesta para revisar.
-- **Borrado de la contraseña:** `TextFieldState` no permite sobrescribir su memoria; se vacía al salir. La copia a
-  `CharArray` con borrado llegará con OP-13/OP-14.
-- **`LabeledTextField`/`PasswordField`:** `PasswordField` no llama a `LabeledTextField` (uno usa `BasicTextField` con `String`
-  y el otro `BasicSecureTextField` con `TextFieldState`); comparten el marco interno, que es lo que da el mismo aspecto.
-- **«Crea tu cuenta»** quedó como composable privado de la pantalla; si Crear cuenta necesita «¿Ya tienes cuenta? Inicia
-  sesión», conviene moverlo a `core/designsystem`.
+- **Push:** no lo hice; dijiste que el push lo haces tú. Vas 9 commits adelante (10 con el de este reporte).
+- **Las contraseñas se vacían al abrir Términos o el Aviso:** la pantalla sale de composición y se aplica la regla «se vacían al salir». Desde seguridad es lo correcto (lo confirmó el revisor), pero obliga a escribirlas de nuevo. La alternativa sería mostrar el documento en un diálogo sobre la misma pantalla, a costa de mantener la contraseña viva en memoria mientras se lee.
+- **Límite de longitud (hallazgo 4):** el revisor propone `maxLength` (por ejemplo 128) en los campos de contraseña maestra, para acotar zxcvbn y Argon2. No está en el grafo (INV-19), así que no lo puse. ¿Lo registramos en DEC-31?
+- **Normalización Unicode (hallazgo 8):** antes de OP-11 hay que decidir NFC o NFKC y la codificación de entrada a Argon2 (DEC-05). Si no, la misma frase escrita con otro teclado podría derivar otra llave.
+- **Prueba de release:** zxcvbn4j bajo R8 lo comprobé a mano en el emulador. Una prueba instrumentada (`score("password") <= 1`) lo dejaría automatizado.
+- **`LegalDocument`** quedó en `feature/settings/ui/legal`, porque Ajustes tendrá el grupo «Legal y ayuda» (PEND-12).
 
 ## Revisión
-- [x] REQUIERE REVISIÓN HUMANA — no se tocó `core/crypto`, `core/session` ni SQL, pero sí la **pantalla de autenticación** y
-  `core/security` (`SecureScreen`, `ExcludeFromAutofill`). Sugiero pasar `LoginScreen.kt`, `PasswordField.kt`,
-  `SecureScreen.kt` y `ExcludeFromAutofill.kt` por el subagente `security-reviewer`, en especial el punto de accesibilidad.
-
-## Revisión de seguridad (subagente `security-reviewer`) y correcciones
-Revisó `LoginScreen`, `LoginViewModel`, `PasswordField`, `LabeledTextField`, `SecureScreen` y `ExcludeFromAutofill`.
-Sin hallazgos críticos; los seis requisitos de seguridad de la tarea se cumplen. Se corrigieron los hallazgos 1, 2, 5 y 6:
-
-| # | Gravedad | Hallazgo | Corrección | Commit |
-|---|---|---|---|---|
-| — | — | Base común para las correcciones | `SharedRequest`: aplica con la primera pantalla, guarda el valor original y lo restaura con la última; con 5 pruebas | `a26966b` |
-| 1 | Media (alta con Crear cuenta) | `ExcludeFromAutofill` guardaba y restauraba sin conteo: en una transición entre dos pantallas que lo piden, la que sale reactivaba el autocompletado de la que entra | Conteo con `SharedRequest` y exclusión sobre la **vista raíz** de la ventana (Compose no la toca) | `a3a1f66` |
-| 2 | Media | Compose expone el texto real de la contraseña en el árbol de accesibilidad; FLAG_SECURE no lo cubre | En Android 14+, `SecureScreen` marca la raíz con `ACCESSIBILITY_DATA_SENSITIVE_YES`: solo las herramientas de accesibilidad (TalkBack) ven el contenido | `bf1008f` |
-| 5 | Baja | Al volver de segundo plano la contraseña seguía escrita y, con el ojo abierto, visible | `LifecycleEventEffect(ON_STOP)`: vacía el campo y lo vuelve a ocultar (DEC-26) | `e0bb4a3` |
-| 6 | Baja | `SecureScreen` protegía la ventana de la actividad aunque se llamara dentro de un diálogo u hoja inferior, y fallaba abierto sin ventana | Usa la ventana del diálogo (`DialogWindowProvider`, también en `ModalBottomSheet`); sin ventana lanza error en depuración; todo FLAG_SECURE pasa por `SecureWindowFlag` | `7b207b8` |
-
-No se corrigieron (los dejo a decisión de la sesión de diseño):
-- **3 (media-baja):** que la exclusión dependa del atributo de vista. Ya se mitigó al marcar la raíz; la prueba de abajo muestra que funciona con el autocompletado de Google.
-- **4 (baja):** `TextFieldState` no permite borrar su memoria. Ya está en DEC-27; se resuelve en OP-13/OP-14 copiando a `CharArray` carácter por carácter y sobrescribiéndolo en `finally`.
-- **7 (informativo):** `canSubmit` puede quedar desfasado un cuadro tras rotar. Cuando exista el envío, validar contra el `CharArray`, no solo contra el `Boolean`.
-
-### Pruebas de las correcciones (salida real)
-- `assembleDebug`: `BUILD SUCCESSFUL in 28s`. `lintDebug`: 0 errores; los 15 avisos son anteriores (versiones nuevas
-  disponibles, colores sin usar de la plantilla en `colors.xml`, orden del parámetro `modifier` en `PreviewSurface`).
-- `testDebugUnitTest`: `BUILD SUCCESSFUL in 16s` · 24 pruebas, 0 fallas (`SharedRequestTest` 5/5 nuevas).
-- **Emulador (Pixel 7 Pro, API 36, con «Autocompletar con Google» activo).** Había un teléfono físico conectado; todos
-  los comandos fueron solo al emulador (`-s emulator-5554`).
-  - **Hallazgo 1:** con el registro detallado de autocompletado activado un momento (y regresado a `off`), al enfocar el
-    correo y la contraseña el sistema **sí abre** una petición de autocompletado. Pero la estructura que recibe el servicio
-    de Google trae **1 sola vista** (la raíz excluida), el sistema registra «no node» para el correo (`i18`) y la contraseña
-    (`i28`), el autocompletado aumentado no se activa («not whitelisted») y al navegar fuera **no aparece «Guardar contraseña»**.
-    Ni el correo ni la contraseña aparecieron en el log.
-  - **Hallazgo 5:** con contraseña escrita y ojo abierto, Inicio → volver: el campo está vacío, el ojo dice «Mostrar
-    contraseña» y el correo se conserva. FLAG_SECURE sigue activo.
-  - **Hallazgo 2:** **no comprobado en el dispositivo.** `uiautomator` tiene privilegios y sigue viendo el texto; para
-    probarlo hace falta un servicio de accesibilidad de prueba que no sea herramienta. El código compila y lint no marca
-    nada (se usa solo en API 34+). En Android 9 a 13 sigue siendo un riesgo aceptado.
-  - **Hallazgo 6:** la app todavía no tiene diálogos con secretos; solo se comprobó que Iniciar sesión conserva FLAG_SECURE
-    y que no hay errores al abrirla.
-
-### Riesgos que quedan
-- El sistema (no el servicio de terceros) mantiene una sesión de autocompletado con los valores mientras la pantalla está
-  abierta; se cancela al entrar y al salir. Quitarla del todo requiere que Compose permita sacar un campo del autocompletado.
-- Accesibilidad en Android 9 a 13 (hallazgo 2) y memoria de `TextFieldState` (hallazgo 4).
-- REQUIERE REVISIÓN HUMANA de `core/security/SecureScreen.kt`, `ExcludeFromAutofill.kt` y `SharedRequest.kt`.
-
+- [x] REQUIERE REVISIÓN HUMANA: no se tocó `core/crypto`, `core/session` ni SQL, pero sí la pantalla de registro (autenticación), el manejo de la contraseña maestra en memoria y una librería nueva (zxcvbn4j). Ya pasó por `security-reviewer`; ver la tabla de arriba.
