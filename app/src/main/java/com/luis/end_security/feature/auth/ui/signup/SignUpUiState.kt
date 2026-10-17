@@ -10,6 +10,8 @@ data class SignUpUiState(
     /** Puntaje zxcvbn de 0 a 4; `null` con el campo vacío. */
     val strengthScore: Int? = null,
     val meetsLength: Boolean = false,
+    /** Más de 128 caracteres tras normalizar: no se calcula el puntaje. */
+    val exceedsMaxLength: Boolean = false,
     val confirmationMatches: Boolean = false,
     /** «Las contraseñas no coinciden.» Solo al perder el foco o al intentar crear la cuenta. */
     val showMismatchError: Boolean = false,
@@ -48,5 +50,12 @@ sealed interface SignUpAction {
      */
     class Submit(val password: CharSequence, val confirmation: CharSequence) : SignUpAction {
         override fun toString(): String = "Submit(***)"
+    }
+}
+
+sealed interface SignUpEffect {
+    /** SCR-06 con el correo al que se envió el código. */
+    data class NavigateToVerifyEmail(val email: String) : SignUpEffect {
+        override fun toString(): String = "NavigateToVerifyEmail(***)"
     }
 }

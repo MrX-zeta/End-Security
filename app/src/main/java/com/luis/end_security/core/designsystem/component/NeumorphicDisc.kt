@@ -15,6 +15,8 @@ import androidx.compose.ui.draw.dropShadow
 import androidx.compose.ui.graphics.shadow.Shadow
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import com.luis.end_security.R
@@ -29,18 +31,22 @@ private val ShadowBlur = 20.dp
 /**
  * Disco neumórfico de 112 dp para los íconos destacados (DEC-50): mismo fondo que la
  * pantalla, luz arriba-izquierda y sombra abajo-derecha (desplazamiento 8, difuminado 20),
- * sin brillo interior para que no parezca un botón. El ícono es amarillo de 40 dp.
+ * sin brillo interior para que no parezca un botón. En el onboarding el ícono es amarillo de
+ * 40 dp; en las pantallas claras (Verificar correo) el disco es de 104 y el ícono, carbón.
  */
 @Composable
 fun NeumorphicDisc(
     @DrawableRes icon: Int,
     contentDescription: String?,
     modifier: Modifier = Modifier,
+    size: Dp = DiscSize,
+    iconSize: Dp = DiscIconSize,
+    iconTint: Color = MaterialTheme.colorScheme.primary,
 ) {
     val extended = EndSecurityTheme.extendedColors
     Box(
         modifier = modifier
-            .size(DiscSize)
+            .size(size)
             .dropShadow(
                 shape = CircleShape,
                 shadow = Shadow(
@@ -63,8 +69,8 @@ fun NeumorphicDisc(
         Icon(
             painter = painterResource(icon),
             contentDescription = contentDescription,
-            tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.size(DiscIconSize),
+            tint = iconTint,
+            modifier = Modifier.size(iconSize),
         )
     }
 }

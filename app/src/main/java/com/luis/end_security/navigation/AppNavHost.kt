@@ -18,6 +18,8 @@ import com.luis.end_security.core.designsystem.theme.SystemBarsAppearance
 import com.luis.end_security.feature.auth.ui.login.LoginRoute
 import com.luis.end_security.feature.auth.ui.onboarding.OnboardingRoute
 import com.luis.end_security.feature.auth.ui.signup.SignUpRoute
+import com.luis.end_security.feature.auth.ui.verify.VerifyEmailRoute
+import com.luis.end_security.feature.auth.ui.verify.VerifyEmailViewModel
 import com.luis.end_security.feature.settings.ui.legal.LegalDocument
 import com.luis.end_security.feature.settings.ui.legal.LegalDocumentScreen
 
@@ -59,12 +61,25 @@ fun AppNavHost(
             )
         }
         composable(Routes.SIGN_UP) {
+            // Términos y Aviso de privacidad se abren en una hoja inferior dentro de Crear cuenta;
+            // la ruta LEGAL_DOCUMENT queda para Ajustes.
             SignUpRoute(
                 onBack = { navController.popBackStack() },
-                onOpenLegalDocument = { document ->
-                    navController.navigate(Routes.legalDocument(document)) { launchSingleTop = true }
+                // Crear cuenta sale de la pila: atrás desde Verificar regresa a Onboarding o Iniciar sesión.
+                // TODO(OP-11): navegar solo si el registro responde bien.
+                onNavigateToVerifyEmail = { email ->
+                    navController.navigate(Routes.verifyEmail(email)) {
+                        popUpTo(Routes.SIGN_UP) { inclusive = true }
+                        launchSingleTop = true
+                    }
                 },
             )
+        }
+        composable(
+            route = Routes.VERIFY_EMAIL,
+            arguments = listOf(navArgument(VerifyEmailViewModel.EMAIL_ARG) { type = NavType.StringType }),
+        ) {
+            VerifyEmailRoute(onBack = { navController.popBackStack() })
         }
         composable(
             route = Routes.LEGAL_DOCUMENT,

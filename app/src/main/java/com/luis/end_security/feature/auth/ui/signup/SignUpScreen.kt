@@ -70,7 +70,9 @@ import com.luis.end_security.core.designsystem.theme.EndSecurityTheme
 import com.luis.end_security.core.designsystem.theme.PreviewSurface
 import com.luis.end_security.core.security.ExcludeFromAutofill
 import com.luis.end_security.core.security.SecureScreen
+import com.luis.end_security.feature.auth.domain.MasterPasswordPolicy
 import com.luis.end_security.feature.settings.ui.legal.LegalDocument
+import com.luis.end_security.feature.settings.ui.legal.LegalDocumentSheet
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.debounce
 
@@ -82,7 +84,7 @@ private val ContentHorizontalPadding = 32.dp
 @Composable
 fun SignUpRoute(
     onBack: () -> Unit,
-    onOpenLegalDocument: (LegalDocument) -> Unit,
+    onNavigateToVerifyEmail: (email: String) -> Unit,
     viewModel: SignUpViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -91,7 +93,17 @@ fun SignUpRoute(
     val passwordState = remember { TextFieldState() }
     val confirmationState = remember { TextFieldState() }
     var passwordVisible by remember { mutableStateOf(false) }
+    // Documento legal abierto en la hoja inferior (sobre esta pantalla, sin perder lo escrito).
+    var openedDocument by remember { mutableStateOf<LegalDocument?>(null) }
     val currentOnAction by rememberUpdatedState(viewModel::onAction)
+    val currentOnNavigateToVerifyEmail by rememberUpdatedState(onNavigateToVerifyEmail)
+    LaunchedEffect(viewModel) {
+        viewModel.effects.collect { effect ->
+            when (effect) {
+                is SignUpEffect.NavigateToVerifyEmail -> currentOnNavigateToVerifyEmail(effect.email)
+            }
+        }
+    }
 
     SecureScreen()
     ExcludeFromAutofill()
@@ -135,7 +147,9 @@ fun SignUpRoute(
         },
         onAction = viewModel::onAction,
         onBack = onBack,
-        onOpenLegalDocument = onOpenLegalDocument,
+        openedDocument = openedDocument,
+        onOpenLegalDocument = { openedDocument = it },
+        onDismissLegalDocument = { openedDocument = null },
     )
 }
 
@@ -151,7 +165,9 @@ fun SignUpScreen(
     onSubmit: () -> Unit,
     onAction: (SignUpAction) -> Unit,
     onBack: () -> Unit,
+    openedDocument: LegalDocument?,
     onOpenLegalDocument: (LegalDocument) -> Unit,
+    onDismissLegalDocument: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val focusManager = LocalFocusManager.current
@@ -207,6 +223,7 @@ fun SignUpScreen(
                         onVisibleChange = onPasswordVisibleChange,
                         imeAction = ImeAction.Next,
                         onKeyboardAction = { focusManager.moveFocus(FocusDirection.Down) },
+                        maxLength = MasterPasswordPolicy.MAX_FIELD_LENGTH,
                     )
                     Spacer(Modifier.height(10.dp))
                     PasswordStrength(state)
@@ -243,6 +260,9 @@ fun SignUpScreen(
             }
         }
     }
+    if (openedDocument != null) {
+        LegalDocumentSheet(document = openedDocument, onDismiss = onDismissLegalDocument)
+    }
 }
 
 /** Medidor bajo la contraseña (DEC-31). Sin etiqueta con el campo vacío. */
@@ -252,12 +272,14 @@ private fun PasswordStrength(state: SignUpUiState) {
     val level = score?.let { PasswordStrengthLevel.fromScore(it) }
     val levelColor = level?.colorRole?.toColor() ?: MaterialTheme.colorScheme.outline
     val label = when {
+        state.exceedsMaxLength -> stringResource(R.string.signup_max_length)
         level == null -> null
         !state.meetsLength -> stringResource(R.string.signup_min_length)
         else -> stringResource(level.label)
     }
-    // El aviso de longitud es información neutra; las barras siguen mostrando el puntaje.
-    val labelColor = if (level != null && !state.meetsLength) MaterialTheme.colorScheme.onSurfaceVariant else levelColor
+    // Los avisos de longitud son información neutra; las barras siguen mostrando el puntaje.
+    val lengthNotice = state.exceedsMaxLength || (level != null && !state.meetsLength)
+    val labelColor = if (lengthNotice) MaterialTheme.colorScheme.onSurfaceVariant else levelColor
     StrengthMeter(
         filledBars = level?.filledBars ?: 0,
         color = levelColor,
@@ -290,6 +312,7 @@ private fun ConfirmationField(
         isError = showMismatchError,
         imeAction = ImeAction.Done,
         onKeyboardAction = { onDone() },
+        maxLength = MasterPasswordPolicy.MAX_FIELD_LENGTH,
         modifier = Modifier.onFocusChanged { focus ->
             if (hadFocus && !focus.hasFocus) onFocusLost()
             hadFocus = focus.hasFocus
@@ -363,6 +386,7 @@ private fun SignUpPreviewContent(
     state: SignUpUiState,
     password: String = "",
     confirmation: String = "",
+    openedDocument: LegalDocument? = null,
 ) {
     val passwordState = remember { TextFieldState(password) }
     val confirmationState = remember { TextFieldState(confirmation) }
@@ -377,7 +401,9 @@ private fun SignUpPreviewContent(
             onSubmit = {},
             onAction = {},
             onBack = {},
+            openedDocument = openedDocument,
             onOpenLegalDocument = {},
+            onDismissLegalDocument = {},
         )
     }
 }
@@ -440,5 +466,15 @@ private fun SignUpSmallScreenPreview() {
     SignUpPreviewContent(
         state = ValidEmail.copy(strengthScore = 3, meetsLength = true, termsAccepted = true),
         password = "frase de ejemplo larga",
+    )
+}
+
+@Preview(name = "Crear cuenta · hoja de Términos", device = "spec:width=412dp,height=917dp")
+@Composable
+private fun SignUpLegalSheetPreview() {
+    SignUpPreviewContent(
+        state = ValidEmail.copy(strengthScore = 3, meetsLength = true),
+        password = "frase de ejemplo larga",
+        openedDocument = LegalDocument.Terms,
     )
 }

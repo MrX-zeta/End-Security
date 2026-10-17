@@ -3,6 +3,7 @@ package com.luis.end_security.feature.auth.ui.signup
 import com.luis.end_security.feature.auth.domain.PasswordStrengthEstimator
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
@@ -206,6 +207,58 @@ class SignUpViewModelTest {
 
         assertNull(state.strengthScore)
         assertFalse(state.canSubmit)
+    }
+
+    @Test
+    fun `crear cuenta con la politica cumplida navega a verificar correo`() = kotlinx.coroutines.test.runTest(dispatcher) {
+        fillValidForm()
+        viewModel.onAction(SignUpAction.Submit(StringBuilder(STRONG), StringBuilder(STRONG)))
+        assertEquals(SignUpEffect.NavigateToVerifyEmail("ana.lopez@correo.com"), viewModel.effects.first())
+    }
+
+    @Test
+    fun `crear cuenta sin la politica no navega`() = kotlinx.coroutines.test.runTest(dispatcher) {
+        fillValidForm()
+        estimator.nextScore = 2
+        viewModel.onAction(SignUpAction.Submit(StringBuilder("contraseña2026"), StringBuilder("contraseña2026")))
+        assertNull(kotlinx.coroutines.withTimeoutOrNull(100) { viewModel.effects.first() })
+    }
+
+    @Test
+    fun `pasado el maximo tras NFKC no se mide ni se puede crear la cuenta`() = kotlinx.coroutines.test.runTest(dispatcher) {
+        fillValidForm()
+        estimator.lastLength = -1
+        val expanding = "ﷺ".repeat(20) // 20 unidades, 360 caracteres tras NFKC
+        estimator.nextScore = 4
+        passwords(expanding, expanding)
+
+        assertTrue(state.exceedsMaxLength)
+        assertNull(state.strengthScore)
+        assertEquals("zxcvbn no se llamó", -1, estimator.lastLength)
+        assertFalse(state.canSubmit)
+        assertFalse(viewModel.passesPolicy(StringBuilder(expanding), StringBuilder(expanding)))
+        assertEquals("tampoco al revisar la política", -1, estimator.lastLength)
+    }
+
+    @Test
+    fun `la confirmacion en NFD coincide con la contrasena en NFC`() {
+        estimator.nextScore = 3
+        passwords("contraseña-de-tortugas", "contraseña-de-tortugas")
+        assertTrue(state.confirmationMatches)
+    }
+
+    @Test
+    fun `la longitud se cuenta en caracteres normalizados`() {
+        estimator.nextScore = 4
+        passwords("contraseña1", "contraseña1") // 12 unidades UTF-16, 11 caracteres
+        assertFalse(state.meetsLength)
+    }
+
+    @Test
+    fun `el estimador recibe el texto normalizado`() {
+        estimator.nextScore = 3
+        passwords("contraseña-de-tortugas", "")
+        assertEquals("contraseña-de-tortugas".length, estimator.lastLength)
     }
 
     @Test
