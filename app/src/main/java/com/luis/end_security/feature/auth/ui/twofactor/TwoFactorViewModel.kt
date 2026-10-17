@@ -6,10 +6,14 @@ import com.luis.end_security.core.common.Countdown
 import com.luis.end_security.core.designsystem.component.CodeFieldFilter
 import com.luis.end_security.feature.auth.domain.SecondFactorResult
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.TimeSource
@@ -40,6 +44,11 @@ sealed interface TwoFactorAction {
     data object Submit : TwoFactorAction
 }
 
+sealed interface TwoFactorEffect {
+    /** SCR-39: primera descarga de la bóveda. */
+    data object NavigateToVault : TwoFactorEffect
+}
+
 @HiltViewModel
 class TwoFactorViewModel @Inject constructor(
     timeSource: TimeSource,
@@ -47,6 +56,9 @@ class TwoFactorViewModel @Inject constructor(
 
     private val _state = MutableStateFlow(TwoFactorUiState())
     val state: StateFlow<TwoFactorUiState> = _state.asStateFlow()
+
+    private val _effects = Channel<TwoFactorEffect>(Channel.BUFFERED)
+    val effects: Flow<TwoFactorEffect> = _effects.receiveAsFlow()
 
     private val lockoutCountdown = Countdown(timeSource)
 
@@ -62,14 +74,15 @@ class TwoFactorViewModel @Inject constructor(
 
     private fun submit() {
         if (!_state.value.canSubmit) return
-        // TODO(OP-15): enviar el código TOTP y llamar a onResult con la respuesta.
-        //  Si se acepta, el destino es «Bóveda · cargando» (SCR-39).
+        // TODO(OP-15): enviar el código TOTP y llamar a onResult con la respuesta; solo con
+        //  Accepted se va a «Bóveda · cargando». Mientras tanto se navega directo (temporal).
+        viewModelScope.launch { _effects.send(TwoFactorEffect.NavigateToVault) }
     }
 
     /** Aplica la respuesta del servidor (OP-15). */
     internal fun onResult(result: SecondFactorResult) {
         when (result) {
-            SecondFactorResult.Accepted -> Unit // TODO(OP-15): ir a SCR-39.
+            SecondFactorResult.Accepted -> Unit // TODO(OP-15): enviar NavigateToVault aquí.
             // Sin intentos restantes: DEC-32 bloquea al quinto. Las casillas se vacían.
             SecondFactorResult.Rejected -> _state.update { it.copy(code = "", wrongCode = true).withCanSubmit() }
             is SecondFactorResult.LockedOut -> {

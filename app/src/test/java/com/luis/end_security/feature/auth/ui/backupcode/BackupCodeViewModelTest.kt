@@ -3,6 +3,7 @@ package com.luis.end_security.feature.auth.ui.backupcode
 import com.luis.end_security.feature.auth.domain.SecondFactorResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
@@ -84,5 +85,12 @@ class BackupCodeViewModelTest {
     @Test
     fun `la accion de enviar no imprime el codigo`() {
         assertFalse(BackupCodeAction.Submit(StringBuilder("K7QD2M9X")).toString().contains("K7QD"))
+    }
+
+    @Test
+    fun `entrar con un codigo valido va a la boveda`() = scope.runTest {
+        viewModel.onAction(BackupCodeAction.CodeLengthChanged(8))
+        viewModel.onAction(BackupCodeAction.Submit(StringBuilder("K7QD2M9X")))
+        assertEquals(BackupCodeEffect.NavigateToVault, viewModel.effects.first())
     }
 }

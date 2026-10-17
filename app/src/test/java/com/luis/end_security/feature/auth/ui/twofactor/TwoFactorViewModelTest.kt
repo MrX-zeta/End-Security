@@ -3,6 +3,7 @@ package com.luis.end_security.feature.auth.ui.twofactor
 import com.luis.end_security.feature.auth.domain.SecondFactorResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
@@ -91,5 +92,12 @@ class TwoFactorViewModelTest {
         viewModel.onAction(TwoFactorAction.CodeChanged("270915"))
         assertFalse(state.toString().contains("270915"))
         assertFalse(TwoFactorAction.CodeChanged("270915").toString().contains("270915"))
+    }
+
+    @Test
+    fun `continuar con 6 digitos va a la boveda`() = scope.runTest {
+        viewModel.onAction(TwoFactorAction.CodeChanged("270915"))
+        viewModel.onAction(TwoFactorAction.Submit)
+        assertEquals(TwoFactorEffect.NavigateToVault, viewModel.effects.first())
     }
 }

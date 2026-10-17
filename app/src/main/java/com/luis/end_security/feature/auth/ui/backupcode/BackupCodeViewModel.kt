@@ -6,10 +6,14 @@ import com.luis.end_security.core.common.Countdown
 import com.luis.end_security.feature.auth.domain.BackupCodeFormat
 import com.luis.end_security.feature.auth.domain.SecondFactorResult
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.TimeSource
@@ -42,6 +46,11 @@ sealed interface BackupCodeAction {
     }
 }
 
+sealed interface BackupCodeEffect {
+    /** SCR-39: primera descarga de la bóveda. */
+    data object NavigateToVault : BackupCodeEffect
+}
+
 @HiltViewModel
 class BackupCodeViewModel @Inject constructor(
     timeSource: TimeSource,
@@ -54,6 +63,9 @@ class BackupCodeViewModel @Inject constructor(
 
     /** Cambia cada vez que la pantalla debe vaciar el campo. */
     val clearRequests: StateFlow<Int> = _clearRequests.asStateFlow()
+
+    private val _effects = Channel<BackupCodeEffect>(Channel.BUFFERED)
+    val effects: Flow<BackupCodeEffect> = _effects.receiveAsFlow()
 
     private var codeLength = 0
     private val lockoutCountdown = Countdown(timeSource)
@@ -74,13 +86,15 @@ class BackupCodeViewModel @Inject constructor(
         if (!_state.value.canSubmit || !BackupCodeFormat.isValid(code)) return
         // TODO(OP-16): poner isLoading = true antes de enviar e ignorar envíos mientras haya uno
         //  activo (un doble toque contaría como intento fallido hacia el bloqueo de DEC-32);
-        //  enviar el código y llamar a onResult con la respuesta.
+        //  enviar el código y llamar a onResult con la respuesta; solo con Accepted se va a
+        //  «Bóveda · cargando». Mientras tanto se navega directo (temporal).
+        viewModelScope.launch { _effects.send(BackupCodeEffect.NavigateToVault) }
     }
 
     /** Aplica la respuesta del servidor (OP-16). */
     internal fun onResult(result: SecondFactorResult) {
         when (result) {
-            SecondFactorResult.Accepted -> Unit // TODO(OP-16): ir a la bóveda (SCR-39).
+            SecondFactorResult.Accepted -> Unit // TODO(OP-16): enviar NavigateToVault aquí.
             SecondFactorResult.Rejected -> {
                 _state.update { it.copy(invalidCode = true).withCanSubmit() }
                 _clearRequests.update { it + 1 }

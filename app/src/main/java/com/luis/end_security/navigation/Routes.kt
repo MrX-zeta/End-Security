@@ -21,6 +21,21 @@ object Routes {
     /** SCR-08: código de respaldo. */
     const val BACKUP_CODE = "backup_code"
 
+    /** SCR-09. Por ahora solo se llega con la ruta de depuración; LockGuard llegará con VaultSession. */
+    const val UNLOCK = "unlock"
+
+    /** SCR-39: primera descarga de la bóveda después de entrar. */
+    const val VAULT_LOADING = "vault_loading"
+
+    /** SCR-10 (marcador hasta que se implemente). */
+    const val VAULT = "vault"
+
+    /**
+     * Rutas con las que se puede abrir la app en depuración (`MainActivity`). Solo Desbloquear:
+     * ninguna pantalla con datos de la bóveda debe abrirse sin pasar por el acceso.
+     */
+    val DEBUG_START_ROUTES = setOf(UNLOCK)
+
     /** SCR-06; el argumento es el correo al que se envió el código. */
     const val VERIFY_EMAIL = "verify_email/{${VerifyEmailViewModel.EMAIL_ARG}}"
 

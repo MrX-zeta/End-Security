@@ -57,6 +57,7 @@ private val ContentHorizontalPadding = 32.dp
 @Composable
 fun BackupCodeRoute(
     onBack: () -> Unit,
+    onNavigateToVault: () -> Unit,
     viewModel: BackupCodeViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -65,6 +66,14 @@ fun BackupCodeRoute(
     // vive solo aquí, en memoria (sin rememberSaveable ni rememberTextFieldState).
     val codeState = remember { TextFieldState() }
     val currentOnAction by rememberUpdatedState(viewModel::onAction)
+    val currentOnNavigateToVault by rememberUpdatedState(onNavigateToVault)
+    LaunchedEffect(viewModel) {
+        viewModel.effects.collect { effect ->
+            when (effect) {
+                BackupCodeEffect.NavigateToVault -> currentOnNavigateToVault()
+            }
+        }
+    }
 
     SecureScreen()
     ExcludeFromAutofill()

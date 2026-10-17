@@ -5,15 +5,18 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.luis.end_security.BuildConfig
 import com.luis.end_security.core.designsystem.theme.SystemBarsAppearance
 import com.luis.end_security.feature.auth.ui.backupcode.BackupCodeRoute
 import com.luis.end_security.feature.auth.ui.login.LoginRoute
@@ -24,14 +27,20 @@ import com.luis.end_security.feature.auth.ui.verify.VerifyEmailRoute
 import com.luis.end_security.feature.auth.ui.verify.VerifyEmailViewModel
 import com.luis.end_security.feature.settings.ui.legal.LegalDocument
 import com.luis.end_security.feature.settings.ui.legal.LegalDocumentScreen
+import com.luis.end_security.feature.unlock.ui.UnlockRoute
+import com.luis.end_security.feature.vault.ui.VaultLoadingScreen
+import com.luis.end_security.feature.vault.ui.VaultPlaceholderScreen
+import kotlinx.coroutines.delay
 
 @Composable
 fun AppNavHost(
     modifier: Modifier = Modifier,
+    /** Solo en depuración: abre la app en una de [Routes.DEBUG_START_ROUTES]. */
+    debugStartRoute: String? = null,
     startViewModel: StartDestinationViewModel = hiltViewModel(),
 ) {
     val startRoute by startViewModel.startRoute.collectAsStateWithLifecycle()
-    val route = startRoute
+    val route = debugStartRoute ?: startRoute
     if (route == null) {
         // Lectura de DataStore en curso (milisegundos): solo el fondo.
         Box(modifier.fillMaxSize().background(MaterialTheme.colorScheme.background))
@@ -68,10 +77,37 @@ fun AppNavHost(
             TwoFactorRoute(
                 onBack = { navController.popBackStack() },
                 onUseBackupCode = { navController.navigate(Routes.BACKUP_CODE) { launchSingleTop = true } },
+                // TODO(OP-15): solo cuando el servidor acepte el código.
+                onNavigateToVault = { navController.navigateClearingStack(Routes.VAULT_LOADING) },
             )
         }
         composable(Routes.BACKUP_CODE) {
-            BackupCodeRoute(onBack = { navController.popBackStack() })
+            BackupCodeRoute(
+                onBack = { navController.popBackStack() },
+                // TODO(OP-16): solo cuando el servidor acepte el código.
+                onNavigateToVault = { navController.navigateClearingStack(Routes.VAULT_LOADING) },
+            )
+        }
+        composable(Routes.UNLOCK) {
+            // Cerrar sesión deja Iniciar sesión sola en la pila.
+            UnlockRoute(onNavigateToLogin = { navController.navigateClearingStack(Routes.LOGIN) })
+        }
+        composable(Routes.VAULT_LOADING) {
+            // TODO(OP-32): al terminar la primera descarga, ir a la Bóveda (SCR-10). Mientras tanto,
+            //  en depuración se pasa al marcador tras 2 s; en release se queda aquí.
+            if (BuildConfig.DEBUG) {
+                LaunchedEffect(Unit) {
+                    delay(2_000)
+                    navController.navigate(Routes.VAULT) {
+                        popUpTo(Routes.VAULT_LOADING) { inclusive = true }
+                    }
+                }
+            }
+            // TODO(DEC-56): cada pestaña lleva a su raíz cuando existan Salud, Generador y Ajustes.
+            VaultLoadingScreen(onTabSelected = {})
+        }
+        composable(Routes.VAULT) {
+            VaultPlaceholderScreen(onTabSelected = {})
         }
         composable(Routes.SIGN_UP) {
             // Términos y Aviso de privacidad se abren en una hoja inferior dentro de Crear cuenta;
@@ -103,5 +139,13 @@ fun AppNavHost(
                 LegalDocumentScreen(document = document, onBack = { navController.popBackStack() })
             }
         }
+    }
+}
+
+/** Navega a [route] y saca de la pila todo lo anterior: atrás ya no regresa al acceso. */
+private fun NavHostController.navigateClearingStack(route: String) {
+    navigate(route) {
+        popUpTo(graph.id) { inclusive = true }
+        launchSingleTop = true
     }
 }

@@ -33,6 +33,8 @@ android {
     }
     buildFeatures {
         compose = true
+        // BuildConfig.DEBUG: rutas de depuración que R8 quita en release.
+        buildConfig = true
     }
 }
 

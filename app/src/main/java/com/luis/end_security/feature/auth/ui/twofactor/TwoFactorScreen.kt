@@ -18,7 +18,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalFocusManager
@@ -44,9 +46,18 @@ private val ContentHorizontalPadding = 32.dp
 fun TwoFactorRoute(
     onBack: () -> Unit,
     onUseBackupCode: () -> Unit,
+    onNavigateToVault: () -> Unit,
     viewModel: TwoFactorViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val currentOnNavigateToVault by rememberUpdatedState(onNavigateToVault)
+    LaunchedEffect(viewModel) {
+        viewModel.effects.collect { effect ->
+            when (effect) {
+                TwoFactorEffect.NavigateToVault -> currentOnNavigateToVault()
+            }
+        }
+    }
     // Sin SecureScreen: el código dura 30 s y el servidor no lo acepta dos veces (anti-replay).
     TwoFactorScreen(state = state, onAction = viewModel::onAction, onBack = onBack, onUseBackupCode = onUseBackupCode)
 }
