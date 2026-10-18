@@ -20,7 +20,8 @@ Antes de escribir código aquí, busca en `ai/context/knowledge-graph.json`: DEC
 - Nonce nuevo en **cada** cifrado. Nunca derivarlo de un contador ni reutilizarlo.
 - Fallo de la etiqueta GCM = dato alterado o contraseña incorrecta: lanza un error tipado, nunca devuelvas datos parciales.
 - Comparaciones de secretos en tiempo constante (`MessageDigest.isEqual`).
-- Secretos en `ByteArray`/`CharArray` envueltos en `SecureBytes` con `wipe()`; `toString()` devuelve `"***"`.
+- Secretos (DEC-27): `ByteArray` solo **dentro** de las primitivas de `core/crypto` (`Argon2idKdf`, `Hkdf`, `MasterPasswordEncoder`, `AesGcm`), probadas con vectores y con `wipe()` en `finally`. En cuanto un secreto sale de ahí o se guarda en un campo (`VaultSession`, repositorios, casos de uso), va en `SecureBytes`: `use { }` para leerlo, `wipe()`/`close()`, error si se lee después de borrar, `toString()` = `"SecureBytes(***)"` y `equals` por identidad. Funciones de alto nivel: `KeyDerivation`.
+- Ojo: `SecureBytes.use { }` solo presta los bytes; no lo cierra como el `use` de Kotlin. Para borrarlo al terminar, `try { … } finally { close() }`.
 - Llaves del Keystore: AES-256 GCM, no exportables; la biométrica con `setUserAuthenticationRequired(true)` y `setInvalidatedByBiometricEnrollment(true)`.
 
 ## Pruebas exigidas por cada función nueva
