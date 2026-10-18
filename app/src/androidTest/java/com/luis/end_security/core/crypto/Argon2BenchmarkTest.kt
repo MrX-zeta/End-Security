@@ -15,8 +15,10 @@ import org.junit.runner.RunWith
  * Medición de Argon2id para elegir los parámetros (PEND-01). Sin interfaz: corre con
  *
  * ```
- * ./gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.luis.end_security.core.crypto.Argon2BenchmarkTest
+ * ./gradlew connectedBenchmarkAndroidTest -PbenchmarkBuild -Pandroid.testInstrumentationRunnerArguments.class=com.luis.end_security.core.crypto.Argon2BenchmarkTest
  * ```
+ *
+ * (`benchmark` no es depurable: mide como en release. Con `connectedDebugAndroidTest` sale más lento.)
  *
  * y deja la tabla en logcat (etiqueta `Argon2Benchmark`) y en la salida de la instrumentación.
  * La contraseña y la sal son de prueba; no se registra ninguna llave.
@@ -46,7 +48,9 @@ class Argon2BenchmarkTest {
         configs.forEach { config ->
             val params = KdfParams(memoryKiB = config.memoryMiB * 1024, iterations = config.iterations, parallelism = 1)
             val row = try {
-                runOnce(params) // calentamiento
+                // Calentamiento: justo después de instalar, ART todavía no compila la app y las
+                // primeras corridas salen varias veces más lentas.
+                repeat(WARMUP_RUNS) { runOnce(params) }
                 val runs = List(RUNS) { runOnce(params) }
                 measured++
                 val sorted = runs.sorted()
@@ -75,5 +79,6 @@ class Argon2BenchmarkTest {
     private companion object {
         const val TAG = "Argon2Benchmark"
         const val RUNS = 5
+        const val WARMUP_RUNS = 3
     }
 }

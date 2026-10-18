@@ -26,6 +26,25 @@ android {
                 enable = true
             }
         }
+        // Solo para medir Argon2 (PEND-01): como release pero instrumentable. No depurable (ART
+        // optimiza igual que en release), firmado con la llave de depuración y sin R8, para que
+        // no quite el código que usa la prueba. No se publica.
+        create("benchmark") {
+            initWith(getByName("release"))
+            // Otra app (otro id): no puede actualizar ni ser actualizada por release o debug.
+            applicationIdSuffix = ".benchmark"
+            versionNameSuffix = "-benchmark"
+            isDebuggable = false
+            signingConfig = signingConfigs.getByName("debug")
+            matchingFallbacks += listOf("release")
+            optimization {
+                enable = false
+            }
+        }
+    }
+    // Las pruebas instrumentadas usan debug; con -PbenchmarkBuild se corren contra benchmark.
+    if (project.hasProperty("benchmarkBuild")) {
+        testBuildType = "benchmark"
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
