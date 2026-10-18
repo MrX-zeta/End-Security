@@ -1,135 +1,121 @@
-# Reporte · Tarea 07 · Cierre de DEC-31, bloqueo local y primer código de `core/crypto`
+# Reporte · Tarea 08 · Ícono, medición en release, `SecureBytes` y AES-256-GCM
 
 **Estado:** hecha
-**Fecha:** 2026-10-17
+**Fecha:** 2026-10-18
 
 ## Qué se hizo
 
-### Paso 1 · Ajustes de DEC-31 (v1.3.7)
-- **`MasterPasswordNormalizer`:** quita U+FE0E/FE0F **antes** de NFKC. «A»+FE0F+U+030A ahora da «Å», y normalizar dos veces da lo mismo.
-- **`MasterPasswordPolicy`:** además rechaza:
-  - U+FFF9–FFFB;
-  - el uso privado (U+E000–F8FF y los planos 15 y 16);
-  - los no-caracteres (U+FDD0–FDEF y los que terminan en FFFE o FFFF).
-  - ZWJ, ZWNJ y las etiquetas siguen aceptándose en cualquier posición: es el riesgo aceptado, y tiene una prueba que lo documenta.
-- **Mensaje nuevo:** «Tu contraseña tiene caracteres que no se pueden usar (invisibles o emojis muy nuevos)».
+### Paso 1 · Ícono (DEC-59)
+- **Instalación:** recursos copiados según `LEEME.md`. Se borraron el fondo de la plantilla y los 10 `.webp`; `colors.xml` quedó solo con `ic_launcher_background`.
+  - Ya está en el commit `6330eb6` (`feat: ícono de la app (DEC-59)`), hecho por la persona.
+  - La carpeta `ai/handoff/icono/` nunca se versionó; la borré después de comprobar que los recursos instalados son idénticos.
+- **Comprobación en el emulador (Android 16):**
+  - en el cajón, el escudo amarillo sobre fondo carbón;
+  - con «Themed icons», el sistema tiñe la capa monocromática y la cerradura queda como hueco. El lanzador de Pixel solo tematiza la pantalla de inicio, así que para verlo puse el ícono ahí un momento;
+  - en la pantalla de inicio de Android 12+, el ícono sobre su fondo.
+  - Al terminar dejé el emulador como estaba.
+  - Lint no da advertencias del ícono.
 
-### Paso 2 · Bloqueo local de Desbloquear (DEC-08)
-- **`core/datastore/UnlockLockout`:** reglas puras. Después de 5 fallos, 1 min; luego 2, 4 y 8, hasta un tope de 15 min (sin desbordarse).
-  - Cuánto falta:
-    - en el mismo arranque manda `elapsedRealtime`;
-    - si `elapsedRealtime` es menor que cuando empezó el bloqueo, el teléfono se reinició y manda el reloj de pared;
-    - nunca devuelve más que la espera que toca.
-- **`core/datastore/UnlockAttemptStore`:**
-  - usa el archivo `settings` de DataStore;
-  - `recordFailure`, `recordSuccess` (borra todo) y `remainingLockout`;
-  - **claves nuevas para KV-DATASTORE:** `unlock_failures`, `unlock_locked_until_wall` y `unlock_locked_until_elapsed`.
-- **`core/common/DeviceClock`:** reloj de pared y `elapsedRealtime`, inyectados con `TimeModule`.
-- **`UnlockAttemptRepository`** (dominio) e implementación en `data`.
-- **`UnlockViewModel`:**
-  - al abrir, retoma un bloqueo que siga activo;
-  - `onWrongPassword()` cuenta el fallo;
-  - desde el quinto, el bloqueo reemplaza al error.
-  - Se quitó `onLockedOut(minutes)`, porque el bloqueo ya no viene del servidor.
+### Paso 2 · `buildType` `benchmark`
+- **Configuración** en `app/build.gradle.kts`:
+  - `initWith(release)`, `isDebuggable = false`, firma de depuración, sin R8 y `matchingFallbacks += "release"`;
+  - además, `applicationIdSuffix = ".benchmark"` y `versionNameSuffix = "-benchmark"` (hallazgo 8). Así es otra app: no reemplaza ni la puede reemplazar la de release o debug, y no hace falta desinstalar End Security para medir.
+- **Pruebas:** `testBuildType = "benchmark"` solo con `-PbenchmarkBuild`. Sin la propiedad, las pruebas siguen en debug.
+- **AGP 9 lo instrumenta sin problema.** `aapt2` lo confirma: el APK es `com.luis.end_security.benchmark`, la prueba es `com.luis.end_security.benchmark.test` y apunta a ese paquete.
+- **`Argon2BenchmarkTest`:** subí el calentamiento a **3 corridas por configuración**. Justo después de instalar, ART todavía no compila la app y la primera corrida salía de 3 a 6 veces más lenta (en el emulador, 746 ms contra 115 ms para 19 MiB/t2). Con 3 calentamientos los números salen estables desde la primera instalación.
+- **Comando para la persona del equipo** (con un solo dispositivo conectado, o eligiéndolo con `ANDROID_SERIAL`):
 
-### Paso 3 · `core/crypto` (DEC-05, DEC-28), con el plan aprobado en el chat
-- **Dependencia:** `org.bouncycastle:bcprov-jdk18on:1.86` (última estable, septiembre de 2026). Solo la API ligera, sin registrar un proveedor JCA.
-- **`KdfParams`:**
-  - acepta si se alcanza alguna configuración de OWASP (46 MiB/t1, 19/t2, 12/t3, 9/t4, 7/t5);
-  - topes: 128 MiB, t ≤ 10, p ≤ 4 y memoria × pasadas ≤ 2 × (64 MiB × 3).
-- **`Argon2idKdf.derive`:** `ARGON2_id`, versión 0x13, salida de 32 B y sal de **exactamente 16 B** (DEC-06, `users_kdf_salt_chk`). En `finally` borra las copias de la sal y los parámetros que guarda Bouncy Castle (`clear()`).
-- **`Hkdf`:**
-  - HKDF-SHA256 sin sal, con `encKey` (`end-security/enc`) y `authKey` (`end-security/auth`);
-  - rechaza una `master_key` que no mida 32 B o que esté en ceros, por si se borró antes de tiempo.
-- **`MasterPasswordEncoder`:** UTF-8 con `REPORT`.
-  - Antes de codificar, busca surrogates sueltos (ICU y la JVM no tratan igual uno al final).
-  - `OVERFLOW` también es error.
-  - El búfer intermedio se borra en `finally`.
-- **`wipe()`:** las llaves intermedias de las pruebas se borran en `finally`.
-- Las funciones internas sin validación llevan `@VisibleForTesting(otherwise = PRIVATE)`.
-- **Nada está conectado a las pantallas.**
-- **`tools/vectors/master_key_chain.py`:** recalcula el vector propio con argon2-cffi 25.1.0 y `hmac`, y comprueba su HKDF contra RFC 5869.
+  ```bash
+  ./gradlew connectedBenchmarkAndroidTest -PbenchmarkBuild -Pandroid.testInstrumentationRunnerArguments.class=com.luis.end_security.core.crypto.Argon2BenchmarkTest
+  ```
 
-### Paso 4 · Medición (PEND-01)
-`Argon2BenchmarkTest` (instrumentada, sin interfaz) mide 1 calentamiento más 5 corridas por configuración. Deja la tabla en logcat (`Argon2Benchmark`) y en la salida de `am instrument`. Atrapa `OutOfMemoryError`.
+  La tabla queda en `adb logcat -s Argon2Benchmark:I` y en `app/build/outputs/androidTest-results/connected/benchmark/<dispositivo>/logcat-…medir_argon2id.txt`. **`assembleBenchmark` no se distribuye.**
 
-**Emulador** (Google sdk_gphone64_x86_64 · Android 16, API 36 · `Runtime.maxMemory()` = 192 MiB · APK depurable: sí):
+**Medición** (la persona la corrió el 2026-10-18 con su Redmi y el emulador conectados; salió en los dos):
 
-| Memoria | t | p | Mediana (ms) | Peor (ms) | Corridas (ms) |
-|---|---|---|---|---|---|
-| 19 MiB | 2 | 1 | 416 | 447 | 397, 416, 378, 447, 444 |
-| 46 MiB | 1 | 1 | 549 | 625 | 496, 525, 605, 625, 549 |
-| 64 MiB | 3 | 1 | 1736 | 1929 | 1858, 1736, 1712, 1717, 1929 |
+| Dispositivo | Memoria | t | p | Mediana (ms) | Peor (ms) | Corridas (ms) |
+|---|---|---|---|---|---|---|
+| **Xiaomi 23090RA98G (Redmi Note 13 Pro 5G)**, Android 14 (API 34), `maxMemory` 256 MiB, depurable: **no** | 19 MiB | 2 | 1 | 57 | 60 | 57, 56, 57, 58, 60 |
+| | 46 MiB | 1 | 1 | 129 | 135 | 124, 135, 129, 132, 105 |
+| | 64 MiB | 3 | 1 | 343 | 345 | 345, 343, 336, 340, 344 |
+| Emulador Pixel 7 Pro, Android 16 (API 36), `maxMemory` 192 MiB, depurable: **no** | 19 MiB | 2 | 1 | 132 | 161 | 132, 161, 126, 135, 124 |
+| | 46 MiB | 1 | 1 | 201 | 288 | 193, 201, 288, 210, 194 |
+| | 64 MiB | 3 | 1 | 587 | 615 | 587, 596, 615, 584, 540 |
 
-**Teléfono más modesto del equipo:** pendiente. Debe correrla una persona del equipo con el teléfono conectado (yo no toco los teléfonos físicos):
+**Ojo:** el Redmi Note 13 Pro (Snapdragon 7s Gen 2) es de gama media-alta. Si el teléfono de la otra persona del equipo es más modesto, conviene medirlo también antes de elegir.
 
-```bash
-./gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.luis.end_security.core.crypto.Argon2BenchmarkTest
-```
+### Paso 3 · `SecureBytes` (DEC-27)
+- **`SecureBytes`:**
+  - copia defensiva (`copyOf`) y `use { bytes -> … }` sin sacar los bytes;
+  - `wipe()`; `close()` hace `wipe()`; leer después lanza `IllegalStateException`;
+  - `toString()` = `"SecureBytes(***)"`, `equals`/`hashCode` por identidad;
+  - `adopt` (`internal`) toma arreglos recién creados en `core/crypto` sin copiarlos.
+  - **`use` y `wipe` se excluyen** con un `ReentrantReadWriteLock` (hallazgo 1): el autobloqueo no puede borrar la llave mientras otro hilo cifra con ella. `wipe` primero marca y después borra.
+- **`KeyDerivation`:** `deriveMasterKey(normalizada, sal, params)`, `encKey(SecureBytes)` y `authKey(SecureBytes)` devuelven `SecureBytes` y borran los intermedios. Dan el mismo vector propio de la tarea 07.
+- **`.claude/rules/crypto.md`:** dice dónde va `ByteArray` (dentro de las primitivas) y dónde `SecureBytes`, más la advertencia sobre `use`.
 
-La tabla aparece en `adb logcat -s Argon2Benchmark:I`. **Aviso (hallazgo 2):** la medición corre en un APK depurable, y en ART eso puede hacer a Bouncy Castle varias veces más lento que en release. Los números sirven para comparar las configuraciones entre sí, pero probablemente exageran el tiempo real.
+### Paso 4 · AES-256-GCM (DEC-05, DEC-28, DEC-29), con el plan aprobado
+- **`AesGcm`:** JCA `AES/GCM/NoPadding`, etiqueta de 128 bits y un `Cipher` nuevo por llamada.
+  - `seal`: nonce de 12 B con `SecureRandom` dentro.
+  - `sealWithNonce`: solo para los vectores.
+  - `open`: `AuthenticationFailed` (sin mensaje ni causa) cuando falla la etiqueta, y también con un cifrado truncado, `BadPaddingException` o `IllegalBlockSizeException` (hallazgo 3).
+  - Llave de 32 B **que no esté en ceros** (hallazgo 1, en `seal` y `open`) y nonce de 12 B.
+- **`Sealed`:** guarda copias; `toString` solo da tamaños.
+- **`VaultKey.generate()`:** 32 B de `SecureRandom` dentro de `SecureBytes`.
+- **`ProtectedVaultKey`:**
+  - AAD = `end-security/vault-key|userId|keyVersion` en UTF-8; rechaza un `userId` vacío o con `|`, y `keyVersion` debe ser ≥ 1 (como `users_key_version_chk`);
+  - `wrap` exige una `vault_key` de 32 B que no esté en ceros (hallazgo 6);
+  - `unwrap` exige un texto claro de 32 B que no esté en ceros; si no, borra y lanza `AuthenticationFailed`.
+- **`app/lint.xml`:** `VisibleForTests` es error, así que `sealWithNonce`, `argon2id` y `sha256` no se pueden usar fuera de las pruebas (hallazgo 4).
+- Nada está conectado a pantallas ni a Room.
 
 ## Compilación y pruebas (salida real)
-- `testDebugUnitTest`, `assembleDebug`, `assembleDebugAndroidTest` y `assembleRelease`: `BUILD SUCCESSFUL`. **181 pruebas unitarias, 0 fallas.** Nuevas:
-  - **`Argon2idKdfTest` (4):** **RFC 9106 §5.3** (`0d640df5…6b01e659`); no toca la contraseña ni la sal; otra sal da otra llave; la sal debe medir 16 B.
-  - **`HkdfTest` (5):** **RFC 5869, casos 1, 2 y 3**; sal vacía igual a sin sal; `enc_key` ≠ `auth_key`.
-  - **`MasterKeyChainTest` (6):**
-    - vector propio «ñ» (NFD) + «２０２６» + «❤» con U+FE0F → UTF-8 → `master_key` `0bfa616a…`, `enc_key` `3d11ddea…` y `auth_key` `146cb3e7…`, calculados aparte con argon2-cffi;
-    - surrogates sueltos al inicio, al final y en medio; emoji con su pareja; HKDF rechaza una llave en ceros.
-  - **`KdfParamsTest` (4):** OWASP, mínimos, topes y costo conjunto.
-  - **`UnlockLockoutTest` (9):** 5 → 1 min, 6 → 2 min, tope de 15; adelantar o atrasar la hora no cambia nada; tras un reinicio manda el reloj de pared.
-  - **`UnlockAttemptStoreTest` (5):** usa un DataStore en memoria, porque el de archivo falla al renombrar en la JVM de Windows. Cubre: cerrar la app no reinicia el bloqueo, un acierto reinicia, cambiar la hora, reinicio.
-  - **`UnlockViewModelTest` (9):** el quinto fallo bloquea 1 min; un bloqueo guardado sigue al abrir.
-  - **`ForbiddenCharactersTest` (19)** y **`MasterPasswordNormalizerTest` (11):** casos nuevos del Paso 1.
-- **Instrumentadas en el emulador: 11, OK.** Nuevas:
-  - `MasterKeyChainDeviceTest` (3): **el mismo vector con el ICU del teléfono**, más el surrogate al final y el orden FE0F antes de NFKC;
-  - `UnlockAttemptStoreDeviceTest` (1): DataStore de archivo real;
-  - `Argon2BenchmarkTest`.
-- **R8:** compila sin reglas.
-  - Como todavía nada usa `core/crypto`, R8 quita Bouncy Castle entero.
-  - Hice una compilación de prueba con `-keep` sobre `core/crypto`: R8 no dio ninguna advertencia de clases faltantes y el APK creció 27 KiB. Quité la regla temporal; `rules.keep` no cambió.
-  - **No hizo falta ningún `-dontwarn`.**
-- **Código fuente de Bouncy Castle 1.86, revisado:**
-  - `Argon2BytesGenerator` borra sus bloques al devolverlos (`deallocate` → `clear`);
-  - `Argon2Parameters` y su `Builder` tienen `clear()`;
-  - `HKDFParameters` clona el IKM y no tiene `clear()`.
+- `testDebugUnitTest`, `assembleDebug`, `assembleDebugAndroidTest`, `assembleRelease` y `lintDebug`: `BUILD SUCCESSFUL` y lint con 0 errores. `assembleBenchmark` también pasa.
+- **206 pruebas unitarias, 0 fallas.** Nuevas:
+  - **`AesGcmTest` (11):**
+    - **McGrew-Viega casos 13, 14, 15 y 16** (los vectores de AES-256 con nonce de 96 bits que usa el CAVS de NIST);
+    - alterar 1 bit del cifrado, la etiqueta, el nonce, la AAD o la llave → `AuthenticationFailed`;
+    - **10 000** `seal` sin nonce repetido (la regla pide 10 000 y la tarea 1 000; hice 10 000);
+    - truncado → `AuthenticationFailed`; llave en ceros rechazada; tamaños; `toString`.
+  - **`ProtectedVaultKeyTest` (6):** ida y vuelta (`pvk` de 12 + 48 B); fallo con otro `userId`, otra `keyVersion` u otra `enc_key`; `pvk` alterada; texto de 16 B con la AAD correcta; `wrap` con una `vault_key` de 16 B o en ceros; `userId` con `|` o vacío.
+  - **`SecureBytesTest` (9):** `toString`, copia defensiva, error tras `wipe`/`close`, la referencia prestada queda en ceros, **`wipe` espera a que termine un `use` en otro hilo**, identidad y `KeyDerivation` con el vector propio.
+- **Instrumentadas en el emulador: 18, OK.** `AesGcmDeviceTest` (7):
+  - **el proveedor es `AndroidOpenSSL` (Conscrypt)**;
+  - casos 13, 14, 15 y 16;
+  - alterar la etiqueta, el cifrado, el nonce o la AAD;
+  - `pvk` de ida y vuelta.
+- **Medición con el sufijo `.benchmark`:** no la pude repetir en el emulador porque se quedó sin espacio (340 MB libres, por debajo del mínimo de Android) y no instala nada. No borré otras apps del emulador. Comprobé con `aapt2` que los paquetes están bien. Ahora el emulador tampoco tiene End Security instalada.
 
-## Revisión de seguridad (`security-reviewer`, Pasos 1 y 3, y vistazo al 2)
-Sin hallazgos críticos ni altos. Confirmó Argon2id y HKDF bien usados, los vectores de RFC y el Paso 1.
+## Revisión de seguridad (`security-reviewer`, Pasos 3 y 4, y vistazo al `benchmark`)
+Sin hallazgos críticos. Confirmó el uso de JCA, los vectores 13 a 16, que `AuthenticationFailed` no filtra nada, que `open` no devuelve nada parcial y el `SecureRandom` compartido.
 
 | # | Gravedad | Hallazgo | Qué se hizo |
 |---|---|---|---|
-| 1 | Media | Un servidor malicioso puede bajar los parámetros del KDF hasta el mínimo de OWASP, o mandar una sal fija para todos, y el cliente no lo nota. Atacar `auth_key` sin conexión le saldría unas 5 veces más barato | **No implementado:** cuando cierres PEND-01, subir el piso del cliente a los parámetros elegidos y recordar en `account` los parámetros y la sal de cada cuenta (ver dudas) |
-| 2 | Media | La medición corre en un APK depurable, que en ART es más lento y empujaría a elegir parámetros más débiles | **En parte:** la tabla dice si el APK es depurable. Medir en release requiere un `buildType` de medición (ver dudas) |
-| 3 | Media | El codificador y el vector solo se probaban en la JVM; el ICU de Android podría descartar en silencio un surrogate al final | **Corregido:** se buscan los surrogates sueltos antes de codificar, y el vector también corre en el teléfono (`MasterKeyChainDeviceTest`) |
-| 4 | Media | Contar el fallo después de Argon2 y en `viewModelScope` permite esquivar el bloqueo matando la app; el bloqueo solo lo aplica la UI | **Anotado** en el `TODO(OP-19)`: contar el intento antes de derivar, en `NonCancellable`, y consultar al repositorio antes de cada intento. Se hace al conectar OP-19 |
-| 5 | Baja | El tope de 256 MiB pasaba del heap por app de muchos teléfonos, y memoria × pasadas no tenía tope | **Corregido:** 128 MiB y tope de memoria × pasadas |
-| 6 | Baja | La sal aceptaba `>= 16` B; DEC-06 dice 16 exactos, y el largo podría delatar la sal falsa de DEC-07 | **Corregido:** exactamente 16 B. Conviene anotar en DEC-07 que la sal falsa se trunca a 16 B |
-| 7 | Baja | Una `master_key` ya borrada daría llaves calculables sin ningún error | **Corregido:** HKDF exige 32 B que no estén en ceros. `SecureBytes` lo resolvería del todo (ver dudas) |
-| 8 | Baja | Copias en Bouncy Castle: H0 (72 B), `tmpBlockBytes`; en HKDF, IKM, PRK, estados de HMAC y T(1); en Android, ICU copia la entrada si es `String` | **Documentado** en los comentarios. No hay API para borrarlas (DEC-27) |
-| 9 | Baja | La prueba de no-caracteres pasaba por la regla de «sin asignar» del falso, no por `isNoncharacter` | **Corregido:** se les da edad 1.1 en esa prueba |
-| 10 | Baja | `OVERFLOW` no se trataba como error | **Corregido** |
-| 11 | Baja | Las funciones `internal` sin validación se podían usar en todo el módulo | **Corregido:** `@VisibleForTesting(otherwise = PRIVATE)` |
-| 12 | Baja/Info | Un error de disco (o un archivo corrupto) deja intentar sin límite; reiniciar más cambiar la hora esquiva el bloqueo (DEC-08 lo acepta) | **Documentado.** Mejora opcional: `Settings.Global.BOOT_COUNT` (cambia DEC-08) |
-| 13 | Info | El script del vector propio no estaba en el repo | **Corregido:** `tools/vectors/master_key_chain.py` |
+| 1 | Alta | Carrera entre `use` y `wipe`: el autobloqueo podía borrar la llave mientras otro hilo cifraba, y se cifraría con ceros sin error | **Corregido:** `ReentrantReadWriteLock` (la bandera va antes de borrar); `AesGcm.seal`/`open` y `wrap`/`unwrap` rechazan llaves en ceros. Prueba con dos hilos |
+| 2 | Media | El `use` miembro de `SecureBytes` sombrea al `AutoCloseable.use` de Kotlin; mi propia prueba no cerraba `enc_key` y `auth_key` | **Prueba corregida** con `try/finally`. **Renombrar** (`withBytes`/`read`) cambia la API que pidió la tarea: ver dudas |
+| 3 | Baja | Un cifrado truncado lanzaba `IllegalArgumentException`; otras excepciones del proveedor salían tal cual | **Corregido:** todo eso es `AuthenticationFailed` |
+| 4 | Baja | `internal` en un solo módulo no aísla `sealWithNonce` ni `adopt` | **En parte:** `VisibleForTests` es error de lint. Un módulo `:core:crypto` aislaría de verdad (ver dudas) |
+| 5 | Baja | La AAD se ata al texto del `userId`: un UUID en mayúsculas daría `AuthenticationFailed`. Además, `toByteArray` cambia los surrogates sueltos por «?» | **No implementado:** recibir `UUID` y usar su forma canónica en minúsculas cambia DEC-05 (ver dudas) |
+| 6 | Baja | `wrap` no validaba el tamaño de la `vault_key` | **Corregido** |
+| 7 | Baja | Faltaban pruebas: 10 000 nonces, caso 15 y alteraciones en el teléfono, aserción del proveedor, `pvk` alterada, texto de 16 B, y un nombre engañoso | **Corregido** |
+| 8 | Baja | `benchmark` tenía el mismo `applicationId` y la firma de depuración: si sale del equipo, se podría instalar encima un APK de depuración y conservar los datos | **Corregido:** `applicationIdSuffix = ".benchmark"`. No se distribuye |
+| 9 | Info | Copias que no se pueden borrar: `SecretKeySpec`, el contexto nativo de Conscrypt y las copias JNI; `SecureBytes` sin `Cleaner` (necesita API 33) | **Documentado.** Conviene agregarlas a DEC-27 |
+| 10 | Info | Nonce aleatorio de 96 bits frente al límite de 2^32 de NIST: con 10^7 cifrados por `vault_key`, la probabilidad de colisión es cercana a 2^-50 | Aceptable. Cuidar que la sincronización no vuelva a cifrar en masa |
 
 ## Diferencias con la tarea
-- **Sal de 16 B exactos**, no «al menos 16», por DEC-06 y el hallazgo 6.
-- **Topes de `KdfParams`:** la tarea pedía validar solo los mínimos de OWASP; agregué los topes para que un servidor malicioso no pueda congelar la app.
-- **`.claude/rules/crypto.md` pide envolver los secretos en `SecureBytes`.** La tarea pide firmas con `ByteArray` y seguí la tarea.
-- **Pruebas del store:** el `UnlockAttemptStoreTest` unitario usa un DataStore en memoria; la prueba con archivo real es instrumentada.
+- **Sufijo `.benchmark`:** no venía en la tarea; lo agregué por el hallazgo 8. El comando es el mismo.
+- **3 calentamientos** en vez de 1.
+- **10 000 nonces** en vez de 1 000, por `.claude/rules/crypto.md`.
+- **Llaves en ceros:** `seal`/`open` las rechazan (las funciones públicas; los vectores 13 y 14 usan llave cero por `sealWithNonce`).
 
 ## Dudas o decisiones que tomé
-- **Parámetros finales (PEND-01):**
-  - Falta la tabla del teléfono más modesto.
-  - En el emulador (depurable), 64 MiB/t=3 tarda 1,7 s, y 19 MiB/t=2 y 46 MiB/t=1 tardan 0,4–0,6 s.
-  - ¿Agrego un `buildType` de medición no depurable (`initWith(release)`, firma de depuración, sin R8) para medir como en release?
-- **Piso de parámetros en el cliente (hallazgo 1):** al elegir los parámetros, ¿subo el mínimo de `KdfParams` a esos valores? ¿Y `account` guarda los parámetros y la sal de cada cuenta para rechazar una bajada en el prelogin?
-- **`SecureBytes`:** el revisor recomienda `ByteArray` solo dentro de las primitivas de `core/crypto`, y `SecureBytes` (`toString` «***», `wipe`, `AutoCloseable` y error si se lee después de borrar) en cuanto un secreto sale de ahí, empezando por `VaultSession`. ¿Se ajusta así `.claude/rules/crypto.md`?
-- **Tema aparte:** el bloqueo local se muestra con el mismo texto de DEC-32 («Demasiados intentos. Vuelve a intentarlo en N min.»).
+- **Parámetros de Argon2 (PEND-01):** con la tabla del Redmi, hasta 64 MiB/t=3 tarda unos 0,34 s. ¿Hay un teléfono más modesto en el equipo que deba medirse antes de elegir?
+- **Renombrar `SecureBytes.use` (hallazgo 2):** propongo `withBytes { }` para leer, y dejar `use` como el de Kotlin, que cierra. ¿Lo cambio?
+- **`userId` en la AAD (hallazgo 5):** ¿la AAD usa `UUID.toString()` canónico (minúsculas, con guiones)? Cambia DEC-05.
+- **Módulo `:core:crypto` (hallazgo 4):** aislaría `internal` de verdad. ¿Vale la pena antes de `VaultSession`?
+- **DEC-27:** agregar a las limitaciones aceptadas `SecretKeySpec`, Conscrypt/JNI y la falta de `Cleaner` en minSdk 28.
+- **Emulador lleno:** para seguir usándolo hay que ampliar su almacenamiento interno o borrar sus datos desde Device Manager, como en la sesión anterior.
+- **Por error volví a crear un archivo basura** fuera del repo (`C:\Users\brian\UPchiapas\Securidad-tmp-unused.txt`, con una «x») y lo borré enseguida.
 
 ## Revisión
-- [x] **REQUIERE REVISIÓN HUMANA:** el Paso 3 es el primer código de `core/crypto`.
-  - Revisar `KdfParams`, `Argon2idKdf`, `Hkdf`, `MasterPasswordEncoder` y sus vectores.
-  - El vector propio se puede volver a calcular con `tools/vectors/master_key_chain.py`.
-  - Los Pasos 1 y 3 pasaron por `security-reviewer`.
+- [x] **REQUIERE REVISIÓN HUMANA** del Paso 4 (AES-GCM y `ProtectedVaultKey`) y del Paso 3 (`SecureBytes` con candado). Los dos pasaron por `security-reviewer`.

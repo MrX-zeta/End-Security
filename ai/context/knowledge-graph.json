@@ -1,7 +1,7 @@
 {
   "meta": {
     "nombre": "Grafo de conocimiento — End Security",
-    "version": "1.3.7",
+    "version": "1.3.9",
     "actualizado": "2026-10-16",
     "fase": "Diseño completo en Figma: 45 pantallas con prototipo navegable, flujos, estadísticas, estados de carga y sin conexión. Siguiente: implementación.",
     "historial": [
@@ -54,6 +54,16 @@
         "version": "1.3.7",
         "fecha": "2026-10-17",
         "cambio": "Revisión de la tarea 06: FE0E/FE0F antes de NFKC, Co/no-caracteres/Cf rechazados (DEC-31); bloqueo local de desbloqueo (DEC-08); Bouncy Castle como librería de Argon2id y HKDF (TEC-ARGON2, PEND-01 solo falta medir)."
+      },
+      {
+        "version": "1.3.8",
+        "fecha": "2026-10-18",
+        "cambio": "Ícono de la app elegido y vectorizado (DEC-59)."
+      },
+      {
+        "version": "1.3.9",
+        "fecha": "2026-10-18",
+        "cambio": "Revisión de la tarea 07: AAD y formato de protected_vault_key y piso de parámetros KDF (DEC-05), sal falsa de 16 B (DEC-07), SecureBytes (DEC-27), claves del bloqueo local en KV-DATASTORE."
       }
     ],
     "proposito": "Fuente de verdad del contexto, decisiones técnicas y huecos resueltos del proyecto, para personas y agentes de IA.",
@@ -550,7 +560,10 @@
           "El cliente envía auth_key (sobre TLS); el servidor guarda Argon2id(auth_key, sal_servidor)",
           "vault_key = 32 bytes aleatorios (SecureRandom) generados en el registro",
           "protected_vault_key = AES-256-GCM(enc_key, vault_key) — se guarda en servidor y en local",
-          "elemento_cifrado = AES-256-GCM(vault_key, json_elemento, nonce, AAD)"
+          "elemento_cifrado = AES-256-GCM(vault_key, json_elemento, nonce, AAD)",
+          "AAD de protected_vault_key = 'end-security/vault-key|' + user_id + '|' + key_version",
+          "Formato: nonce de 12 B aparte (columna nonce) y ciphertext = cifrado || etiqueta de 16 B",
+          "El cliente tiene un piso de parámetros KDF igual a los elegidos en PEND-01 (no acepta menos del servidor) y, si existe la fila account, rechaza un prelogin con otra sal o parámetros más bajos"
         ],
         "pendiente": "Parámetros concretos de Argon2id (memoria, iteraciones, paralelismo). Librería: Bouncy Castle."
       }
@@ -566,7 +579,7 @@
       "id": "DEC-07",
       "tipo": "decision",
       "nombre": "Prelogin anti-enumeración",
-      "descripcion": "El endpoint que devuelve parámetros KDF responde siempre. Para correos inexistentes devuelve parámetros falsos deterministas: sal = HMAC(secreto_servidor, correo).",
+      "descripcion": "El endpoint que devuelve parámetros KDF responde siempre. Para correos inexistentes devuelve parámetros falsos deterministas: sal = HMAC(secreto_servidor, correo) truncada a 16 B (el mismo largo que una sal real, DEC-06).",
       "estado": "decidido"
     },
     {
@@ -757,7 +770,7 @@
       "id": "DEC-27",
       "tipo": "decision",
       "nombre": "Higiene de memoria (mejor esfuerzo)",
-      "descripcion": "Secretos como ByteArray/CharArray y sobrescritura al bloquear. Limitación conocida: los String de Compose son inmutables.",
+      "descripcion": "Secretos como ByteArray/CharArray y sobrescritura al bloquear. Limitación conocida: los String de Compose son inmutables. ByteArray solo dentro de las primitivas de core/crypto; en cuanto un secreto sale de ahí (VaultSession, repositorios) va en SecureBytes: toString «***», wipe(), AutoCloseable y error si se lee después de borrarlo. Copias internas de Bouncy Castle (H0, último bloque, IKM/PRK de HKDF) quedan hasta el recolector.",
       "estado": "decidido"
     },
     {
@@ -1100,7 +1113,7 @@
       "id": "DEC-59",
       "tipo": "decision",
       "nombre": "Iconografía",
-      "descripcion": "Íconos de trazo de 2 px en cuadro de 24 px, extremos redondeados, como componentes de Figma. El generador usa un dado en vista 3/4 (los destellos se asocian a IA y el generador no usa IA). Los interruptores del generador muestran el carácter que agregan (A, 1, #, Il) en vez de un ícono genérico. Se agregó el ícono «sin conexión».",
+      "descripcion": "Íconos de trazo de 2 px en cuadro de 24 px, extremos redondeados, como componentes de Figma. El generador usa un dado en vista 3/4 (los destellos se asocian a IA y el generador no usa IA). Los interruptores del generador muestran el carácter que agregan (A, 1, #, Il) en vez de un ícono genérico. Se agregó el ícono «sin conexión». Ícono de la app (elegido por el equipo el 2026-10-18): escudo #FFCB74 con cerradura hueca y un anillo que pasa por delante, sobre #111111; ícono adaptativo vectorial (capa frontal, fondo de color y capa monocromática para íconos temáticos), en Figma «Ícono de la app · Final» (139:3719).",
       "estado": "decidido",
       "detalles": {
         "iconos_nuevos": [
@@ -2650,9 +2663,12 @@
         "almacen": "DataStore",
         "campos": [
           "onboarding_completed",
+          "biometric_enabled",
+          "unlock_failures",
+          "unlock_locked_until_wall",
+          "unlock_locked_until_elapsed",
           "autolock_minutes",
           "clipboard_clear_seconds",
-          "biometric_enabled",
           "access_token (cifrado)",
           "refresh_token (cifrado)",
           "device_name"
