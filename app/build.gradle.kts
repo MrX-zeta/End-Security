@@ -1,8 +1,10 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt)
+    alias(libs.plugins.room)
 }
 
 android {
@@ -57,6 +59,11 @@ android {
     }
 }
 
+// Esquemas de Room versionados (exportSchema = true): app/schemas/.
+room {
+    schemaDirectory("$projectDir/schemas")
+}
+
 dependencies {
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)
@@ -75,6 +82,11 @@ dependencies {
     implementation(libs.zxcvbn)
     // DEC-28 / PEND-01: Argon2id y HKDF (API ligera de Bouncy Castle, Java puro).
     implementation(libs.bouncycastle.bcprov)
+    implementation(libs.androidx.lifecycle.process)
+    implementation(libs.kotlinx.serialization.json)
+    implementation(libs.androidx.room.runtime)
+    implementation(libs.androidx.room.ktx)
+    ksp(libs.androidx.room.compiler)
     ksp(libs.hilt.compiler)
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
