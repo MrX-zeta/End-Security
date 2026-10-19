@@ -1,121 +1,130 @@
-# Reporte · Tarea 08 · Ícono, medición en release, `SecureBytes` y AES-256-GCM
+# Reporte · Tarea 09 · Ajustes de crypto, Room local, `VaultSession` y cifrado de elementos
 
 **Estado:** hecha
-**Fecha:** 2026-10-18
+**Fecha:** 2026-10-18 (los Pasos 3 y 4 empezaron después de que la persona aprobó el plan en el chat)
 
 ## Qué se hizo
 
-### Paso 1 · Ícono (DEC-59)
-- **Instalación:** recursos copiados según `LEEME.md`. Se borraron el fondo de la plantilla y los 10 `.webp`; `colors.xml` quedó solo con `ic_launcher_background`.
-  - Ya está en el commit `6330eb6` (`feat: ícono de la app (DEC-59)`), hecho por la persona.
-  - La carpeta `ai/handoff/icono/` nunca se versionó; la borré después de comprobar que los recursos instalados son idénticos.
-- **Comprobación en el emulador (Android 16):**
-  - en el cajón, el escudo amarillo sobre fondo carbón;
-  - con «Themed icons», el sistema tiñe la capa monocromática y la cerradura queda como hueco. El lanzador de Pixel solo tematiza la pantalla de inicio, así que para verlo puse el ícono ahí un momento;
-  - en la pantalla de inicio de Android 12+, el ícono sobre su fondo.
-  - Al terminar dejé el emulador como estaba.
-  - Lint no da advertencias del ícono.
+### Paso 1 · Ajustes de `core/crypto`
+- **`SecureBytes.use` → `withBytes`:** `SecureBytes` sigue siendo `AutoCloseable`, así que ahora `use { }` es el de Kotlin y cierra (tiene prueba). Actualicé `.claude/rules/crypto.md`.
+- **`ProtectedVaultKey.wrap/unwrap` reciben `UUID`:** la AAD usa `UUID.toString()`, que es la forma canónica. Una prueba con el UUID en mayúsculas lo comprueba.
+- **`KdfParams`:**
+  - el piso pasa a 65 536 KiB, t ≥ 3 y p ≥ 1, en lugar de la lista de OWASP; los topes se quedan;
+  - `KdfParams.DEFAULT` = (65 536, 3, 1);
+  - 46 MiB/t1 y 19 MiB/t2 ahora se rechazan, y 64/t3 y 128/t3 se aceptan.
+- **`Argon2BenchmarkTest`** usaba `KdfParams`, no la función interna como suponía la tarea. La cambié a `Argon2idKdf.argon2id(...)` para que pueda seguir midiendo 19 y 46 MiB.
+- **Vector propio recalculado con los parámetros reales** (64 MiB, t=3, p=1), usando argon2-cffi con `tools/vectors/master_key_chain.py` (actualizado):
+  - `master_key` `2af2fd06…b0f01f81`;
+  - `enc_key` `7c90a1fd…3bd96d70`;
+  - `auth_key` `dcf81e4c…1b37b3ec`.
 
-### Paso 2 · `buildType` `benchmark`
-- **Configuración** en `app/build.gradle.kts`:
-  - `initWith(release)`, `isDebuggable = false`, firma de depuración, sin R8 y `matchingFallbacks += "release"`;
-  - además, `applicationIdSuffix = ".benchmark"` y `versionNameSuffix = "-benchmark"` (hallazgo 8). Así es otra app: no reemplaza ni la puede reemplazar la de release o debug, y no hace falta desinstalar End Security para medir.
-- **Pruebas:** `testBuildType = "benchmark"` solo con `-PbenchmarkBuild`. Sin la propiedad, las pruebas siguen en debug.
-- **AGP 9 lo instrumenta sin problema.** `aapt2` lo confirma: el APK es `com.luis.end_security.benchmark`, la prueba es `com.luis.end_security.benchmark.test` y apunta a ese paquete.
-- **`Argon2BenchmarkTest`:** subí el calentamiento a **3 corridas por configuración**. Justo después de instalar, ART todavía no compila la app y la primera corrida salía de 3 a 6 veces más lenta (en el emulador, 746 ms contra 115 ms para 19 MiB/t2). Con 3 calentamientos los números salen estables desde la primera instalación.
-- **Comando para la persona del equipo** (con un solo dispositivo conectado, o eligiéndolo con `ANDROID_SERIAL`):
+  La prueba los fija con `KdfParams(65_536, 3, 1)` explícito, no con `DEFAULT`, para que no cambie si un día suben los de las cuentas nuevas.
 
-  ```bash
-  ./gradlew connectedBenchmarkAndroidTest -PbenchmarkBuild -Pandroid.testInstrumentationRunnerArguments.class=com.luis.end_security.core.crypto.Argon2BenchmarkTest
-  ```
+### Paso 2 · Room (`end_security.db`, modelo de datos §8)
+- **Room 2.8.5** con KSP y el plugin `androidx.room`. `exportSchema = true` y el esquema en `app/schemas/…/1.json`.
+- **Tablas:**
+  - `account`: una sola fila, con `user_id` como UUID canónico;
+  - `vault_items`: `sync_state` ∈ `synced`/`pending`/`conflict` con `TypeConverter`, `local_seq` e índice en `sync_state`;
+  - `breach_checks`: FK a `vault_items` con `CASCADE`;
+  - `health_snapshots`.
+  - **Ninguna columna guarda texto claro de un elemento.** Las entidades no son `data class` y su `toString()` no muestra bloques ni correo.
+- **DAOs:**
+  - `AccountDao`: `get`, `observe`, `exists` y `replace`. `replace` deja una sola fila; si cambia el `user_id`, borra también los datos de la cuenta anterior (hallazgo 10).
+  - `VaultItemDao`:
+    - `observeVisible` (`Flow`, sin lápidas), `get` e `insert`;
+    - `updateContent` y `delete` llevan el `local_seq` esperado (regla 8);
+    - `delete`: si el elemento nunca se subió, se borra la fila; si ya se subió, deja lápida `pending`; si estaba en `conflict`, se queda en `conflict`.
+  - `BreachCheckDao` y `HealthSnapshotDao` (`upsert`, y `deleteBefore` para conservar 12 meses).
+  - Al cerrar sesión, `clearAllTables()`.
+- **Respaldo:** las reglas de respaldo ya excluían `database`, y `allowBackup="false"`.
 
-  La tabla queda en `adb logcat -s Argon2Benchmark:I` y en `app/build/outputs/androidTest-results/connected/benchmark/<dispositivo>/logcat-…medir_argon2id.txt`. **`assembleBenchmark` no se distribuye.**
+### Paso 3 · `VaultSession`, autobloqueo y `LockGuard`
+- **`core/session/VaultSession`** (`@Singleton`):
+  - estado `Locked` / `Unlocked(userId)` en `StateFlow`; la `vault_key`, en un `SecureBytes` privado;
+  - `unlock` se queda con la llave y no deja abrir otra cuenta sin bloquear antes;
+  - `lock()` borra la llave fuera del monitor (espera a que termine un `withBytes` en curso);
+  - `withVaultKey { reader -> }` presta la llave **solo para leer**: `SecretReader`, envuelto para que ni con un *cast* se pueda borrar;
+  - lanza `VaultLockedException` si está bloqueada, si se bloquea a la mitad o **si venció el plazo de autobloqueo**.
+- **`core/session/AutoLocker`:**
+  - en `ProcessLifecycleOwner` (lo registra `EndSecurityApp`);
+  - al salir programa el bloqueo y deja el plazo en la sesión; al volver compara con `elapsedRealtime`;
+  - si la bóveda se abre con la app ya en segundo plano, la cuenta empieza en ese momento (hallazgo 1);
+  - con 0, bloquea al salir.
+- **`autolock_minutes` en `SettingsStore`:** 5 por defecto. Un valor que no esté en {0, 1, 5, 15, 30} se trata como 5 (hallazgo 7).
+- **`LockGuard`** (`navigation/`):
+  - al pasar de `Unlocked` a `Locked` va a `UNLOCK` con la pila vacía si hay cuenta (`AccountRepository.hasLocalAccount()` → `SELECT EXISTS`), o a `LOGIN` si no;
+  - el `Locked` del arranque no cuenta.
+- **«Bloquear ahora»:** `lock()` está listo, pero el único candado está deshabilitado en Bóveda · cargando, y la Bóveda se conecta en la tarea 10.
 
-**Medición** (la persona la corrió el 2026-10-18 con su Redmi y el emulador conectados; salió en los dos):
-
-| Dispositivo | Memoria | t | p | Mediana (ms) | Peor (ms) | Corridas (ms) |
-|---|---|---|---|---|---|---|
-| **Xiaomi 23090RA98G (Redmi Note 13 Pro 5G)**, Android 14 (API 34), `maxMemory` 256 MiB, depurable: **no** | 19 MiB | 2 | 1 | 57 | 60 | 57, 56, 57, 58, 60 |
-| | 46 MiB | 1 | 1 | 129 | 135 | 124, 135, 129, 132, 105 |
-| | 64 MiB | 3 | 1 | 343 | 345 | 345, 343, 336, 340, 344 |
-| Emulador Pixel 7 Pro, Android 16 (API 36), `maxMemory` 192 MiB, depurable: **no** | 19 MiB | 2 | 1 | 132 | 161 | 132, 161, 126, 135, 124 |
-| | 46 MiB | 1 | 1 | 201 | 288 | 193, 201, 288, 210, 194 |
-| | 64 MiB | 3 | 1 | 587 | 615 | 587, 596, 615, 584, 540 |
-
-**Ojo:** el Redmi Note 13 Pro (Snapdragon 7s Gen 2) es de gama media-alta. Si el teléfono de la otra persona del equipo es más modesto, conviene medirlo también antes de elegir.
-
-### Paso 3 · `SecureBytes` (DEC-27)
-- **`SecureBytes`:**
-  - copia defensiva (`copyOf`) y `use { bytes -> … }` sin sacar los bytes;
-  - `wipe()`; `close()` hace `wipe()`; leer después lanza `IllegalStateException`;
-  - `toString()` = `"SecureBytes(***)"`, `equals`/`hashCode` por identidad;
-  - `adopt` (`internal`) toma arreglos recién creados en `core/crypto` sin copiarlos.
-  - **`use` y `wipe` se excluyen** con un `ReentrantReadWriteLock` (hallazgo 1): el autobloqueo no puede borrar la llave mientras otro hilo cifra con ella. `wipe` primero marca y después borra.
-- **`KeyDerivation`:** `deriveMasterKey(normalizada, sal, params)`, `encKey(SecureBytes)` y `authKey(SecureBytes)` devuelven `SecureBytes` y borran los intermedios. Dan el mismo vector propio de la tarea 07.
-- **`.claude/rules/crypto.md`:** dice dónde va `ByteArray` (dentro de las primitivas) y dónde `SecureBytes`, más la advertencia sobre `use`.
-
-### Paso 4 · AES-256-GCM (DEC-05, DEC-28, DEC-29), con el plan aprobado
-- **`AesGcm`:** JCA `AES/GCM/NoPadding`, etiqueta de 128 bits y un `Cipher` nuevo por llamada.
-  - `seal`: nonce de 12 B con `SecureRandom` dentro.
-  - `sealWithNonce`: solo para los vectores.
-  - `open`: `AuthenticationFailed` (sin mensaje ni causa) cuando falla la etiqueta, y también con un cifrado truncado, `BadPaddingException` o `IllegalBlockSizeException` (hallazgo 3).
-  - Llave de 32 B **que no esté en ceros** (hallazgo 1, en `seal` y `open`) y nonce de 12 B.
-- **`Sealed`:** guarda copias; `toString` solo da tamaños.
-- **`VaultKey.generate()`:** 32 B de `SecureRandom` dentro de `SecureBytes`.
-- **`ProtectedVaultKey`:**
-  - AAD = `end-security/vault-key|userId|keyVersion` en UTF-8; rechaza un `userId` vacío o con `|`, y `keyVersion` debe ser ≥ 1 (como `users_key_version_chk`);
-  - `wrap` exige una `vault_key` de 32 B que no esté en ceros (hallazgo 6);
-  - `unwrap` exige un texto claro de 32 B que no esté en ceros; si no, borra y lanza `AuthenticationFailed`.
-- **`app/lint.xml`:** `VisibleForTests` es error, así que `sealWithNonce`, `argon2id` y `sha256` no se pueden usar fuera de las pruebas (hallazgo 4).
-- Nada está conectado a pantallas ni a Room.
+### Paso 4 · `ItemCipher` (DEC-29)
+- **Serialización:** `kotlinx-serialization-json` 1.9.0 (la última compatible con Kotlin 2.2.10) y su plugin.
+- **`feature/vault/domain/VaultItem`:** Kotlin puro, con `Instant`; `toString` = `VaultItem(***)`.
+- **`feature/vault/data/ItemCipher`:**
+  - `encrypt(vaultKey: SecretReader, itemId, userId, item)` → `Sealed` y `decrypt(...)` → `VaultItem`;
+  - AAD = `itemId|userId|formatVersion` en ASCII;
+  - `ItemJsonV1` con los nombres de DEC-29 y fechas ISO-8601;
+  - `ignoreUnknownKeys`;
+  - el JSON en bytes se borra en `finally`;
+  - una etiqueta que no coincide da `AuthenticationFailed`; un bloque que abre pero no es v1 da `ItemFormatException` (sin mensaje).
 
 ## Compilación y pruebas (salida real)
-- `testDebugUnitTest`, `assembleDebug`, `assembleDebugAndroidTest`, `assembleRelease` y `lintDebug`: `BUILD SUCCESSFUL` y lint con 0 errores. `assembleBenchmark` también pasa.
-- **206 pruebas unitarias, 0 fallas.** Nuevas:
-  - **`AesGcmTest` (11):**
-    - **McGrew-Viega casos 13, 14, 15 y 16** (los vectores de AES-256 con nonce de 96 bits que usa el CAVS de NIST);
-    - alterar 1 bit del cifrado, la etiqueta, el nonce, la AAD o la llave → `AuthenticationFailed`;
-    - **10 000** `seal` sin nonce repetido (la regla pide 10 000 y la tarea 1 000; hice 10 000);
-    - truncado → `AuthenticationFailed`; llave en ceros rechazada; tamaños; `toString`.
-  - **`ProtectedVaultKeyTest` (6):** ida y vuelta (`pvk` de 12 + 48 B); fallo con otro `userId`, otra `keyVersion` u otra `enc_key`; `pvk` alterada; texto de 16 B con la AAD correcta; `wrap` con una `vault_key` de 16 B o en ceros; `userId` con `|` o vacío.
-  - **`SecureBytesTest` (9):** `toString`, copia defensiva, error tras `wipe`/`close`, la referencia prestada queda en ceros, **`wipe` espera a que termine un `use` en otro hilo**, identidad y `KeyDerivation` con el vector propio.
-- **Instrumentadas en el emulador: 18, OK.** `AesGcmDeviceTest` (7):
-  - **el proveedor es `AndroidOpenSSL` (Conscrypt)**;
-  - casos 13, 14, 15 y 16;
-  - alterar la etiqueta, el cifrado, el nonce o la AAD;
-  - `pvk` de ida y vuelta.
-- **Medición con el sufijo `.benchmark`:** no la pude repetir en el emulador porque se quedó sin espacio (340 MB libres, por debajo del mínimo de Android) y no instala nada. No borré otras apps del emulador. Comprobé con `aapt2` que los paquetes están bien. Ahora el emulador tampoco tiene End Security instalada.
+- `testDebugUnitTest`, `assembleDebug`, `assembleDebugAndroidTest`, `assembleRelease` y `lintDebug`: `BUILD SUCCESSFUL`, y lint con **0 errores**.
+  - Las 11 advertencias son de antes o de «hay versión más nueva» (serialization 1.11 y lifecycle 2.12 piden Kotlin 2.3 o son alfa).
+- **Unitarias: 239, 0 fallas.** Nuevas o cambiadas:
+  - **`VaultSessionTest` (9):**
+    - empieza bloqueada; presta la llave solo para leer; `lock()` borra;
+    - no deja abrir otra cuenta; pasado el plazo bloquea y no presta;
+    - una referencia guardada fuera deja de servir;
+    - bloquear a la mitad da `VaultLockedException` y nunca ceros; `lock()` espera a un `withBytes` en curso.
+  - **`AutoLockerTest` (10):**
+    - a los **4:59 no** bloquea y a los **5:00 sí**; volver a los 4:59 cancela;
+    - volver tras un congelamiento (`elapsedRealtime` +6 min) bloquea; con **0**, bloquea al salir; con 1 min, al minuto;
+    - estando bloqueada no programa nada;
+    - **desbloquear con la app ya en segundo plano** también bloquea, y con 0 al instante;
+    - un valor inválido se trata como 5; el plazo queda en la sesión.
+  - **`LockGuardViewModelTest` (3):** con cuenta va a Desbloquear; sin cuenta, a Iniciar sesión; el arranque no cuenta.
+  - **`ItemCipherTest` (8):**
+    - ida y vuelta; el bloque no contiene el texto;
+    - otro `itemId`, otro `userId` u otro `formatVersion` fallan; el bloque de A no abre como B; otra `vault_key` falla;
+    - los campos desconocidos se ignoran; un JSON que no es v1 da `ItemFormatException`; `toString`.
+  - `SecureBytesTest`, `KdfParamsTest`, `ProtectedVaultKeyTest` y `MasterKeyChainTest`, actualizadas. `wipe` dentro de `withBytes` lanza error en vez de colgarse (hallazgo 6).
+- **Instrumentadas en el emulador: 29, OK.** Nuevas:
+  - **`DaoTest` (10):** una sola fila en `account`; cambiar de cuenta borra los datos de la anterior; crear, editar y `Flow`; `local_seq` viejo; `conflict` se conserva; borrado físico o lápida; `CASCADE` de `breach_checks`; salud una por día y recorte; `clearAllTables`.
+  - **`SchemaPlaintextTest`:** sobre el esquema real de SQLite, ninguna tabla tiene `name`, `username`, `password`, `url`, `notes`… y `vault_items` tiene exactamente las 10 columnas de §8.1.
+- **App en el emulador:** arranca con `AutoLocker` inyectado y vuelve de segundo plano sin errores.
+- **Emulador:** le borré los datos (`-wipe-data`), como autorizó la revisión de la tarea 08. Ahora tiene 84 % libre.
 
-## Revisión de seguridad (`security-reviewer`, Pasos 3 y 4, y vistazo al `benchmark`)
-Sin hallazgos críticos. Confirmó el uso de JCA, los vectores 13 a 16, que `AuthenticationFailed` no filtra nada, que `open` no devuelve nada parcial y el `SecureRandom` compartido.
+## Revisión de seguridad (`security-reviewer`, Pasos 1, 3 y 4, y vistazo a Room)
+Confirmó que la criptografía nueva está bien: AAD, piso del KDF, borrado de bytes y R8 con kotlinx.serialization. Los problemas estaban en el ciclo de vida de la sesión.
 
 | # | Gravedad | Hallazgo | Qué se hizo |
 |---|---|---|---|
-| 1 | Alta | Carrera entre `use` y `wipe`: el autobloqueo podía borrar la llave mientras otro hilo cifraba, y se cifraría con ceros sin error | **Corregido:** `ReentrantReadWriteLock` (la bandera va antes de borrar); `AesGcm.seal`/`open` y `wrap`/`unwrap` rechazan llaves en ceros. Prueba con dos hilos |
-| 2 | Media | El `use` miembro de `SecureBytes` sombrea al `AutoCloseable.use` de Kotlin; mi propia prueba no cerraba `enc_key` y `auth_key` | **Prueba corregida** con `try/finally`. **Renombrar** (`withBytes`/`read`) cambia la API que pidió la tarea: ver dudas |
-| 3 | Baja | Un cifrado truncado lanzaba `IllegalArgumentException`; otras excepciones del proveedor salían tal cual | **Corregido:** todo eso es `AuthenticationFailed` |
-| 4 | Baja | `internal` en un solo módulo no aísla `sealWithNonce` ni `adopt` | **En parte:** `VisibleForTests` es error de lint. Un módulo `:core:crypto` aislaría de verdad (ver dudas) |
-| 5 | Baja | La AAD se ata al texto del `userId`: un UUID en mayúsculas daría `AuthenticationFailed`. Además, `toByteArray` cambia los surrogates sueltos por «?» | **No implementado:** recibir `UUID` y usar su forma canónica en minúsculas cambia DEC-05 (ver dudas) |
-| 6 | Baja | `wrap` no validaba el tamaño de la `vault_key` | **Corregido** |
-| 7 | Baja | Faltaban pruebas: 10 000 nonces, caso 15 y alteraciones en el teléfono, aserción del proveedor, `pvk` alterada, texto de 16 B, y un nombre engañoso | **Corregido** |
-| 8 | Baja | `benchmark` tenía el mismo `applicationId` y la firma de depuración: si sale del equipo, se podría instalar encima un APK de depuración y conservar los datos | **Corregido:** `applicationIdSuffix = ".benchmark"`. No se distribuye |
-| 9 | Info | Copias que no se pueden borrar: `SecretKeySpec`, el contexto nativo de Conscrypt y las copias JNI; `SecureBytes` sin `Cleaner` (necesita API 33) | **Documentado.** Conviene agregarlas a DEC-27 |
-| 10 | Info | Nonce aleatorio de 96 bits frente al límite de 2^32 de NIST: con 10^7 cifrados por `vault_key`, la probabilidad de colisión es cercana a 2^-50 | Aceptable. Cuidar que la sincronización no vuelva a cifrar en masa |
+| 1 | Alta | Si el desbloqueo terminaba con la app ya en segundo plano, no se programaba el autobloqueo y la bóveda quedaba abierta indefinidamente | **Corregido:** `AutoLocker` sabe si la app está en primer plano y escucha el estado; la cuenta empieza al abrir. Hay pruebas |
+| 2 | Media | `delay()` no avanza con el teléfono dormido ni con la app congelada: la llave podía quedar en RAM pasado el plazo, y un trabajo en segundo plano todavía la recibía | **En parte:** el plazo queda en `VaultSession`, que bloquea al prestar la llave pasado el plazo. Sin implementar: bloquear al apagar la pantalla, `onTrimMemory` o `AlarmManager` (ver dudas) |
+| 3 | Media | `LockGuard` funciona por evento: la Bóveda se ve unos 0,7 s durante la transición; en segundo plano, los ViewModel conservan datos; tras la muerte del proceso se restaura la pila sin aviso; sin cuenta no hacía nada | **En parte:** sin cuenta ahora va a Iniciar sesión. Ocultar por estado las pantallas protegidas rompería el flujo temporal de hoy (2FA → Bóveda · cargando sin desbloquear), así que queda como **`TODO(tarea 10)`** en `LockGuard` |
+| 4 | Media | `ignoreUnknownKeys`: una app vieja que edite un elemento perdería en silencio un campo nuevo | **Documentado** en `ItemCipher` como regla: un campo nuevo sube `format_version`. Ver dudas |
+| 5 | Baja | `withVaultKey` prestaba el `SecureBytes` dueño; con el `use` de Kotlin se borraba la llave y el estado seguía `Unlocked` | **Corregido:** se presta como `SecretReader` envuelto; si la llave aparece borrada, la sesión se bloquea |
+| 6 | Baja | `wipe()` dentro de `withBytes` del mismo hilo se colgaba para siempre | **Corregido:** lanza `IllegalStateException` |
+| 7 | Baja | `autolock_minutes` aceptaba cualquier valor | **Corregido** |
+| 8 | Baja | Hay más copias en claro del JSON de las que decía el comentario (`String` del JSON y búferes de kotlinx) | **Documentado.** Conviene agregarlo a DEC-27 |
+| 9 | Baja | Borrar físicamente un elemento «nunca subido» mientras se está subiendo puede hacerlo reaparecer | Para la tarea de sincronización |
+| 10 | Baja | `account.replace` dejaba los datos de la cuenta anterior | **Corregido** |
+| Info | — | `unlock` de otra cuenta sin pasar por `Locked`; `SELECT EXISTS`; KDoc de la AAD «UTF-8»; `json{v:1}` en las reglas; el vector con `DEFAULT`; prefijo de tipo en la AAD de HIBP y salud | **Corregidos**, o anotados en `.claude/rules/crypto.md` |
 
 ## Diferencias con la tarea
-- **Sufijo `.benchmark`:** no venía en la tarea; lo agregué por el hallazgo 8. El comando es el mismo.
-- **3 calentamientos** en vez de 1.
-- **10 000 nonces** en vez de 1 000, por `.claude/rules/crypto.md`.
-- **Llaves en ceros:** `seal`/`open` las rechazan (las funciones públicas; los vectores 13 y 14 usan llave cero por `sealWithNonce`).
+- **`Argon2BenchmarkTest`:** pasó a la función interna (usaba `KdfParams`).
+- **El vector propio cambió**, porque cambiaron los parámetros (64 MiB/t3). El script versionado lo reproduce.
+- **`ItemCipher.encrypt/decrypt` reciben `SecretReader`** (lo que presta `VaultSession`), no `SecureBytes`.
+- **`LockGuard` sin cuenta va a Iniciar sesión**, en vez de no hacer nada.
+- **Dependencias nuevas:** `lifecycle-process` 2.11.0 y kotlinx.serialization 1.9.0.
 
 ## Dudas o decisiones que tomé
-- **Parámetros de Argon2 (PEND-01):** con la tabla del Redmi, hasta 64 MiB/t=3 tarda unos 0,34 s. ¿Hay un teléfono más modesto en el equipo que deba medirse antes de elegir?
-- **Renombrar `SecureBytes.use` (hallazgo 2):** propongo `withBytes { }` para leer, y dejar `use` como el de Kotlin, que cierra. ¿Lo cambio?
-- **`userId` en la AAD (hallazgo 5):** ¿la AAD usa `UUID.toString()` canónico (minúsculas, con guiones)? Cambia DEC-05.
-- **Módulo `:core:crypto` (hallazgo 4):** aislaría `internal` de verdad. ¿Vale la pena antes de `VaultSession`?
-- **DEC-27:** agregar a las limitaciones aceptadas `SecretKeySpec`, Conscrypt/JNI y la falta de `Cleaner` en minSdk 28.
-- **Emulador lleno:** para seguir usándolo hay que ampliar su almacenamiento interno o borrar sus datos desde Device Manager, como en la sesión anterior.
-- **Por error volví a crear un archivo basura** fuera del repo (`C:\Users\brian\UPchiapas\Securidad-tmp-unused.txt`, con una «x») y lo borré enseguida.
+- **Hallazgo 2:** ¿bloqueo también al apagar la pantalla (`ACTION_SCREEN_OFF`) o cuando el sistema pide memoria (`onTrimMemory`)? Cambia DEC-26. Hoy el plazo se aplica al volver a la app o al pedir la llave.
+- **Hallazgo 3, para la tarea 10:** las pantallas con datos ocultan su contenido en cuanto la bóveda está `Locked`, sus ViewModel vacían los elementos y la pila restaurada se revisa al arrancar. ¿Navegación sin transición hacia Desbloquear?
+- **Hallazgo 4:** ¿regla de que todo campo nuevo sube `format_version` (con solo lectura en apps viejas), o conservar los campos desconocidos al volver a cifrar? Hoy dejé documentada la primera.
+- **DEC-27:** agregar las copias del JSON (la `String` completa y los búferes de kotlinx.serialization).
+- **DEC-26:** tampoco existe el autobloqueo por inactividad en primer plano. No estaba en la tarea; conviene anotarlo como pendiente.
+- **Por error volví a crear un archivo basura** fuera del repo (`C:\Users\brian\UPchiapas\Securidad-NO.txt`, con una «x») y lo borré enseguida.
 
 ## Revisión
-- [x] **REQUIERE REVISIÓN HUMANA** del Paso 4 (AES-GCM y `ProtectedVaultKey`) y del Paso 3 (`SecureBytes` con candado). Los dos pasaron por `security-reviewer`.
+- [x] **REQUIERE REVISIÓN HUMANA** de `VaultSession`, `AutoLocker` e `ItemCipher`, en especial los hallazgos 1 a 3 antes de conectar Desbloquear en la tarea 10. Pasaron por `security-reviewer`.

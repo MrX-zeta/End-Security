@@ -1,7 +1,7 @@
 {
   "meta": {
     "nombre": "Grafo de conocimiento — End Security",
-    "version": "1.3.9",
+    "version": "1.4.0",
     "actualizado": "2026-10-16",
     "fase": "Diseño completo en Figma: 45 pantallas con prototipo navegable, flujos, estadísticas, estados de carga y sin conexión. Siguiente: implementación.",
     "historial": [
@@ -64,6 +64,11 @@
         "version": "1.3.9",
         "fecha": "2026-10-18",
         "cambio": "Revisión de la tarea 07: AAD y formato de protected_vault_key y piso de parámetros KDF (DEC-05), sal falsa de 16 B (DEC-07), SecureBytes (DEC-27), claves del bloqueo local en KV-DATASTORE."
+      },
+      {
+        "version": "1.4.0",
+        "fecha": "2026-10-18",
+        "cambio": "PEND-01 resuelto (Argon2id 64 MiB/t3/p1 con Bouncy Castle); UUID canónico en las AAD; formato JSON v1 del elemento (DEC-29); limitaciones de DEC-27; autobloqueo por defecto 5 min (PEND-04 parcial)."
       }
     ],
     "proposito": "Fuente de verdad del contexto, decisiones técnicas y huecos resueltos del proyecto, para personas y agentes de IA.",
@@ -145,7 +150,7 @@
     },
     "estadisticas": {
       "nodos": 352,
-      "aristas": 1004,
+      "aristas": 1005,
       "por_tipo": {
         "proyecto": 1,
         "objetivo": 6,
@@ -561,11 +566,16 @@
           "vault_key = 32 bytes aleatorios (SecureRandom) generados en el registro",
           "protected_vault_key = AES-256-GCM(enc_key, vault_key) — se guarda en servidor y en local",
           "elemento_cifrado = AES-256-GCM(vault_key, json_elemento, nonce, AAD)",
-          "AAD de protected_vault_key = 'end-security/vault-key|' + user_id + '|' + key_version",
+          "AAD de protected_vault_key = 'end-security/vault-key|' + user_id + '|' + key_version, con user_id en forma canónica de UUID (minúsculas y guiones)",
           "Formato: nonce de 12 B aparte (columna nonce) y ciphertext = cifrado || etiqueta de 16 B",
-          "El cliente tiene un piso de parámetros KDF igual a los elegidos en PEND-01 (no acepta menos del servidor) y, si existe la fila account, rechaza un prelogin con otra sal o parámetros más bajos"
+          "El cliente tiene un piso de parámetros KDF igual a los elegidos en PEND-01 (64 MiB, t = 3, p = 1) (no acepta menos del servidor) y, si existe la fila account, rechaza un prelogin con otra sal o parámetros más bajos"
         ],
-        "pendiente": "Parámetros concretos de Argon2id (memoria, iteraciones, paralelismo). Librería: Bouncy Castle."
+        "parametros_kdf": {
+          "memoria_kib": 65536,
+          "iteraciones": 3,
+          "paralelismo": 1,
+          "libreria": "Bouncy Castle (bcprov-jdk18on)"
+        }
       }
     },
     {
@@ -770,7 +780,7 @@
       "id": "DEC-27",
       "tipo": "decision",
       "nombre": "Higiene de memoria (mejor esfuerzo)",
-      "descripcion": "Secretos como ByteArray/CharArray y sobrescritura al bloquear. Limitación conocida: los String de Compose son inmutables. ByteArray solo dentro de las primitivas de core/crypto; en cuanto un secreto sale de ahí (VaultSession, repositorios) va en SecureBytes: toString «***», wipe(), AutoCloseable y error si se lee después de borrarlo. Copias internas de Bouncy Castle (H0, último bloque, IKM/PRK de HKDF) quedan hasta el recolector.",
+      "descripcion": "Secretos como ByteArray/CharArray y sobrescritura al bloquear. Limitación conocida: los String de Compose son inmutables. ByteArray solo dentro de las primitivas de core/crypto; en cuanto un secreto sale de ahí (VaultSession, repositorios) va en SecureBytes: toString «***», wipe(), AutoCloseable y error si se lee después de borrarlo. Copias internas de Bouncy Castle (H0, último bloque, IKM/PRK de HKDF), SecretKeySpec y el contexto nativo de Conscrypt (copias JNI) quedan hasta el recolector; SecureBytes no usa Cleaner porque requiere API 33. SecureBytes: lectura con withBytes { } y borrado excluyentes (ReentrantReadWriteLock); use { } queda como el de Kotlin (cierra).",
       "estado": "decidido"
     },
     {
@@ -784,8 +794,19 @@
       "id": "DEC-29",
       "tipo": "decision",
       "nombre": "Nonce y AAD en AES-GCM",
-      "descripcion": "Nonce de 96 bits aleatorio por cada cifrado, nunca reutilizado. AAD = id_elemento | id_usuario | versión_de_formato, para que el servidor no pueda intercambiar bloques entre elementos o usuarios.",
-      "estado": "decidido"
+      "descripcion": "Nonce de 96 bits aleatorio por cada cifrado, nunca reutilizado. AAD = id_elemento | id_usuario | versión_de_formato, para que el servidor no pueda intercambiar bloques entre elementos o usuarios. Los UUID van en forma canónica (minúsculas y guiones).",
+      "estado": "decidido",
+      "detalles": {
+        "json_elemento_v1": {
+          "name": "texto",
+          "username": "texto",
+          "password": "texto",
+          "url": "texto opcional",
+          "notes": "texto opcional",
+          "created_at": "ISO-8601",
+          "password_changed_at": "ISO-8601 (para «Antiguas»)"
+        }
+      }
     },
     {
       "id": "DEC-30",
@@ -2897,8 +2918,8 @@
       "id": "PEND-01",
       "tipo": "pregunta_abierta",
       "nombre": "Parámetros y librería de Argon2id",
-      "descripcion": "Librería elegida: Bouncy Castle (2026-10-17; argon2kt queda de respaldo si es demasiado lenta). Falta medir en el teléfono más modesto: 19 MiB/t=2, 46 MiB/t=1, 64 MiB/t=3 (p=1) y elegir la más fuerte cercana a 1 s. El esquema ya exige los mínimos de OWASP.",
-      "estado": "pendiente"
+      "descripcion": "Resuelto 2026-10-18: Bouncy Castle con m = 64 MiB, t = 3, p = 1. Medido en compilación no depurable: Redmi Note 13 Pro 5G 343 ms, emulador 587 ms. Si un teléfono más modesto del equipo pasa de 1,5 s, se revisa (los parámetros son por cuenta).",
+      "estado": "resuelto"
     },
     {
       "id": "PEND-02",
@@ -2918,7 +2939,7 @@
       "id": "PEND-04",
       "tipo": "pregunta_abierta",
       "nombre": "Duración de tokens y autobloqueo por defecto",
-      "descripcion": "Sugerido: access 15 min, refresh 30 días, autobloqueo 5 min. En Figma la fila de Ajustes muestra «1 min» solo como ejemplo.",
+      "descripcion": "Autobloqueo por defecto decidido: 5 min (opciones 1, 5, 15 y 30 min, y «al salir de la app»). Falta: access 15 min y refresh 30 días, al crear el backend.",
       "estado": "pendiente"
     },
     {
@@ -6716,6 +6737,11 @@
       "de": "PEND-01",
       "a": "DEC-05",
       "relacion": "afina"
+    },
+    {
+      "de": "PEND-01",
+      "a": "DEC-05",
+      "relacion": "resuelta_por"
     },
     {
       "de": "PEND-02",
