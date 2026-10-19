@@ -1,0 +1,980 @@
+openapi: 3.1.0
+info:
+  title: End Security API
+  version: 1.0.0
+  description: |
+    Contrato entre la app Android y el backend de End Security. Las reglas que este archivo no expresa
+    (anti-enumeración, límites, bitácora, piso de KDF) están en `docs/api/README.md` y son parte del contrato.
+    Todos los bytes viajan en Base64url sin relleno; los UUID en forma canónica (minúsculas y guiones).
+servers:
+  - url: https://api.end-security.example/v1
+    description: Producción (dominio por definir)
+  - url: http://10.0.2.2:3000/v1
+    description: Desarrollo local desde el emulador (solo compilaciones de depuración)
+tags:
+  - name: auth
+    description: Registro, inicio de sesión y tokens
+  - name: vault
+    description: Sincronización de bloques cifrados
+  - name: account
+    description: Cuenta, correo, contraseña maestra y eliminación
+  - name: two-factor
+    description: Verificación en dos pasos
+  - name: sessions
+    description: Dispositivos y actividad
+security:
+  - bearer: []
+
+paths:
+  /auth/prelogin:
+    post:
+      tags: [auth]
+      operationId: prelogin
+      summary: Parámetros de derivación de una cuenta (EP-01, OP-13)
+      description: Responde siempre 200. Para un correo inexistente devuelve parámetros falsos deterministas (DEC-07).
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              additionalProperties: false
+              properties:
+                email: { $ref: '#/components/schemas/Email' }
+      responses:
+        '200':
+          description: Parámetros KDF
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [kdf]
+                properties:
+                  kdf: { $ref: '#/components/schemas/KdfParams' }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /auth/register:
+    post:
+      tags: [auth]
+      operationId: register
+      summary: Crear cuenta (EP-02, OP-11)
+      description: |
+        Responde siempre 202, exista o no el correo (DEC-13). El `userId` lo genera la app porque forma parte
+        de la AAD de la `protectedVaultKey`. Si el `userId` ya existe, se responde 202 igual y no se crea nada.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [userId, email, authKey, kdf, protectedVaultKey]
+              additionalProperties: false
+              properties:
+                userId: { $ref: '#/components/schemas/Uuid' }
+                email: { $ref: '#/components/schemas/Email' }
+                displayName: { $ref: '#/components/schemas/DisplayName' }
+                authKey: { $ref: '#/components/schemas/AuthKey' }
+                kdf: { $ref: '#/components/schemas/KdfParams' }
+                protectedVaultKey: { $ref: '#/components/schemas/ProtectedVaultKey' }
+      responses:
+        '202': { $ref: '#/components/responses/Accepted' }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /auth/email/verify:
+    post:
+      tags: [auth]
+      operationId: verifyEmail
+      summary: Verificar el correo al registrarse e iniciar la primera sesión (EP-03, OP-12)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, code, deviceName]
+              additionalProperties: false
+              properties:
+                email: { $ref: '#/components/schemas/Email' }
+                code: { $ref: '#/components/schemas/SixDigitCode' }
+                deviceName: { $ref: '#/components/schemas/DeviceName' }
+      responses:
+        '200':
+          description: Correo verificado y sesión creada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Authenticated' }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401':
+          description: >-
+            `invalid_code` (con `attemptsRemaining`) o `challenge_expired` si el código venció o se agotaron los 5 intentos.
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /auth/email/resend:
+    post:
+      tags: [auth]
+      operationId: resendVerification
+      summary: Reenviar el código de verificación (EP-04)
+      description: Responde siempre 202. Reemplaza el código vigente. Límite de 1 cada 60 s y 5 por hora.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              additionalProperties: false
+              properties:
+                email: { $ref: '#/components/schemas/Email' }
+      responses:
+        '202': { $ref: '#/components/responses/Accepted' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /auth/login:
+    post:
+      tags: [auth]
+      operationId: login
+      summary: Iniciar sesión con la authKey (EP-05, OP-14)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, authKey, deviceName]
+              additionalProperties: false
+              properties:
+                email: { $ref: '#/components/schemas/Email' }
+                authKey: { $ref: '#/components/schemas/AuthKey' }
+                deviceName: { $ref: '#/components/schemas/DeviceName' }
+      responses:
+        '200':
+          description: Sesión creada, o se requiere el segundo paso
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/Authenticated'
+                  - $ref: '#/components/schemas/TwoFactorRequired'
+                discriminator:
+                  propertyName: status
+                  mapping:
+                    authenticated: '#/components/schemas/Authenticated'
+                    two_factor_required: '#/components/schemas/TwoFactorRequired'
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/InvalidCredentials' }
+        '403':
+          description: '`email_not_verified`: credenciales correctas, correo sin verificar'
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /auth/2fa/verify:
+    post:
+      tags: [auth]
+      operationId: verifyTwoFactor
+      summary: Segundo paso con código TOTP (EP-06, OP-15)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [challengeToken, code]
+              additionalProperties: false
+              properties:
+                challengeToken: { $ref: '#/components/schemas/OpaqueToken' }
+                code: { $ref: '#/components/schemas/SixDigitCode' }
+      responses:
+        '200':
+          description: Sesión creada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Authenticated' }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/InvalidCodeOrChallenge' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /auth/2fa/recovery:
+    post:
+      tags: [auth]
+      operationId: verifyRecoveryCode
+      summary: Segundo paso con código de respaldo (EP-07, OP-16)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [challengeToken, recoveryCode]
+              additionalProperties: false
+              properties:
+                challengeToken: { $ref: '#/components/schemas/OpaqueToken' }
+                recoveryCode: { $ref: '#/components/schemas/RecoveryCode' }
+      responses:
+        '200':
+          description: Sesión creada; el código queda usado
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Authenticated'
+                  - type: object
+                    required: [recoveryCodesRemaining]
+                    properties:
+                      recoveryCodesRemaining: { type: integer, minimum: 0, maximum: 9 }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/InvalidCodeOrChallenge' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /auth/refresh:
+    post:
+      tags: [auth]
+      operationId: refreshTokens
+      summary: Renovar tokens (EP-08, OP-17)
+      description: La app hace una renovación a la vez (DEC-16). Reusar un refresh ya rotado revoca la sesión.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refreshToken]
+              additionalProperties: false
+              properties:
+                refreshToken: { $ref: '#/components/schemas/RefreshToken' }
+      responses:
+        '200':
+          description: Tokens nuevos
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Tokens' }
+        '401':
+          description: '`session_revoked`'
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+
+  /auth/logout:
+    post:
+      tags: [auth]
+      operationId: logout
+      summary: Cerrar la sesión actual (EP-09, OP-18)
+      responses:
+        '204': { description: Sesión revocada }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /vault/items:
+    get:
+      tags: [vault]
+      operationId: listVaultChanges
+      summary: Descarga inicial o cambios desde un cursor (EP-10, OP-32, OP-33)
+      parameters:
+        - name: since
+          in: query
+          required: true
+          description: Última `revision` recibida; 0 para la descarga completa
+          schema: { type: integer, format: int64, minimum: 0 }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 500, default: 200 }
+      responses:
+        '200':
+          description: Elementos ordenados por `revision` ascendente, incluidas las lápidas
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, nextSince, hasMore, currentRevision]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/VaultItem' }
+                  nextSince:
+                    type: integer
+                    format: int64
+                    description: Revisión del último elemento devuelto (o `since` si no hubo)
+                  hasMore: { type: boolean }
+                  currentRevision:
+                    type: integer
+                    format: int64
+                    description: users.vault_revision
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '410':
+          description: '`cursor_expired` (DEC-40): descargar todo con since=0'
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+
+  /vault/items/{id}:
+    parameters:
+      - $ref: '#/components/parameters/ItemId'
+    put:
+      tags: [vault]
+      operationId: putVaultItem
+      summary: Crear o editar un elemento con concurrencia optimista (EP-11, OP-01, OP-02, OP-34)
+      description: Usa app.vault_write_item(). `expectedVersion` es null solo al crear.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [expectedVersion, formatVersion, nonce, ciphertext]
+              additionalProperties: false
+              properties:
+                expectedVersion:
+                  type: [integer, 'null']
+                  minimum: 1
+                formatVersion: { type: integer, minimum: 1, maximum: 32767 }
+                nonce: { $ref: '#/components/schemas/Nonce' }
+                ciphertext: { $ref: '#/components/schemas/ItemCiphertext' }
+      responses:
+        '200':
+          description: Actualizado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WriteResult' }
+        '201':
+          description: Creado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WriteResult' }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/VersionConflict' }
+    delete:
+      tags: [vault]
+      operationId: deleteVaultItem
+      summary: Convertir un elemento en lápida (EP-12, OP-03, OP-34)
+      parameters:
+        - name: expectedVersion
+          in: query
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        '200':
+          description: Lápida creada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WriteResult' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/VersionConflict' }
+
+  /account:
+    get:
+      tags: [account]
+      operationId: getAccount
+      summary: Datos de la cuenta y material de llaves (EP-13)
+      responses:
+        '200':
+          description: Cuenta
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Account' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    patch:
+      tags: [account]
+      operationId: updateAccount
+      summary: Cambiar el nombre visible (EP-14, OP-42)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [displayName]
+              additionalProperties: false
+              properties:
+                displayName:
+                  oneOf:
+                    - $ref: '#/components/schemas/DisplayName'
+                    - type: 'null'
+      responses:
+        '200':
+          description: Cuenta actualizada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Account' }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /account/email:
+    post:
+      tags: [account]
+      operationId: requestEmailChange
+      summary: Pedir cambio de correo (EP-15, OP-26)
+      description: Manda un código al correo nuevo y una alerta al actual. Responde 202 aunque el correo nuevo ya esté en uso.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [newEmail, reauth]
+              additionalProperties: false
+              properties:
+                newEmail: { $ref: '#/components/schemas/Email' }
+                reauth: { $ref: '#/components/schemas/Reauth' }
+      responses:
+        '202': { $ref: '#/components/responses/Accepted' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/ReauthRequired' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /account/email/verify:
+    post:
+      tags: [account]
+      operationId: confirmEmailChange
+      summary: Confirmar el correo nuevo (EP-16, OP-26)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code]
+              additionalProperties: false
+              properties:
+                code: { $ref: '#/components/schemas/SixDigitCode' }
+      responses:
+        '200':
+          description: Correo cambiado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Account' }
+        '401': { $ref: '#/components/responses/InvalidCodeOrChallenge' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /account/master-password:
+    post:
+      tags: [account]
+      operationId: changeMasterPassword
+      summary: Cambiar la contraseña maestra (EP-17, OP-27)
+      description: |
+        La app re-deriva con una sal nueva y re-envuelve la misma vault_key con AAD de `keyVersion` + 1.
+        El servidor sube key_version (DEC-41) y revoca las demás sesiones. Los elementos no se re-cifran.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reauth, expectedKeyVersion, newAuthKey, newKdf, newProtectedVaultKey]
+              additionalProperties: false
+              properties:
+                reauth: { $ref: '#/components/schemas/Reauth' }
+                expectedKeyVersion: { type: integer, minimum: 1 }
+                newAuthKey: { $ref: '#/components/schemas/AuthKey' }
+                newKdf: { $ref: '#/components/schemas/KdfParams' }
+                newProtectedVaultKey: { $ref: '#/components/schemas/ProtectedVaultKey' }
+      responses:
+        '200':
+          description: Cambiada
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [keyVersion]
+                properties:
+                  keyVersion: { type: integer, minimum: 2 }
+        '400': { $ref: '#/components/responses/ValidationFailed' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/ReauthRequired' }
+        '409':
+          description: '`key_version_conflict`'
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+
+  /account/delete:
+    post:
+      tags: [account]
+      operationId: deleteAccount
+      summary: Eliminar la cuenta (EP-18, OP-28)
+      description: Baja lógica (DEC-18). Borra bloques, 2FA y verificaciones y revoca todas las sesiones.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reauth]
+              additionalProperties: false
+              properties:
+                reauth: { $ref: '#/components/schemas/Reauth' }
+      responses:
+        '204': { description: Cuenta eliminada }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/ReauthRequired' }
+
+  /account/2fa/setup:
+    post:
+      tags: [two-factor]
+      operationId: startTwoFactorSetup
+      summary: Generar el secreto TOTP en estado pendiente (EP-19, OP-22)
+      description: Sin QR (DEC-53). Repetir la llamada reemplaza un secreto pendiente.
+      responses:
+        '200':
+          description: Secreto para agregar a mano en la app autenticadora
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [secret, issuer, accountName, algorithm, digits, periodSeconds]
+                properties:
+                  secret:
+                    type: string
+                    description: Base32 (RFC 4648) en mayúsculas, sin relleno; la app lo muestra en grupos de 4
+                    pattern: '^[A-Z2-7]{32}$'
+                  issuer: { type: string, const: End Security }
+                  accountName: { $ref: '#/components/schemas/Email' }
+                  algorithm: { type: string, const: SHA1 }
+                  digits: { type: integer, const: 6 }
+                  periodSeconds: { type: integer, const: 30 }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409':
+          description: '`two_factor_already_enabled`'
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+
+  /account/2fa/confirm:
+    post:
+      tags: [two-factor]
+      operationId: confirmTwoFactor
+      summary: Activar el 2FA con el primer código (EP-20, OP-23)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code]
+              additionalProperties: false
+              properties:
+                code: { $ref: '#/components/schemas/SixDigitCode' }
+      responses:
+        '200':
+          description: 2FA activo; los códigos se muestran una sola vez (DEC-12)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RecoveryCodes' }
+        '401': { $ref: '#/components/responses/InvalidCodeOrChallenge' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /account/2fa/disable:
+    post:
+      tags: [two-factor]
+      operationId: disableTwoFactor
+      summary: Desactivar el 2FA (EP-21, OP-24)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reauth]
+              additionalProperties: false
+              properties:
+                reauth: { $ref: '#/components/schemas/Reauth' }
+      responses:
+        '204': { description: Desactivado; los códigos de respaldo se borran en cascada }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/ReauthRequired' }
+
+  /account/2fa/recovery-codes:
+    post:
+      tags: [two-factor]
+      operationId: regenerateRecoveryCodes
+      summary: Regenerar los 10 códigos de respaldo (EP-22, OP-25)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reauth]
+              additionalProperties: false
+              properties:
+                reauth: { $ref: '#/components/schemas/Reauth' }
+      responses:
+        '200':
+          description: Códigos nuevos; los anteriores dejan de servir
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RecoveryCodes' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/ReauthRequired' }
+
+  /sessions:
+    get:
+      tags: [sessions]
+      operationId: listSessions
+      summary: Dispositivos con sesión abierta (EP-23, OP-29)
+      responses:
+        '200':
+          description: Sesiones vigentes, la actual primero
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [sessions]
+                properties:
+                  sessions:
+                    type: array
+                    items: { $ref: '#/components/schemas/Session' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /sessions/{id}:
+    delete:
+      tags: [sessions]
+      operationId: revokeSession
+      summary: Cerrar la sesión de otro dispositivo (EP-24, OP-30)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { $ref: '#/components/schemas/Uuid' }
+      responses:
+        '204': { description: Sesión revocada }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /activity:
+    get:
+      tags: [sessions]
+      operationId: listActivity
+      summary: Actividad reciente de la propia cuenta (EP-25, OP-31)
+      description: Sin IP ni user-agent completos (DEC-19); solo el nombre del dispositivo de la sesión.
+      parameters:
+        - name: before
+          in: query
+          description: Id del último evento recibido, para paginar hacia atrás
+          schema: { type: integer, format: int64, minimum: 1 }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+      responses:
+        '200':
+          description: Eventos del más reciente al más antiguo
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [events, hasMore]
+                properties:
+                  events:
+                    type: array
+                    items: { $ref: '#/components/schemas/ActivityEvent' }
+                  hasMore: { type: boolean }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+components:
+  securitySchemes:
+    bearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT (opaco para la app)
+
+  parameters:
+    ItemId:
+      name: id
+      in: path
+      required: true
+      description: UUID del elemento, generado por la app (DEC-42)
+      schema: { $ref: '#/components/schemas/Uuid' }
+
+  responses:
+    Accepted:
+      description: Aceptado (respuesta genérica, no revela si el correo existe)
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [status]
+            properties:
+              status: { type: string, const: accepted }
+    ValidationFailed:
+      description: '`validation_failed`'
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    InvalidCredentials:
+      description: '`invalid_credentials` (también para correos inexistentes)'
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    InvalidCodeOrChallenge:
+      description: '`invalid_code` o `challenge_expired`'
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Unauthorized:
+      description: '`token_expired` o `session_revoked`'
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    ReauthRequired:
+      description: '`reauth_required`'
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    NotFound:
+      description: '`not_found` (incluye elementos de otro usuario)'
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    VersionConflict:
+      description: '`version_conflict`'
+      content:
+        application/problem+json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/Problem'
+              - type: object
+                required: [currentVersion]
+                properties:
+                  currentVersion: { type: integer, minimum: 1 }
+                  currentRevision: { type: integer, format: int64 }
+    RateLimited:
+      description: '`rate_limited`'
+      headers:
+        Retry-After:
+          schema: { type: integer, minimum: 1 }
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+
+  schemas:
+    Uuid:
+      type: string
+      description: UUID canónico (minúsculas y guiones)
+      pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+    Email:
+      type: string
+      format: email
+      maxLength: 254
+    DisplayName:
+      type: string
+      minLength: 1
+      maxLength: 50
+    DeviceName:
+      type: string
+      minLength: 1
+      maxLength: 100
+      description: Nombre legible del dispositivo, p. ej. «Redmi Note 13 Pro»
+    Base64Url:
+      type: string
+      pattern: '^[A-Za-z0-9_-]*$'
+      description: Base64url sin relleno (RFC 4648 §5)
+    AuthKey:
+      allOf: [{ $ref: '#/components/schemas/Base64Url' }]
+      description: 32 bytes, HKDF-SHA256(master_key, "end-security/auth") (DEC-05)
+      minLength: 43
+      maxLength: 43
+    Salt:
+      allOf: [{ $ref: '#/components/schemas/Base64Url' }]
+      description: 16 bytes (DEC-06)
+      minLength: 22
+      maxLength: 22
+    Nonce:
+      allOf: [{ $ref: '#/components/schemas/Base64Url' }]
+      description: 12 bytes (DEC-29)
+      minLength: 16
+      maxLength: 16
+    ItemCiphertext:
+      allOf: [{ $ref: '#/components/schemas/Base64Url' }]
+      description: Cifrado || etiqueta GCM de 16 B; de 17 a 32 768 bytes (vault_items_ciphertext_chk)
+      minLength: 23
+      maxLength: 43691
+    OpaqueToken:
+      type: string
+      minLength: 32
+      maxLength: 512
+    RefreshToken:
+      allOf: [{ $ref: '#/components/schemas/Base64Url' }]
+      description: 32 bytes aleatorios
+      minLength: 43
+      maxLength: 43
+    SixDigitCode:
+      type: string
+      pattern: '^[0-9]{6}$'
+    RecoveryCode:
+      type: string
+      description: 8 caracteres Base32 de Crockford, normalizados por la app (sin guion, mayúsculas) (DEC-12)
+      pattern: '^[0-9A-HJKMNP-TV-Z]{8}$'
+    KdfParams:
+      type: object
+      required: [algorithm, memoryKiB, iterations, parallelism, salt]
+      additionalProperties: false
+      description: Piso del cliente y del servidor 65536 / 3 / 1 (DEC-05); topes 131072 KiB, t ≤ 10, p ≤ 4
+      properties:
+        algorithm: { type: string, const: argon2id }
+        memoryKiB: { type: integer, minimum: 65536, maximum: 131072 }
+        iterations: { type: integer, minimum: 3, maximum: 10 }
+        parallelism: { type: integer, minimum: 1, maximum: 4 }
+        salt: { $ref: '#/components/schemas/Salt' }
+    ProtectedVaultKey:
+      type: object
+      required: [nonce, ciphertext]
+      additionalProperties: false
+      description: AES-256-GCM(enc_key, vault_key) con AAD "end-security/vault-key|userId|keyVersion" (DEC-05)
+      properties:
+        nonce: { $ref: '#/components/schemas/Nonce' }
+        ciphertext:
+          allOf: [{ $ref: '#/components/schemas/Base64Url' }]
+          description: 48 bytes (32 de llave + 16 de etiqueta)
+          minLength: 64
+          maxLength: 64
+    Reauth:
+      type: object
+      required: [authKey]
+      additionalProperties: false
+      description: Reautenticación para operaciones sensibles. `totpCode` es obligatorio si la cuenta tiene 2FA.
+      properties:
+        authKey: { $ref: '#/components/schemas/AuthKey' }
+        totpCode: { $ref: '#/components/schemas/SixDigitCode' }
+    Account:
+      type: object
+      required: [userId, email, emailVerified, displayName, keyVersion, kdf, protectedVaultKey, twoFactorEnabled]
+      properties:
+        userId: { $ref: '#/components/schemas/Uuid' }
+        email: { $ref: '#/components/schemas/Email' }
+        emailVerified: { type: boolean }
+        displayName:
+          oneOf:
+            - $ref: '#/components/schemas/DisplayName'
+            - type: 'null'
+        keyVersion: { type: integer, minimum: 1 }
+        kdf: { $ref: '#/components/schemas/KdfParams' }
+        protectedVaultKey: { $ref: '#/components/schemas/ProtectedVaultKey' }
+        twoFactorEnabled: { type: boolean }
+    Tokens:
+      type: object
+      required: [accessToken, accessTokenExpiresIn, refreshToken, refreshTokenExpiresAt, sessionId]
+      properties:
+        accessToken: { type: string }
+        accessTokenExpiresIn:
+          type: integer
+          description: Segundos (900 = 15 min)
+        refreshToken: { $ref: '#/components/schemas/RefreshToken' }
+        refreshTokenExpiresAt:
+          type: string
+          format: date-time
+          description: 30 días después de la última rotación
+        sessionId: { $ref: '#/components/schemas/Uuid' }
+    Authenticated:
+      type: object
+      required: [status, tokens, account]
+      properties:
+        status: { type: string, const: authenticated }
+        tokens: { $ref: '#/components/schemas/Tokens' }
+        account: { $ref: '#/components/schemas/Account' }
+    TwoFactorRequired:
+      type: object
+      required: [status, challengeToken, challengeExpiresIn]
+      properties:
+        status: { type: string, const: two_factor_required }
+        challengeToken:
+          allOf: [{ $ref: '#/components/schemas/OpaqueToken' }]
+          description: Un solo uso, vence en 5 min, ligado a la cuenta y al deviceName del login
+        challengeExpiresIn: { type: integer, const: 300 }
+    VaultItem:
+      type: object
+      required: [id, version, revision, formatVersion, deleted, updatedAt]
+      properties:
+        id: { $ref: '#/components/schemas/Uuid' }
+        version: { type: integer, minimum: 1 }
+        revision: { type: integer, format: int64, minimum: 1 }
+        formatVersion: { type: integer, minimum: 1 }
+        deleted:
+          type: boolean
+          description: Lápida (DEC-17); sin nonce ni ciphertext
+        nonce:
+          oneOf:
+            - $ref: '#/components/schemas/Nonce'
+            - type: 'null'
+        ciphertext:
+          oneOf:
+            - $ref: '#/components/schemas/ItemCiphertext'
+            - type: 'null'
+        updatedAt: { type: string, format: date-time }
+    WriteResult:
+      type: object
+      required: [result, version, revision]
+      properties:
+        result: { type: string, enum: [created, updated, deleted] }
+        version: { type: integer, minimum: 1 }
+        revision: { type: integer, format: int64, minimum: 1 }
+    RecoveryCodes:
+      type: object
+      required: [recoveryCodes]
+      properties:
+        recoveryCodes:
+          type: array
+          minItems: 10
+          maxItems: 10
+          items:
+            type: string
+            description: Formato de presentación XXXX-XXXX
+            pattern: '^[0-9A-HJKMNP-TV-Z]{4}-[0-9A-HJKMNP-TV-Z]{4}$'
+    Session:
+      type: object
+      required: [id, deviceName, createdAt, lastUsedAt, current]
+      properties:
+        id: { $ref: '#/components/schemas/Uuid' }
+        deviceName: { $ref: '#/components/schemas/DeviceName' }
+        createdAt: { type: string, format: date-time }
+        lastUsedAt: { type: string, format: date-time }
+        current: { type: boolean }
+    ActivityEvent:
+      type: object
+      required: [id, occurredAt, eventType, outcome]
+      properties:
+        id: { type: integer, format: int64 }
+        occurredAt: { type: string, format: date-time }
+        eventType:
+          type: string
+          enum: [account_registered, email_verification_sent, email_verified, login, totp_verification,
+                 recovery_code_login, account_locked, token_reuse_detected, logout, session_revoked,
+                 master_password_changed, email_change_requested, email_changed, two_factor_enabled,
+                 two_factor_disabled, recovery_codes_regenerated]
+        outcome: { type: string, enum: [success, failure] }
+        deviceName:
+          oneOf:
+            - $ref: '#/components/schemas/DeviceName'
+            - type: 'null'
+    Problem:
+      type: object
+      required: [type, title, status, code]
+      properties:
+        type: { type: string }
+        title: { type: string }
+        status: { type: integer }
+        code:
+          type: string
+          enum: [validation_failed, invalid_credentials, invalid_code, challenge_expired, token_expired,
+                 session_revoked, email_not_verified, reauth_required, not_found, version_conflict,
+                 key_version_conflict, two_factor_already_enabled, cursor_expired, rate_limited, server_error]
+        retryAfterSeconds: { type: integer, minimum: 1 }
+        attemptsRemaining:
+          type: integer
+          minimum: 0
+          description: Solo en `invalid_code` de la verificación de correo (máx. 5, email_verifications.attempts)
