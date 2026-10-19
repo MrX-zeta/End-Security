@@ -44,7 +44,8 @@ typed = "".join(chr(c) for c in code_points)
 normalized = unicodedata.normalize("NFKC", typed.replace(chr(0xFE0E), "").replace(chr(0xFE0F), ""))
 password = normalized.encode("utf-8")
 salt = bytes(range(16))
-master_key = hash_secret_raw(password, salt, time_cost=2, memory_cost=19456, parallelism=1,
+# Parámetros de PEND-01 (DEC-05): 64 MiB, t = 3, p = 1.
+master_key = hash_secret_raw(password, salt, time_cost=3, memory_cost=65536, parallelism=1,
                              hash_len=32, type=Type.ID, version=19)
 
 print("utf8      ", password.hex())

@@ -9,36 +9,41 @@ import kotlin.concurrent.write
  * (DEC-27). Dentro de las primitivas se usan `ByteArray`; en cuanto un secreto sale de ahí o se
  * guarda en un campo, va aquí.
  * - Guarda su propio arreglo: [copyOf] hace una copia defensiva.
- * - [use] presta los bytes sin sacarlos; no se debe guardar la referencia que recibe el bloque.
+ * - [withBytes] presta los bytes sin sacarlos; no se debe guardar la referencia que recibe el
+ *   bloque.
  * - [wipe] (o [close]) lo sobrescribe con ceros; leerlo después lanza [IllegalStateException],
  *   para que un secreto borrado antes de tiempo no se use como si fueran ceros válidos.
- * - [use] y [wipe] se excluyen: el autobloqueo no puede borrar la llave mientras otro hilo cifra
- *   con ella (cifraría con ceros sin error). Por eso el bloque de [use] debe ser corto: [wipe]
- *   lo espera.
+ * - [withBytes] y [wipe] se excluyen: el autobloqueo no puede borrar la llave mientras otro hilo
+ *   cifra con ella (cifraría con ceros sin error). Por eso el bloque de [withBytes] debe ser
+ *   corto: [wipe] lo espera.
  * - `toString()` no muestra nada y `equals`/`hashCode` son por identidad: dos secretos no se
- *   comparan por contenido sin querer (si hace falta, `MessageDigest.isEqual` dentro de [use]).
- *
- * Ojo: el `use` de esta clase solo presta los bytes; no lo cierra como `AutoCloseable.use` de
- * Kotlin (el miembro tiene prioridad). Para borrarlo al terminar: `try { … } finally { close() }`.
+ *   comparan por contenido sin querer (si hace falta, `MessageDigest.isEqual` dentro de
+ *   [withBytes]).
+ * - Es `AutoCloseable`: `secreto.use { … }` (el de Kotlin) lo borra al terminar.
  */
-class SecureBytes private constructor(private val bytes: ByteArray) : AutoCloseable {
+class SecureBytes private constructor(private val bytes: ByteArray) : SecretReader, AutoCloseable {
 
     private val lock = ReentrantReadWriteLock()
 
     @Volatile
     private var wiped = false
 
-    val size: Int get() = bytes.size
+    override val size: Int get() = bytes.size
 
     val isWiped: Boolean get() = wiped
 
     /** Presta los bytes a [block] sin copiarlos. Falla si ya se borró. */
-    fun <R> use(block: (ByteArray) -> R): R = lock.read {
+    override fun <R> withBytes(block: (ByteArray) -> R): R = lock.read {
         check(!wiped) { "SecureBytes ya se borró" }
         block(bytes)
     }
 
+    /**
+     * Borra el secreto. Llamarlo dentro de un [withBytes] del mismo hilo es un error (el candado
+     * de lectura no puede pasar a escritura): lanza [IllegalStateException] en vez de colgarse.
+     */
     fun wipe() {
+        check(lock.readHoldCount == 0) { "wipe() dentro de withBytes" }
         lock.write {
             // Primero la bandera: nadie más lee a partir de aquí.
             wiped = true

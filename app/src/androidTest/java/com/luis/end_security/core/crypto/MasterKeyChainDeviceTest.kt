@@ -30,14 +30,14 @@ class MasterKeyChainDeviceTest {
         val password = MasterPasswordEncoder.encode(MasterPasswordNormalizer.normalize(typed))
         assertEquals("c3b1616e64c3ba20746f7274756761203230323620e29da4", password.toHex())
         val masterKey = try {
-            Argon2idKdf.derive(password, ByteArray(16) { it.toByte() }, KdfParams(19_456, 2, 1))
+            Argon2idKdf.derive(password, ByteArray(16) { it.toByte() }, KdfParams.DEFAULT)
         } finally {
             password.wipe()
         }
         try {
-            assertEquals("0bfa616a4c019318f582f037d12df4c2060683d95b1e2d000dc59d09339ce14d", masterKey.toHex())
-            assertEquals("3d11ddea9a66613f9a9ec88743ef3100c63f6811709a24a5031f97dc8575df3a", Hkdf.encKey(masterKey).toHex())
-            assertEquals("146cb3e701b532a43e32657827b4a2c3a484af1d3143a7ec1d93e75da041607a", Hkdf.authKey(masterKey).toHex())
+            assertEquals("2af2fd06f7566ae126a6eafcd3240b5bcc508ff9fb3ddef6a42259a4b0f01f81", masterKey.toHex())
+            assertEquals("7c90a1fd322d91ed0ac3ef53c7e8c209ce82412da51e7c6365aa92de3bd96d70", Hkdf.encKey(masterKey).toHex())
+            assertEquals("dcf81e4ceb6fcf6a162b23e98558cb06236d9f68d81c5717038f46bf1b37b3ec", Hkdf.authKey(masterKey).toHex())
         } finally {
             masterKey.wipe()
         }

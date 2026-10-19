@@ -22,7 +22,7 @@ class SecureBytesTest {
         val source = byteArrayOf(1, 2, 3)
         val secret = SecureBytes.copyOf(source)
         source.wipe()
-        assertEquals(listOf<Byte>(1, 2, 3), secret.use { it.toList() })
+        assertEquals(listOf<Byte>(1, 2, 3), secret.withBytes { it.toList() })
     }
 
     @Test
@@ -30,7 +30,7 @@ class SecureBytesTest {
         val secret = SecureBytes.copyOf(byteArrayOf(1, 2, 3))
         secret.wipe()
         assertTrue(secret.isWiped)
-        assertThrows(IllegalStateException::class.java) { secret.use { it.size } }
+        assertThrows(IllegalStateException::class.java) { secret.withBytes { it.size } }
     }
 
     @Test
@@ -38,25 +38,25 @@ class SecureBytesTest {
         val secret = SecureBytes.copyOf(byteArrayOf(1, 2, 3))
         secret.close()
         assertTrue(secret.isWiped)
-        assertThrows(IllegalStateException::class.java) { secret.use { it.size } }
+        assertThrows(IllegalStateException::class.java) { secret.withBytes { it.size } }
     }
 
     @Test
-    fun `use presta el mismo arreglo, asi que una referencia sacada queda en ceros al borrar`() {
+    fun `withBytes presta el mismo arreglo, asi que una referencia sacada queda en ceros al borrar`() {
         val secret = SecureBytes.copyOf(byteArrayOf(1, 2, 3))
         // Sacar la referencia no sirve: es el mismo arreglo y queda en ceros al borrar.
-        val leaked = secret.use { it }
+        val leaked = secret.withBytes { it }
         secret.wipe()
         assertEquals(listOf<Byte>(0, 0, 0), leaked.toList())
     }
 
     @Test
-    fun `wipe espera a que termine un use en otro hilo`() {
+    fun `wipe espera a que termine un withBytes en otro hilo`() {
         val secret = SecureBytes.copyOf(ByteArray(32) { 5 })
         val reading = java.util.concurrent.CountDownLatch(1)
         var seen: List<Byte> = emptyList()
         val reader = Thread {
-            secret.use { bytes ->
+            secret.withBytes { bytes ->
                 reading.countDown()
                 Thread.sleep(200)
                 seen = bytes.toList()
@@ -89,19 +89,36 @@ class SecureBytesTest {
         val masterKey = KeyDerivation.deriveMasterKey(
             MasterPasswordNormalizer.normalize(typed),
             ByteArray(16) { it.toByte() },
-            KdfParams(19_456, 2, 1),
+            KdfParams.DEFAULT,
         )
-        // SecureBytes.use solo presta los bytes: cada llave se cierra en su finally.
+        // withBytes solo presta los bytes: cada llave se cierra en su finally.
         val encKey = KeyDerivation.encKey(masterKey)
         val authKey = KeyDerivation.authKey(masterKey)
         try {
-            assertEquals("3d11ddea9a66613f9a9ec88743ef3100c63f6811709a24a5031f97dc8575df3a", encKey.use { it.toHex() })
-            assertEquals("146cb3e701b532a43e32657827b4a2c3a484af1d3143a7ec1d93e75da041607a", authKey.use { it.toHex() })
+            assertEquals("7c90a1fd322d91ed0ac3ef53c7e8c209ce82412da51e7c6365aa92de3bd96d70", encKey.withBytes { it.toHex() })
+            assertEquals("dcf81e4ceb6fcf6a162b23e98558cb06236d9f68d81c5717038f46bf1b37b3ec", authKey.withBytes { it.toHex() })
         } finally {
             encKey.close()
             authKey.close()
             masterKey.close()
         }
         assertThrows(IllegalStateException::class.java) { KeyDerivation.encKey(masterKey) }
+    }
+
+    @Test
+    fun `el use de Kotlin cierra y borra`() {
+        val secret = SecureBytes.copyOf(byteArrayOf(1, 2, 3))
+        val size = secret.use { it.size }
+        assertEquals(3, size)
+        assertTrue(secret.isWiped)
+    }
+
+    @Test
+    fun `wipe dentro de withBytes del mismo hilo falla en vez de colgarse`() {
+        val secret = SecureBytes.copyOf(byteArrayOf(1, 2, 3))
+        assertThrows(IllegalStateException::class.java) { secret.withBytes { secret.wipe() } }
+        assertFalse(secret.isWiped)
+        secret.wipe()
+        assertTrue(secret.isWiped)
     }
 }

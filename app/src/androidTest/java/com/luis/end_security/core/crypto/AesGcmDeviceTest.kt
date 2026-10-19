@@ -6,6 +6,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.util.UUID
 import javax.crypto.Cipher
 
 /**
@@ -86,9 +87,10 @@ class AesGcmDeviceTest {
     fun pvk_de_ida_y_vuelta_en_el_telefono() {
         val vaultKey = VaultKey.generate()
         val encKey = SecureBytes.copyOf(ByteArray(32) { 7 })
-        val pvk = ProtectedVaultKey.wrap(encKey, vaultKey, "usuario-1", 1)
-        val opened = ProtectedVaultKey.unwrap(encKey, pvk, "usuario-1", 1)
-        assertEquals(true, opened.use { a -> vaultKey.use { b -> a.contentEquals(b) } })
-        assertThrows(AuthenticationFailed::class.java) { ProtectedVaultKey.unwrap(encKey, pvk, "usuario-1", 2) }
+        val userId = UUID.fromString("0b9f3c2e-5d1a-4f7e-9a2b-6c8d1e4f7a90")
+        val pvk = ProtectedVaultKey.wrap(encKey, vaultKey, userId, 1)
+        val opened = ProtectedVaultKey.unwrap(encKey, pvk, userId, 1)
+        assertEquals(true, opened.withBytes { a -> vaultKey.withBytes { b -> a.contentEquals(b) } })
+        assertThrows(AuthenticationFailed::class.java) { ProtectedVaultKey.unwrap(encKey, pvk, userId, 2) }
     }
 }

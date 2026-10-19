@@ -26,8 +26,8 @@ object KeyDerivation {
     }
 
     /** `enc_key = HKDF-SHA256(master_key, "end-security/enc")`; envuelve la `vault_key`. */
-    fun encKey(masterKey: SecureBytes): SecureBytes = masterKey.use { SecureBytes.adopt(Hkdf.encKey(it)) }
+    fun encKey(masterKey: SecureBytes): SecureBytes = masterKey.withBytes { SecureBytes.adopt(Hkdf.encKey(it)) }
 
     /** `auth_key = HKDF-SHA256(master_key, "end-security/auth")`; lo único que viaja al servidor. */
-    fun authKey(masterKey: SecureBytes): SecureBytes = masterKey.use { SecureBytes.adopt(Hkdf.authKey(it)) }
+    fun authKey(masterKey: SecureBytes): SecureBytes = masterKey.withBytes { SecureBytes.adopt(Hkdf.authKey(it)) }
 }

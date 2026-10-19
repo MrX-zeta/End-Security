@@ -30,7 +30,7 @@ class Argon2idKdfTest {
         val salt = ByteArray(16) { it.toByte() }
         val passwordCopy = password.copyOf()
         val saltCopy = salt.copyOf()
-        val key = Argon2idKdf.derive(password, salt, KdfParams(memoryKiB = 19_456, iterations = 2, parallelism = 1))
+        val key = Argon2idKdf.derive(password, salt, KdfParams.DEFAULT)
         assertEquals(32, key.size)
         assertArrayEquals(passwordCopy, password)
         assertArrayEquals(saltCopy, salt)
@@ -38,7 +38,7 @@ class Argon2idKdfTest {
 
     @Test
     fun `otra sal da otra llave`() {
-        val params = KdfParams(memoryKiB = 19_456, iterations = 2, parallelism = 1)
+        val params = KdfParams.DEFAULT
         val password = "tortuga violeta".toByteArray()
         val first = Argon2idKdf.derive(password, ByteArray(16) { 1 }, params)
         val second = Argon2idKdf.derive(password, ByteArray(16) { 2 }, params)
@@ -49,7 +49,7 @@ class Argon2idKdfTest {
     fun `la sal debe medir exactamente 16 bytes`() {
         listOf(0, 15, 17, 32).forEach { size ->
             assertThrows("sal de $size bytes", IllegalArgumentException::class.java) {
-                Argon2idKdf.derive("x".toByteArray(), ByteArray(size), KdfParams(19_456, 2, 1))
+                Argon2idKdf.derive("x".toByteArray(), ByteArray(size), KdfParams.DEFAULT)
             }
         }
     }

@@ -46,12 +46,11 @@ class Argon2BenchmarkTest {
         )
         var measured = 0
         configs.forEach { config ->
-            val params = KdfParams(memoryKiB = config.memoryMiB * 1024, iterations = config.iterations, parallelism = 1)
             val row = try {
                 // Calentamiento: justo después de instalar, ART todavía no compila la app y las
                 // primeras corridas salen varias veces más lentas.
-                repeat(WARMUP_RUNS) { runOnce(params) }
-                val runs = List(RUNS) { runOnce(params) }
+                repeat(WARMUP_RUNS) { runOnce(config) }
+                val runs = List(RUNS) { runOnce(config) }
                 measured++
                 val sorted = runs.sorted()
                 "| ${config.memoryMiB} MiB | ${config.iterations} | 1 | ${sorted[RUNS / 2]} | ${sorted.last()} | ${runs.joinToString(", ")} |"
@@ -68,9 +67,18 @@ class Argon2BenchmarkTest {
         assertTrue("Ninguna configuración se pudo medir", measured > 0)
     }
 
-    private fun runOnce(params: KdfParams): Long {
+    // Con la función interna: las configuraciones que se comparan quedan por debajo del piso de
+    // KdfParams (PEND-01) y derive() las rechazaría.
+    private fun runOnce(config: Config): Long {
         val start = SystemClock.elapsedRealtimeNanos()
-        val key = Argon2idKdf.derive(password, salt, params)
+        val key = Argon2idKdf.argon2id(
+            password = password,
+            salt = salt,
+            memoryKiB = config.memoryMiB * 1024,
+            iterations = config.iterations,
+            parallelism = 1,
+            outputLength = Argon2idKdf.KEY_LENGTH,
+        )
         val elapsedMillis = (SystemClock.elapsedRealtimeNanos() - start) / 1_000_000
         key.wipe()
         return elapsedMillis
