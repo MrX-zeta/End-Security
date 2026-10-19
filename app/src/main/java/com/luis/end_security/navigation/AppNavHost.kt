@@ -50,6 +50,17 @@ fun AppNavHost(
     // La app es clara (DEC-51): íconos oscuros en las barras; el onboarding los cambia mientras se ve.
     SystemBarsAppearance(darkBackground = false)
     val navController = rememberNavController()
+    // Si la bóveda se bloquea: a Desbloquear (o a Iniciar sesión sin cuenta), sin nada debajo.
+    LockGuard(
+        onLocked = { destination ->
+            navController.navigateClearingStack(
+                when (destination) {
+                    LockDestination.Unlock -> Routes.UNLOCK
+                    LockDestination.Login -> Routes.LOGIN
+                },
+            )
+        },
+    )
     NavHost(navController = navController, startDestination = route, modifier = modifier) {
         composable(Routes.ONBOARDING) {
             OnboardingRoute(
