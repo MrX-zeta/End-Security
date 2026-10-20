@@ -39,6 +39,20 @@ object Argon2idKdf {
     }
 
     /**
+     * `auth_hash` del servidor (README de `docs/api`, regla 2): Argon2id de la `authKey` con
+     * m = 19 MiB, t = 2, p = 1 y una sal propia del servidor. **Solo para el backend falso**: el
+     * backend real usa su propia librería y formato PHC.
+     */
+    fun serverAuthHash(authKey: ByteArray, serverSalt: ByteArray): ByteArray = argon2id(
+        password = authKey,
+        salt = serverSalt,
+        memoryKiB = 19_456,
+        iterations = 2,
+        parallelism = 1,
+        outputLength = KEY_LENGTH,
+    )
+
+    /**
      * Argon2id sin las validaciones de [KdfParams]: solo para [derive] y para el vector de
      * RFC 9106 (que usa 32 KiB, un secreto y datos asociados).
      */
