@@ -3,6 +3,9 @@ package com.luis.end_security.feature.auth.ui.backupcode
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.luis.end_security.core.common.Countdown
+import com.luis.end_security.core.common.ApiError
+import com.luis.end_security.core.common.ApiResult
+import com.luis.end_security.feature.auth.domain.AuthRepository
 import com.luis.end_security.feature.auth.domain.BackupCodeFormat
 import com.luis.end_security.feature.auth.domain.SecondFactorResult
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -29,6 +32,8 @@ data class BackupCodeUiState(
     /** Segundos de bloqueo por demasiados intentos (DEC-32); 0 sin bloqueo. */
     val lockoutSecondsLeft: Int = 0,
     val isLoading: Boolean = false,
+    /** «No pudimos conectar. Intenta de nuevo.» */
+    val genericError: Boolean = false,
 ) {
     val isLockedOut: Boolean get() = lockoutSecondsLeft > 0
 }
@@ -49,11 +54,15 @@ sealed interface BackupCodeAction {
 sealed interface BackupCodeEffect {
     /** SCR-39: primera descarga de la bóveda. */
     data object NavigateToVault : BackupCodeEffect
+
+    /** El reto venció o ya se usó: a Iniciar sesión. */
+    data object NavigateToLogin : BackupCodeEffect
 }
 
 @HiltViewModel
 class BackupCodeViewModel @Inject constructor(
     timeSource: TimeSource,
+    private val auth: AuthRepository,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(BackupCodeUiState())
@@ -75,7 +84,10 @@ class BackupCodeViewModel @Inject constructor(
             is BackupCodeAction.CodeLengthChanged -> {
                 codeLength = action.length
                 // Al escribir otra vez se quita el error; vaciar el campo no lo quita.
-                _state.update { it.copy(invalidCode = it.invalidCode && action.length == 0).withCanSubmit() }
+                _state.update {
+                    it.copy(invalidCode = it.invalidCode && action.length == 0, genericError = it.genericError && action.length == 0)
+                        .withCanSubmit()
+                }
             }
             is BackupCodeAction.Submit -> submit(action.code)
         }
@@ -84,17 +96,31 @@ class BackupCodeViewModel @Inject constructor(
     private fun submit(code: CharSequence) {
         // Se vuelve a validar aquí: un cambio programático del campo se saltaría el filtro.
         if (!_state.value.canSubmit || !BackupCodeFormat.isValid(code)) return
-        // TODO(OP-16): poner isLoading = true antes de enviar e ignorar envíos mientras haya uno
-        //  activo (un doble toque contaría como intento fallido hacia el bloqueo de DEC-32);
-        //  enviar el código y llamar a onResult con la respuesta; solo con Accepted se va a
-        //  «Bóveda · cargando». Mientras tanto se navega directo (temporal).
-        viewModelScope.launch { _effects.send(BackupCodeEffect.NavigateToVault) }
+        // Un envío a la vez: un doble toque contaría como intento fallido hacia el bloqueo (DEC-32).
+        val normalized = code.toString()
+        _state.update { it.copy(isLoading = true, genericError = false).withCanSubmit() }
+        viewModelScope.launch {
+            val result = auth.verifyRecoveryCode(normalized)
+            _state.update { it.copy(isLoading = false).withCanSubmit() }
+            when (result) {
+                is ApiResult.Success -> onResult(SecondFactorResult.Accepted)
+                is ApiResult.Failure -> when (val error = result.error) {
+                    is ApiError.InvalidCode -> onResult(SecondFactorResult.Rejected)
+                    is ApiError.RateLimited -> onResult(SecondFactorResult.LockedOut((error.retryAfterSeconds + 59) / 60))
+                    ApiError.ChallengeExpired -> _effects.send(BackupCodeEffect.NavigateToLogin)
+                    else -> {
+                        _state.update { it.copy(genericError = true).withCanSubmit() }
+                        _clearRequests.update { it + 1 }
+                    }
+                }
+            }
+        }
     }
 
     /** Aplica la respuesta del servidor (OP-16). */
     internal fun onResult(result: SecondFactorResult) {
         when (result) {
-            SecondFactorResult.Accepted -> Unit // TODO(OP-16): enviar NavigateToVault aquí.
+            SecondFactorResult.Accepted -> viewModelScope.launch { _effects.send(BackupCodeEffect.NavigateToVault) }
             SecondFactorResult.Rejected -> {
                 _state.update { it.copy(invalidCode = true).withCanSubmit() }
                 _clearRequests.update { it + 1 }

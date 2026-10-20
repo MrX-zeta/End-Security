@@ -29,6 +29,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.luis.end_security.core.security.SecureScreen
 import com.luis.end_security.R
 import com.luis.end_security.core.designsystem.component.BackTopBar
 import com.luis.end_security.core.designsystem.component.CodeField
@@ -47,14 +48,19 @@ fun TwoFactorRoute(
     onBack: () -> Unit,
     onUseBackupCode: () -> Unit,
     onNavigateToVault: () -> Unit,
+    onNavigateToLogin: () -> Unit,
     viewModel: TwoFactorViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    // Los códigos no deben verse en Recientes ni en capturas (INV-15).
+    SecureScreen()
     val currentOnNavigateToVault by rememberUpdatedState(onNavigateToVault)
+    val currentOnNavigateToLogin by rememberUpdatedState(onNavigateToLogin)
     LaunchedEffect(viewModel) {
         viewModel.effects.collect { effect ->
             when (effect) {
                 TwoFactorEffect.NavigateToVault -> currentOnNavigateToVault()
+                TwoFactorEffect.NavigateToLogin -> currentOnNavigateToLogin()
             }
         }
     }
@@ -119,13 +125,14 @@ fun TwoFactorScreen(
                     CodeField(
                         value = state.code,
                         onValueChange = { onAction(TwoFactorAction.CodeChanged(it)) },
-                        isError = state.wrongCode || state.isLockedOut,
+                        isError = state.wrongCode || state.isLockedOut || state.genericError,
                         onDone = { if (state.canSubmit) submit() else focusManager.clearFocus() },
                     )
                     // Errores que no están en Figma, bajo las casillas.
                     val error = when {
                         state.isLockedOut -> lockoutMessage(state.lockoutSecondsLeft)
                         state.wrongCode -> stringResource(R.string.two_factor_error_wrong_code)
+                        state.genericError -> stringResource(R.string.auth_error_generic)
                         else -> null
                     }
                     if (error != null) {
@@ -137,6 +144,7 @@ fun TwoFactorScreen(
                         text = stringResource(R.string.two_factor_submit),
                         onClick = submit,
                         enabled = state.canSubmit,
+                        loading = state.isLoading,
                         modifier = Modifier.fillMaxWidth(),
                     )
                     Spacer(Modifier.height(4.dp))

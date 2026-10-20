@@ -63,6 +63,7 @@ import com.luis.end_security.core.designsystem.component.Checkbox
 import com.luis.end_security.core.designsystem.component.LabeledTextField
 import com.luis.end_security.core.designsystem.component.NoticeCard
 import com.luis.end_security.core.designsystem.component.PasswordField
+import com.luis.end_security.core.designsystem.component.InlineErrorMessage
 import com.luis.end_security.core.designsystem.component.PrimaryButton
 import com.luis.end_security.core.designsystem.component.StrengthMeter
 import com.luis.end_security.core.designsystem.component.TwoWeightTitle
@@ -246,6 +247,15 @@ fun SignUpScreen(
                         onOpenLegalDocument = onOpenLegalDocument,
                     )
                     Spacer(Modifier.weight(1f).heightIn(min = 24.dp))
+                    state.submitError?.let { error ->
+                        InlineErrorMessage(
+                            text = when (error) {
+                                SignUpSubmitError.Generic -> stringResource(R.string.auth_error_generic)
+                                is SignUpSubmitError.RateLimited -> stringResource(R.string.auth_lockout, error.minutes)
+                            },
+                        )
+                        Spacer(Modifier.height(12.dp))
+                    }
                     PrimaryButton(
                         text = stringResource(R.string.signup_submit),
                         onClick = {
@@ -253,6 +263,7 @@ fun SignUpScreen(
                             onSubmit()
                         },
                         enabled = state.canSubmit,
+                        loading = state.isLoading,
                         modifier = Modifier.fillMaxWidth(),
                     )
                     Spacer(Modifier.height(16.dp))

@@ -1,5 +1,7 @@
 package com.luis.end_security.feature.auth.ui.signup
 
+import com.luis.end_security.core.common.ApiError
+
 /**
  * Estado de Crear cuenta (SCR-05). Ningún texto de contraseña vive aquí (regla no negociable 6):
  * solo lo que se calcula de ellas.
@@ -19,11 +21,29 @@ data class SignUpUiState(
     val showMismatchError: Boolean = false,
     val termsAccepted: Boolean = false,
     val canSubmit: Boolean = false,
-    /** Verificando la política antes de registrar. */
+    /** Verificando la política, derivando las llaves y registrando. */
     val isLoading: Boolean = false,
+    /** El registro no salió (sin red o límite de intentos). */
+    val submitError: SignUpSubmitError? = null,
 ) {
     // Ni el correo ni el puntaje junto con la longitud deben terminar en un log (INV-06).
     override fun toString(): String = "SignUpUiState(canSubmit=$canSubmit, isLoading=$isLoading, ***)"
+}
+
+/** Por qué no se pudo registrar. */
+sealed interface SignUpSubmitError {
+    /** «No pudimos conectar. Intenta de nuevo.» */
+    data object Generic : SignUpSubmitError
+
+    /** «Demasiados intentos. Vuelve a intentarlo en N min.» */
+    data class RateLimited(val minutes: Int) : SignUpSubmitError
+
+    companion object {
+        fun from(error: ApiError): SignUpSubmitError = when (error) {
+            is ApiError.RateLimited -> RateLimited((error.retryAfterSeconds + 59) / 60)
+            else -> Generic
+        }
+    }
 }
 
 sealed interface SignUpAction {

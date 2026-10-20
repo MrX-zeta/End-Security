@@ -19,8 +19,11 @@ data class LoginUiState(
         "LoginUiState(canSubmit=$canSubmit, error=$error, lockoutSecondsLeft=$lockoutSecondsLeft, ***)"
 }
 
-/** Un solo error para correo y contraseña, para no revelar si el correo tiene cuenta. */
-enum class LoginError { InvalidCredentials }
+/**
+ * Un solo error para correo y contraseña, para no revelar si el correo tiene cuenta; y el genérico
+ * («No pudimos conectar») para la red y lo que no debe dar pistas.
+ */
+enum class LoginError { InvalidCredentials, Generic }
 
 sealed interface LoginAction {
     data class EmailChanged(val value: String) : LoginAction {
@@ -30,11 +33,24 @@ sealed interface LoginAction {
     /** La pantalla avisa si el campo de contraseña quedó vacío o no; nunca manda su contenido. */
     data class PasswordEmptinessChanged(val isEmpty: Boolean) : LoginAction
 
-    /** «Entrar». */
-    data object Submit : LoginAction
+    /**
+     * «Entrar», con la contraseña de paso para derivar las llaves (OP-13); el ViewModel no la guarda.
+     * No es `data class` para que su `toString()` no la imprima.
+     */
+    class Submit(val password: CharSequence) : LoginAction {
+        override fun toString(): String = "Submit(***)"
+    }
 }
 
 sealed interface LoginEffect {
     /** SCR-07: segundo paso de la verificación en dos pasos. */
     data object NavigateToTwoFactor : LoginEffect
+
+    /** SCR-39: la bóveda quedó abierta. */
+    data object NavigateToVault : LoginEffect
+
+    /** SCR-06: credenciales correctas pero el correo sin verificar. */
+    data class NavigateToVerifyEmail(val email: String) : LoginEffect {
+        override fun toString(): String = "NavigateToVerifyEmail(***)"
+    }
 }

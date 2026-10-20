@@ -3,6 +3,8 @@ package com.luis.end_security.feature.auth.ui.signup
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.luis.end_security.core.common.DefaultDispatcher
+import com.luis.end_security.core.common.ApiResult
+import com.luis.end_security.feature.auth.domain.AuthRepository
 import com.luis.end_security.feature.auth.domain.EmailFormat
 import com.luis.end_security.feature.auth.domain.MasterPasswordNormalizer
 import com.luis.end_security.feature.auth.domain.MasterPasswordPolicy
@@ -30,6 +32,7 @@ import javax.inject.Inject
 class SignUpViewModel @Inject constructor(
     private val estimator: PasswordStrengthEstimator,
     private val unicode: UnicodeCharacterData,
+    private val auth: AuthRepository,
     @param:DefaultDispatcher private val scoringDispatcher: CoroutineDispatcher,
 ) : ViewModel() {
 
@@ -139,16 +142,24 @@ class SignUpViewModel @Inject constructor(
         if (!current.isEmailValid || !current.termsAccepted || current.isLoading) return
         if (submitJob?.isActive == true) return
         _state.update { it.copy(isLoading = true).withCanSubmit() }
+        _state.update { it.copy(submitError = null) }
         submitJob = viewModelScope.launch {
             val accepted = passesNormalizedPolicy(password, normalizedPassword, normalizedConfirmation)
-            _state.update { it.copy(isLoading = false).withCanSubmit() }
-            if (!accepted) return@launch
-            // TODO(OP-11): registro. La pantalla copiará la contraseña a un CharArray, se derivarán
-            //  enc_key y auth_key (DEC-05) y el arreglo se sobrescribirá. La codificación a UTF-8 usa
-            //  CodingErrorAction.REPORT (DEC-31): si falla, no se registra. Falta PEND-01 (Argon2)
-            //  para crear AuthRepository; por ahora no se envía nada.
-            // TODO(OP-11): navegar solo si el registro responde bien.
-            _effects.send(SignUpEffect.NavigateToVerifyEmail(_state.value.email.trim()))
+            if (!accepted) {
+                _state.update { it.copy(isLoading = false).withCanSubmit() }
+                return@launch
+            }
+            // OP-11: el repositorio genera la cuenta, deriva las llaves (Argon2 fuera del hilo
+            // principal) y registra. La contraseña no se guarda en ningún lado.
+            val email = _state.value.email.trim()
+            val result = auth.register(email, password)
+            _state.update {
+                it.copy(
+                    isLoading = false,
+                    submitError = (result as? ApiResult.Failure)?.error?.let { error -> SignUpSubmitError.from(error) },
+                ).withCanSubmit()
+            }
+            if (result is ApiResult.Success) _effects.send(SignUpEffect.NavigateToVerifyEmail(email))
         }
     }
 

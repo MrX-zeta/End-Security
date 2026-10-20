@@ -132,4 +132,14 @@
     <string name="vault_lock_now">Bloquear ahora</string>
     <!-- Marcador de la Bóveda (SCR-10) hasta que se implemente. -->
     <string name="vault_placeholder">Próximamente</string>
+
+    <!-- Acceso con el backend (tarea 10). Textos del README de docs/api. -->
+    <string name="button_loading">Cargando</string>
+    <string name="auth_error_generic">No pudimos conectar. Intenta de nuevo.</string>
+    <string name="verify_debug_code">Código de prueba: %1$s</string>
+    <plurals name="vault_recovery_codes_left">
+        <item quantity="one">Te queda %d código de respaldo.</item>
+        <item quantity="many">Te quedan %d códigos de respaldo.</item>
+        <item quantity="other">Te quedan %d códigos de respaldo.</item>
+    </plurals>
 </resources>

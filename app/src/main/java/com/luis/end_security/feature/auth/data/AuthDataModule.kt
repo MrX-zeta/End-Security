@@ -1,5 +1,6 @@
 package com.luis.end_security.feature.auth.data
 
+import com.luis.end_security.feature.auth.domain.AuthRepository
 import com.luis.end_security.feature.auth.domain.OnboardingRepository
 import com.luis.end_security.feature.auth.domain.PasswordStrengthEstimator
 import com.luis.end_security.feature.auth.domain.UnicodeCharacterData
@@ -20,4 +21,7 @@ abstract class AuthDataModule {
 
     @Binds
     abstract fun bindUnicodeCharacterData(impl: IcuUnicodeCharacterData): UnicodeCharacterData
+
+    @Binds
+    abstract fun bindAuthRepository(impl: AuthRepositoryImpl): AuthRepository
 }

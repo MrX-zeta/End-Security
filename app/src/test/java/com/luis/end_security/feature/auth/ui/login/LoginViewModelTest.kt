@@ -1,5 +1,10 @@
 package com.luis.end_security.feature.auth.ui.login
 
+import com.luis.end_security.core.common.ApiError
+import com.luis.end_security.core.common.ApiResult
+import com.luis.end_security.feature.auth.domain.AuthStep
+import com.luis.end_security.feature.auth.domain.FakeAuthRepository
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
@@ -24,12 +29,13 @@ class LoginViewModelTest {
 
     private val dispatcher = StandardTestDispatcher()
     private val scope = TestScope(dispatcher)
+    private val auth = FakeAuthRepository()
     private lateinit var viewModel: LoginViewModel
 
     @Before
     fun setUp() {
         Dispatchers.setMain(dispatcher)
-        viewModel = LoginViewModel(dispatcher.scheduler.timeSource)
+        viewModel = LoginViewModel(dispatcher.scheduler.timeSource, auth)
     }
 
     @After
@@ -44,18 +50,94 @@ class LoginViewModelTest {
         viewModel.onAction(LoginAction.PasswordEmptinessChanged(isEmpty = false))
     }
 
+    private fun TestScope.submit() {
+        viewModel.onAction(LoginAction.Submit("contraseña"))
+        runCurrent()
+    }
+
     @Test
-    fun `entrar con datos validos navega a la verificacion en dos pasos`() = scope.runTest {
+    fun `entrar manda el correo y la contrasena del campo`() = scope.runTest {
         fillValid()
-        viewModel.onAction(LoginAction.Submit)
+        submit()
+        assertEquals(listOf("login:ana.lopez@correo.com"), auth.calls)
+        assertEquals(listOf("contraseña"), auth.passwords)
+    }
+
+    @Test
+    fun `con la boveda abierta navega a la boveda`() = scope.runTest {
+        fillValid()
+        submit()
+        assertEquals(LoginEffect.NavigateToVault, viewModel.effects.first())
+    }
+
+    @Test
+    fun `con 2FA navega a la verificacion en dos pasos`() = scope.runTest {
+        auth.loginResult = ApiResult.Success(AuthStep.TwoFactorRequired)
+        fillValid()
+        submit()
         assertEquals(LoginEffect.NavigateToTwoFactor, viewModel.effects.first())
     }
 
     @Test
-    fun `entrar sin datos validos no navega`() = scope.runTest {
-        viewModel.onAction(LoginAction.Submit)
+    fun `con el correo sin verificar navega a verificarlo`() = scope.runTest {
+        auth.loginResult = ApiResult.Success(AuthStep.EmailNotVerified("ana.lopez@correo.com"))
+        fillValid()
+        submit()
+        assertEquals(LoginEffect.NavigateToVerifyEmail("ana.lopez@correo.com"), viewModel.effects.first())
+    }
+
+    @Test
+    fun `credenciales incorrectas muestran el error y se quita al escribir`() = scope.runTest {
+        auth.loginResult = ApiResult.Failure(ApiError.InvalidCredentials)
+        fillValid()
+        submit()
+        assertEquals(LoginError.InvalidCredentials, state.error)
+        assertFalse(state.isLoading)
+        viewModel.onAction(LoginAction.PasswordEmptinessChanged(isEmpty = false))
+        assertNull(state.error)
+    }
+
+    @Test
+    fun `sin red muestra el error generico`() = scope.runTest {
+        auth.loginResult = ApiResult.Failure(ApiError.NetworkUnavailable)
+        fillValid()
+        submit()
+        assertEquals(LoginError.Generic, state.error)
+    }
+
+    @Test
+    fun `demasiados intentos en el servidor bloquean con los minutos redondeados`() = scope.runTest {
+        auth.loginResult = ApiResult.Failure(ApiError.RateLimited(retryAfterSeconds = 61))
+        fillValid()
+        submit()
+        assertEquals(2 * 60, state.lockoutSecondsLeft)
+        assertFalse(state.canSubmit)
+    }
+
+    @Test
+    fun `mientras entra muestra carga y no acepta otro envio`() = scope.runTest {
+        auth.gate = CompletableDeferred()
+        fillValid()
+        submit()
+        assertTrue(state.isLoading)
+        assertFalse(state.canSubmit)
+        submit()
+        assertEquals(1, auth.calls.size)
+        auth.gate!!.complete(Unit)
         runCurrent()
+        assertFalse(state.isLoading)
+    }
+
+    @Test
+    fun `entrar sin datos validos no llama al servidor ni navega`() = scope.runTest {
+        submit()
+        assertTrue(auth.calls.isEmpty())
         assertNull(withTimeoutOrNull(100) { viewModel.effects.first() })
+    }
+
+    @Test
+    fun `la accion de enviar no imprime la contrasena`() {
+        assertFalse(LoginAction.Submit("secreta").toString().contains("secreta"))
     }
 
     @Test
@@ -132,16 +214,5 @@ class LoginViewModelTest {
         viewModel.onAction(LoginAction.PasswordEmptinessChanged(isEmpty = false))
         viewModel.onAction(LoginAction.EmailChanged("ana"))
         assertFalse(state.canSubmit)
-    }
-
-    @Test
-    fun `entrar sin backend no cambia el estado`() {
-        viewModel.onAction(LoginAction.EmailChanged("ana.lopez@correo.com"))
-        viewModel.onAction(LoginAction.PasswordEmptinessChanged(isEmpty = false))
-        val before = state
-
-        viewModel.onAction(LoginAction.Submit)
-
-        assertEquals(before, state)
     }
 }

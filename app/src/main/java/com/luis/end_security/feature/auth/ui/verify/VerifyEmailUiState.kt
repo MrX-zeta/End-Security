@@ -11,6 +11,8 @@ data class VerifyEmailUiState(
     val resendSecondsLeft: Int = RESEND_WAIT_SECONDS,
     val error: VerifyEmailError? = null,
     val isLoading: Boolean = false,
+    /** Solo con el backend falso y en depuración: «Código de prueba: N». */
+    val debugCode: String? = null,
 ) {
     /** «Reenviar código» se muestra al terminar la espera o en cuanto el código deja de servir. */
     val canResend: Boolean get() = resendSecondsLeft == 0 || error == VerifyEmailError.Expired
@@ -30,6 +32,20 @@ sealed interface VerifyEmailError {
 
     /** «Este código ya no sirve. Pide uno nuevo.» (vencido o sin intentos) */
     data object Expired : VerifyEmailError
+
+    /** «No pudimos conectar. Intenta de nuevo.» */
+    data object Generic : VerifyEmailError
+
+    /** «Demasiados intentos. Vuelve a intentarlo en N min.» */
+    data class RateLimited(val minutes: Int) : VerifyEmailError
+}
+
+sealed interface VerifyEmailEffect {
+    /** Correo verificado y bóveda abierta: a Bóveda · cargando. */
+    data object NavigateToVault : VerifyEmailEffect
+
+    /** Verificado, pero hay que entrar de nuevo (ya no estaba la llave en memoria). */
+    data object NavigateToLogin : VerifyEmailEffect
 }
 
 sealed interface VerifyEmailAction {

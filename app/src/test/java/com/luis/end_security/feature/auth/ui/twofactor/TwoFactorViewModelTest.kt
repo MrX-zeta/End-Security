@@ -1,5 +1,8 @@
 package com.luis.end_security.feature.auth.ui.twofactor
 
+import com.luis.end_security.core.common.ApiError
+import com.luis.end_security.core.common.ApiResult
+import com.luis.end_security.feature.auth.domain.FakeAuthRepository
 import com.luis.end_security.feature.auth.domain.SecondFactorResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -23,6 +26,7 @@ class TwoFactorViewModelTest {
 
     private val dispatcher = StandardTestDispatcher()
     private val scope = TestScope(dispatcher)
+    private val auth = FakeAuthRepository()
     private lateinit var viewModel: TwoFactorViewModel
 
     private val state get() = viewModel.state.value
@@ -30,7 +34,7 @@ class TwoFactorViewModelTest {
     @Before
     fun setUp() {
         Dispatchers.setMain(dispatcher)
-        viewModel = TwoFactorViewModel(dispatcher.scheduler.timeSource)
+        viewModel = TwoFactorViewModel(dispatcher.scheduler.timeSource, auth)
     }
 
     @After
@@ -94,10 +98,47 @@ class TwoFactorViewModelTest {
         assertFalse(TwoFactorAction.CodeChanged("270915").toString().contains("270915"))
     }
 
-    @Test
-    fun `continuar con 6 digitos va a la boveda`() = scope.runTest {
-        viewModel.onAction(TwoFactorAction.CodeChanged("270915"))
+    private fun TestScope.submit(code: String = "270915") {
+        viewModel.onAction(TwoFactorAction.CodeChanged(code))
         viewModel.onAction(TwoFactorAction.Submit)
+        runCurrent()
+    }
+
+    @Test
+    fun `continuar con 6 digitos manda el codigo y va a la boveda`() = scope.runTest {
+        submit()
+        assertEquals(listOf("twoFactor:270915"), auth.calls)
         assertEquals(TwoFactorEffect.NavigateToVault, viewModel.effects.first())
+    }
+
+    @Test
+    fun `el servidor rechaza el codigo`() = scope.runTest {
+        auth.twoFactorResult = ApiResult.Failure(ApiError.InvalidCode(attemptsRemaining = 3))
+        submit()
+        assertTrue(state.wrongCode)
+        assertEquals("", state.code)
+    }
+
+    @Test
+    fun `demasiados intentos en el servidor bloquean`() = scope.runTest {
+        auth.twoFactorResult = ApiResult.Failure(ApiError.RateLimited(retryAfterSeconds = 900))
+        submit()
+        assertEquals(15 * 60, state.lockoutSecondsLeft)
+    }
+
+    @Test
+    fun `el reto vencido regresa a iniciar sesion`() = scope.runTest {
+        auth.twoFactorResult = ApiResult.Failure(ApiError.ChallengeExpired)
+        submit()
+        assertEquals(TwoFactorEffect.NavigateToLogin, viewModel.effects.first())
+    }
+
+    @Test
+    fun `sin red muestra el error generico y vacia las casillas`() = scope.runTest {
+        auth.twoFactorResult = ApiResult.Failure(ApiError.NetworkUnavailable)
+        submit()
+        assertTrue(state.genericError)
+        assertEquals("", state.code)
+        assertFalse(state.isLoading)
     }
 }

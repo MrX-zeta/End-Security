@@ -1,9 +1,15 @@
 package com.luis.end_security.feature.auth.ui.verify
 
 import androidx.lifecycle.SavedStateHandle
+import com.luis.end_security.core.common.ApiError
+import com.luis.end_security.core.common.ApiResult
+import com.luis.end_security.feature.auth.domain.AuthStep
+import com.luis.end_security.feature.auth.domain.DebugVerificationCodes
 import com.luis.end_security.feature.auth.domain.EmailVerificationResult
+import com.luis.end_security.feature.auth.domain.FakeAuthRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
@@ -24,6 +30,11 @@ class VerifyEmailViewModelTest {
 
     private val dispatcher = StandardTestDispatcher()
     private val scope = TestScope(dispatcher)
+    private val auth = FakeAuthRepository()
+    private val debugCodes = object : DebugVerificationCodes {
+        var code: String? = "111111"
+        override fun latestCode(email: String): String? = code
+    }
     private lateinit var viewModel: VerifyEmailViewModel
 
     private val state get() = viewModel.state.value
@@ -35,6 +46,8 @@ class VerifyEmailViewModelTest {
         viewModel = VerifyEmailViewModel(
             SavedStateHandle(mapOf(VerifyEmailViewModel.EMAIL_ARG to "ana.lopez@correo.com")),
             dispatcher.scheduler.timeSource,
+            auth,
+            debugCodes,
         )
         scope.runCurrent()
     }
@@ -160,6 +173,71 @@ class VerifyEmailViewModelTest {
         val text = state.toString() + VerifyEmailAction.CodeChanged("481920").toString()
         assertFalse(text.contains("481920"))
         assertFalse(text.contains("ana.lopez"))
+    }
+
+    private fun TestScope.submit(code: String = "123456") {
+        viewModel.onAction(VerifyEmailAction.CodeChanged(code))
+        viewModel.onAction(VerifyEmailAction.Submit)
+        runCurrent()
+    }
+
+    @Test
+    fun `verificar manda el correo y el codigo y va a la boveda`() = scope.runTest {
+        submit()
+        assertEquals(listOf("verifyEmail:ana.lopez@correo.com:123456"), auth.calls)
+        assertEquals(VerifyEmailEffect.NavigateToVault, viewModel.effects.first())
+    }
+
+    @Test
+    fun `sin la llave en memoria va a iniciar sesion`() = scope.runTest {
+        auth.verifyEmailResult = ApiResult.Success(AuthStep.SignInAgain)
+        submit()
+        assertEquals(VerifyEmailEffect.NavigateToLogin, viewModel.effects.first())
+    }
+
+    @Test
+    fun `el servidor rechaza el codigo con los intentos que quedan`() = scope.runTest {
+        auth.verifyEmailResult = ApiResult.Failure(ApiError.InvalidCode(attemptsRemaining = 2))
+        submit()
+        assertEquals(VerifyEmailError.WrongCode(attemptsLeft = 2), state.error)
+        assertFalse(state.isLoading)
+    }
+
+    @Test
+    fun `el codigo vencido en el servidor deja reenviar`() = scope.runTest {
+        auth.verifyEmailResult = ApiResult.Failure(ApiError.ChallengeExpired)
+        submit()
+        assertEquals(VerifyEmailError.Expired, state.error)
+        assertTrue(state.canResend)
+    }
+
+    @Test
+    fun `sin red muestra el error generico`() = scope.runTest {
+        auth.verifyEmailResult = ApiResult.Failure(ApiError.NetworkUnavailable)
+        submit()
+        assertEquals(VerifyEmailError.Generic, state.error)
+    }
+
+    @Test
+    fun `reenviar pide otro codigo y muestra el de prueba nuevo`() = scope.runTest {
+        assertEquals("111111", state.debugCode)
+        advanceTimeBy(60_000)
+        runCurrent()
+        debugCodes.code = "222222"
+        viewModel.onAction(VerifyEmailAction.Resend)
+        runCurrent()
+        assertTrue(auth.calls.contains("resend:ana.lopez@correo.com"))
+        assertEquals("222222", state.debugCode)
+    }
+
+    @Test
+    fun `demasiados reenvios muestran los minutos de espera`() = scope.runTest {
+        auth.resendResult = ApiResult.Failure(ApiError.RateLimited(retryAfterSeconds = 300))
+        advanceTimeBy(60_000)
+        runCurrent()
+        viewModel.onAction(VerifyEmailAction.Resend)
+        runCurrent()
+        assertEquals(VerifyEmailError.RateLimited(minutes = 5), state.error)
     }
 
     @Test

@@ -1,5 +1,8 @@
 package com.luis.end_security.feature.auth.ui.signup
 
+import com.luis.end_security.core.common.ApiError
+import com.luis.end_security.core.common.ApiResult
+import com.luis.end_security.feature.auth.domain.FakeAuthRepository
 import com.luis.end_security.feature.auth.domain.FakeUnicodeCharacterData
 import com.luis.end_security.feature.auth.domain.PasswordStrengthEstimator
 import kotlinx.coroutines.Dispatchers
@@ -22,6 +25,7 @@ class SignUpViewModelTest {
 
     private val dispatcher = UnconfinedTestDispatcher()
     private val estimator = FakeEstimator()
+    private val auth = FakeAuthRepository()
     private lateinit var viewModel: SignUpViewModel
 
     private val state get() = viewModel.state.value
@@ -29,7 +33,7 @@ class SignUpViewModelTest {
     @Before
     fun setUp() {
         Dispatchers.setMain(dispatcher)
-        viewModel = SignUpViewModel(estimator, FakeUnicodeCharacterData(), dispatcher)
+        viewModel = SignUpViewModel(estimator, FakeUnicodeCharacterData(), auth, dispatcher)
     }
 
     @After
@@ -112,7 +116,7 @@ class SignUpViewModelTest {
     fun `mientras se calcula el puntaje nuevo el anterior no habilita el boton`() {
         // El cálculo queda en cola hasta que el planificador avanza.
         val scoring = StandardTestDispatcher(dispatcher.scheduler)
-        viewModel = SignUpViewModel(estimator, FakeUnicodeCharacterData(), scoring)
+        viewModel = SignUpViewModel(estimator, FakeUnicodeCharacterData(), auth, scoring)
         fillValidForm()
         scoring.scheduler.runCurrent()
         assertTrue(state.canSubmit)
@@ -160,7 +164,7 @@ class SignUpViewModelTest {
     fun `crear cuenta verifica la politica aunque el medidor siga calculando`() {
         // Antes, Submit se rechazaba siempre porque el cálculo del medidor seguía pendiente.
         val scoring = StandardTestDispatcher(dispatcher.scheduler)
-        viewModel = SignUpViewModel(estimator, FakeUnicodeCharacterData(), scoring)
+        viewModel = SignUpViewModel(estimator, FakeUnicodeCharacterData(), auth, scoring)
         fillValidForm()
 
         viewModel.onAction(SignUpAction.Submit(StringBuilder(STRONG), StringBuilder(STRONG)))
@@ -218,11 +222,38 @@ class SignUpViewModelTest {
     }
 
     @Test
+    fun `crear cuenta registra con el correo y la contrasena del campo`() = kotlinx.coroutines.test.runTest(dispatcher) {
+        fillValidForm()
+        viewModel.onAction(SignUpAction.Submit(StringBuilder(STRONG), StringBuilder(STRONG)))
+        assertEquals(listOf("register:ana.lopez@correo.com"), auth.calls)
+        assertEquals(listOf(STRONG), auth.passwords)
+    }
+
+    @Test
+    fun `si el registro falla muestra el error y no navega`() = kotlinx.coroutines.test.runTest(dispatcher) {
+        auth.registerResult = ApiResult.Failure(ApiError.NetworkUnavailable)
+        fillValidForm()
+        viewModel.onAction(SignUpAction.Submit(StringBuilder(STRONG), StringBuilder(STRONG)))
+        assertEquals(SignUpSubmitError.Generic, state.submitError)
+        assertFalse(state.isLoading)
+        assertNull(kotlinx.coroutines.withTimeoutOrNull(100) { viewModel.effects.first() })
+    }
+
+    @Test
+    fun `demasiados registros muestran los minutos de espera`() = kotlinx.coroutines.test.runTest(dispatcher) {
+        auth.registerResult = ApiResult.Failure(ApiError.RateLimited(retryAfterSeconds = 120))
+        fillValidForm()
+        viewModel.onAction(SignUpAction.Submit(StringBuilder(STRONG), StringBuilder(STRONG)))
+        assertEquals(SignUpSubmitError.RateLimited(minutes = 2), state.submitError)
+    }
+
+    @Test
     fun `crear cuenta sin la politica no navega`() = kotlinx.coroutines.test.runTest(dispatcher) {
         fillValidForm()
         estimator.nextScore = 2
         viewModel.onAction(SignUpAction.Submit(StringBuilder("contrase\u00F1a2026"), StringBuilder("contrase\u00F1a2026")))
         assertNull(kotlinx.coroutines.withTimeoutOrNull(100) { viewModel.effects.first() })
+        assertTrue("no se registra", auth.calls.isEmpty())
     }
 
     @Test

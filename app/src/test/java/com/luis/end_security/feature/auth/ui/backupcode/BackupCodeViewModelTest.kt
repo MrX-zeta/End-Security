@@ -1,5 +1,8 @@
 package com.luis.end_security.feature.auth.ui.backupcode
 
+import com.luis.end_security.core.common.ApiError
+import com.luis.end_security.core.common.ApiResult
+import com.luis.end_security.feature.auth.domain.FakeAuthRepository
 import com.luis.end_security.feature.auth.domain.SecondFactorResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -23,6 +26,7 @@ class BackupCodeViewModelTest {
 
     private val dispatcher = StandardTestDispatcher()
     private val scope = TestScope(dispatcher)
+    private val auth = FakeAuthRepository()
     private lateinit var viewModel: BackupCodeViewModel
 
     private val state get() = viewModel.state.value
@@ -30,7 +34,7 @@ class BackupCodeViewModelTest {
     @Before
     fun setUp() {
         Dispatchers.setMain(dispatcher)
-        viewModel = BackupCodeViewModel(dispatcher.scheduler.timeSource)
+        viewModel = BackupCodeViewModel(dispatcher.scheduler.timeSource, auth)
     }
 
     @After
@@ -87,10 +91,45 @@ class BackupCodeViewModelTest {
         assertFalse(BackupCodeAction.Submit(StringBuilder("K7QD2M9X")).toString().contains("K7QD"))
     }
 
+    private fun TestScope.submit(code: String = "K7QD2M9X") {
+        viewModel.onAction(BackupCodeAction.CodeLengthChanged(code.length))
+        viewModel.onAction(BackupCodeAction.Submit(StringBuilder(code)))
+        runCurrent()
+    }
+
     @Test
-    fun `entrar con un codigo valido va a la boveda`() = scope.runTest {
-        viewModel.onAction(BackupCodeAction.CodeLengthChanged(8))
-        viewModel.onAction(BackupCodeAction.Submit(StringBuilder("K7QD2M9X")))
+    fun `entrar con un codigo valido lo manda y va a la boveda`() = scope.runTest {
+        submit()
+        assertEquals(listOf("recovery:K7QD2M9X"), auth.calls)
         assertEquals(BackupCodeEffect.NavigateToVault, viewModel.effects.first())
+    }
+
+    @Test
+    fun `un codigo con caracteres fuera del formato no se manda`() = scope.runTest {
+        submit("K7QD-M9X")
+        assertTrue(auth.calls.isEmpty())
+    }
+
+    @Test
+    fun `el servidor rechaza el codigo`() = scope.runTest {
+        auth.recoveryResult = ApiResult.Failure(ApiError.InvalidCode(attemptsRemaining = null))
+        submit()
+        assertTrue(state.invalidCode)
+        assertEquals(1, viewModel.clearRequests.value)
+    }
+
+    @Test
+    fun `el reto vencido regresa a iniciar sesion`() = scope.runTest {
+        auth.recoveryResult = ApiResult.Failure(ApiError.ChallengeExpired)
+        submit()
+        assertEquals(BackupCodeEffect.NavigateToLogin, viewModel.effects.first())
+    }
+
+    @Test
+    fun `sin red muestra el error generico`() = scope.runTest {
+        auth.recoveryResult = ApiResult.Failure(ApiError.NetworkUnavailable)
+        submit()
+        assertTrue(state.genericError)
+        assertFalse(state.isLoading)
     }
 }

@@ -58,6 +58,7 @@ private val ContentHorizontalPadding = 32.dp
 fun BackupCodeRoute(
     onBack: () -> Unit,
     onNavigateToVault: () -> Unit,
+    onNavigateToLogin: () -> Unit,
     viewModel: BackupCodeViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -67,10 +68,12 @@ fun BackupCodeRoute(
     val codeState = remember { TextFieldState() }
     val currentOnAction by rememberUpdatedState(viewModel::onAction)
     val currentOnNavigateToVault by rememberUpdatedState(onNavigateToVault)
+    val currentOnNavigateToLogin by rememberUpdatedState(onNavigateToLogin)
     LaunchedEffect(viewModel) {
         viewModel.effects.collect { effect ->
             when (effect) {
                 BackupCodeEffect.NavigateToVault -> currentOnNavigateToVault()
+                BackupCodeEffect.NavigateToLogin -> currentOnNavigateToLogin()
             }
         }
     }
@@ -160,6 +163,7 @@ fun BackupCodeScreen(
                     val error = when {
                         state.isLockedOut -> lockoutMessage(state.lockoutSecondsLeft)
                         state.invalidCode -> stringResource(R.string.backup_code_error_invalid)
+                        state.genericError -> stringResource(R.string.auth_error_generic)
                         else -> null
                     }
                     // Solo Pegar en el menú: el código no debe ir al portapapeles.
@@ -188,6 +192,7 @@ fun BackupCodeScreen(
                         text = stringResource(R.string.backup_code_submit),
                         onClick = submit,
                         enabled = state.canSubmit,
+                        loading = state.isLoading,
                         modifier = Modifier.fillMaxWidth(),
                     )
                     Spacer(Modifier.height(16.dp))

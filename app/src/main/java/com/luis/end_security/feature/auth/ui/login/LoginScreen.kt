@@ -75,6 +75,8 @@ private val ContentHorizontalPadding = 32.dp
 fun LoginRoute(
     onCreateAccount: () -> Unit,
     onNavigateToTwoFactor: () -> Unit,
+    onNavigateToVault: () -> Unit,
+    onNavigateToVerifyEmail: (email: String) -> Unit,
     viewModel: LoginViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -84,10 +86,14 @@ fun LoginRoute(
     var passwordVisible by remember { mutableStateOf(false) }
     val currentOnAction by rememberUpdatedState(viewModel::onAction)
     val currentOnNavigateToTwoFactor by rememberUpdatedState(onNavigateToTwoFactor)
+    val currentOnNavigateToVault by rememberUpdatedState(onNavigateToVault)
+    val currentOnNavigateToVerifyEmail by rememberUpdatedState(onNavigateToVerifyEmail)
     LaunchedEffect(viewModel) {
         viewModel.effects.collect { effect ->
             when (effect) {
                 LoginEffect.NavigateToTwoFactor -> currentOnNavigateToTwoFactor()
+                LoginEffect.NavigateToVault -> currentOnNavigateToVault()
+                is LoginEffect.NavigateToVerifyEmail -> currentOnNavigateToVerifyEmail(effect.email)
             }
         }
     }
@@ -117,6 +123,7 @@ fun LoginRoute(
         passwordVisible = passwordVisible,
         onPasswordVisibleChange = { passwordVisible = it },
         onAction = viewModel::onAction,
+        onSubmit = { viewModel.onAction(LoginAction.Submit(passwordState.text)) },
         onCreateAccount = onCreateAccount,
     )
 }
@@ -130,6 +137,7 @@ fun LoginScreen(
     passwordVisible: Boolean,
     onPasswordVisibleChange: (Boolean) -> Unit,
     onAction: (LoginAction) -> Unit,
+    onSubmit: () -> Unit,
     onCreateAccount: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -143,7 +151,7 @@ fun LoginScreen(
     }
     val submit = {
         focusManager.clearFocus()
-        onAction(LoginAction.Submit)
+        onSubmit()
     }
 
     Column(
@@ -193,7 +201,8 @@ fun LoginScreen(
                     // Prioridad: bloqueo por intentos (DEC-32) > credenciales incorrectas > ayuda.
                     supportingText = when {
                         state.isLockedOut -> lockoutMessage(state.lockoutSecondsLeft)
-                        state.error != null -> stringResource(R.string.login_error_invalid_credentials)
+                        state.error == LoginError.InvalidCredentials -> stringResource(R.string.login_error_invalid_credentials)
+                        state.error == LoginError.Generic -> stringResource(R.string.auth_error_generic)
                         else -> stringResource(R.string.login_password_help)
                     },
                     isError = state.isLockedOut || state.error != null,
@@ -206,6 +215,7 @@ fun LoginScreen(
                     text = stringResource(R.string.login_submit),
                     onClick = submit,
                     enabled = state.canSubmit,
+                    loading = state.isLoading,
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
@@ -268,6 +278,7 @@ private fun LoginPreviewContent(
             passwordVisible = passwordVisible,
             onPasswordVisibleChange = {},
             onAction = {},
+            onSubmit = {},
             onCreateAccount = {},
         )
     }
