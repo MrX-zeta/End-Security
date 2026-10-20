@@ -19,6 +19,10 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // DEC-61: mientras no exista el backend, la app habla con el backend falso
+        // (core/network/fake). Cuando exista, se cambia a false en las compilaciones que lo usen.
+        buildConfigField("boolean", "USE_FAKE_BACKEND", "true")
     }
 
     buildTypes {
