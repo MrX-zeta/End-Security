@@ -1,9 +1,9 @@
 {
   "meta": {
     "nombre": "Grafo de conocimiento — End Security",
-    "version": "1.4.0",
-    "actualizado": "2026-10-16",
-    "fase": "Diseño completo en Figma: 45 pantallas con prototipo navegable, flujos, estadísticas, estados de carga y sin conexión. Siguiente: implementación.",
+    "version": "1.5.1",
+    "actualizado": "2026-10-19",
+    "fase": "Implementación de la app (acceso y núcleo criptográfico listos) y contrato de la API v1.0.0 para el backend.",
     "historial": [
       {
         "version": "1.0.0",
@@ -69,6 +69,16 @@
         "version": "1.4.0",
         "fecha": "2026-10-18",
         "cambio": "PEND-01 resuelto (Argon2id 64 MiB/t3/p1 con Bouncy Castle); UUID canónico en las AAD; formato JSON v1 del elemento (DEC-29); limitaciones de DEC-27; autobloqueo por defecto 5 min (PEND-04 parcial)."
+      },
+      {
+        "version": "1.5.0",
+        "fecha": "2026-10-19",
+        "cambio": "Contrato de la API v1.0.0 (docs/api/) y división del trabajo app/backend (DEC-61); 25 nodos 'endpoint' (EP-01…EP-25) con aristas implementa → OP."
+      },
+      {
+        "version": "1.5.1",
+        "fecha": "2026-10-19",
+        "cambio": "Revisión de la tarea 09: regla de format_version (DEC-04), copias del JSON (DEC-27), autobloqueo y ocultar datos al bloquear (DEC-26)."
       }
     ],
     "proposito": "Fuente de verdad del contexto, decisiones técnicas y huecos resueltos del proyecto, para personas y agentes de IA.",
@@ -80,7 +90,8 @@
       "Los nodos con estado 'propuesto', 'pendiente' o 'preliminar' NO son definitivos: preguntar antes de asumir.",
       "Nada de lo que esté en 'fuera_de_alcance' se implementa sin aprobación.",
       "Al tomar una decisión nueva, agregar el nodo y sus relaciones, subir la versión y actualizar 'actualizado'.",
-      "Para implementar una vista, buscar su nodo 'pantalla' (SCR-xx): trae el id del nodo en Figma, la pestaña activa, si requiere red, qué operaciones invoca y a qué pantallas navega."
+      "Para implementar una vista, buscar su nodo 'pantalla' (SCR-xx): trae el id del nodo en Figma, la pestaña activa, si requiere red, qué operaciones invoca y a qué pantallas navega.",
+      "Para hablar con el servidor, buscar el nodo 'endpoint' (EP-xx) de la operación y seguir docs/api/: el contrato manda sobre cualquier suposición. El backend no se implementa en este repositorio de la app (DEC-61)."
     ],
     "tipos_de_nodo": {
       "proyecto": "Raíz del grafo",
@@ -100,7 +111,8 @@
       "fuera_de_alcance": "Excluido del MVP",
       "pregunta_abierta": "Pendiente de decidir",
       "invariante": "Regla obligatoria para todo el código",
-      "pantalla": "Vista o estado de la app diseñado en Figma (DEC-60)"
+      "pantalla": "Vista o estado de la app diseñado en Figma (DEC-60)",
+      "endpoint": "Endpoint del contrato de la API (docs/api/openapi.yaml, DEC-61)"
     },
     "estados": {
       "decidido": "Acordado",
@@ -146,18 +158,19 @@
       "retirada_en": "tecnología descartada → decisión",
       "parte_de": "pantalla → módulo",
       "navega_a": "pantalla → pantalla (nota = disparador)",
-      "invoca": "pantalla → operación"
+      "invoca": "pantalla → operación",
+      "implementa": "endpoint → operación"
     },
     "estadisticas": {
-      "nodos": 352,
-      "aristas": 1005,
+      "nodos": 378,
+      "aristas": 1066,
       "por_tipo": {
         "proyecto": 1,
         "objetivo": 6,
         "restriccion": 5,
         "actor": 3,
         "tecnologia": 28,
-        "decision": 60,
+        "decision": 61,
         "hueco": 37,
         "amenaza": 13,
         "riesgo_aceptado": 11,
@@ -169,7 +182,8 @@
         "fuera_de_alcance": 13,
         "pregunta_abierta": 12,
         "invariante": 32,
-        "pantalla": 45
+        "pantalla": 45,
+        "endpoint": 25
       }
     }
   },
@@ -535,7 +549,7 @@
       "id": "DEC-04",
       "tipo": "decision",
       "nombre": "Contenido del elemento: JSON versionado y cifrado completo",
-      "descripcion": "Todo el contenido va dentro del bloque cifrado. Agregar campos en el futuro no requiere migrar tablas.",
+      "descripcion": "Todo el contenido va dentro del bloque cifrado. Agregar campos en el futuro no requiere migrar tablas. El formato vigente es json_elemento_v1 de DEC-29 (nombres en inglés). Regla: un campo nuevo sube format_version; una app que no conoce esa versión muestra el elemento en solo lectura («Actualiza la app para editarla»), para no perder campos al volver a cifrar.",
       "estado": "decidido",
       "detalles": {
         "formato": {
@@ -768,7 +782,7 @@
       "id": "DEC-26",
       "tipo": "decision",
       "nombre": "Protecciones de pantalla y autobloqueo",
-      "descripcion": "FLAG_SECURE en pantallas con secretos (bloquea capturas y vista de recientes). Autobloqueo por inactividad y al pasar a segundo plano, configurable. Implementado en core/security: SecureScreen (FLAG_SECURE con conteo por ventana y, en Android 14+, datos sensibles para accesibilidad) y ExcludeFromAutofill (las pantallas con contraseña maestra quedan fuera del autocompletado del sistema; el correo tampoco se autocompleta). Al pasar a segundo plano el campo de contraseña se vacía y se oculta. Riesgo aceptado: en Android 9 a 13 un servicio de accesibilidad malicioso podría leer el campo de contraseña.",
+      "descripcion": "FLAG_SECURE en pantallas con secretos (bloquea capturas y vista de recientes). Autobloqueo por inactividad y al pasar a segundo plano, configurable. Implementado en core/security: SecureScreen (FLAG_SECURE con conteo por ventana y, en Android 14+, datos sensibles para accesibilidad) y ExcludeFromAutofill (las pantallas con contraseña maestra quedan fuera del autocompletado del sistema; el correo tampoco se autocompleta). Al pasar a segundo plano el campo de contraseña se vacía y se oculta. Riesgo aceptado: en Android 9 a 13 un servicio de accesibilidad malicioso podría leer el campo de contraseña. Autobloqueo (implementado: VaultSession + AutoLocker): al pasar a segundo plano empieza el plazo; el plazo también se revisa cada vez que se pide la llave; con onTrimMemory ≥ TRIM_MEMORY_BACKGROUND y la app en segundo plano se bloquea de inmediato. Al bloquearse, las pantallas con datos dejan de dibujarlos en el mismo cuadro (RequireUnlocked) y sus ViewModel los vacían; tras la muerte del proceso se arranca siempre en Desbloquear si hay cuenta. Riesgo aceptado: no hay autobloqueo por inactividad con la app en primer plano.",
       "estado": "decidido",
       "detalles": {
         "sugerido": {
@@ -780,7 +794,7 @@
       "id": "DEC-27",
       "tipo": "decision",
       "nombre": "Higiene de memoria (mejor esfuerzo)",
-      "descripcion": "Secretos como ByteArray/CharArray y sobrescritura al bloquear. Limitación conocida: los String de Compose son inmutables. ByteArray solo dentro de las primitivas de core/crypto; en cuanto un secreto sale de ahí (VaultSession, repositorios) va en SecureBytes: toString «***», wipe(), AutoCloseable y error si se lee después de borrarlo. Copias internas de Bouncy Castle (H0, último bloque, IKM/PRK de HKDF), SecretKeySpec y el contexto nativo de Conscrypt (copias JNI) quedan hasta el recolector; SecureBytes no usa Cleaner porque requiere API 33. SecureBytes: lectura con withBytes { } y borrado excluyentes (ReentrantReadWriteLock); use { } queda como el de Kotlin (cierra).",
+      "descripcion": "Secretos como ByteArray/CharArray y sobrescritura al bloquear. Limitación conocida: los String de Compose son inmutables. ByteArray solo dentro de las primitivas de core/crypto; en cuanto un secreto sale de ahí (VaultSession, repositorios) va en SecureBytes: toString «***», wipe(), AutoCloseable y error si se lee después de borrarlo. Copias internas de Bouncy Castle (H0, último bloque, IKM/PRK de HKDF), SecretKeySpec y el contexto nativo de Conscrypt (copias JNI) quedan hasta el recolector; SecureBytes no usa Cleaner porque requiere API 33. SecureBytes: lectura con withBytes { } y borrado excluyentes (ReentrantReadWriteLock); use { } queda como el de Kotlin (cierra). El JSON de un elemento deja copias en claro (la String completa y los búferes de kotlinx.serialization) hasta el recolector.",
       "estado": "decidido"
     },
     {
@@ -925,7 +939,7 @@
       "id": "DEC-42",
       "tipo": "decision",
       "nombre": "Estrategia de llaves primarias",
-      "descripcion": "UUID generado por el cliente para elementos (permite crear sin conexión); UUID del servidor para sesiones y verificaciones (se exponen sin revelar cantidades); bigint consecutivo asignado por trigger para la bitácora (el orden es parte de la cadena).",
+      "descripcion": "UUID generado por el cliente para elementos (permite crear sin conexión) y para el usuario al registrarse (forma parte de la AAD de la pvk, DEC-61); UUID del servidor para sesiones y verificaciones (se exponen sin revelar cantidades); bigint consecutivo asignado por trigger para la bitácora (el orden es parte de la cadena).",
       "estado": "decidido"
     },
     {
@@ -3850,6 +3864,320 @@
         "pestana_activa": "Ajustes",
         "requiere_red": true,
         "tema": "claro"
+      }
+    },
+    {
+      "id": "DEC-61",
+      "tipo": "decision",
+      "nombre": "Contrato de API y división del trabajo",
+      "descripcion": "El backend (NestJS + PostgreSQL + Redis) lo desarrolla una persona del equipo; la app y sus procesos locales, la otra con Claude Code. El límite entre ambos es el contrato docs/api/openapi.yaml (OpenAPI 3.1) + docs/api/README.md: se cambia primero ahí, con versión. Mientras no exista el backend, la app usa implementaciones falsas de AuthApi, VaultApi, AccountApi y SessionApi que responden según el contrato. Claude Code no escribe código del backend. Convenciones: bytes en Base64url sin relleno, UUID canónicos, errores RFC 9457 con code estable, userId generado por la app (forma parte de la AAD de la pvk).",
+      "estado": "decidido",
+      "detalles": {
+        "archivos": [
+          "docs/api/openapi.yaml",
+          "docs/api/README.md"
+        ],
+        "version_contrato": "1.0.0"
+      }
+    },
+    {
+      "id": "EP-01",
+      "tipo": "endpoint",
+      "nombre": "POST /auth/prelogin",
+      "descripcion": "Ver docs/api/openapi.yaml (POST /auth/prelogin).",
+      "estado": "decidido",
+      "detalles": {
+        "metodo": "POST",
+        "ruta": "/v1/auth/prelogin",
+        "requiere_sesion": false
+      }
+    },
+    {
+      "id": "EP-02",
+      "tipo": "endpoint",
+      "nombre": "POST /auth/register",
+      "descripcion": "Ver docs/api/openapi.yaml (POST /auth/register).",
+      "estado": "decidido",
+      "detalles": {
+        "metodo": "POST",
+        "ruta": "/v1/auth/register",
+        "requiere_sesion": false
+      }
+    },
+    {
+      "id": "EP-03",
+      "tipo": "endpoint",
+      "nombre": "POST /auth/email/verify",
+      "descripcion": "Ver docs/api/openapi.yaml (POST /auth/email/verify).",
+      "estado": "decidido",
+      "detalles": {
+        "metodo": "POST",
+        "ruta": "/v1/auth/email/verify",
+        "requiere_sesion": false
+      }
+    },
+    {
+      "id": "EP-04",
+      "tipo": "endpoint",
+      "nombre": "POST /auth/email/resend",
+      "descripcion": "Ver docs/api/openapi.yaml (POST /auth/email/resend).",
+      "estado": "decidido",
+      "detalles": {
+        "metodo": "POST",
+        "ruta": "/v1/auth/email/resend",
+        "requiere_sesion": false
+      }
+    },
+    {
+      "id": "EP-05",
+      "tipo": "endpoint",
+      "nombre": "POST /auth/login",
+      "descripcion": "Ver docs/api/openapi.yaml (POST /auth/login).",
+      "estado": "decidido",
+      "detalles": {
+        "metodo": "POST",
+        "ruta": "/v1/auth/login",
+        "requiere_sesion": false
+      }
+    },
+    {
+      "id": "EP-06",
+      "tipo": "endpoint",
+      "nombre": "POST /auth/2fa/verify",
+      "descripcion": "Ver docs/api/openapi.yaml (POST /auth/2fa/verify).",
+      "estado": "decidido",
+      "detalles": {
+        "metodo": "POST",
+        "ruta": "/v1/auth/2fa/verify",
+        "requiere_sesion": false
+      }
+    },
+    {
+      "id": "EP-07",
+      "tipo": "endpoint",
+      "nombre": "POST /auth/2fa/recovery",
+      "descripcion": "Ver docs/api/openapi.yaml (POST /auth/2fa/recovery).",
+      "estado": "decidido",
+      "detalles": {
+        "metodo": "POST",
+        "ruta": "/v1/auth/2fa/recovery",
+        "requiere_sesion": false
+      }
+    },
+    {
+      "id": "EP-08",
+      "tipo": "endpoint",
+      "nombre": "POST /auth/refresh",
+      "descripcion": "Ver docs/api/openapi.yaml (POST /auth/refresh).",
+      "estado": "decidido",
+      "detalles": {
+        "metodo": "POST",
+        "ruta": "/v1/auth/refresh",
+        "requiere_sesion": false
+      }
+    },
+    {
+      "id": "EP-09",
+      "tipo": "endpoint",
+      "nombre": "POST /auth/logout",
+      "descripcion": "Ver docs/api/openapi.yaml (POST /auth/logout).",
+      "estado": "decidido",
+      "detalles": {
+        "metodo": "POST",
+        "ruta": "/v1/auth/logout",
+        "requiere_sesion": true
+      }
+    },
+    {
+      "id": "EP-10",
+      "tipo": "endpoint",
+      "nombre": "GET /vault/items",
+      "descripcion": "Ver docs/api/openapi.yaml (GET /vault/items).",
+      "estado": "decidido",
+      "detalles": {
+        "metodo": "GET",
+        "ruta": "/v1/vault/items",
+        "requiere_sesion": true
+      }
+    },
+    {
+      "id": "EP-11",
+      "tipo": "endpoint",
+      "nombre": "PUT /vault/items/{id}",
+      "descripcion": "Ver docs/api/openapi.yaml (PUT /vault/items/{id}).",
+      "estado": "decidido",
+      "detalles": {
+        "metodo": "PUT",
+        "ruta": "/v1/vault/items/{id}",
+        "requiere_sesion": true
+      }
+    },
+    {
+      "id": "EP-12",
+      "tipo": "endpoint",
+      "nombre": "DELETE /vault/items/{id}",
+      "descripcion": "Ver docs/api/openapi.yaml (DELETE /vault/items/{id}).",
+      "estado": "decidido",
+      "detalles": {
+        "metodo": "DELETE",
+        "ruta": "/v1/vault/items/{id}",
+        "requiere_sesion": true
+      }
+    },
+    {
+      "id": "EP-13",
+      "tipo": "endpoint",
+      "nombre": "GET /account",
+      "descripcion": "Ver docs/api/openapi.yaml (GET /account).",
+      "estado": "decidido",
+      "detalles": {
+        "metodo": "GET",
+        "ruta": "/v1/account",
+        "requiere_sesion": true
+      }
+    },
+    {
+      "id": "EP-14",
+      "tipo": "endpoint",
+      "nombre": "PATCH /account",
+      "descripcion": "Ver docs/api/openapi.yaml (PATCH /account).",
+      "estado": "decidido",
+      "detalles": {
+        "metodo": "PATCH",
+        "ruta": "/v1/account",
+        "requiere_sesion": true
+      }
+    },
+    {
+      "id": "EP-15",
+      "tipo": "endpoint",
+      "nombre": "POST /account/email",
+      "descripcion": "Ver docs/api/openapi.yaml (POST /account/email).",
+      "estado": "decidido",
+      "detalles": {
+        "metodo": "POST",
+        "ruta": "/v1/account/email",
+        "requiere_sesion": true
+      }
+    },
+    {
+      "id": "EP-16",
+      "tipo": "endpoint",
+      "nombre": "POST /account/email/verify",
+      "descripcion": "Ver docs/api/openapi.yaml (POST /account/email/verify).",
+      "estado": "decidido",
+      "detalles": {
+        "metodo": "POST",
+        "ruta": "/v1/account/email/verify",
+        "requiere_sesion": true
+      }
+    },
+    {
+      "id": "EP-17",
+      "tipo": "endpoint",
+      "nombre": "POST /account/master-password",
+      "descripcion": "Ver docs/api/openapi.yaml (POST /account/master-password).",
+      "estado": "decidido",
+      "detalles": {
+        "metodo": "POST",
+        "ruta": "/v1/account/master-password",
+        "requiere_sesion": true
+      }
+    },
+    {
+      "id": "EP-18",
+      "tipo": "endpoint",
+      "nombre": "POST /account/delete",
+      "descripcion": "Ver docs/api/openapi.yaml (POST /account/delete).",
+      "estado": "decidido",
+      "detalles": {
+        "metodo": "POST",
+        "ruta": "/v1/account/delete",
+        "requiere_sesion": true
+      }
+    },
+    {
+      "id": "EP-19",
+      "tipo": "endpoint",
+      "nombre": "POST /account/2fa/setup",
+      "descripcion": "Ver docs/api/openapi.yaml (POST /account/2fa/setup).",
+      "estado": "decidido",
+      "detalles": {
+        "metodo": "POST",
+        "ruta": "/v1/account/2fa/setup",
+        "requiere_sesion": true
+      }
+    },
+    {
+      "id": "EP-20",
+      "tipo": "endpoint",
+      "nombre": "POST /account/2fa/confirm",
+      "descripcion": "Ver docs/api/openapi.yaml (POST /account/2fa/confirm).",
+      "estado": "decidido",
+      "detalles": {
+        "metodo": "POST",
+        "ruta": "/v1/account/2fa/confirm",
+        "requiere_sesion": true
+      }
+    },
+    {
+      "id": "EP-21",
+      "tipo": "endpoint",
+      "nombre": "POST /account/2fa/disable",
+      "descripcion": "Ver docs/api/openapi.yaml (POST /account/2fa/disable).",
+      "estado": "decidido",
+      "detalles": {
+        "metodo": "POST",
+        "ruta": "/v1/account/2fa/disable",
+        "requiere_sesion": true
+      }
+    },
+    {
+      "id": "EP-22",
+      "tipo": "endpoint",
+      "nombre": "POST /account/2fa/recovery-codes",
+      "descripcion": "Ver docs/api/openapi.yaml (POST /account/2fa/recovery-codes).",
+      "estado": "decidido",
+      "detalles": {
+        "metodo": "POST",
+        "ruta": "/v1/account/2fa/recovery-codes",
+        "requiere_sesion": true
+      }
+    },
+    {
+      "id": "EP-23",
+      "tipo": "endpoint",
+      "nombre": "GET /sessions",
+      "descripcion": "Ver docs/api/openapi.yaml (GET /sessions).",
+      "estado": "decidido",
+      "detalles": {
+        "metodo": "GET",
+        "ruta": "/v1/sessions",
+        "requiere_sesion": true
+      }
+    },
+    {
+      "id": "EP-24",
+      "tipo": "endpoint",
+      "nombre": "DELETE /sessions/{id}",
+      "descripcion": "Ver docs/api/openapi.yaml (DELETE /sessions/{id}).",
+      "estado": "decidido",
+      "detalles": {
+        "metodo": "DELETE",
+        "ruta": "/v1/sessions/{id}",
+        "requiere_sesion": true
+      }
+    },
+    {
+      "id": "EP-25",
+      "tipo": "endpoint",
+      "nombre": "GET /activity",
+      "descripcion": "Ver docs/api/openapi.yaml (GET /activity).",
+      "estado": "decidido",
+      "detalles": {
+        "metodo": "GET",
+        "ruta": "/v1/activity",
+        "requiere_sesion": true
       }
     }
   ],
@@ -8966,6 +9294,311 @@
       "de": "SCR-40",
       "a": "OP-10",
       "relacion": "invoca"
+    },
+    {
+      "de": "DEC-61",
+      "a": "DEC-33",
+      "relacion": "depende_de"
+    },
+    {
+      "de": "DEC-61",
+      "a": "DEC-05",
+      "relacion": "depende_de"
+    },
+    {
+      "de": "DEC-61",
+      "a": "DEC-07",
+      "relacion": "depende_de"
+    },
+    {
+      "de": "DEC-61",
+      "a": "DEC-16",
+      "relacion": "depende_de"
+    },
+    {
+      "de": "DEC-61",
+      "a": "DEC-32",
+      "relacion": "depende_de"
+    },
+    {
+      "de": "DEC-61",
+      "a": "DEC-44",
+      "relacion": "depende_de"
+    },
+    {
+      "de": "EP-01",
+      "a": "DEC-61",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "EP-01",
+      "a": "OP-13",
+      "relacion": "implementa"
+    },
+    {
+      "de": "EP-02",
+      "a": "DEC-61",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "EP-02",
+      "a": "OP-11",
+      "relacion": "implementa"
+    },
+    {
+      "de": "EP-03",
+      "a": "DEC-61",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "EP-03",
+      "a": "OP-12",
+      "relacion": "implementa"
+    },
+    {
+      "de": "EP-04",
+      "a": "DEC-61",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "EP-04",
+      "a": "OP-12",
+      "relacion": "implementa"
+    },
+    {
+      "de": "EP-05",
+      "a": "DEC-61",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "EP-05",
+      "a": "OP-14",
+      "relacion": "implementa"
+    },
+    {
+      "de": "EP-06",
+      "a": "DEC-61",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "EP-06",
+      "a": "OP-15",
+      "relacion": "implementa"
+    },
+    {
+      "de": "EP-07",
+      "a": "DEC-61",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "EP-07",
+      "a": "OP-16",
+      "relacion": "implementa"
+    },
+    {
+      "de": "EP-08",
+      "a": "DEC-61",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "EP-08",
+      "a": "OP-17",
+      "relacion": "implementa"
+    },
+    {
+      "de": "EP-09",
+      "a": "DEC-61",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "EP-09",
+      "a": "OP-18",
+      "relacion": "implementa"
+    },
+    {
+      "de": "EP-10",
+      "a": "DEC-61",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "EP-10",
+      "a": "OP-32",
+      "relacion": "implementa"
+    },
+    {
+      "de": "EP-10",
+      "a": "OP-33",
+      "relacion": "implementa"
+    },
+    {
+      "de": "EP-11",
+      "a": "DEC-61",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "EP-11",
+      "a": "OP-01",
+      "relacion": "implementa"
+    },
+    {
+      "de": "EP-11",
+      "a": "OP-02",
+      "relacion": "implementa"
+    },
+    {
+      "de": "EP-11",
+      "a": "OP-34",
+      "relacion": "implementa"
+    },
+    {
+      "de": "EP-11",
+      "a": "OP-46",
+      "relacion": "implementa"
+    },
+    {
+      "de": "EP-12",
+      "a": "DEC-61",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "EP-12",
+      "a": "OP-03",
+      "relacion": "implementa"
+    },
+    {
+      "de": "EP-12",
+      "a": "OP-34",
+      "relacion": "implementa"
+    },
+    {
+      "de": "EP-13",
+      "a": "DEC-61",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "EP-13",
+      "a": "OP-42",
+      "relacion": "implementa"
+    },
+    {
+      "de": "EP-14",
+      "a": "DEC-61",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "EP-14",
+      "a": "OP-42",
+      "relacion": "implementa"
+    },
+    {
+      "de": "EP-15",
+      "a": "DEC-61",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "EP-15",
+      "a": "OP-26",
+      "relacion": "implementa"
+    },
+    {
+      "de": "EP-16",
+      "a": "DEC-61",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "EP-16",
+      "a": "OP-26",
+      "relacion": "implementa"
+    },
+    {
+      "de": "EP-17",
+      "a": "DEC-61",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "EP-17",
+      "a": "OP-27",
+      "relacion": "implementa"
+    },
+    {
+      "de": "EP-18",
+      "a": "DEC-61",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "EP-18",
+      "a": "OP-28",
+      "relacion": "implementa"
+    },
+    {
+      "de": "EP-19",
+      "a": "DEC-61",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "EP-19",
+      "a": "OP-22",
+      "relacion": "implementa"
+    },
+    {
+      "de": "EP-20",
+      "a": "DEC-61",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "EP-20",
+      "a": "OP-23",
+      "relacion": "implementa"
+    },
+    {
+      "de": "EP-21",
+      "a": "DEC-61",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "EP-21",
+      "a": "OP-24",
+      "relacion": "implementa"
+    },
+    {
+      "de": "EP-22",
+      "a": "DEC-61",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "EP-22",
+      "a": "OP-25",
+      "relacion": "implementa"
+    },
+    {
+      "de": "EP-23",
+      "a": "DEC-61",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "EP-23",
+      "a": "OP-29",
+      "relacion": "implementa"
+    },
+    {
+      "de": "EP-24",
+      "a": "DEC-61",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "EP-24",
+      "a": "OP-30",
+      "relacion": "implementa"
+    },
+    {
+      "de": "EP-25",
+      "a": "DEC-61",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "EP-25",
+      "a": "OP-31",
+      "relacion": "implementa"
     }
   ]
 }

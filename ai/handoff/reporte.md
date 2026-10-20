@@ -1,130 +1,171 @@
-# Reporte · Tarea 09 · Ajustes de crypto, Room local, `VaultSession` y cifrado de elementos
+# Reporte · Tarea 10 · Capa de API con backend falso y flujos reales de registro y acceso
 
 **Estado:** hecha
-**Fecha:** 2026-10-18 (los Pasos 3 y 4 empezaron después de que la persona aprobó el plan en el chat)
+**Fecha:** 2026-10-19 (el código empezó después de que la persona aprobó el plan en el chat, incluido el correo con `+2fa`)
+
+**REQUIERE REVISIÓN HUMANA:** toca `core/crypto`, `core/session`, autenticación, tokens y SQL de Room.
 
 ## Qué se hizo
 
-### Paso 1 · Ajustes de `core/crypto`
-- **`SecureBytes.use` → `withBytes`:** `SecureBytes` sigue siendo `AutoCloseable`, así que ahora `use { }` es el de Kotlin y cierra (tiene prueba). Actualicé `.claude/rules/crypto.md`.
-- **`ProtectedVaultKey.wrap/unwrap` reciben `UUID`:** la AAD usa `UUID.toString()`, que es la forma canónica. Una prueba con el UUID en mayúsculas lo comprueba.
-- **`KdfParams`:**
-  - el piso pasa a 65 536 KiB, t ≥ 3 y p ≥ 1, en lugar de la lista de OWASP; los topes se quedan;
-  - `KdfParams.DEFAULT` = (65 536, 3, 1);
-  - 46 MiB/t1 y 19 MiB/t2 ahora se rechazan, y 64/t3 y 128/t3 se aceptan.
-- **`Argon2BenchmarkTest`** usaba `KdfParams`, no la función interna como suponía la tarea. La cambié a `Argon2idKdf.argon2id(...)` para que pueda seguir midiendo 19 y 46 MiB.
-- **Vector propio recalculado con los parámetros reales** (64 MiB, t=3, p=1), usando argon2-cffi con `tools/vectors/master_key_chain.py` (actualizado):
-  - `master_key` `2af2fd06…b0f01f81`;
-  - `enc_key` `7c90a1fd…3bd96d70`;
-  - `auth_key` `dcf81e4c…1b37b3ec`.
+### Paso 1 · Capa de API
+- **`core/common/ApiResult`:** `Success`/`Failure` y `ApiError` sellado con todos los `code` del contrato, más `NetworkUnavailable`.
+- **Interfaces de dominio** con modelos de dominio (`SecureBytes`, `UUID`, `Instant`), no JSON:
+  - `AuthApi` (EP-01…09);
+  - `VaultApi` (EP-10…12);
+  - `AccountApi` (EP-13…22);
+  - `SessionApi` (EP-23…25).
+  - Los modelos con secretos o tokens ocultan su `toString()`.
+- **`core/network`:**
+  - `dto/Dtos.kt` con los nombres del contrato. Los opcionales no se envían; `expectedVersion` sí se envía aunque sea `null`.
+  - `Base64Url` sin relleno.
+  - `ApiClient` sobre un `ApiTransport` intercambiable. Traduce cada `code` a `ApiError` y nunca usa el `title`. Un JSON que no se puede leer cuenta como `ServerError`.
+  - `api/*Impl` para las cuatro interfaces.
+- **`core/di/NetworkModule`:** elige el transporte con `BuildConfig.USE_FAKE_BACKEND`, que vale `true` en todas las compilaciones. Sin Retrofit.
 
-  La prueba los fija con `KdfParams(65_536, 3, 1)` explícito, no con `DEFAULT`, para que no cambie si un día suben los de las cuentas nuevas.
+### Paso 2 · Backend falso (`core/network/fake/`)
+- **`FakeServer`** implementa EP-01…25 con las reglas de `docs/api/README.md`:
+  - sal falsa por HMAC en prelogin;
+  - 202 siempre en registro y reenvío;
+  - código de correo: 15 min y 5 intentos; reenvío: 60 s entre envíos y 5 por hora;
+  - `invalid_credentials` idéntico y con el mismo Argon2 para un correo que no existe; 5 fallos → 15 min;
+  - reto del 2FA: 5 min y un solo uso; TOTP ±1 paso con anti-replay;
+  - códigos de respaldo con HMAC;
+  - rotación del refresh con detección de reúso;
+  - versión esperada en la bóveda, `cursor_expired` y reautenticación.
+- **`FakeTransport`:**
+  - espera de 300–800 ms;
+  - un `Mutex` hace de transacción;
+  - el estado se guarda en `filesDir/fake_server.json` con `AtomicFile`.
+- **Cuentas de depuración:**
+  - un correo con `+2fa` se crea con 2FA, con el secreto fijo `ENDSECURITYDEBUGTOTPSECRETKEY234` y los códigos de respaldo `DBGA-0001`…`DBGA-0010`;
+  - el código del correo se ve en Verificar correo («Código de prueba: …»), solo en compilaciones de depuración y solo en memoria.
+  - Todo está documentado en **`docs/api/backend-falso.md`** (archivo nuevo).
+- **Cripto nueva para el falso:**
+  - `core/crypto/Hashes` (HMAC-SHA256/SHA1, SHA-256 y comparación en tiempo constante) y `RandomBytes` (`SecureRandom`);
+  - `Totp` (RFC 6238) y `Base32`;
+  - `BackupCodeAlphabet`;
+  - `Argon2idKdf.serverAuthHash` (19 MiB/t2), solo para el falso.
 
-### Paso 2 · Room (`end_security.db`, modelo de datos §8)
-- **Room 2.8.5** con KSP y el plugin `androidx.room`. `exportSchema = true` y el esquema en `app/schemas/…/1.json`.
-- **Tablas:**
-  - `account`: una sola fila, con `user_id` como UUID canónico;
-  - `vault_items`: `sync_state` ∈ `synced`/`pending`/`conflict` con `TypeConverter`, `local_seq` e índice en `sync_state`;
-  - `breach_checks`: FK a `vault_items` con `CASCADE`;
-  - `health_snapshots`.
-  - **Ninguna columna guarda texto claro de un elemento.** Las entidades no son `data class` y su `toString()` no muestra bloques ni correo.
-- **DAOs:**
-  - `AccountDao`: `get`, `observe`, `exists` y `replace`. `replace` deja una sola fila; si cambia el `user_id`, borra también los datos de la cuenta anterior (hallazgo 10).
-  - `VaultItemDao`:
-    - `observeVisible` (`Flow`, sin lápidas), `get` e `insert`;
-    - `updateContent` y `delete` llevan el `local_seq` esperado (regla 8);
-    - `delete`: si el elemento nunca se subió, se borra la fila; si ya se subió, deja lápida `pending`; si estaba en `conflict`, se queda en `conflict`.
-  - `BreachCheckDao` y `HealthSnapshotDao` (`upsert`, y `deleteBefore` para conservar 12 meses).
-  - Al cerrar sesión, `clearAllTables()`.
-- **Respaldo:** las reglas de respaldo ya excluían `database`, y `allowBackup="false"`.
+### Paso 3 · Tokens
+- **`TokenKeyManager`:** llave AES-256-GCM del Keystore, alias `end_security_tokens`. Se borra al cerrar sesión.
+- **`TokenStore`:** DataStore con los dos tokens cifrados. Si no se pueden descifrar, `read()` devuelve `null`.
+- **`TokenManager`:**
+  - caché en memoria y un solo `Mutex`, así que se renueva una vez a la vez (regla 9);
+  - si otra llamada ya renovó, devuelve ese token;
+  - `RefreshOutcome` tiene tres casos: `Renewed`, `Revoked` y `Unavailable` (sin red no es revocada);
+  - `session_revoked` cierra la sesión local.
 
-### Paso 3 · `VaultSession`, autobloqueo y `LockGuard`
-- **`core/session/VaultSession`** (`@Singleton`):
-  - estado `Locked` / `Unlocked(userId)` en `StateFlow`; la `vault_key`, en un `SecureBytes` privado;
-  - `unlock` se queda con la llave y no deja abrir otra cuenta sin bloquear antes;
-  - `lock()` borra la llave fuera del monitor (espera a que termine un `withBytes` en curso);
-  - `withVaultKey { reader -> }` presta la llave **solo para leer**: `SecretReader`, envuelto para que ni con un *cast* se pueda borrar;
-  - lanza `VaultLockedException` si está bloqueada, si se bloquea a la mitad o **si venció el plazo de autobloqueo**.
-- **`core/session/AutoLocker`:**
-  - en `ProcessLifecycleOwner` (lo registra `EndSecurityApp`);
-  - al salir programa el bloqueo y deja el plazo en la sesión; al volver compara con `elapsedRealtime`;
-  - si la bóveda se abre con la app ya en segundo plano, la cuenta empieza en ese momento (hallazgo 1);
-  - con 0, bloquea al salir.
-- **`autolock_minutes` en `SettingsStore`:** 5 por defecto. Un valor que no esté en {0, 1, 5, 15, 30} se trata como 5 (hallazgo 7).
-- **`LockGuard`** (`navigation/`):
-  - al pasar de `Unlocked` a `Locked` va a `UNLOCK` con la pila vacía si hay cuenta (`AccountRepository.hasLocalAccount()` → `SELECT EXISTS`), o a `LOGIN` si no;
-  - el `Locked` del arranque no cuenta.
-- **«Bloquear ahora»:** `lock()` está listo, pero el único candado está deshabilitado en Bóveda · cargando, y la Bóveda se conecta en la tarea 10.
+### Paso 4 · Registro y acceso reales
+- **`AuthRepository` (dominio) y `AuthRepositoryImpl`:** aplican DEC-05.
+  - **Registro:** `userId`, sal de 16 B, `KdfParams.DEFAULT`, `vault_key` y pvk.
+  - **Acceso:**
+    - piso del cliente y sal de 16 B;
+    - rechaza la degradación respecto a una cuenta que ya está en el teléfono;
+    - maneja 2FA, código de respaldo y `email_not_verified`.
+  - Solo sale la `auth_key`. Argon2 corre fuera del hilo principal.
+- **`PendingAuth`:** guarda en memoria la `vault_key` del registro y la `enc_key` del acceso mientras se completa el segundo paso o la verificación. Nunca van a disco ni a `SavedStateHandle`.
+- **Pantallas conectadas:**
+  - Crear cuenta, Verificar correo, Iniciar sesión, 2FA y Código de respaldo;
+  - errores por `code`, botón con estado de carga;
+  - «No pudimos conectar. Intenta de nuevo.» y «Demasiados intentos…» con los minutos.
 
-### Paso 4 · `ItemCipher` (DEC-29)
-- **Serialización:** `kotlinx-serialization-json` 1.9.0 (la última compatible con Kotlin 2.2.10) y su plugin.
-- **`feature/vault/domain/VaultItem`:** Kotlin puro, con `Instant`; `toString` = `VaultItem(***)`.
-- **`feature/vault/data/ItemCipher`:**
-  - `encrypt(vaultKey: SecretReader, itemId, userId, item)` → `Sealed` y `decrypt(...)` → `VaultItem`;
-  - AAD = `itemId|userId|formatVersion` en ASCII;
-  - `ItemJsonV1` con los nombres de DEC-29 y fechas ISO-8601;
-  - `ignoreUnknownKeys`;
-  - el JSON en bytes se borra en `finally`;
-  - una etiqueta que no coincide da `AuthenticationFailed`; un bloque que abre pero no es v1 da `ItemFormatException` (sin mensaje).
+### Paso 5 · Desbloquear real y pantallas protegidas
+- **Desbloquear:**
+  - lee `account` y cuenta el intento antes de Argon2, en `NonCancellable`;
+  - abre la pvk y va directo a la Bóveda (los elementos ya están en Room);
+  - si no hay cuenta, va a Iniciar sesión;
+  - muestra el nombre real en «¿No eres …?»;
+  - «Cerrar sesión» llama a `logout` aunque falle la red, borra tokens y Room, bloquea y va a Iniciar sesión.
+- **`RequireUnlocked { }`** envuelve Bóveda · cargando y la Bóveda: con la bóveda bloqueada solo dibuja el fondo en ese mismo cuadro.
+  - **Cambio respecto a lo pedido:** también avisa a `LockGuard`. Si Android restaura la pila tras matar el proceso, la pantalla aparece ya bloqueada, sin el paso de abierta a bloqueada que `LockGuard` espera. Sin el aviso, se quedaba en blanco. Probado en el emulador.
+- **Desbloquear entra sin transición**, y las rutas protegidas salen sin transición.
+- **Bóveda · cargando** hace la descarga inicial real a Room (paginada, solo bloques cifrados, lápidas fuera) y después va a la Bóveda. **Se quitó la navegación de 2 s.**
+- **Bóveda (marcador):** muestra «Te quedan N códigos de respaldo» si entraste con uno y quedan 3 o menos. Su estado se vacía al bloquearse.
+- **Arranque:**
+  - con cuenta → Desbloquear;
+  - sin cuenta y con el onboarding visto → Iniciar sesión;
+  - si no → onboarding.
+- **`AutoLocker.onTrimMemory`:** con `level ≥ TRIM_MEMORY_BACKGROUND` y la app en segundo plano, bloquea de inmediato.
+
+### Revisión con `security-reviewer`
+No encontró nada crítico.
+
+**Corregí en esta tarea:**
+1. **(Alto) Las llaves pendientes sobrevivían a su plazo.**
+   - Ahora `PendingAuth` las borra al vencer, con un temporizador real, aunque nadie las vuelva a pedir.
+   - También al pedir memoria el sistema en segundo plano, y al salir de Verificar correo (`onCleared`).
+   - El plazo del registro baja de 60 a 15 min.
+   - **No** las borro solo por pasar a segundo plano: el usuario sale a leer el código del correo o de su app autenticadora.
+2. **(Medio) Al cancelar durante Argon2 o la red, las llaves derivadas no se borraban.**
+   - `derive` ya no se cancela a la mitad y borra si quien llamó se canceló.
+   - `login` borra la `enc_key` en un `finally` salvo que pase a `PendingAuth`.
+   - `establish` y el final de `unlock` corren sin cancelarse y borran la llave si no llegó a la sesión.
+3. **(Medio) Una renovación cancelada podía parecer reúso y cerrar la sesión.** Ahora `refresh` y el guardado corren en `NonCancellable`, y el par nuevo se guarda primero en memoria.
+4. **(Bajo) Varios arreglos rápidos:**
+   - el registro guarda en `account` la sal, los parámetros y la pvk generados en el teléfono, no los que devuelve el servidor;
+   - las cuentas `+2fa` solo existen en depuración;
+   - `SecureScreen()` en 2FA y Verificar correo;
+   - la descarga falla si el servidor no avanza el cursor (evita el ciclo infinito);
+   - `TokenStore.read()` tolera un Keystore inválido;
+   - `applyRemote` no pisa ni borra filas `pending`/`conflict`. Marcarlas como conflicto queda para OP-33.
+   - `EndSecurityApp` crea `AuthRepository` al arrancar, para que siempre haya quien escuche `session_revoked`.
+
+**Quedan abiertos (necesitan decisión):**
+- **(Medio) La contraseña maestra aparece en claro en el árbol de accesibilidad.** El `BasicSecureTextField` de `PasswordField` (tarea 05) publica el texto real aunque esté oculto. Lo confirmé con `uiautomator dump` en el emulador (API 36).
+  - En Android 14+ cualquier servicio que se declare herramienta de accesibilidad lo puede leer; DEC-26 solo acepta el riesgo hasta Android 13.
+  - Propuesta: publicar una máscara en la semántica del campo cuando está oculto, o ampliar el riesgo aceptado en DEC-26. No lo cambié porque es un componente de otra tarea y no es trivial.
+- **(Bajo) `fake_server.json` guarda el pepper, el secreto de prelogin y el secreto TOTP en claro.** El servidor real los tendría en variables de entorno o cifrados. La tarea pedía «solo lo que guardaría el servidor real».
+  - Con el archivo (que solo se puede leer con root o una compilación depurable) se pueden probar sin conexión los códigos de correo y de respaldo.
+  - Quitarlos rompería los códigos guardados al reiniciar; se podrían cifrar con el Keystore. ¿Lo hago en una tarea aparte?
+- **(Bajo) El falso calcula Argon2 dentro de su `Mutex`:** las peticiones esperan detrás de cada inicio de sesión. Es fidelidad del simulador, no seguridad del cliente.
+- **(Bajo) Si se emite `session_revoked` cuando no hay tokens o no se pueden descifrar,** no se cierra la sesión local; solo se responde `SessionRevoked`. Hoy no hay pantallas que lo provoquen.
+
+## Prueba de punta a punta (emulador Pixel 7 Pro, API 36)
+- **Registro completo:** registro → «Código de prueba» → Bóveda · cargando → Bóveda → cerrar la app (`force-stop`) → **Desbloquear** (incorrecta: «Contraseña incorrecta.»; correcta: Bóveda) → Cerrar sesión → Iniciar sesión → Bóveda. ✔
+  - Después de los arreglos de la revisión lo repetí con una cuenta nueva: registro → Bóveda → cerrar la app → Desbloquear. ✔
+- **Muerte del proceso:** con la Bóveda abierta, Inicio y `am kill`; al volver abre Desbloquear, no una pantalla en blanco ni la Bóveda. ✔
+- **Con 2FA:** `ana+2fa@correo.com` → Iniciar sesión → 2FA con el código de la app autenticadora (calculado con el secreto de depuración) → Bóveda · cargando → Bóveda. ✔
+- **Errores:**
+  - un correo que no existe da «Correo o contraseña incorrectos.» en 6,0 s;
+  - una contraseña incorrecta de una cuenta real da el mismo mensaje en ~5,9 s;
+  - tras el quinto fallo, el siguiente intento muestra «Demasiados intentos. Vuelve a intentarlo en 15 min.» ✔
+  - El contrato dice «5 fallos → 15 min»: el quinto fallo todavía responde `invalid_credentials` y el bloqueo aparece al intentar otra vez. Si la UI debe mostrarlo ya en el quinto, falta un dato en el contrato.
+- **Incidente del emulador (no es de la app):** con `-gpu host`, el diálogo «no responde» apareció tras horas de uso y ráfagas de teclas.
+  - La traza mostraba el hilo principal esperando a `RenderThread`, atascado en `qemu_pipe_read` de `libEGL_emulation`.
+  - Lo resolví reiniciando el emulador y el servidor de adb.
 
 ## Compilación y pruebas (salida real)
-- `testDebugUnitTest`, `assembleDebug`, `assembleDebugAndroidTest`, `assembleRelease` y `lintDebug`: `BUILD SUCCESSFUL`, y lint con **0 errores**.
-  - Las 11 advertencias son de antes o de «hay versión más nueva» (serialization 1.11 y lifecycle 2.12 piden Kotlin 2.3 o son alfa).
-- **Unitarias: 239, 0 fallas.** Nuevas o cambiadas:
-  - **`VaultSessionTest` (9):**
-    - empieza bloqueada; presta la llave solo para leer; `lock()` borra;
-    - no deja abrir otra cuenta; pasado el plazo bloquea y no presta;
-    - una referencia guardada fuera deja de servir;
-    - bloquear a la mitad da `VaultLockedException` y nunca ceros; `lock()` espera a un `withBytes` en curso.
-  - **`AutoLockerTest` (10):**
-    - a los **4:59 no** bloquea y a los **5:00 sí**; volver a los 4:59 cancela;
-    - volver tras un congelamiento (`elapsedRealtime` +6 min) bloquea; con **0**, bloquea al salir; con 1 min, al minuto;
-    - estando bloqueada no programa nada;
-    - **desbloquear con la app ya en segundo plano** también bloquea, y con 0 al instante;
-    - un valor inválido se trata como 5; el plazo queda en la sesión.
-  - **`LockGuardViewModelTest` (3):** con cuenta va a Desbloquear; sin cuenta, a Iniciar sesión; el arranque no cuenta.
-  - **`ItemCipherTest` (8):**
-    - ida y vuelta; el bloque no contiene el texto;
-    - otro `itemId`, otro `userId` u otro `formatVersion` fallan; el bloque de A no abre como B; otra `vault_key` falla;
-    - los campos desconocidos se ignoran; un JSON que no es v1 da `ItemFormatException`; `toString`.
-  - `SecureBytesTest`, `KdfParamsTest`, `ProtectedVaultKeyTest` y `MasterKeyChainTest`, actualizadas. `wipe` dentro de `withBytes` lanza error en vez de colgarse (hallazgo 6).
-- **Instrumentadas en el emulador: 29, OK.** Nuevas:
-  - **`DaoTest` (10):** una sola fila en `account`; cambiar de cuenta borra los datos de la anterior; crear, editar y `Flow`; `local_seq` viejo; `conflict` se conserva; borrado físico o lápida; `CASCADE` de `breach_checks`; salud una por día y recorte; `clearAllTables`.
-  - **`SchemaPlaintextTest`:** sobre el esquema real de SQLite, ninguna tabla tiene `name`, `username`, `password`, `url`, `notes`… y `vault_items` tiene exactamente las 10 columnas de §8.1.
-- **App en el emulador:** arranca con `AutoLocker` inyectado y vuelve de segundo plano sin errores.
-- **Emulador:** le borré los datos (`-wipe-data`), como autorizó la revisión de la tarea 08. Ahora tiene 84 % libre.
+- **`testDebugUnitTest`:** 312 pruebas, 0 fallas. Nuevas o cambiadas:
+  - `FakeBackendTest` (cada `code`, renovación y reúso, bóveda, `cursor_expired`, sin secretos en el estado);
+  - `DtoContractTest` (ejemplos JSON escritos a mano del contrato);
+  - `TotpAndHashesTest` (RFC 6238, RFC 4231 y Base32);
+  - `PendingAuthTest` (vence a los 15/10 min sin que nadie la pida, memoria escasa, entrega a la sesión);
+  - ViewModels conectados, con un `FakeAuthRepository`: Crear cuenta, Verificar correo, Iniciar sesión, 2FA, Código de respaldo, Desbloquear, Bóveda · cargando y Bóveda;
+  - `StartDestinationViewModelTest` y `LockGuardViewModelTest` (pantalla restaurada ya bloqueada).
+- **`connectedDebugAndroidTest`** (emulador): 33 pruebas, 0 fallas, entre ellas:
+  - `TokenStoreDeviceTest` con el Keystore real;
+  - `DaoTest.applyRemote_no_pisa_ni_borra_filas_con_cambios_locales`.
+- **`assembleRelease` y `lintDebug`:** `BUILD SUCCESSFUL`, lint con 0 errores. Las 11 advertencias son de antes (versiones nuevas, `PluralsCandidate`, `RedundantLabel`, `ModifierParameter`).
 
-## Revisión de seguridad (`security-reviewer`, Pasos 1, 3 y 4, y vistazo a Room)
-Confirmó que la criptografía nueva está bien: AAD, piso del KDF, borrado de bytes y R8 con kotlinx.serialization. Los problemas estaban en el ciclo de vida de la sesión.
+## Diferencias, dudas y observaciones del contrato
+1. **`CLAUDE.md` contra la tarea:**
+   - `CLAUDE.md` dice que los falsos van «en memoria, en `data/fake/`»;
+   - la tarea pedía `core/network/fake/` y persistir en `fake_server.json`. Seguí la tarea.
+   - El falso está al nivel del transporte, así que las cuatro `*ApiImpl` son las reales y solo cambia el transporte.
+   - ¿Ajustamos `CLAUDE.md`?
+2. **Faltan datos en el contrato:**
+   - no fija cuánto dura el código del correo (el falso usa 15 min);
+   - `account_deleted` no está en el enum de `ActivityEvent`.
+3. **El falso no implementa el límite por IP** (no hay IP), y el cambio de correo (EP-15/16) es mínimo.
+4. **Con `USE_FAKE_BACKEND = true` en release** no se puede crear una cuenta, porque el código de prueba solo se ve en depuración.
+5. **Desbloquear lleva a la Bóveda, no a Bóveda · cargando,** porque ya está todo en Room. La sincronización al abrir llega con OP-33.
+6. **Archivos basura fuera del repo:**
+   - la causa eran escrituras de archivos en paralelo;
+   - desde entonces escribo de uno en uno y solo dentro del repo o del scratchpad;
+   - en esta tarea no apareció ninguno.
 
-| # | Gravedad | Hallazgo | Qué se hizo |
-|---|---|---|---|
-| 1 | Alta | Si el desbloqueo terminaba con la app ya en segundo plano, no se programaba el autobloqueo y la bóveda quedaba abierta indefinidamente | **Corregido:** `AutoLocker` sabe si la app está en primer plano y escucha el estado; la cuenta empieza al abrir. Hay pruebas |
-| 2 | Media | `delay()` no avanza con el teléfono dormido ni con la app congelada: la llave podía quedar en RAM pasado el plazo, y un trabajo en segundo plano todavía la recibía | **En parte:** el plazo queda en `VaultSession`, que bloquea al prestar la llave pasado el plazo. Sin implementar: bloquear al apagar la pantalla, `onTrimMemory` o `AlarmManager` (ver dudas) |
-| 3 | Media | `LockGuard` funciona por evento: la Bóveda se ve unos 0,7 s durante la transición; en segundo plano, los ViewModel conservan datos; tras la muerte del proceso se restaura la pila sin aviso; sin cuenta no hacía nada | **En parte:** sin cuenta ahora va a Iniciar sesión. Ocultar por estado las pantallas protegidas rompería el flujo temporal de hoy (2FA → Bóveda · cargando sin desbloquear), así que queda como **`TODO(tarea 10)`** en `LockGuard` |
-| 4 | Media | `ignoreUnknownKeys`: una app vieja que edite un elemento perdería en silencio un campo nuevo | **Documentado** en `ItemCipher` como regla: un campo nuevo sube `format_version`. Ver dudas |
-| 5 | Baja | `withVaultKey` prestaba el `SecureBytes` dueño; con el `use` de Kotlin se borraba la llave y el estado seguía `Unlocked` | **Corregido:** se presta como `SecretReader` envuelto; si la llave aparece borrada, la sesión se bloquea |
-| 6 | Baja | `wipe()` dentro de `withBytes` del mismo hilo se colgaba para siempre | **Corregido:** lanza `IllegalStateException` |
-| 7 | Baja | `autolock_minutes` aceptaba cualquier valor | **Corregido** |
-| 8 | Baja | Hay más copias en claro del JSON de las que decía el comentario (`String` del JSON y búferes de kotlinx) | **Documentado.** Conviene agregarlo a DEC-27 |
-| 9 | Baja | Borrar físicamente un elemento «nunca subido» mientras se está subiendo puede hacerlo reaparecer | Para la tarea de sincronización |
-| 10 | Baja | `account.replace` dejaba los datos de la cuenta anterior | **Corregido** |
-| Info | — | `unlock` de otra cuenta sin pasar por `Locked`; `SELECT EXISTS`; KDoc de la AAD «UTF-8»; `json{v:1}` en las reglas; el vector con `DEFAULT`; prefijo de tipo en la AAD de HIBP y salud | **Corregidos**, o anotados en `.claude/rules/crypto.md` |
-
-## Diferencias con la tarea
-- **`Argon2BenchmarkTest`:** pasó a la función interna (usaba `KdfParams`).
-- **El vector propio cambió**, porque cambiaron los parámetros (64 MiB/t3). El script versionado lo reproduce.
-- **`ItemCipher.encrypt/decrypt` reciben `SecretReader`** (lo que presta `VaultSession`), no `SecureBytes`.
-- **`LockGuard` sin cuenta va a Iniciar sesión**, en vez de no hacer nada.
-- **Dependencias nuevas:** `lifecycle-process` 2.11.0 y kotlinx.serialization 1.9.0.
-
-## Dudas o decisiones que tomé
-- **Hallazgo 2:** ¿bloqueo también al apagar la pantalla (`ACTION_SCREEN_OFF`) o cuando el sistema pide memoria (`onTrimMemory`)? Cambia DEC-26. Hoy el plazo se aplica al volver a la app o al pedir la llave.
-- **Hallazgo 3, para la tarea 10:** las pantallas con datos ocultan su contenido en cuanto la bóveda está `Locked`, sus ViewModel vacían los elementos y la pila restaurada se revisa al arrancar. ¿Navegación sin transición hacia Desbloquear?
-- **Hallazgo 4:** ¿regla de que todo campo nuevo sube `format_version` (con solo lectura en apps viejas), o conservar los campos desconocidos al volver a cifrar? Hoy dejé documentada la primera.
-- **DEC-27:** agregar las copias del JSON (la `String` completa y los búferes de kotlinx.serialization).
-- **DEC-26:** tampoco existe el autobloqueo por inactividad en primer plano. No estaba en la tarea; conviene anotarlo como pendiente.
-- **Por error volví a crear un archivo basura** fuera del repo (`C:\Users\brian\UPchiapas\Securidad-NO.txt`, con una «x») y lo borré enseguida.
-
-## Revisión
-- [x] **REQUIERE REVISIÓN HUMANA** de `VaultSession`, `AutoLocker` e `ItemCipher`, en especial los hallazgos 1 a 3 antes de conectar Desbloquear en la tarea 10. Pasaron por `security-reviewer`.
+## Vistas nuevas o con cambios visibles
+- **Verificar correo** muestra «Código de prueba: …» solo en depuración.
+- **La Bóveda** muestra el aviso de códigos de respaldo restantes.
+- **Los botones de Crear cuenta, Iniciar sesión, 2FA, respaldo y Desbloquear** muestran un indicador mientras trabajan.
+- **No hay pantallas nuevas.**

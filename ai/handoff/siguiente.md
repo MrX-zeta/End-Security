@@ -1,76 +1,98 @@
-# Tarea 09 · Ajustes de crypto, Room local, `VaultSession` y cifrado de elementos
+# Tarea 10 · Capa de API con backend falso y flujos reales de registro y acceso
 
 **Estado:** hecha
-**Escrita:** 2026-10-18 · sesión de diseño
+**Escrita:** 2026-10-19 · sesión de diseño
 
-## Revisión de la tarea 08
-Aprobada, con la revisión humana de los Pasos 3 y 4: revisé `AesGcm`, `Sealed`, `SecureBytes`, `VaultKey` y
-`ProtectedVaultKey` en GitHub.
-- La corrección de la carrera entre `use` y `wipe` (hallazgo 1) fue la más importante de todo el proyecto hasta ahora.
-- `.benchmark` como app aparte, los 3 calentamientos y los 10 000 nonces están bien.
-- El ícono también: ya está en el lanzador.
+## Novedad importante: división del trabajo (DEC-61)
+El backend lo desarrolla la otra persona del equipo. **Tú no escribes código del backend.** El límite es el contrato
+nuevo **`docs/api/openapi.yaml` + `docs/api/README.md`** (v1.0.0, nodos `EP-01…EP-25` en el grafo v1.5.1). Léelos
+completos antes de empezar; `CLAUDE.md` ya tiene la sección «Backend y API». Mientras no exista el servidor, la app usa
+un **backend falso** que se comporta exactamente como el contrato.
 
-Respuestas (grafo **v1.4.0**):
-- **PEND-01 resuelto: Argon2id con m = 64 MiB, t = 3 y p = 1.** En el Redmi tarda 343 ms y en el emulador 587 ms, ambos sin depuración. Si el teléfono de la otra persona del equipo pasa de 1,5 s, se revisa; los parámetros son por cuenta.
-- **Renombrar: sí.** `withBytes { }` para leer; `use { }` queda como el de Kotlin, que cierra.
-- **`userId` en la AAD: sí.** Las funciones reciben `java.util.UUID` y usan `toString()`, en minúsculas y con guiones. Lo mismo vale para la AAD de los elementos (DEC-29).
-- **Módulo `:core:crypto`:** no por ahora. El error de lint de `VisibleForTests` basta para el alcance del proyecto.
-- **DEC-27:** quedan registradas `SecretKeySpec`, las copias de Conscrypt/JNI y la falta de `Cleaner`.
-- **Emulador lleno:** bórrale los datos desde Device Manager («Wipe Data») cuando lo necesites. No tiene nada que conservar.
-- **El archivo basura fuera del repo:** no pasa nada, pero evita crear archivos fuera de `proyecto-U4`.
+## Revisión de la tarea 09
+Aprobada, con la revisión humana: revisé `VaultSession`, `AutoLocker` e `ItemCipher` en GitHub.
+- Encontrar la bóveda abierta para siempre si se desbloqueaba con la app en segundo plano (hallazgo 1) fue un buen hallazgo.
+- También están bien `SecretReader`, la revisión del plazo al prestar la llave y el vector recalculado.
 
-## Paso 1 · Ajustes de `core/crypto`
-- `SecureBytes.use` → `withBytes`. Actualiza los usos y `.claude/rules/crypto.md`.
-- `ProtectedVaultKey.wrap/unwrap` reciben `UUID`.
-- **Piso de `KdfParams`:** memoria ≥ 65 536 KiB, t ≥ 3 y p ≥ 1. Reemplaza la lista de OWASP, porque el piso ya la supera; los topes se quedan. Agrega `KdfParams.DEFAULT` con esos valores.
-  - `Argon2BenchmarkTest` sigue usando la función interna, así que no se rompe.
-  - Pruebas: 46 MiB/t1 ahora se rechaza; 64/t3 y 128/t3 se aceptan.
+Respuestas (grafo v1.5.1):
+- **Hallazgo 2 (DEC-26):** no se agrega bloqueo al apagar la pantalla, porque apagarla ya manda la app a segundo plano y empieza el plazo. **Sí se agrega `onTrimMemory`:** con `level ≥ TRIM_MEMORY_BACKGROUND` y la app en segundo plano, se bloquea de inmediato. No hace falta `AlarmManager`; el plazo ya se revisa al pedir la llave.
+- **Autobloqueo por inactividad en primer plano:** no se implementa. Queda como riesgo aceptado en DEC-26.
+- **Hallazgo 3:** sí, en esta tarea (Paso 5).
+- **Hallazgo 4 (DEC-04):** un campo nuevo sube `format_version`. Una app que no conoce esa versión muestra el elemento en solo lectura («Actualiza la app para editarla»). Se queda `ignoreUnknownKeys`.
+- **DEC-27:** quedan registradas las copias del JSON.
+- **Archivos basura fuera del repo:** van tres veces. Revisa qué comando los crea (parece una redirección o un `echo x >` en la carpeta de arriba) y evítalo.
 
-## Paso 2 · Room (TBL-L-*, `docs/bd/modelo-datos.md`)
-- Base de datos `end_security.db` con `exportSchema = true` y esquemas en `app/schemas/`. Agrega Room a `libs.versions.toml` (KSP, compatible con AGP 9).
-- Entidades, según el grafo:
-  - `account` (TBL-L-ACCOUNT): una sola fila;
-  - `vault_items` (TBL-L-ITEMS): con `sync_state ∈ synced | pending | conflict` y `local_seq`;
-  - `breach_checks` (TBL-L-BREACH);
-  - `health_snapshots` (TBL-L-HEALTH).
-- **Ninguna columna guarda texto claro de un elemento:** solo `nonce` y `ciphertext`. Los nombres de los elementos también van cifrados.
-- DAOs con lo mínimo que piden OP-01…07 y OP-19: insertar o actualizar, leer todo en `Flow`, borrar con lápida, leer `account`, y borrar todo al cerrar sesión.
-- Pruebas instrumentadas de los DAOs con base en memoria, más una que revise que el esquema exportado no tenga columnas como `name`, `password`, `username` o `url`.
+## Paso 1 · Capa de API (`core/network`, `feature/*/domain`)
+- Interfaces de dominio que siguen el contrato al pie de la letra: `AuthApi` (EP-01…09), `VaultApi` (EP-10…12), `AccountApi` (EP-13…22) y `SessionApi` (EP-23…25).
+  - Usan modelos de dominio (`ByteArray`/`SecureBytes`, `UUID` e `Instant`), no JSON.
+  - Los errores llegan como `ApiError` sellado con los `code` del contrato (`InvalidCredentials`, `RateLimited(retryAfterSeconds)`, `VersionConflict(currentVersion)`…), más `NetworkUnavailable`.
+- DTOs `@Serializable` con los nombres del contrato, y un codec Base64url sin relleno (`java.util.Base64.getUrlEncoder().withoutPadding()`).
+  - **Pruebas de los DTOs** contra ejemplos JSON escritos a mano a partir de `openapi.yaml`, para que la versión con Retrofit use los mismos.
+- Un módulo de Hilt elige la implementación con `BuildConfig.USE_FAKE_BACKEND`, que por ahora vale `true` en todas las compilaciones. **Retrofit todavía no.**
 
-## Paso 3 · `VaultSession` y autobloqueo (`core/session`, DEC-08, DEC-26, PEND-04)
-- `VaultSession` (`@Singleton`) tiene un estado `Locked` o `Unlocked(userId: UUID)` en un `StateFlow`. La `vault_key` **no** va en el estado: vive en un `SecureBytes` privado.
-- Operaciones:
-  - `unlock(userId, vaultKey)`;
-  - `lock()`, que borra la llave;
-  - `withVaultKey { }`, que lanza un error si está bloqueada.
-- **Autobloqueo:**
-  - con `ProcessLifecycleOwner`, al pasar a segundo plano empieza la cuenta de `autolock_minutes` (DataStore, por defecto **5**; las opciones serán 1, 5, 15, 30 y 0 = «al salir de la app»);
-  - al volver antes de tiempo se cancela;
-  - usa `elapsedRealtime`;
-  - **«Bloquear ahora»** (el candado, DEC-52) llama a `lock()`.
-- **`LockGuard`** (`navigation/`): si la sesión pasa a `Locked` y existe la fila `account`, navega a `UNLOCK` con la pila vacía (hallazgo 10 de la tarea 06). Si no existe la cuenta, sigue el flujo de onboarding o Iniciar sesión de siempre.
-- Pruebas:
-  - `lock()` borra la llave (`isWiped`);
-  - `withVaultKey` bloqueada lanza un error;
-  - autobloqueo: a los 5 min sí y a los 4:59 no (reloj falso); 0 bloquea en cuanto la app pasa a segundo plano.
+## Paso 2 · Backend falso (`core/network/fake/`)
+Simula el servidor con fidelidad, porque también sirve para la presentación:
+- Persiste su estado en un archivo propio (`fake_server.json` en `filesDir`). Solo guarda lo que guardaría el servidor real: hash de la `authKey`, sal, parámetros, pvk, bloques, versiones y revisiones. Así cerrar la app no borra las cuentas.
+- **Reglas del README de `docs/api`:**
+  - prelogin siempre 200, con sal falsa de 16 B por HMAC para correos inexistentes;
+  - registro y reenvío siempre 202;
+  - `invalid_credentials` igual para correo inexistente y para `authKey` incorrecta;
+  - el hash de `authKey` con Argon2id de 19 MiB, t = 2;
+  - 5 fallos → `rate_limited` 15 min;
+  - `challengeToken` de 5 min y un solo uso;
+  - `version_conflict` y `cursor_expired` como en `app.vault_write_item()`.
+- **Código de verificación de correo:** solo en compilaciones de depuración, la pantalla Verificar correo muestra un aviso discreto, «Código de prueba: 123456», que viene del backend falso. Nunca se escribe en logcat.
+- **TOTP:** HMAC-SHA1 de RFC 6238 con JCA, 30 s y ±1 paso, con el anti-replay de `last_used_step`. El backend falso permite marcar una cuenta con 2FA con un secreto fijo de depuración (documéntalo en `docs/api/backend-falso.md`, para que la persona del equipo lo agregue a su app autenticadora). La configuración de 2FA desde Ajustes llega después.
+- Latencia simulada de 300–800 ms, para que se vean los estados de carga.
 
-## Paso 4 · Cifrado de elementos (DEC-29)
-- Formato `json_elemento_v1` (grafo, DEC-29): `name`, `username`, `password`, `url`, `notes`, `created_at` y `password_changed_at`. Serialízalo con `kotlinx.serialization` (agrega el plugin).
-- `ItemCipher` (`core/crypto` o `feature/vault/data`):
-  - `encrypt(vaultKey, itemId: UUID, userId: UUID, item)` → `Sealed`;
-  - `decrypt(...)` → `item`;
-  - AAD = `itemId|userId|formatVersion` (UUID canónicos y `formatVersion = 1`).
-  - El JSON en claro es `ByteArray` y se borra después de cifrar o de leer. Las `String` del modelo son la limitación aceptada de DEC-27.
-- Pruebas:
-  - ida y vuelta;
-  - cambiar `itemId`, `userId` o `formatVersion` hace fallar `decrypt`;
-  - un bloque de un elemento no se abre como otro;
-  - JSON con campos desconocidos: se ignoran, para compatibilidad futura.
+## Paso 3 · Registro real (SCR-05 → SCR-06 → Bóveda)
+1. Crear cuenta (`TODO(OP-11)`):
+   - genera `userId`, sal y `vault_key`;
+   - deriva las llaves con `KdfParams.DEFAULT`, fuera del hilo principal y con el botón en estado de carga;
+   - envuelve la `vault_key` con AAD `…|userId|1`;
+   - llama a `AuthApi.register` y navega a Verificar correo.
+2. Verificar correo (`TODO(OP-12)`):
+   - `verifyEmail` con `deviceName` (`Build.MANUFACTURER` + `Build.MODEL`, recortado a 100);
+   - si responde bien: guarda la fila `account`, guarda los tokens y llama a `VaultSession.unlock` con la `vault_key` que se generó en el paso 1. La `vault_key` se conserva en un `SecureBytes` en memoria entre las dos pantallas; nunca se escribe en disco ni en `SavedStateHandle`;
+   - navega a la Bóveda vacía (SCR-11, por ahora el marcador de `Routes.VAULT`).
+   - Si el proceso muere entre las dos pantallas, al volver se pide iniciar sesión normalmente.
+3. Reenviar y errores según el contrato: `attemptsRemaining` y `challenge_expired`.
+
+## Paso 4 · Inicio de sesión real (SCR-04 → SCR-07/08 → SCR-39)
+1. `prelogin` → `KdfParams`.
+   - **Piso del cliente** (DEC-05): si los parámetros vienen por debajo, se muestra el error genérico.
+   - Si ya existe una fila `account` del mismo correo con otra sal o parámetros más bajos, se rechaza (hallazgo 1 de la tarea 07).
+2. Deriva `master_key`, `auth_key` y `enc_key`, con la normalización y codificación de DEC-31. Llama a `login`:
+   - `authenticated`: desenvuelve la pvk con `enc_key` (si falla, error genérico), guarda `account` y tokens, y llama a `unlock`;
+   - `two_factor_required`: va a 2FA con el `challengeToken`. La `enc_key` se queda en un `SecureBytes` en memoria hasta completar el segundo paso o salir, y se borra en cualquier caso.
+3. 2FA (`TODO(OP-15)`) y código de respaldo (`TODO(OP-16)`), conectados. Después de un código de respaldo, si `recoveryCodesRemaining ≤ 3`, la Bóveda muestra después el aviso «Te quedan N códigos de respaldo».
+4. Bóveda · cargando (SCR-39) hace la descarga inicial real (`GET /vault/items?since=0`, paginada) a Room y después va al marcador de la Bóveda. **Quita la navegación temporal de 2 s.**
+5. **TokenStore** (`core/crypto/keystore`, DEC-16):
+   - tokens cifrados con una llave AES-GCM del Android Keystore (`setUserAuthenticationRequired(false)`), guardados en DataStore;
+   - sin `EncryptedSharedPreferences`;
+   - renovación de una en una (`Mutex`, regla 9);
+   - `session_revoked` → cerrar sesión local y volver a Iniciar sesión.
+
+## Paso 5 · Desbloquear real y pantallas protegidas (OP-19, hallazgo 3)
+- Desbloquear: lee `account` y cuenta el intento **antes** de derivar (hallazgo 4 de la tarea 07, en `NonCancellable`). Deriva `enc_key`, desenvuelve la pvk con AAD `userId|keyVersion` y llama a `unlock`. Si falla, «Contraseña incorrecta.» y el bloqueo de DEC-08.
+- Cerrar sesión (la hoja de Desbloquear): `AuthApi.logout`, aunque falle por red; borra los tokens y `clearAllTables()`; llama a `lock()` y va a Iniciar sesión.
+- **`RequireUnlocked { }`**: un composable que envuelve el contenido de toda pantalla con datos de la bóveda. Si el estado es `Locked`, no dibuja nada en ese mismo cuadro, y `LockGuard` navega a Desbloquear **sin transición**.
+- Los ViewModel con datos escuchan `VaultSession.state` y vacían su estado al bloquearse.
+- **Arranque:** el destino inicial se decide así:
+  - si hay cuenta: Desbloquear;
+  - si no hay cuenta pero ya se vio el onboarding: Iniciar sesión;
+  - si no: el onboarding.
+
+  La pila restaurada tras la muerte del proceso no se usa, porque la llave no sobrevive.
+- `AutoLocker`: `onTrimMemory`, como dice la revisión.
 
 ## Terminado cuando
-- Pasan las pruebas unitarias e instrumentadas, `assembleRelease` y lint.
-- `security-reviewer` revisa los Pasos 1, 3 y 4. **REQUIERE REVISIÓN HUMANA** de `VaultSession` y `ItemCipher`.
-- **Todavía no conectes Desbloquear ni la Bóveda.** Eso es la tarea 10, junto con una cuenta de prueba solo para depuración.
+- **Prueba de punta a punta en el emulador:** registrarse → código de prueba → Bóveda → cerrar la app → Desbloquear con la contraseña → cerrar sesión → Iniciar sesión → Bóveda.
+- **Con 2FA:** en una cuenta de depuración con 2FA, Iniciar sesión → 2FA → Bóveda · cargando → Bóveda.
+- **Errores:** contraseña incorrecta 5 veces muestra el bloqueo; un correo inexistente tarda lo mismo y da el mismo error.
+- **Pruebas:** unitarias de los ViewModels conectados, de los DTOs contra los ejemplos del contrato, del backend falso (cada `code`) y de `TokenStore` (instrumentada con Keystore real). Todo pasa, igual que `assembleRelease` y lint.
+- **Revisión:** `security-reviewer` revisa los Pasos 3, 4 y 5. **REQUIERE REVISIÓN HUMANA.**
+- Si algo del contrato no alcanza o está mal, **no lo cambies en el código**: anótalo en el reporte y yo actualizo `docs/api/`.
 - Los commits están hechos y subidos.
 
 ## Al terminar
