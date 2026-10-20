@@ -28,7 +28,7 @@ enum class LockDestination { Unlock, Login }
 @HiltViewModel
 class LockGuardViewModel @Inject constructor(
     session: VaultSession,
-    accounts: AccountRepository,
+    private val accounts: AccountRepository,
 ) : ViewModel() {
 
     private val _lockedEvents = Channel<LockDestination>(Channel.CONFLATED)
@@ -38,13 +38,22 @@ class LockGuardViewModel @Inject constructor(
         viewModelScope.launch {
             var previous: VaultState = session.state.value
             session.state.collect { current ->
-                if (previous is VaultState.Unlocked && current is VaultState.Locked) {
-                    _lockedEvents.send(if (accounts.hasLocalAccount()) LockDestination.Unlock else LockDestination.Login)
-                }
+                if (previous is VaultState.Unlocked && current is VaultState.Locked) _lockedEvents.send(destination())
                 previous = current
             }
         }
     }
+
+    /**
+     * Una pantalla protegida se dibujó con la bóveda ya bloqueada, sin el paso de abierta a
+     * bloqueada: la pila que Android restaura tras matar el proceso (la llave no sobrevive).
+     */
+    fun onProtectedScreenLocked() {
+        viewModelScope.launch { _lockedEvents.send(destination()) }
+    }
+
+    private suspend fun destination(): LockDestination =
+        if (accounts.hasLocalAccount()) LockDestination.Unlock else LockDestination.Login
 }
 
 /**
@@ -52,10 +61,8 @@ class LockGuardViewModel @Inject constructor(
  * Iniciar sesión sin cuenta) con la pila vacía. Así no queda debajo ninguna pantalla con datos
  * de la bóveda (hallazgo 10 de la tarea 06).
  *
- * TODO(tarea 10): las pantallas con datos de la bóveda deben ocultar su contenido en cuanto el
- *  estado sea Locked (sin esperar a la navegación ni a la transición) y sus ViewModel vaciar los
- *  elementos descifrados; y al restaurar la pila tras la muerte del proceso, un destino protegido
- *  con la bóveda bloqueada debe ir aquí también.
+ * El contenido lo oculta `RequireUnlocked` en el mismo cuadro, sin esperar a esta navegación, y
+ * al arrancar con la bóveda bloqueada `StartDestinationViewModel` ya elige Desbloquear.
  */
 @Composable
 fun LockGuard(

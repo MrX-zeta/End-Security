@@ -70,6 +70,28 @@ class DaoTest {
     )
 
     @Test
+    fun applyRemote_no_pisa_ni_borra_filas_con_cambios_locales() = runBlocking {
+        val dao = database.vaultItemDao()
+        dao.insert(newItem("pendiente"))
+        dao.insert(newItem("subido", serverVersion = 1))
+        dao.insert(newItem("borrado", serverVersion = 1))
+        dao.insert(newItem("local-borrado"))
+        val remote = { id: String -> newItem(id, serverVersion = 9) }
+
+        dao.applyRemote(
+            items = listOf(remote("pendiente"), remote("subido"), remote("nuevo")),
+            tombstoneIds = listOf("borrado", "local-borrado"),
+        )
+
+        assertEquals("la pendiente se queda como estaba", SyncState.Pending, dao.get("pendiente")!!.syncState)
+        assertNull(dao.get("pendiente")!!.serverVersion)
+        assertEquals(9L, dao.get("subido")!!.serverVersion)
+        assertNotNull(dao.get("nuevo"))
+        assertNull(dao.get("borrado"))
+        assertNotNull("una lápida remota no borra un cambio sin subir", dao.get("local-borrado"))
+    }
+
+    @Test
     fun account_siempre_es_una_sola_fila() = runBlocking {
         val dao = database.accountDao()
         assertNull(dao.get())

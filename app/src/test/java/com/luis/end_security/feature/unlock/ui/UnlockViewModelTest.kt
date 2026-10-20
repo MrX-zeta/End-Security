@@ -1,9 +1,12 @@
 package com.luis.end_security.feature.unlock.ui
 
 import com.luis.end_security.core.datastore.UnlockLockout
+import com.luis.end_security.feature.auth.domain.FakeAuthRepository
+import com.luis.end_security.feature.auth.domain.UnlockOutcome
 import com.luis.end_security.feature.unlock.domain.UnlockAttemptRepository
 import com.luis.end_security.feature.unlock.domain.UnlockSettingsRepository
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
@@ -30,6 +33,19 @@ class UnlockViewModelTest {
     private val scope = TestScope(dispatcher)
     private val settings = FakeUnlockSettings()
     private val attempts = FakeUnlockAttempts()
+    private val auth = FakeAuthRepository().apply {
+        accountName = "Ana"
+        // Como el repositorio real: «correcta» abre; cualquier otra cuenta un fallo (DEC-08).
+        unlockOutcome = { password ->
+            if (password == CORRECT) {
+                attempts.failures = 0
+                UnlockOutcome.Unlocked
+            } else {
+                attempts.failures++
+                UnlockOutcome.WrongPassword(UnlockLockout.durationAfter(attempts.failures))
+            }
+        }
+    }
     private lateinit var viewModel: UnlockViewModel
 
     private val state get() = viewModel.state.value
@@ -37,7 +53,7 @@ class UnlockViewModelTest {
     @Before
     fun setUp() {
         Dispatchers.setMain(dispatcher)
-        viewModel = UnlockViewModel(settings, attempts, dispatcher.scheduler.timeSource)
+        viewModel = UnlockViewModel(settings, attempts, auth, dispatcher.scheduler.timeSource)
     }
 
     @After
@@ -46,6 +62,60 @@ class UnlockViewModelTest {
     }
 
     private fun typePassword() = viewModel.onAction(UnlockAction.PasswordEmptinessChanged(isEmpty = false))
+
+    private fun TestScope.submit(password: String) {
+        typePassword()
+        viewModel.onAction(UnlockAction.Submit(password))
+        runCurrent()
+    }
+
+    @Test
+    fun `muestra el nombre de la cuenta local`() = scope.runTest {
+        runCurrent()
+        assertEquals("Ana", state.displayName)
+    }
+
+    @Test
+    fun `la contrasena correcta abre la boveda y va a la boveda`() = scope.runTest {
+        submit(CORRECT)
+        assertEquals(listOf(CORRECT), auth.passwords)
+        assertFalse(state.isLoading)
+        assertEquals(UnlockEffect.NavigateToVault, viewModel.effects.first())
+    }
+
+    @Test
+    fun `mientras deriva muestra carga y no acepta otro envio`() = scope.runTest {
+        auth.gate = CompletableDeferred()
+        submit(CORRECT)
+        assertTrue(state.isLoading)
+        assertFalse(state.canSubmit)
+        viewModel.onAction(UnlockAction.Submit(CORRECT))
+        runCurrent()
+        assertEquals(1, auth.calls.count { it == "unlock" })
+        auth.gate!!.complete(Unit)
+        runCurrent()
+        assertFalse(state.isLoading)
+    }
+
+    @Test
+    fun `bloqueado en el repositorio muestra el bloqueo`() = scope.runTest {
+        auth.unlockOutcome = { UnlockOutcome.LockedOut(90.seconds) }
+        submit("x")
+        assertEquals(90, state.lockoutSecondsLeft)
+        assertEquals(1, viewModel.clearRequests.value)
+    }
+
+    @Test
+    fun `sin cuenta en el telefono va a iniciar sesion`() = scope.runTest {
+        auth.unlockOutcome = { UnlockOutcome.NoAccount }
+        submit("x")
+        assertEquals(UnlockEffect.NavigateToLogin, viewModel.effects.first())
+    }
+
+    @Test
+    fun `la accion de enviar no imprime la contrasena`() {
+        assertFalse(UnlockAction.Submit("secreta").toString().contains("secreta"))
+    }
 
     @Test
     fun `desbloquear se habilita solo con la contrasena escrita`() {
@@ -58,9 +128,7 @@ class UnlockViewModelTest {
 
     @Test
     fun `contrasena incorrecta muestra el error, cuenta el fallo y pide vaciar el campo`() = scope.runTest {
-        typePassword()
-        viewModel.onWrongPassword()
-        runCurrent()
+        submit("incorrecta")
         assertTrue(state.wrongPassword)
         assertEquals(1, attempts.failures)
         assertEquals(1, viewModel.clearRequests.value)
@@ -68,9 +136,7 @@ class UnlockViewModelTest {
 
     @Test
     fun `el error sigue con el campo vacio y se quita al escribir otra vez`() = scope.runTest {
-        typePassword()
-        viewModel.onWrongPassword()
-        runCurrent()
+        submit("incorrecta")
         viewModel.onAction(UnlockAction.PasswordEmptinessChanged(isEmpty = true))
         assertTrue(state.wrongPassword)
         typePassword()
@@ -80,9 +146,7 @@ class UnlockViewModelTest {
     @Test
     fun `el quinto fallo bloquea 1 min y desbloquear vuelve al terminar`() = scope.runTest {
         repeat(5) {
-            typePassword()
-            viewModel.onWrongPassword()
-            runCurrent()
+            submit("incorrecta")
         }
         typePassword()
         assertTrue(state.isLockedOut)
@@ -104,7 +168,7 @@ class UnlockViewModelTest {
     @Test
     fun `un bloqueo guardado sigue al abrir la pantalla`() = scope.runTest {
         attempts.remaining = 40.seconds
-        viewModel = UnlockViewModel(settings, attempts, dispatcher.scheduler.timeSource)
+        viewModel = UnlockViewModel(settings, attempts, auth, dispatcher.scheduler.timeSource)
         runCurrent()
         assertEquals(40, state.lockoutSecondsLeft)
     }
@@ -135,12 +199,17 @@ class UnlockViewModelTest {
         viewModel.onAction(UnlockAction.SignOutConfirmed)
         assertFalse(state.showSignOutConfirmation)
         assertEquals(UnlockEffect.NavigateToLogin, viewModel.effects.first())
+        assertTrue(auth.signedOut)
     }
 
     @Test
     fun `el estado no imprime el nombre`() {
         val printed = UnlockUiState(displayName = "Ana").toString()
         assertFalse(printed.contains("Ana"))
+    }
+
+    private companion object {
+        const val CORRECT = "correcta"
     }
 
     private class FakeUnlockSettings : UnlockSettingsRepository {

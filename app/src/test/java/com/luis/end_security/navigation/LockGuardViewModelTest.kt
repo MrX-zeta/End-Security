@@ -61,4 +61,11 @@ class LockGuardViewModelTest {
         session.lock()
         assertNull(withTimeoutOrNull(200) { viewModel.lockedEvents.first() })
     }
+
+    @Test
+    fun `una pantalla protegida restaurada ya bloqueada lleva a Desbloquear`() = runTest(dispatcher) {
+        val viewModel = LockGuardViewModel(session, accounts(true))
+        viewModel.onProtectedScreenLocked()
+        assertEquals(LockDestination.Unlock, withTimeoutOrNull(1_000) { viewModel.lockedEvents.first() })
+    }
 }

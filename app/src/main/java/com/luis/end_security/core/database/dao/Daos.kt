@@ -9,6 +9,7 @@ import androidx.room.Upsert
 import com.luis.end_security.core.database.entity.AccountEntity
 import com.luis.end_security.core.database.entity.BreachCheckEntity
 import com.luis.end_security.core.database.entity.HealthSnapshotEntity
+import com.luis.end_security.core.database.entity.SyncState
 import com.luis.end_security.core.database.entity.VaultItemEntity
 import kotlinx.coroutines.flow.Flow
 
@@ -53,6 +54,10 @@ abstract class AccountDao {
     @Query("DELETE FROM account")
     abstract suspend fun deleteAll()
 
+    /** Cursor de sincronización tras aplicar cambios del servidor (OP-32/OP-33). */
+    @Query("UPDATE account SET sync_cursor = :cursor, last_sync_at = :at")
+    abstract suspend fun updateSyncCursor(cursor: Long, at: Long)
+
     @Insert(onConflict = OnConflictStrategy.ABORT)
     protected abstract suspend fun insert(account: AccountEntity)
 }
@@ -70,6 +75,26 @@ abstract class VaultItemDao {
 
     @Query("SELECT * FROM vault_items WHERE id = :id")
     abstract suspend fun get(id: String): VaultItemEntity?
+
+    /**
+     * Elementos que llegan del servidor en la descarga inicial: quedan `synced` con su versión y
+     * revisión. Las lápidas se borran de Room (modelo de datos §8.2, «cambio remoto»).
+     */
+    @Transaction
+    open suspend fun applyRemote(items: List<VaultItemEntity>, tombstoneIds: List<String>) {
+        // Una fila `pending` o `conflict` tiene cambios sin subir: no se pisa ni se borra. Marcar
+        // el conflicto y resolverlo con la vault_key (ConflictResolver) toca a OP-33.
+        upsertAll(items.filter { isSyncedOrAbsent(it.id) })
+        tombstoneIds.filter { isSyncedOrAbsent(it) }.forEach { deletePhysically(it) }
+    }
+
+    private suspend fun isSyncedOrAbsent(id: String): Boolean = syncStateOf(id).let { it == null || it == SyncState.Synced }
+
+    @Query("SELECT sync_state FROM vault_items WHERE id = :id")
+    protected abstract suspend fun syncStateOf(id: String): SyncState?
+
+    @Upsert
+    protected abstract suspend fun upsertAll(items: List<VaultItemEntity>)
 
     /** Crear (OP-01): la fila llega como `pending`, sin `server_version` y con `local_seq` 1. */
     @Insert(onConflict = OnConflictStrategy.ABORT)

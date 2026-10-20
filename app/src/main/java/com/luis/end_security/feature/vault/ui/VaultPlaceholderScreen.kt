@@ -10,18 +10,33 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.luis.end_security.R
 import com.luis.end_security.core.designsystem.component.BottomNavBar
 import com.luis.end_security.core.designsystem.component.BottomNavTab
+import com.luis.end_security.core.designsystem.component.NoticeCard
+
+@Composable
+fun VaultRoute(
+    onTabSelected: (BottomNavTab) -> Unit,
+    viewModel: VaultViewModel = hiltViewModel(),
+) {
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    VaultPlaceholderScreen(state = state, onTabSelected = onTabSelected)
+}
 
 /** Marcador de Bóveda · Lista (SCR-10) hasta que se implemente. */
 @Composable
 fun VaultPlaceholderScreen(
+    state: VaultUiState,
     onTabSelected: (BottomNavTab) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -48,6 +63,10 @@ fun VaultPlaceholderScreen(
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            state.recoveryCodesLeft?.let { left ->
+                Spacer(Modifier.height(16.dp))
+                NoticeCard(text = pluralStringResource(R.plurals.vault_recovery_codes_left, left, left))
+            }
         }
         BottomNavBar(selected = BottomNavTab.Vault, onTabSelected = onTabSelected)
     }

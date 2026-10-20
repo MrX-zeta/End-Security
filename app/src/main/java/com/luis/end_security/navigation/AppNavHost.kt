@@ -1,11 +1,12 @@
 package com.luis.end_security.navigation
 
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -16,7 +17,6 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.luis.end_security.BuildConfig
 import com.luis.end_security.core.designsystem.theme.SystemBarsAppearance
 import com.luis.end_security.feature.auth.ui.backupcode.BackupCodeRoute
 import com.luis.end_security.feature.auth.ui.login.LoginRoute
@@ -28,9 +28,8 @@ import com.luis.end_security.feature.auth.ui.verify.VerifyEmailViewModel
 import com.luis.end_security.feature.settings.ui.legal.LegalDocument
 import com.luis.end_security.feature.settings.ui.legal.LegalDocumentScreen
 import com.luis.end_security.feature.unlock.ui.UnlockRoute
-import com.luis.end_security.feature.vault.ui.VaultLoadingScreen
-import com.luis.end_security.feature.vault.ui.VaultPlaceholderScreen
-import kotlinx.coroutines.delay
+import com.luis.end_security.feature.vault.ui.VaultLoadingRoute
+import com.luis.end_security.feature.vault.ui.VaultRoute
 
 @Composable
 fun AppNavHost(
@@ -50,8 +49,10 @@ fun AppNavHost(
     // La app es clara (DEC-51): íconos oscuros en las barras; el onboarding los cambia mientras se ve.
     SystemBarsAppearance(darkBackground = false)
     val navController = rememberNavController()
+    val lockGuardViewModel: LockGuardViewModel = hiltViewModel()
     // Si la bóveda se bloquea: a Desbloquear (o a Iniciar sesión sin cuenta), sin nada debajo.
     LockGuard(
+        viewModel = lockGuardViewModel,
         onLocked = { destination ->
             navController.navigateClearingStack(
                 when (destination) {
@@ -80,45 +81,51 @@ fun AppNavHost(
         composable(Routes.LOGIN) {
             LoginRoute(
                 onCreateAccount = { navController.navigate(Routes.SIGN_UP) { launchSingleTop = true } },
-                // TODO(OP-14): solo si la cuenta tiene 2FA; si no, a la bóveda.
                 onNavigateToTwoFactor = { navController.navigate(Routes.TWO_FACTOR) { launchSingleTop = true } },
+                onNavigateToVault = { navController.navigateClearingStack(Routes.VAULT_LOADING) },
+                onNavigateToVerifyEmail = { email -> navController.navigate(Routes.verifyEmail(email)) { launchSingleTop = true } },
             )
         }
         composable(Routes.TWO_FACTOR) {
             TwoFactorRoute(
                 onBack = { navController.popBackStack() },
                 onUseBackupCode = { navController.navigate(Routes.BACKUP_CODE) { launchSingleTop = true } },
-                // TODO(OP-15): solo cuando el servidor acepte el código.
                 onNavigateToVault = { navController.navigateClearingStack(Routes.VAULT_LOADING) },
+                onNavigateToLogin = { navController.navigateClearingStack(Routes.LOGIN) },
             )
         }
         composable(Routes.BACKUP_CODE) {
             BackupCodeRoute(
                 onBack = { navController.popBackStack() },
-                // TODO(OP-16): solo cuando el servidor acepte el código.
                 onNavigateToVault = { navController.navigateClearingStack(Routes.VAULT_LOADING) },
+                onNavigateToLogin = { navController.navigateClearingStack(Routes.LOGIN) },
             )
         }
-        composable(Routes.UNLOCK) {
+        // A Desbloquear sin transición: no se ve la bóveda desvanecerse debajo (hallazgo 3 de la tarea 09).
+        composable(Routes.UNLOCK, enterTransition = { EnterTransition.None }, exitTransition = { ExitTransition.None }) {
             // Cerrar sesión deja Iniciar sesión sola en la pila.
-            UnlockRoute(onNavigateToLogin = { navController.navigateClearingStack(Routes.LOGIN) })
+            UnlockRoute(
+                // Los elementos ya están en Room: directo a la Bóveda, sin la descarga inicial.
+                onNavigateToVault = { navController.navigateClearingStack(Routes.VAULT) },
+                onNavigateToLogin = { navController.navigateClearingStack(Routes.LOGIN) },
+            )
         }
-        composable(Routes.VAULT_LOADING) {
-            // TODO(OP-32): al terminar la primera descarga, ir a la Bóveda (SCR-10). Mientras tanto,
-            //  en depuración se pasa al marcador tras 2 s; en release se queda aquí.
-            if (BuildConfig.DEBUG) {
-                LaunchedEffect(Unit) {
-                    delay(2_000)
-                    navController.navigate(Routes.VAULT) {
-                        popUpTo(Routes.VAULT_LOADING) { inclusive = true }
-                    }
-                }
+        composable(Routes.VAULT_LOADING, exitTransition = { ExitTransition.None }, popExitTransition = { ExitTransition.None }) {
+            RequireUnlocked(onLocked = lockGuardViewModel::onProtectedScreenLocked) {
+                // OP-32: descarga inicial real y después a la Bóveda.
+                // TODO(DEC-56): cada pestaña lleva a su raíz cuando existan Salud, Generador y Ajustes.
+                VaultLoadingRoute(
+                    onTabSelected = {},
+                    onDone = {
+                        navController.navigate(Routes.VAULT) {
+                            popUpTo(Routes.VAULT_LOADING) { inclusive = true }
+                        }
+                    },
+                )
             }
-            // TODO(DEC-56): cada pestaña lleva a su raíz cuando existan Salud, Generador y Ajustes.
-            VaultLoadingScreen(onTabSelected = {})
         }
-        composable(Routes.VAULT) {
-            VaultPlaceholderScreen(onTabSelected = {})
+        composable(Routes.VAULT, exitTransition = { ExitTransition.None }, popExitTransition = { ExitTransition.None }) {
+            RequireUnlocked(onLocked = lockGuardViewModel::onProtectedScreenLocked) { VaultRoute(onTabSelected = {}) }
         }
         composable(Routes.SIGN_UP) {
             // Términos y Aviso de privacidad se abren en una hoja inferior dentro de Crear cuenta;
@@ -126,7 +133,6 @@ fun AppNavHost(
             SignUpRoute(
                 onBack = { navController.popBackStack() },
                 // Crear cuenta sale de la pila: atrás desde Verificar regresa a Onboarding o Iniciar sesión.
-                // TODO(OP-11): navegar solo si el registro responde bien.
                 onNavigateToVerifyEmail = { email ->
                     navController.navigate(Routes.verifyEmail(email)) {
                         popUpTo(Routes.SIGN_UP) { inclusive = true }
@@ -139,7 +145,11 @@ fun AppNavHost(
             route = Routes.VERIFY_EMAIL,
             arguments = listOf(navArgument(VerifyEmailViewModel.EMAIL_ARG) { type = NavType.StringType }),
         ) {
-            VerifyEmailRoute(onBack = { navController.popBackStack() })
+            VerifyEmailRoute(
+                onBack = { navController.popBackStack() },
+                onNavigateToVault = { navController.navigateClearingStack(Routes.VAULT_LOADING) },
+                onNavigateToLogin = { navController.navigateClearingStack(Routes.LOGIN) },
+            )
         }
         composable(
             route = Routes.LEGAL_DOCUMENT,

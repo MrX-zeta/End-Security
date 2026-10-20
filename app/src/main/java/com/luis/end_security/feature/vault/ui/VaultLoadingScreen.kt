@@ -20,9 +20,13 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.paneTitle
 import androidx.compose.ui.semantics.semantics
@@ -51,6 +55,20 @@ private val SkeletonRows: List<Pair<Dp, Dp>> = listOf(
     95.dp to 180.dp,
     120.dp to 140.dp,
 )
+
+/** Bóveda · cargando con la descarga inicial real; al terminar, [onDone]. */
+@Composable
+fun VaultLoadingRoute(
+    onTabSelected: (BottomNavTab) -> Unit,
+    onDone: () -> Unit,
+    viewModel: VaultLoadingViewModel = hiltViewModel(),
+) {
+    val currentOnDone by rememberUpdatedState(onDone)
+    LaunchedEffect(viewModel) {
+        viewModel.done.collect { currentOnDone() }
+    }
+    VaultLoadingScreen(onTabSelected = onTabSelected)
+}
 
 /**
  * SCR-39 · Bóveda · cargando: la primera descarga de la bóveda después de entrar (OP-32).

@@ -3,6 +3,8 @@ package com.luis.end_security.feature.unlock.ui
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.luis.end_security.core.common.Countdown
+import com.luis.end_security.feature.auth.domain.AuthRepository
+import com.luis.end_security.feature.auth.domain.UnlockOutcome
 import com.luis.end_security.feature.unlock.domain.UnlockAttemptRepository
 import com.luis.end_security.feature.unlock.domain.UnlockSettingsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -47,8 +49,10 @@ sealed interface UnlockAction {
     /** La pantalla avisa si el campo quedó vacío o no; nunca manda su contenido. */
     data class PasswordEmptinessChanged(val isEmpty: Boolean) : UnlockAction
 
-    /** «Desbloquear» o «Listo» en el teclado. */
-    data object Submit : UnlockAction
+    /** «Desbloquear» o «Listo» en el teclado. [password] es el texto del campo; no se guarda. */
+    class Submit(val password: CharSequence) : UnlockAction {
+        override fun toString(): String = "Submit(***)"
+    }
 
     /** Botón de huella. */
     data object BiometricClicked : UnlockAction
@@ -64,18 +68,21 @@ sealed interface UnlockAction {
 }
 
 sealed interface UnlockEffect {
-    /** Sesión cerrada: a Iniciar sesión, sin nada debajo. */
+    /** Bóveda abierta: a la Bóveda, sin nada debajo. */
+    data object NavigateToVault : UnlockEffect
+
+    /** Sesión cerrada (o no hay cuenta): a Iniciar sesión, sin nada debajo. */
     data object NavigateToLogin : UnlockEffect
 }
 
 @HiltViewModel
 class UnlockViewModel @Inject constructor(
     settings: UnlockSettingsRepository,
-    private val attempts: UnlockAttemptRepository,
+    attempts: UnlockAttemptRepository,
+    private val auth: AuthRepository,
     timeSource: TimeSource,
 ) : ViewModel() {
 
-    // TODO(TBL-L-ACCOUNT): leer display_name de la cuenta local cuando exista Room.
     private val _state = MutableStateFlow(UnlockUiState())
     val state: StateFlow<UnlockUiState> = _state.asStateFlow()
 
@@ -96,6 +103,10 @@ class UnlockViewModel @Inject constructor(
                 _state.update { it.copy(biometricAvailable = enabled) }
             }
         }
+        viewModelScope.launch {
+            val name = auth.localAccountName()
+            _state.update { it.copy(displayName = name) }
+        }
         // Un bloqueo que empezó antes de cerrar la app sigue al volver (DEC-08).
         viewModelScope.launch {
             val remaining = attempts.remainingLockout()
@@ -110,7 +121,7 @@ class UnlockViewModel @Inject constructor(
                 // Al escribir otra vez se quita el error; vaciar el campo no lo quita.
                 _state.update { it.copy(wrongPassword = it.wrongPassword && action.isEmpty).withCanSubmit() }
             }
-            UnlockAction.Submit -> submit()
+            is UnlockAction.Submit -> submit(action.password)
             // TODO(OP-20): BiometricPrompt con CryptoObject (DEC-09): la llave del Keystore abre la
             //  vault_key envuelta (bio_wrapped_vault_key). Si la biometría cambió, pedir la contraseña.
             UnlockAction.BiometricClicked -> Unit
@@ -120,39 +131,44 @@ class UnlockViewModel @Inject constructor(
         }
     }
 
-    private fun submit() {
+    private fun submit(password: CharSequence) {
         if (!_state.value.canSubmit) return
-        // TODO(OP-19): la pantalla copiará la contraseña a un CharArray normalizado con
-        //  MasterPasswordNormalizer (DEC-31) y codificado en UTF-8 con CodingErrorAction.REPORT
-        //  (si falla, es «Contraseña incorrecta.»); se derivará enc_key con Argon2 (PEND-01), se
-        //  abrirá pvk para obtener vault_key en VaultSession y el arreglo se sobrescribirá. Sin red.
-        //  Mientras dure, isLoading = true y no se aceptan más envíos. Si la etiqueta GCM falla,
-        //  onWrongPassword(); si abre, attempts.recordSuccess().
-        //  Antes de derivar (revisión de la tarea 07): volver a preguntar attempts.remainingLockout()
-        //  al repositorio, no solo al estado de la UI, y contar el intento ANTES de Argon2 en un
-        //  scope que no se cancele (NonCancellable): si se cuenta después, cerrar la app justo al
-        //  terminar Argon2 evitaría que el fallo se guarde.
+        _state.update { it.copy(isLoading = true, wrongPassword = false).withCanSubmit() }
+        viewModelScope.launch {
+            // OP-19, sin red: el repositorio cuenta el intento antes de derivar (DEC-08).
+            val outcome = auth.unlock(password)
+            _state.update { it.copy(isLoading = false).withCanSubmit() }
+            when (outcome) {
+                UnlockOutcome.Unlocked -> _effects.send(UnlockEffect.NavigateToVault)
+                is UnlockOutcome.WrongPassword -> onWrongPassword(outcome.lockout)
+                is UnlockOutcome.LockedOut -> {
+                    _clearRequests.update { it + 1 }
+                    startLockout(outcome.remaining)
+                }
+                UnlockOutcome.NoAccount -> _effects.send(UnlockEffect.NavigateToLogin)
+            }
+        }
     }
 
     private fun signOut() {
-        _state.update { it.copy(showSignOutConfirmation = false) }
-        // TODO(OP-18): revocar la sesión en el servidor, borrar tokens y datos locales y bloquear.
-        viewModelScope.launch { _effects.send(UnlockEffect.NavigateToLogin) }
+        _state.update { it.copy(showSignOutConfirmation = false, isLoading = true).withCanSubmit() }
+        viewModelScope.launch {
+            // OP-18: revoca en el servidor (aunque falle la red), borra tokens y datos locales y bloquea.
+            auth.signOut()
+            _effects.send(UnlockEffect.NavigateToLogin)
+        }
     }
 
     /**
-     * La contraseña no abrió la bóveda (OP-19). Se cuenta el fallo y el campo se vacía; desde el
-     * quinto fallo seguido empieza el bloqueo (DEC-08), que reemplaza al error.
+     * La contraseña no abrió la bóveda (OP-19). El campo se vacía; desde el quinto fallo seguido
+     * empieza el bloqueo (DEC-08), que reemplaza al error.
      */
-    internal fun onWrongPassword() {
+    private fun onWrongPassword(lockout: Duration) {
         _clearRequests.update { it + 1 }
-        viewModelScope.launch {
-            val lockout = attempts.recordFailure()
-            if (lockout > Duration.ZERO) {
-                startLockout(lockout)
-            } else {
-                _state.update { it.copy(wrongPassword = true).withCanSubmit() }
-            }
+        if (lockout > Duration.ZERO) {
+            startLockout(lockout)
+        } else {
+            _state.update { it.copy(wrongPassword = true).withCanSubmit() }
         }
     }
 

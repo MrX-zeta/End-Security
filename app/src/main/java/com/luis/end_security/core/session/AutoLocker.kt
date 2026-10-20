@@ -1,5 +1,6 @@
 package com.luis.end_security.core.session
 
+import android.content.ComponentCallbacks2
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import com.luis.end_security.core.common.ApplicationScope
@@ -85,6 +86,15 @@ class AutoLocker @Inject constructor(
         val since = backgroundedAt ?: return
         backgroundedAt = null
         if (clock.elapsedRealtimeMillis() - since >= timeoutMillis) session.lock()
+    }
+
+    /**
+     * DEC-26 (revisión de la tarea 09): si el sistema pide memoria con la app en segundo plano
+     * (`TRIM_MEMORY_BACKGROUND` o más), se bloquea de inmediato.
+     */
+    @Synchronized
+    fun onTrimMemory(level: Int) {
+        if (!inForeground && level >= ComponentCallbacks2.TRIM_MEMORY_BACKGROUND) session.lock()
     }
 
     /** La bóveda se abrió: si la app ya no está a la vista, la cuenta empieza ahora. */

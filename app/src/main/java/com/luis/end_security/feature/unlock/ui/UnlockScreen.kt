@@ -81,6 +81,7 @@ private val ContentHorizontalPadding = 32.dp
 
 @Composable
 fun UnlockRoute(
+    onNavigateToVault: () -> Unit,
     onNavigateToLogin: () -> Unit,
     viewModel: UnlockViewModel = hiltViewModel(),
 ) {
@@ -91,10 +92,12 @@ fun UnlockRoute(
     val passwordState = remember { TextFieldState() }
     var passwordVisible by remember { mutableStateOf(false) }
     val currentOnAction by rememberUpdatedState(viewModel::onAction)
+    val currentOnNavigateToVault by rememberUpdatedState(onNavigateToVault)
     val currentOnNavigateToLogin by rememberUpdatedState(onNavigateToLogin)
     LaunchedEffect(viewModel) {
         viewModel.effects.collect { effect ->
             when (effect) {
+                UnlockEffect.NavigateToVault -> currentOnNavigateToVault()
                 UnlockEffect.NavigateToLogin -> currentOnNavigateToLogin()
             }
         }
@@ -129,6 +132,7 @@ fun UnlockRoute(
         passwordState = passwordState,
         passwordVisible = passwordVisible,
         onPasswordVisibleChange = { passwordVisible = it },
+        onSubmit = { viewModel.onAction(UnlockAction.Submit(passwordState.text)) },
         onAction = viewModel::onAction,
     )
 }
@@ -141,6 +145,7 @@ fun UnlockScreen(
     passwordState: TextFieldState,
     passwordVisible: Boolean,
     onPasswordVisibleChange: (Boolean) -> Unit,
+    onSubmit: () -> Unit,
     onAction: (UnlockAction) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -153,7 +158,7 @@ fun UnlockScreen(
     }
     val submit = {
         focusManager.clearFocus()
-        onAction(UnlockAction.Submit)
+        onSubmit()
     }
 
     BoxWithConstraints(
@@ -219,6 +224,7 @@ fun UnlockScreen(
                             text = stringResource(R.string.unlock_submit),
                             onClick = submit,
                             enabled = state.canSubmit,
+                            loading = state.isLoading,
                             modifier = Modifier.weight(1f),
                         )
                     }
@@ -342,6 +348,7 @@ private fun UnlockPreviewContent(state: UnlockUiState, password: String = "") {
             passwordState = passwordState,
             passwordVisible = false,
             onPasswordVisibleChange = {},
+            onSubmit = {},
             onAction = {},
         )
     }
