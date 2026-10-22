@@ -1,7 +1,7 @@
 {
   "meta": {
     "nombre": "Grafo de conocimiento — End Security",
-    "version": "1.5.4",
+    "version": "1.5.5",
     "actualizado": "2026-10-19",
     "fase": "Implementación de la app (acceso y núcleo criptográfico listos) y contrato de la API v1.0.0 para el backend.",
     "historial": [
@@ -94,6 +94,11 @@
         "version": "1.5.4",
         "fecha": "2026-10-22",
         "cambio": "Syslog RFC 5424 con 5 niveles para todas las operaciones del backend (DEC-62); alcance del backend en docs/backend/README.md."
+      },
+      {
+        "version": "1.5.5",
+        "fecha": "2026-10-22",
+        "cambio": "Contrato 1.2.0 con EP-26 (GET /vault/items/{id}) para conflictos; redacción de DEC-25 (portapapeles en segundo plano)."
       }
     ],
     "proposito": "Fuente de verdad del contexto, decisiones técnicas y huecos resueltos del proyecto, para personas y agentes de IA.",
@@ -177,8 +182,8 @@
       "implementa": "endpoint → operación"
     },
     "estadisticas": {
-      "nodos": 380,
-      "aristas": 1076,
+      "nodos": 381,
+      "aristas": 1078,
       "por_tipo": {
         "proyecto": 1,
         "objetivo": 6,
@@ -198,7 +203,7 @@
         "pregunta_abierta": 12,
         "invariante": 32,
         "pantalla": 46,
-        "endpoint": 25
+        "endpoint": 26
       }
     }
   },
@@ -790,7 +795,7 @@
       "id": "DEC-25",
       "tipo": "decision",
       "nombre": "Portapapeles seguro",
-      "descripcion": "Copias marcadas como sensibles (EXTRA_IS_SENSITIVE en Android 13+) y borrado automático configurable (clipboard_clear_seconds: 30 s por defecto; opciones 15, 30, 60 y 120). Solo se borra si el portapapeles sigue teniendo lo que copió la app.",
+      "descripcion": "Copias marcadas como sensibles (EXTRA_IS_SENSITIVE en Android 13+) y borrado automático configurable (clipboard_clear_seconds: 30 s por defecto; opciones 15, 30, 60 y 120). Se borra salvo que se pueda comprobar que hay otra cosa copiada (en segundo plano Android 10+ no deja leerlo, así que se borra). Si el proceso muere antes del plazo, se borra al volver a primer plano.",
       "estado": "decidido"
     },
     {
@@ -3906,7 +3911,7 @@
           "docs/api/openapi.yaml",
           "docs/api/README.md"
         ],
-        "version_contrato": "1.1.0"
+        "version_contrato": "1.2.0"
       }
     },
     {
@@ -4223,6 +4228,18 @@
       "detalles": {
         "metodo": "GET",
         "ruta": "/v1/activity",
+        "requiere_sesion": true
+      }
+    },
+    {
+      "id": "EP-26",
+      "tipo": "endpoint",
+      "nombre": "GET /vault/items/{id}",
+      "descripcion": "Ver docs/api/openapi.yaml (GET /vault/items/{id}).",
+      "estado": "decidido",
+      "detalles": {
+        "metodo": "GET",
+        "ruta": "/v1/vault/items/{id}",
         "requiere_sesion": true
       }
     }
@@ -9697,6 +9714,16 @@
     {
       "de": "EP-25",
       "a": "OP-31",
+      "relacion": "implementa"
+    },
+    {
+      "de": "EP-26",
+      "a": "DEC-61",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "EP-26",
+      "a": "OP-46",
       "relacion": "implementa"
     }
   ]

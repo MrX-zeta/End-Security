@@ -1,6 +1,6 @@
 # Contrato de la API — End Security
 
-> Versión **1.1.0** · 2026-10-22 · Fuente de verdad del límite entre la app y el backend.
+> Versión **1.2.0** · 2026-10-22 · Fuente de verdad del límite entre la app y el backend.
 > La especificación máquina-legible es [`openapi.yaml`](openapi.yaml) (OpenAPI 3.1). Este documento explica las reglas
 > que el YAML no alcanza a expresar. Las decisiones vienen del grafo (`ai/context/knowledge-graph.json`): cada endpoint
 > es un nodo `EP-*` conectado a su operación `OP-*`.
@@ -111,7 +111,8 @@ Cuerpo: `{ "type": "about:blank", "title": "…", "status": 401, "code": "invali
 **Sincronización (OP-32…34)**
 - Bajar cambios: `GET /vault/items?since=<cursor>` hasta que `hasMore = false`. El cursor nuevo es `nextSince`.
 - Subir pendientes: uno por uno, `PUT /vault/items/{id}` con `expectedVersion`. Las lápidas van con `DELETE` y `expectedVersion`.
-- Si llega un `409`, el elemento queda en conflicto (DEC-47, DEC-57).
+- Si llega un `409`, el elemento queda en conflicto (DEC-47, DEC-57). Para resolverlo, la app pide la versión del servidor con `GET /vault/items/{id}`.
+- La subida es **un elemento por petición**, en orden; la transacción T8 de `modelo-datos.md` se aplica por petición, no por lote.
 - Si llega un `410`, se borra la copia local de bloques y se descarga todo de nuevo.
 
 **Cambiar contraseña maestra (OP-27)**
@@ -134,6 +135,7 @@ Cuerpo: `{ "type": "about:blank", "title": "…", "status": 401, "code": "invali
 | EP-10 | `GET /vault/items` | OP-32, OP-33 | SCR-39, SCR-10 | — |
 | EP-11 | `PUT /vault/items/{id}` | OP-01, OP-02, OP-34, OP-46 | SCR-14, SCR-21 | — |
 | EP-12 | `DELETE /vault/items/{id}` | OP-03, OP-34 | SCR-16 | — |
+| EP-26 | `GET /vault/items/{id}` | OP-46 | SCR-21 | — |
 | EP-13 | `GET /account` | — | SCR-29 | — |
 | EP-14 | `PATCH /account` | OP-42 | SCR-29 | — |
 | EP-15 | `POST /account/email` | OP-26 | Ajustes | `email_change_requested` |
@@ -156,6 +158,7 @@ de la app a la API de Have I Been Pwned (DEC-21) y nunca pasa por el backend.
 |---|---|---|
 | 1.0.0 | 2026-10-19 | Primera versión |
 | 1.1.0 | 2026-10-22 | El quinto fallo de `login`/2FA responde 429 directamente; el código de correo dura 15 min |
+| 1.2.0 | 2026-10-22 | `GET /vault/items/{id}` (EP-26) para resolver conflictos; subida de un elemento por petición |
 
 ## Cómo cambiar el contrato
 1. Se propone el cambio en `openapi.yaml` y en este archivo, y se sube la versión: menor si se agrega algo compatible, mayor si se rompe algo.

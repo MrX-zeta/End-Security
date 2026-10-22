@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: End Security API
-  version: 1.1.0
+  version: 1.2.0
   description: |
     Contrato entre la app Android y el backend de End Security. Las reglas que este archivo no expresa
     (anti-enumeración, límites, bitácora, piso de KDF) están en `docs/api/README.md` y son parte del contrato.
@@ -325,6 +325,19 @@ paths:
   /vault/items/{id}:
     parameters:
       - $ref: '#/components/parameters/ItemId'
+    get:
+      tags: [vault]
+      operationId: getVaultItem
+      summary: Versión actual de un elemento en el servidor (EP-26, OP-46)
+      description: Para resolver un conflicto (DEC-57) la app descarga la versión del servidor de ese elemento. Incluye lápidas.
+      responses:
+        '200':
+          description: Elemento (o lápida)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/VaultItem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
     put:
       tags: [vault]
       operationId: putVaultItem
