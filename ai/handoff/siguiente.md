@@ -1,99 +1,83 @@
-# Tarea 10 · Capa de API con backend falso y flujos reales de registro y acceso
+# Tarea 10.1 · Splash (SCR-46)
 
 **Estado:** hecha
-**Escrita:** 2026-10-19 · sesión de diseño
+**Escrita:** 2026-10-21 · sesión de diseño
 
-## Novedad importante: división del trabajo (DEC-61)
-El backend lo desarrolla la otra persona del equipo. **Tú no escribes código del backend.** El límite es el contrato
-nuevo **`docs/api/openapi.yaml` + `docs/api/README.md`** (v1.0.0, nodos `EP-01…EP-25` en el grafo v1.5.1). Léelos
-completos antes de empezar; `CLAUDE.md` ya tiene la sección «Backend y API». Mientras no exista el servidor, la app usa
-un **backend falso** que se comporta exactamente como el contrato.
+## Revisión de la tarea 10
+Aprobada. La app ya funciona de punta a punta con el backend falso. Tus cinco puntos abiertos (accesibilidad de la
+contraseña, el bloqueo en el quinto intento, el código de prueba en release, los secretos de `fake_server.json` y la
+ruta del falso en `CLAUDE.md`) se resuelven en la tarea 11. **No los toques en esta.** La ruta de `CLAUDE.md` ya la corregí yo.
 
-## Revisión de la tarea 09
-Aprobada, con la revisión humana: revisé `VaultSession`, `AutoLocker` e `ItemCipher` en GitHub.
-- Encontrar la bóveda abierta para siempre si se desbloqueaba con la app en segundo plano (hallazgo 1) fue un buen hallazgo.
-- También están bien `SecretReader`, la revisión del plazo al prestar la llave y el vector recalculado.
+## Objetivo
+Hoy, quien ya pasó el onboarding cae directo en Iniciar sesión o Desbloquear. Se agrega un splash con la marca:
+la **propuesta 3 sin manchas ni disco**, elegida por el equipo.
 
-Respuestas (grafo v1.5.1):
-- **Hallazgo 2 (DEC-26):** no se agrega bloqueo al apagar la pantalla, porque apagarla ya manda la app a segundo plano y empieza el plazo. **Sí se agrega `onTrimMemory`:** con `level ≥ TRIM_MEMORY_BACKGROUND` y la app en segundo plano, se bloquea de inmediato. No hace falta `AlarmManager`; el plazo ya se revisa al pedir la llave.
-- **Autobloqueo por inactividad en primer plano:** no se implementa. Queda como riesgo aceptado en DEC-26.
-- **Hallazgo 3:** sí, en esta tarea (Paso 5).
-- **Hallazgo 4 (DEC-04):** un campo nuevo sube `format_version`. Una app que no conoce esa versión muestra el elemento en solo lectura («Actualiza la app para editarla»). Se queda `ignoreUnknownKeys`.
-- **DEC-27:** quedan registradas las copias del JSON.
-- **Archivos basura fuera del repo:** van tres veces. Revisa qué comando los crea (parece una redirección o un `echo x >` en la carpeta de arriba) y evítalo.
+**Figma:** tablero «Splash · Final», https://www.figma.com/design/K8GenUmR7GcNZAtJRjagER/End-security?node-id=165-3711
+- **A · Splash del sistema:** fondo `#2F2F2F` (el `background` del tema oscuro) con el ícono adaptativo centrado.
+- **B · Pantalla propia:**
+  - el escudo a 0,79× y 86 dp más arriba que en A;
+  - «**End** Security» en 32, con la primera palabra Bold y el resto Regular, interletrado −2 %;
+  - el lema «TUS CONTRASEÑAS, SOLO TUYAS» en 13 Medium, `on-surface-variant` (#B0B0B0) y +4 %;
+  - tres puntos de carga `primary` abajo, **solo si el destino tarda más de 800 ms**.
+- El tablero trae la línea de tiempo de la animación; es la referencia.
 
-## Paso 1 · Capa de API (`core/network`, `feature/*/domain`)
-- Interfaces de dominio que siguen el contrato al pie de la letra: `AuthApi` (EP-01…09), `VaultApi` (EP-10…12), `AccountApi` (EP-13…22) y `SessionApi` (EP-23…25).
-  - Usan modelos de dominio (`ByteArray`/`SecureBytes`, `UUID` e `Instant`), no JSON.
-  - Los errores llegan como `ApiError` sellado con los `code` del contrato (`InvalidCredentials`, `RateLimited(retryAfterSeconds)`, `VersionConflict(currentVersion)`…), más `NetworkUnavailable`.
-- DTOs `@Serializable` con los nombres del contrato, y un codec Base64url sin relleno (`java.util.Base64.getUrlEncoder().withoutPadding()`).
-  - **Pruebas de los DTOs** contra ejemplos JSON escritos a mano a partir de `openapi.yaml`, para que la versión con Retrofit use los mismos.
-- Un módulo de Hilt elige la implementación con `BuildConfig.USE_FAKE_BACKEND`, que por ahora vale `true` en todas las compilaciones. **Retrofit todavía no.**
+## Skills que debes usar
+La persona del equipo te pide que trabajes con estas skills:
+- **`/design-banner-logo`**: composición de marca, jerarquía y espacio en blanco de la pantalla B.
+- **`/animate`**: decidir qué se anima, con qué curvas y duraciones, cómo se interrumpe y cómo sale.
+- **`/apple-design`**: movimiento fluido y físico (resortes sin rebote visible, continuidad espacial entre A y B, respeto a «reducir movimiento»).
 
-## Paso 2 · Backend falso (`core/network/fake/`)
-Simula el servidor con fidelidad, porque también sirve para la presentación:
-- Persiste su estado en un archivo propio (`fake_server.json` en `filesDir`). Solo guarda lo que guardaría el servidor real: hash de la `authKey`, sal, parámetros, pvk, bloques, versiones y revisiones. Así cerrar la app no borra las cuentas.
-- **Reglas del README de `docs/api`:**
-  - prelogin siempre 200, con sal falsa de 16 B por HMAC para correos inexistentes;
-  - registro y reenvío siempre 202;
-  - `invalid_credentials` igual para correo inexistente y para `authKey` incorrecta;
-  - el hash de `authKey` con Argon2id de 19 MiB, t = 2;
-  - 5 fallos → `rate_limited` 15 min;
-  - `challengeToken` de 5 min y un solo uso;
-  - `version_conflict` y `cursor_expired` como en `app.vault_write_item()`.
-- **Código de verificación de correo:** solo en compilaciones de depuración, la pantalla Verificar correo muestra un aviso discreto, «Código de prueba: 123456», que viene del backend falso. Nunca se escribe en logcat.
-- **TOTP:** HMAC-SHA1 de RFC 6238 con JCA, 30 s y ±1 paso, con el anti-replay de `last_used_step`. El backend falso permite marcar una cuenta con 2FA con un secreto fijo de depuración (documéntalo en `docs/api/backend-falso.md`, para que la persona del equipo lo agregue a su app autenticadora). La configuración de 2FA desde Ajustes llega después.
-- Latencia simulada de 300–800 ms, para que se vean los estados de carga.
+Además, te dan acceso a la carpeta de skills local **`C:\Users\brian\Dev-projects\SKILLS\Claude`**, por si necesitas
+algún recurso extra (referencias o datos de esas skills). Úsala solo para leer.
+Si una skill sugiere algo que contradice el tablero de Figma o una regla del proyecto, **manda el tablero y el proyecto**.
+Anótalo en el reporte.
 
-## Paso 3 · Registro real (SCR-05 → SCR-06 → Bóveda)
-1. Crear cuenta (`TODO(OP-11)`):
-   - genera `userId`, sal y `vault_key`;
-   - deriva las llaves con `KdfParams.DEFAULT`, fuera del hilo principal y con el botón en estado de carga;
-   - envuelve la `vault_key` con AAD `…|userId|1`;
-   - llama a `AuthApi.register` y navega a Verificar correo.
-2. Verificar correo (`TODO(OP-12)`):
-   - `verifyEmail` con `deviceName` (`Build.MANUFACTURER` + `Build.MODEL`, recortado a 100);
-   - si responde bien: guarda la fila `account`, guarda los tokens y llama a `VaultSession.unlock` con la `vault_key` que se generó en el paso 1. La `vault_key` se conserva en un `SecureBytes` en memoria entre las dos pantallas; nunca se escribe en disco ni en `SavedStateHandle`;
-   - navega a la Bóveda vacía (SCR-11, por ahora el marcador de `Routes.VAULT`).
-   - Si el proceso muere entre las dos pantallas, al volver se pide iniciar sesión normalmente.
-3. Reenviar y errores según el contrato: `attemptsRemaining` y `challenge_expired`.
+## Paso 1 · Splash del sistema
+- `androidx.core:core-splashscreen` (agrégala a `libs.versions.toml`) e `installSplashScreen()` en `MainActivity` antes de `super.onCreate`.
+- Tema `Theme.EndSecurity.Starting`:
+  - `windowSplashScreenBackground` = `#2F2F2F`;
+  - `windowSplashScreenAnimatedIcon` = la capa frontal del ícono (`@drawable/ic_launcher_foreground`);
+  - `postSplashScreenTheme` = el tema actual;
+  - **sin** `windowSplashScreenBrandingImage`.
+- `setKeepOnScreenCondition` solo hasta que Compose dibuje su primer cuadro (no hasta que se decida el destino).
+- `setOnExitAnimationListener`: quita la vista del sistema **sin animarla** (`remove()`), porque la continuidad la da el escudo de Compose, que ocupa exactamente el mismo lugar.
+- Si quieres medir la posición real del ícono, usa `splashScreenView.iconView` para alinear. Compruébalo en Android 12+ y en Android 9–11, donde la librería de compatibilidad dibuja su propia versión.
 
-## Paso 4 · Inicio de sesión real (SCR-04 → SCR-07/08 → SCR-39)
-1. `prelogin` → `KdfParams`.
-   - **Piso del cliente** (DEC-05): si los parámetros vienen por debajo, se muestra el error genérico.
-   - Si ya existe una fila `account` del mismo correo con otra sal o parámetros más bajos, se rechaza (hallazgo 1 de la tarea 07).
-2. Deriva `master_key`, `auth_key` y `enc_key`, con la normalización y codificación de DEC-31. Llama a `login`:
-   - `authenticated`: desenvuelve la pvk con `enc_key` (si falla, error genérico), guarda `account` y tokens, y llama a `unlock`;
-   - `two_factor_required`: va a 2FA con el `challengeToken`. La `enc_key` se queda en un `SecureBytes` en memoria hasta completar el segundo paso o salir, y se borra en cualquier caso.
-3. 2FA (`TODO(OP-15)`) y código de respaldo (`TODO(OP-16)`), conectados. Después de un código de respaldo, si `recoveryCodesRemaining ≤ 3`, la Bóveda muestra después el aviso «Te quedan N códigos de respaldo».
-4. Bóveda · cargando (SCR-39) hace la descarga inicial real (`GET /vault/items?since=0`, paginada) a Room y después va al marcador de la Bóveda. **Quita la navegación temporal de 2 s.**
-5. **TokenStore** (`core/crypto/keystore`, DEC-16):
-   - tokens cifrados con una llave AES-GCM del Android Keystore (`setUserAuthenticationRequired(false)`), guardados en DataStore;
-   - sin `EncryptedSharedPreferences`;
-   - renovación de una en una (`Mutex`, regla 9);
-   - `session_revoked` → cerrar sesión local y volver a Iniciar sesión.
+## Paso 2 · Pantalla propia (`feature/auth/ui/splash/`)
+- `SplashScreen` en tema oscuro (DEC-51), con `SystemBarsAppearance(darkBackground = true)`. Reemplaza el `Box` vacío que `AppNavHost` muestra mientras `startRoute == null`.
+- El escudo es el mismo vector del ícono (`ic_launcher_foreground` en un `Image`, o su `pathData`).
+  - **Posición inicial:** el centro y el tamaño del ícono del sistema (lienzo de 240 dp centrado).
+  - **Posición final:** la de B.
+- **Animación** (Figma manda en los valores; las skills, en la sensación):
+  - **0–500 ms:** el escudo sube y se reduce con un resorte crítico o casi crítico, sin rebote visible;
+  - **120–520 ms:** la marca pasa de opacidad 0 a 1 y sube 12 dp;
+  - **260–620 ms:** el lema hace lo mismo;
+  - **≥ 800 ms:** los puntos con un pulso suave, solo si `StartDestinationViewModel` todavía no decide;
+  - **salida:** cuando hay destino **y** terminó la entrada, fundido de 250 ms hacia la ruta. No agregues esperas artificiales más allá de terminar la entrada (~620 ms).
+- **«Quitar animaciones»** (`rememberReducedMotion()`): se dibuja B directamente y se sale con un corte.
+- Si el usuario regresa con «atrás» durante el splash, sale de la app.
+- **Accesibilidad:** el escudo es decorativo (`contentDescription = null`). La pantalla anuncia «End Security» una vez y los puntos no se anuncian.
+- Textos en `strings.xml`: el lema es nuevo y la marca usa `app_name`.
 
-## Paso 5 · Desbloquear real y pantallas protegidas (OP-19, hallazgo 3)
-- Desbloquear: lee `account` y cuenta el intento **antes** de derivar (hallazgo 4 de la tarea 07, en `NonCancellable`). Deriva `enc_key`, desenvuelve la pvk con AAD `userId|keyVersion` y llama a `unlock`. Si falla, «Contraseña incorrecta.» y el bloqueo de DEC-08.
-- Cerrar sesión (la hoja de Desbloquear): `AuthApi.logout`, aunque falle por red; borra los tokens y `clearAllTables()`; llama a `lock()` y va a Iniciar sesión.
-- **`RequireUnlocked { }`**: un composable que envuelve el contenido de toda pantalla con datos de la bóveda. Si el estado es `Locked`, no dibuja nada en ese mismo cuadro, y `LockGuard` navega a Desbloquear **sin transición**.
-- Los ViewModel con datos escuchan `VaultSession.state` y vacían su estado al bloquearse.
-- **Arranque:** el destino inicial se decide así:
-  - si hay cuenta: Desbloquear;
-  - si no hay cuenta pero ya se vio el onboarding: Iniciar sesión;
-  - si no: el onboarding.
-
-  La pila restaurada tras la muerte del proceso no se usa, porque la llave no sobrevive.
-- `AutoLocker`: `onTrimMemory`, como dice la revisión.
+## Paso 3 · Navegación (DEC-56, grafo v1.5.2)
+- El splash se muestra **en cada arranque en frío**, también la primera vez.
+- Destino, sin cambios a la lógica actual:
+  - sin onboarding visto → onboarding;
+  - con cuenta local → Desbloquear;
+  - si no → Iniciar sesión.
+- El splash no queda en la pila: atrás desde el destino sale de la app.
+- **No** se muestra al volver de segundo plano (arranque en caliente) ni al bloquearse la bóveda.
 
 ## Terminado cuando
-- **Prueba de punta a punta en el emulador:** registrarse → código de prueba → Bóveda → cerrar la app → Desbloquear con la contraseña → cerrar sesión → Iniciar sesión → Bóveda.
-- **Con 2FA:** en una cuenta de depuración con 2FA, Iniciar sesión → 2FA → Bóveda · cargando → Bóveda.
-- **Errores:** contraseña incorrecta 5 veces muestra el bloqueo; un correo inexistente tarda lo mismo y da el mismo error.
-- **Pruebas:** unitarias de los ViewModels conectados, de los DTOs contra los ejemplos del contrato, del backend falso (cada `code`) y de `TokenStore` (instrumentada con Keystore real). Todo pasa, igual que `assembleRelease` y lint.
-- **Revisión:** `security-reviewer` revisa los Pasos 3, 4 y 5. **REQUIERE REVISIÓN HUMANA.**
-- Si algo del contrato no alcanza o está mal, **no lo cambies en el código**: anótalo en el reporte y yo actualizo `docs/api/`.
+- Pasan las pruebas del `ViewModel` o estado del splash: los puntos aparecen solo después de 800 ms; la salida espera a que termine la entrada; con «reducir movimiento», B aparece sin animación.
+- Hay `@Preview` de B (final), del estado inicial y con los puntos.
+- **En el emulador** (Android 12+) y, si es posible, en un emulador con Android 9–11:
+  - no hay salto visible entre A y B;
+  - los tres destinos funcionan;
+  - con «Quitar animaciones» activado no hay movimiento.
+- Si puedes grabar un video corto con `adb shell screenrecord`, deja la ruta en el reporte, no en el repositorio.
+- `assembleDebug`, `testDebugUnitTest`, `assembleRelease` y lint pasan.
 - Los commits están hechos y subidos.
 
 ## Al terminar
-Llena `ai/handoff/reporte.md`, cambia el estado de arriba a `hecha` y detente.
+Llena `ai/handoff/reporte.md`. Incluye qué aportó cada skill y en qué te apartaste de ellas. Cambia el estado de arriba a `hecha` y detente.
