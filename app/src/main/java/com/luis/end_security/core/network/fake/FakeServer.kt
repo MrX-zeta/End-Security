@@ -245,6 +245,8 @@ class FakeServer(
                 limit.failures = 0
                 limit.lockedUntil = now() + LOCKOUT
                 if (user != null) event(user, "account_locked", true, deviceName)
+                // Contrato 1.1.0: el quinto fallo ya responde 429 (también con un correo inexistente).
+                return rateLimited(LOCKOUT)
             }
             return problem(401, "invalid_credentials")
         }
@@ -320,6 +322,8 @@ class FakeServer(
             user.twoFactorFailures = 0
             user.twoFactorLockedUntil = now() + LOCKOUT
             event(user, "account_locked", true, deviceName)
+            // Contrato 1.1.0: el quinto fallo del segundo paso ya responde 429.
+            return rateLimited(LOCKOUT)
         }
         return problem(401, "invalid_code")
     }

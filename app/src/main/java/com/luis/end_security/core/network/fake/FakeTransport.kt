@@ -35,8 +35,9 @@ object FakeBackendDebug {
 }
 
 /**
- * Último código de verificación de cada correo, solo en memoria y solo en compilaciones de
- * depuración: Verificar correo lo muestra como «Código de prueba». Nunca va a logcat ni a disco.
+ * Último código de verificación de cada correo, solo en memoria y solo mientras `USE_FAKE_BACKEND`
+ * sea `true` (también en release): Verificar correo lo muestra como «Modo demostración · Código».
+ * Nunca va a logcat ni a disco.
  */
 @Singleton
 class FakeVerificationCodes @Inject constructor() : DebugVerificationCodes {
@@ -44,12 +45,12 @@ class FakeVerificationCodes @Inject constructor() : DebugVerificationCodes {
 
     @Synchronized
     fun remember(email: String, code: String) {
-        if (BuildConfig.DEBUG) codes[email] = code
+        if (BuildConfig.USE_FAKE_BACKEND) codes[email] = code
     }
 
     @Synchronized
     override fun latestCode(email: String): String? =
-        if (BuildConfig.DEBUG) codes[email.trim().lowercase()] else null
+        if (BuildConfig.USE_FAKE_BACKEND) codes[email.trim().lowercase()] else null
 }
 
 /**

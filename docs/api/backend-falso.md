@@ -11,13 +11,14 @@ se cambia el transporte y nada más.
   Para empezar de cero: **Ajustes del teléfono → Apps → End Security → Almacenamiento → Borrar datos**.
 - Ese archivo no tiene contraseñas ni llaves de la bóveda: guarda hashes, bloques cifrados y los datos que guardaría el servidor
   real (hash de `auth_key`, pvk, bloques de la bóveda). **Pero** también guarda en claro el pepper, el secreto del prelogin y el
-  secreto TOTP, que en el servidor real vivirían en variables de entorno o cifrados. Es solo para pruebas.
+  secreto TOTP, que en el servidor real vivirían en variables de entorno o cifrados. **Se acepta tal cual** (decisión de la
+  sesión de diseño): es un simulador que desaparece al unir el backend real, y el archivo no sale del teléfono.
 
 ## Código de verificación del correo
 
-No se envían correos. En las compilaciones de **depuración**, Verificar correo muestra debajo de las casillas
-«Código de prueba: 123456» con el código vigente; «Reenviar código» lo cambia. En **release** no aparece, así que con el
-backend falso solo se puede crear una cuenta desde una compilación de depuración.
+No se envían correos. Mientras `USE_FAKE_BACKEND` sea `true` (**también en release**), Verificar correo muestra debajo de las
+casillas «Modo demostración · Código: 123456» con el código vigente; «Reenviar código» lo cambia. El código vive solo en
+memoria y no se escribe en logcat. Desaparece al unir el backend real.
 
 ## Cuentas con verificación en dos pasos
 
@@ -43,7 +44,9 @@ Al entrar con uno, si quedan 3 o menos, la Bóveda muestra cuántos quedan.
 
 ## Límites que sí aplica
 
-Los de `docs/api/README.md`: 5 contraseñas incorrectas seguidas en Iniciar sesión bloquean 15 min; el código del correo dura
+Los de `docs/api/README.md` (contrato **1.1.0**): 5 contraseñas incorrectas seguidas en Iniciar sesión bloquean 15 min, y **el
+quinto fallo ya responde `429 rate_limited`** (900 s), también con un correo que no existe; lo mismo con el quinto código del 2FA;
+el código del correo dura
 15 min y admite 5 intentos; «Reenviar código» espera 60 s entre envíos y permite 5 por hora; el reto del 2FA dura 5 min y sirve
 una vez. Un correo que no existe responde igual y tarda lo mismo que una contraseña incorrecta.
 

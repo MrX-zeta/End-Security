@@ -153,10 +153,27 @@ class FakeBackendTest {
     fun `cinco fallos de login bloquean 15 min`() = runBlocking {
         registerAndVerify("ana@correo.com")
         val wrongKey = SecureBytes.copyOf(ByteArray(32) { 9 })
-        repeat(5) { assertEquals(ApiError.InvalidCredentials, auth.login("ana@correo.com", wrongKey, "Pixel").error()) }
+        repeat(4) { assertEquals(ApiError.InvalidCredentials, auth.login("ana@correo.com", wrongKey, "Pixel").error()) }
+        // Contrato 1.1.0: el quinto fallo ya responde 429.
+        assertEquals(ApiError.RateLimited(900), auth.login("ana@correo.com", wrongKey, "Pixel").error())
         assertEquals(ApiError.RateLimited(900), auth.login("ana@correo.com", authKey, "Pixel").error())
         clock += 15 * 60_000L
         assertTrue(auth.login("ana@correo.com", authKey, "Pixel") is ApiResult.Success)
+    }
+
+    @Test
+    fun `el quinto fallo de un correo inexistente tambien responde 429`() = runBlocking {
+        val wrongKey = SecureBytes.copyOf(ByteArray(32) { 9 })
+        repeat(4) { assertEquals(ApiError.InvalidCredentials, auth.login("nadie@correo.com", wrongKey, "Pixel").error()) }
+        assertEquals(ApiError.RateLimited(900), auth.login("nadie@correo.com", wrongKey, "Pixel").error())
+    }
+
+    @Test
+    fun `el quinto fallo del 2FA responde 429`() = runBlocking {
+        registerAndVerify("ana+2fa@correo.com")
+        val challenge = (auth.login("ana+2fa@correo.com", authKey, "Pixel") as ApiResult.Success).value as LoginResult.TwoFactorRequired
+        repeat(4) { assertTrue(auth.verifyTwoFactor(challenge.challengeToken, "000000").error() is ApiError.InvalidCode) }
+        assertEquals(ApiError.RateLimited(900), auth.verifyTwoFactor(challenge.challengeToken, "000000").error())
     }
 
     @Test
