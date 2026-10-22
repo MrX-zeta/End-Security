@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.intPreferencesKey
+import com.luis.end_security.core.security.ClipboardSettings
 import com.luis.end_security.core.session.AutoLockSettings
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
@@ -22,7 +23,7 @@ import javax.inject.Singleton
 @Singleton
 class SettingsStore @Inject constructor(
     private val dataStore: DataStore<Preferences>,
-) : AutoLockSettings {
+) : AutoLockSettings, ClipboardSettings {
     /** `true` cuando el usuario ya vio el onboarding (SCR-01…SCR-03). */
     val onboardingCompleted: Flow<Boolean> = dataStore.data
         .catch { error -> if (error is IOException) emit(emptyPreferences()) else throw error }
@@ -41,6 +42,11 @@ class SettingsStore @Inject constructor(
         .catch { error -> if (error is IOException) emit(emptyPreferences()) else throw error }
         .map { preferences -> AutoLockSettings.sanitize(preferences[Keys.AUTOLOCK_MINUTES]) }
 
+    /** Segundos hasta borrar lo copiado del portapapeles (DEC-25): 15, 30, 60 o 120; 30 por defecto. */
+    override val clipboardClearSeconds: Flow<Int> = dataStore.data
+        .catch { error -> if (error is IOException) emit(emptyPreferences()) else throw error }
+        .map { preferences -> ClipboardSettings.sanitize(preferences[Keys.CLIPBOARD_CLEAR_SECONDS]) }
+
     suspend fun setOnboardingCompleted() {
         dataStore.edit { preferences -> preferences[Keys.ONBOARDING_COMPLETED] = true }
     }
@@ -49,5 +55,6 @@ class SettingsStore @Inject constructor(
         val ONBOARDING_COMPLETED = booleanPreferencesKey("onboarding_completed")
         val BIOMETRIC_ENABLED = booleanPreferencesKey("biometric_enabled")
         val AUTOLOCK_MINUTES = intPreferencesKey("autolock_minutes")
+        val CLIPBOARD_CLEAR_SECONDS = intPreferencesKey("clipboard_clear_seconds")
     }
 }
