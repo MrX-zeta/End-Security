@@ -76,6 +76,10 @@ abstract class VaultItemDao {
     @Query("SELECT * FROM vault_items WHERE id = :id")
     abstract suspend fun get(id: String): VaultItemEntity?
 
+    /** Un solo elemento y sus cambios: el detalle no necesita descifrar toda la bóveda. */
+    @Query("SELECT * FROM vault_items WHERE id = :id AND deleted_at IS NULL")
+    abstract fun observe(id: String): Flow<VaultItemEntity?>
+
     /**
      * Elementos que llegan del servidor en la descarga inicial: quedan `synced` con su versión y
      * revisión. Las lápidas se borran de Room (modelo de datos §8.2, «cambio remoto»).
@@ -84,7 +88,15 @@ abstract class VaultItemDao {
     open suspend fun applyRemote(items: List<VaultItemEntity>, tombstoneIds: List<String>) {
         // Una fila `pending` o `conflict` tiene cambios sin subir: no se pisa ni se borra. Marcar
         // el conflicto y resolverlo con la vault_key (ConflictResolver) toca a OP-33.
-        upsertAll(items.filter { isSyncedOrAbsent(it.id) })
+        upsertAll(items.filter { isSyncedOrAbsent(it.id) }.map { remote ->
+            // `local_seq` solo sube: si una pantalla abrió la fila con un valor, el reemplazo remoto lo
+            // invalida (regla 8, INV-27); con 0 otra edición pasaría la comprobación sin ver el cambio.
+            val previous = get(remote.id)?.localSeq ?: -1L
+            VaultItemEntity(
+                remote.id, remote.formatVersion, remote.nonce, remote.ciphertext, remote.serverVersion,
+                remote.serverRevision, previous + 1, remote.syncState, remote.deletedAt, remote.updatedAt,
+            )
+        })
         tombstoneIds.filter { isSyncedOrAbsent(it) }.forEach { deletePhysically(it) }
     }
 

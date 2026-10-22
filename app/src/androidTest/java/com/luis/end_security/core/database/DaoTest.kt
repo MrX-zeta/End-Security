@@ -92,6 +92,30 @@ class DaoTest {
     }
 
     @Test
+    fun applyRemote_sube_el_local_seq_para_invalidar_ediciones_abiertas() = runBlocking {
+        val dao = database.vaultItemDao()
+        dao.applyRemote(listOf(newItem("a", serverVersion = 1)), emptyList())
+        val opened = dao.get("a")!!.localSeq
+
+        // Llega un cambio remoto sobre la fila synced: una edición abierta con `opened` ya no debe pasar.
+        dao.applyRemote(listOf(newItem("a", serverVersion = 2)), emptyList())
+
+        assertTrue(dao.get("a")!!.localSeq > opened)
+        assertEquals(0, dao.updateContent("a", ByteArray(12), ByteArray(40), expectedLocalSeq = opened, now = 9))
+    }
+
+    @Test
+    fun observe_entrega_un_solo_elemento_y_null_si_es_lapida() = runBlocking {
+        val dao = database.vaultItemDao()
+        dao.insert(newItem("a", serverVersion = 1))
+        dao.insert(newItem("b", serverVersion = 1))
+        assertEquals("a", dao.observe("a").first()?.id)
+        dao.delete("a", expectedLocalSeq = 1, now = 5)
+        assertNull(dao.observe("a").first())
+        assertNotNull(dao.observe("b").first())
+    }
+
+    @Test
     fun account_siempre_es_una_sola_fila() = runBlocking {
         val dao = database.accountDao()
         assertNull(dao.get())

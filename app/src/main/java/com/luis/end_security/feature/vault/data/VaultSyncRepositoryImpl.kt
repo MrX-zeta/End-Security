@@ -7,7 +7,9 @@ import com.luis.end_security.core.database.dao.AccountDao
 import com.luis.end_security.core.database.dao.VaultItemDao
 import com.luis.end_security.core.database.entity.SyncState
 import com.luis.end_security.core.database.entity.VaultItemEntity
+import com.luis.end_security.feature.vault.domain.DeletionUndo
 import com.luis.end_security.feature.vault.domain.VaultApi
+import com.luis.end_security.feature.vault.domain.VaultRepository
 import com.luis.end_security.feature.vault.domain.VaultSyncRepository
 import dagger.Binds
 import dagger.Module
@@ -64,4 +66,10 @@ abstract class VaultDataModule {
 
     @Binds
     abstract fun bindVaultSyncRepository(impl: VaultSyncRepositoryImpl): VaultSyncRepository
+
+    @Binds
+    abstract fun bindVaultRepository(impl: VaultRepositoryImpl): VaultRepository
+
+    @Binds
+    abstract fun bindDeletionUndo(impl: DeletionUndoController): DeletionUndo
 }
