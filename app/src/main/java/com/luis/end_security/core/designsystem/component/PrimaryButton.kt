@@ -40,6 +40,7 @@ private const val DisabledAlpha = 0.4f
  * y flecha a la derecha, fondo amarillo de acción con texto carbón (DEC-50).
  * Sin ancho fijo: quien lo usa decide (`widthIn(min = 168.dp)` o `fillMaxWidth()`).
  * Deshabilitado baja su opacidad al 40 %: Figma no tiene ese estado (convención de Material).
+ * Con [showArrow] en `false` no lleva la flecha («Guardar», «Copiar contraseña» en Figma).
  * Con [loading] muestra un indicador en lugar de la flecha y no responde a toques, sin atenuarse:
  * la acción sigue en curso (p. ej. Argon2 y la llamada al servidor).
  */
@@ -50,6 +51,7 @@ fun PrimaryButton(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     loading: Boolean = false,
+    showArrow: Boolean = true,
 ) {
     val shape = MaterialTheme.shapes.medium
     val loadingDescription = stringResource(R.string.button_loading)
@@ -86,6 +88,7 @@ fun PrimaryButton(
                 modifier = Modifier.weight(1f, fill = false),
             )
             Spacer(Modifier.width(16.dp))
+            if (!showArrow && !loading) return@Row
             if (loading) {
                 CircularProgressIndicator(
                     modifier = Modifier.size(20.dp),

@@ -1,4 +1,4 @@
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <string name="app_name">End Security</string>
 
     <!-- Sistema de diseño -->
@@ -131,17 +131,107 @@
     <string name="vault_loading_announcement">Descargando tu bóveda</string>
     <string name="vault_lock_now">Bloquear ahora</string>
     <!-- Marcador de la Bóveda (SCR-10) hasta que se implemente. -->
-    <string name="vault_placeholder">Próximamente</string>
 
     <!-- Acceso con el backend (tarea 10). Textos del README de docs/api. -->
     <string name="button_loading">Cargando</string>
     <!-- Splash (SCR-46) -->
     <string name="splash_tagline">TUS CONTRASEÑAS, SOLO TUYAS</string>
     <string name="auth_error_generic">No pudimos conectar. Intenta de nuevo.</string>
-    <string name="verify_debug_code">Código de prueba: %1$s</string>
+    <string name="verify_debug_code">Modo demostración · Código: %1$s</string>
     <plurals name="vault_recovery_codes_left">
         <item quantity="one">Te queda %d código de respaldo.</item>
         <item quantity="many">Te quedan %d códigos de respaldo.</item>
         <item quantity="other">Te quedan %d códigos de respaldo.</item>
     </plurals>
+
+    <!-- Bóveda · lista y vacía (SCR-10, SCR-11) -->
+    <plurals name="vault_count">
+        <item quantity="one">%d contraseña guardada</item>
+        <item quantity="many">%d contraseñas guardadas</item>
+        <item quantity="other">%d contraseñas guardadas</item>
+    </plurals>
+    <string name="vault_empty_title_regular">todavía está vacía</string>
+    <string name="vault_empty_heading">Guarda tu primera contraseña</string>
+    <string name="vault_empty_body">Solo tú podrás verla. Se protege con tu contraseña maestra antes de salir de tu teléfono.</string>
+    <string name="vault_add_password">Agregar contraseña</string>
+    <string name="vault_new_password">Nueva contraseña</string>
+    <string name="vault_search_hint">Buscar por nombre o sitio</string>
+    <string name="vault_all">Todas</string>
+    <string name="vault_sort_az">A–Z</string>
+    <string name="vault_no_results">Sin resultados</string>
+    <string name="vault_item_open">Abrir %1$s</string>
+    <string name="vault_item_damaged">Elemento dañado</string>
+    <string name="vault_item_damaged_hint">No se pudo abrir</string>
+    <string name="vault_item_newer">Elemento de una versión más nueva</string>
+    <string name="vault_item_newer_hint">Actualiza la app para editarla</string>
+    <string name="vault_deleted">%1$s se eliminó</string>
+    <string name="vault_undo">Deshacer</string>
+
+    <!-- Detalle (SCR-12, SCR-13) -->
+    <string name="item_detail_title">Detalle</string>
+    <string name="item_edit">Editar</string>
+    <string name="item_edited_now" tools:ignore="Typos">editada hace un momento</string>
+    <plurals name="item_edited_minutes">
+        <item quantity="one">editada hace %d minuto</item>
+        <item quantity="many">editada hace %d minutos</item>
+        <item quantity="other">editada hace %d minutos</item>
+    </plurals>
+    <plurals name="item_edited_hours">
+        <item quantity="one">editada hace %d hora</item>
+        <item quantity="many">editada hace %d horas</item>
+        <item quantity="other">editada hace %d horas</item>
+    </plurals>
+    <plurals name="item_edited_days">
+        <item quantity="one">editada hace %d día</item>
+        <item quantity="many">editada hace %d días</item>
+        <item quantity="other">editada hace %d días</item>
+    </plurals>
+    <plurals name="item_edited_months">
+        <item quantity="one">editada hace %d mes</item>
+        <item quantity="many">editada hace %d meses</item>
+        <item quantity="other">editada hace %d meses</item>
+    </plurals>
+    <plurals name="item_edited_years">
+        <item quantity="one">editada hace %d año</item>
+        <item quantity="many">editada hace %d años</item>
+        <item quantity="other">editada hace %d años</item>
+    </plurals>
+    <string name="item_field_username">Usuario</string>
+    <string name="item_field_password">Contraseña</string>
+    <string name="item_field_site">Sitio web</string>
+    <string name="item_field_notes">Notas</string>
+    <string name="item_copy_username">Copiar usuario</string>
+    <string name="item_copy_password">Copiar contraseña</string>
+    <string name="item_open_site">Abrir sitio web</string>
+    <string name="item_delete">Eliminar contraseña</string>
+    <string name="item_copied_password">Copiada · se borra del portapapeles en %1$d s</string>
+    <string name="item_copied_username">Copiado · se borra del portapapeles en %1$d s</string>
+    <plurals name="item_password_dots">
+        <item quantity="one">Contraseña oculta, %d carácter</item>
+        <item quantity="many">Contraseña oculta, %d caracteres</item>
+        <item quantity="other">Contraseña oculta, %d caracteres</item>
+    </plurals>
+    <string name="item_delete_title">¿Eliminar %1$s?</string>
+    <string name="item_delete_body">Se quitará de todos tus dispositivos. No podrás recuperarla después.</string>
+    <string name="item_delete_confirm">Eliminar</string>
+    <string name="item_delete_cancel">Cancelar</string>
+
+    <!-- Nueva / editar (SCR-14) -->
+    <string name="item_form_new_title">Nueva contraseña</string>
+    <string name="item_form_edit_title">Editar contraseña</string>
+    <string name="item_form_name">Nombre</string>
+    <string name="item_form_username">Usuario o correo</string>
+    <string name="item_form_password">Contraseña</string>
+    <string name="item_form_site">Sitio web</string>
+    <string name="item_form_notes">Notas</string>
+    <string name="item_form_optional">Opcional</string>
+    <string name="item_form_name_required">Escribe un nombre.</string>
+    <string name="item_form_generate">Generar contraseña</string>
+    <string name="item_form_save">Guardar</string>
+    <string name="item_form_error_generic">No pudimos guardar. Intenta de nuevo.</string>
+    <string name="item_form_error_conflict">Esta contraseña cambió. Ciérrala y ábrela de nuevo.</string>
+    <string name="item_discard_title">¿Descartar cambios?</string>
+    <string name="item_discard_body">Lo que escribiste todavía no se ha guardado.</string>
+    <string name="item_discard_confirm">Descartar</string>
+    <string name="item_discard_keep">Seguir editando</string>
 </resources>

@@ -5,7 +5,6 @@ import com.luis.end_security.core.common.ApiResult
 import com.luis.end_security.core.common.DeviceClock
 import com.luis.end_security.core.crypto.SecureBytes
 import com.luis.end_security.core.session.VaultSession
-import com.luis.end_security.feature.auth.domain.FakeAuthRepository
 import com.luis.end_security.feature.vault.domain.VaultSyncRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -17,7 +16,6 @@ import kotlinx.coroutines.test.setMain
 import kotlinx.coroutines.withTimeoutOrNull
 import org.junit.After
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Test
 import java.util.UUID
@@ -30,7 +28,6 @@ class VaultViewModelsTest {
         override fun wallMillis() = 0L
         override fun elapsedRealtimeMillis() = 0L
     })
-    private val auth = FakeAuthRepository()
 
     @Before
     fun setUp() {
@@ -65,20 +62,5 @@ class VaultViewModelsTest {
     fun `sin red tambien sigue a la boveda con lo que haya en Room`() = runTest(dispatcher) {
         val viewModel = VaultLoadingViewModel(FakeSync(ApiResult.Failure(ApiError.NetworkUnavailable)))
         assertEquals(Unit, withTimeoutOrNull(1_000) { viewModel.done.first() })
-    }
-
-    @Test
-    fun `la boveda muestra los codigos de respaldo que quedan una sola vez`() {
-        auth.recoveryCodesNotice = 2
-        assertEquals(2, VaultViewModel(auth, session).state.value.recoveryCodesLeft)
-        assertNull(VaultViewModel(auth, session).state.value.recoveryCodesLeft)
-    }
-
-    @Test
-    fun `al bloquearse la boveda vacia su estado`() {
-        auth.recoveryCodesNotice = 1
-        val viewModel = VaultViewModel(auth, session)
-        session.lock()
-        assertNull(viewModel.state.value.recoveryCodesLeft)
     }
 }

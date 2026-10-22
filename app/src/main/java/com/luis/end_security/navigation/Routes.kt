@@ -1,6 +1,7 @@
 package com.luis.end_security.navigation
 
 import android.net.Uri
+import java.util.UUID
 import com.luis.end_security.feature.auth.ui.verify.VerifyEmailViewModel
 import com.luis.end_security.feature.settings.ui.legal.LegalDocument
 
@@ -27,8 +28,22 @@ object Routes {
     /** SCR-39: primera descarga de la bóveda después de entrar. */
     const val VAULT_LOADING = "vault_loading"
 
-    /** SCR-10 (marcador hasta que se implemente). */
+    /** SCR-10 y SCR-11: la lista de la bóveda (o la vacía). */
     const val VAULT = "vault"
+
+    const val ITEM_ID_ARG = "id"
+
+    /** SCR-12 y SCR-13: el detalle de un elemento. */
+    const val VAULT_ITEM = "vault_item/{$ITEM_ID_ARG}"
+
+    fun vaultItem(id: UUID): String = "vault_item/$id"
+
+    /** SCR-14: nueva contraseña (sin `id`) o editar una existente. */
+    const val VAULT_EDIT = "vault_edit?$ITEM_ID_ARG={$ITEM_ID_ARG}"
+
+    const val VAULT_NEW = "vault_edit"
+
+    fun vaultEdit(id: UUID): String = "vault_edit?$ITEM_ID_ARG=$id"
 
     /**
      * Rutas con las que se puede abrir la app en depuración (`MainActivity`). Solo Desbloquear:

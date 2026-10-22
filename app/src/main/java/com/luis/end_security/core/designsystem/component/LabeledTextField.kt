@@ -111,6 +111,7 @@ fun LabeledTextField(
     outputTransformation: OutputTransformation? = null,
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
     onKeyboardAction: KeyboardActionHandler? = null,
+    placeholder: String? = null,
 ) {
     FieldLayout(label = label, supportingText = supportingText, isError = isError, modifier = modifier) {
         BasicTextField(
@@ -127,6 +128,13 @@ fun LabeledTextField(
                 .fieldSemantics(label, supportingText, isError, contentType = null),
             decorator = TextFieldDecorator { innerTextField ->
                 FieldContainer(leadingIcon = leadingIcon, endPadding = FieldStartPadding) {
+                    if (placeholder != null && state.text.isEmpty()) {
+                        Text(
+                            text = placeholder,
+                            style = fieldTextStyle(),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                     innerTextField()
                 }
             },
@@ -185,13 +193,14 @@ internal fun FieldContainer(
     @DrawableRes leadingIcon: Int,
     endPadding: Dp,
     trailing: (@Composable () -> Unit)? = null,
+    minHeight: Dp = FieldHeight,
     input: @Composable () -> Unit,
 ) {
     val shape = MaterialTheme.shapes.medium
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .heightIn(min = FieldHeight)
+            .heightIn(min = minHeight)
             .dropShadow(
                 shape = shape,
                 shadow = Shadow(

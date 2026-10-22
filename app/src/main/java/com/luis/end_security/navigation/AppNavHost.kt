@@ -20,6 +20,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import java.util.UUID
 import com.luis.end_security.core.designsystem.theme.SystemBarsAppearance
 import com.luis.end_security.feature.auth.ui.backupcode.BackupCodeRoute
 import com.luis.end_security.feature.auth.ui.login.LoginRoute
@@ -33,7 +34,9 @@ import com.luis.end_security.feature.settings.ui.legal.LegalDocument
 import com.luis.end_security.feature.settings.ui.legal.LegalDocumentScreen
 import com.luis.end_security.feature.unlock.ui.UnlockRoute
 import com.luis.end_security.feature.vault.ui.VaultLoadingRoute
-import com.luis.end_security.feature.vault.ui.VaultRoute
+import com.luis.end_security.feature.vault.ui.detail.ItemDetailRoute
+import com.luis.end_security.feature.vault.ui.edit.ItemEditRoute
+import com.luis.end_security.feature.vault.ui.list.VaultListRoute
 
 @Composable
 fun AppNavHost(
@@ -138,7 +141,53 @@ private fun AppNavigation(route: String, modifier: Modifier = Modifier) {
             }
         }
         composable(Routes.VAULT, exitTransition = { ExitTransition.None }, popExitTransition = { ExitTransition.None }) {
-            RequireUnlocked(onLocked = lockGuardViewModel::onProtectedScreenLocked) { VaultRoute(onTabSelected = {}) }
+            RequireUnlocked(onLocked = lockGuardViewModel::onProtectedScreenLocked) {
+                // TODO(DEC-56): Salud, Generador y Ajustes llevan a su raíz cuando existan.
+                VaultListRoute(
+                    onTabSelected = {},
+                    onOpenItem = { id -> navController.navigate(Routes.vaultItem(id)) { launchSingleTop = true } },
+                    onOpenNew = { navController.navigate(Routes.VAULT_NEW) { launchSingleTop = true } },
+                )
+            }
+        }
+        composable(
+            route = Routes.VAULT_ITEM,
+            arguments = listOf(navArgument(Routes.ITEM_ID_ARG) { type = NavType.StringType }),
+            exitTransition = { ExitTransition.None },
+            popExitTransition = { ExitTransition.None },
+        ) { entry ->
+            val itemId = entry.arguments?.getString(Routes.ITEM_ID_ARG)?.let { runCatching { UUID.fromString(it) }.getOrNull() }
+            RequireUnlocked(onLocked = lockGuardViewModel::onProtectedScreenLocked) {
+                if (itemId != null) {
+                    ItemDetailRoute(
+                        itemId = itemId,
+                        onBack = { navController.popBackStack() },
+                        onEdit = { id -> navController.navigate(Routes.vaultEdit(id)) { launchSingleTop = true } },
+                        onTabSelected = {},
+                    )
+                }
+            }
+        }
+        composable(
+            route = Routes.VAULT_EDIT,
+            // Sin `id`, Nueva contraseña; con `id`, Editar.
+            arguments = listOf(
+                navArgument(Routes.ITEM_ID_ARG) {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                },
+            ),
+            exitTransition = { ExitTransition.None },
+            popExitTransition = { ExitTransition.None },
+        ) {
+            RequireUnlocked(onLocked = lockGuardViewModel::onProtectedScreenLocked) {
+                ItemEditRoute(
+                    onClose = { navController.popBackStack() },
+                    onSaved = { navController.popBackStack() },
+                    onTabSelected = {},
+                )
+            }
         }
         composable(Routes.SIGN_UP) {
             // Términos y Aviso de privacidad se abren en una hoja inferior dentro de Crear cuenta;
