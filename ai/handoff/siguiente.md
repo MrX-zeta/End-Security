@@ -1,83 +1,101 @@
-# Tarea 10.1 · Splash (SCR-46)
+# Tarea 11 · Cabos sueltos de la tarea 10 y Bóveda real (lista, detalle, nueva/editar, eliminar)
 
 **Estado:** hecha
-**Escrita:** 2026-10-21 · sesión de diseño
+**Escrita:** 2026-10-22 · sesión de diseño
 
-## Revisión de la tarea 10
-Aprobada. La app ya funciona de punta a punta con el backend falso. Tus cinco puntos abiertos (accesibilidad de la
-contraseña, el bloqueo en el quinto intento, el código de prueba en release, los secretos de `fake_server.json` y la
-ruta del falso en `CLAUDE.md`) se resuelven en la tarea 11. **No los toques en esta.** La ruta de `CLAUDE.md` ya la corregí yo.
+## Revisión de la tarea 10.1
+Aprobada. Bien hecho:
+- detectar que Android dibuja la capa frontal a 288 dp y corregirlo con el `<inset>` sin tocar el ícono del lanzador;
+- `SplashSequencer` con tiempo virtual;
+- el splash como capa y no como ruta.
 
-## Objetivo
-Hoy, quien ya pasó el onboarding cae directo en Iniciar sesión o Desbloquear. Se agrega un splash con la marca:
-la **propuesta 3 sin manchas ni disco**, elegida por el equipo.
+También estuvo bien apartarte de las skills en «reducir movimiento», porque mandaba el tablero.
+- **Android 9–11 sin verificar:** se acepta por ahora. Si algún día hay un emulador con API 28–30, mídelo.
+- **SCR-46 en el grafo:** el grafo y otros documentos que actualicé están en la carpeta pero **sin commit** (ver Paso 0).
 
-**Figma:** tablero «Splash · Final», https://www.figma.com/design/K8GenUmR7GcNZAtJRjagER/End-security?node-id=165-3711
-- **A · Splash del sistema:** fondo `#2F2F2F` (el `background` del tema oscuro) con el ícono adaptativo centrado.
-- **B · Pantalla propia:**
-  - el escudo a 0,79× y 86 dp más arriba que en A;
-  - «**End** Security» en 32, con la primera palabra Bold y el resto Regular, interletrado −2 %;
-  - el lema «TUS CONTRASEÑAS, SOLO TUYAS» en 13 Medium, `on-surface-variant` (#B0B0B0) y +4 %;
-  - tres puntos de carga `primary` abajo, **solo si el destino tarda más de 800 ms**.
-- El tablero trae la línea de tiempo de la animación; es la referencia.
+## Paso 0 · Commit de la sesión de diseño
+Haz un commit aparte, `docs: grafo v1.5.3, contrato 1.1.0 y splash`, con lo que la sesión de diseño dejó sin commit:
+- `ai/context/knowledge-graph.json`;
+- `ai/context/estado-actual.md`;
+- `CLAUDE.md` (ruta del backend falso);
+- `docs/api/README.md` y `docs/api/openapi.yaml` (contrato **1.1.0**).
 
-## Skills que debes usar
-La persona del equipo te pide que trabajes con estas skills:
-- **`/design-banner-logo`**: composición de marca, jerarquía y espacio en blanco de la pantalla B.
-- **`/animate`**: decidir qué se anima, con qué curvas y duraciones, cómo se interrumpe y cómo sale.
-- **`/apple-design`**: movimiento fluido y físico (resortes sin rebote visible, continuidad espacial entre A y B, respeto a «reducir movimiento»).
+## Paso 1 · Cabos sueltos de la tarea 10
+1. **Contraseña en el árbol de accesibilidad (medio).** Mientras `PasswordField` está oculto, el nodo de accesibilidad solo debe exponer la máscara, nunca el texto real.
+   - Prueba sobrescribir la semántica del campo (`password()`, `editableText` con `•` × longitud) sin romper la edición con TalkBack.
+   - **Criterio:** con el campo oculto, `uiautomator dump` no muestra el texto en ninguna API, y TalkBack sigue diciendo «Contraseña maestra, campo de contraseña, N caracteres» y permite escribir.
+   - Si no se logra sin romper TalkBack, **no lo fuerces**: repórtalo y lo dejo como riesgo aceptado ampliado en DEC-26.
+2. **Contrato 1.1.0:** el quinto fallo de `login` y del 2FA ya responde `429 rate_limited` con 900 s, también para correos inexistentes, y el código de correo dura 15 min. Ajusta el backend falso y sus pruebas.
+3. **Modo demostración:** siempre que `USE_FAKE_BACKEND` sea `true` (también en release), Verificar correo muestra el aviso «Modo demostración · Código: 123456». Quita la condición de depuración, pero sigue sin escribir el código en logcat.
+4. **Secretos de `fake_server.json`:** se aceptan como están. Es un simulador que desaparece al unir el backend real. Anótalo en `docs/api/backend-falso.md`.
 
-Además, te dan acceso a la carpeta de skills local **`C:\Users\brian\Dev-projects\SKILLS\Claude`**, por si necesitas
-algún recurso extra (referencias o datos de esas skills). Úsala solo para leer.
-Si una skill sugiere algo que contradice el tablero de Figma o una regla del proyecto, **manda el tablero y el proyecto**.
-Anótalo en el reporte.
+## Paso 2 · Bóveda · Lista y vacía (SCR-10, SCR-11; OP-04, OP-07, OP-43)
+**Figma:** lista `46:356` y vacía `46:521` (https://www.figma.com/design/K8GenUmR7GcNZAtJRjagER/End-security?node-id=46-356).
+- Reemplaza el marcador de `Routes.VAULT`.
+- **Arriba:** la inicial del usuario y el candado **«Bloquear ahora»**, que llama a `VaultSession.lock()` (DEC-52). Luego «Tu bóveda» y el buscador.
+- **La lista:**
+  - usa el componente «Elemento de bóveda» de Figma: inicial o ícono, nombre y usuario;
+  - los elementos se **descifran en memoria** (`ItemCipher`) a partir de `observeVisible()`, fuera del hilo principal;
+  - el orden es alfabético por nombre;
+  - un elemento que no se puede descifrar (`AuthenticationFailed`) aparece como «Elemento dañado» y no tumba la lista;
+  - un `format_version` desconocido aparece en solo lectura (DEC-04).
+- **Búsqueda** local en memoria, por nombre, usuario y sitio, sin acentos ni mayúsculas. Nunca se guarda el texto buscado.
+- **Botón flotante «+»** → Nueva contraseña.
+- **Vacía (SCR-11):** «Agregar contraseña».
+- **Barra inferior:** Salud, Generador y Ajustes van a marcadores por ahora.
+- Todo dentro de `RequireUnlocked`, y el ViewModel se vacía al bloquearse.
+- El aviso de los códigos de respaldo que hiciste en la tarea 10 se queda.
 
-## Paso 1 · Splash del sistema
-- `androidx.core:core-splashscreen` (agrégala a `libs.versions.toml`) e `installSplashScreen()` en `MainActivity` antes de `super.onCreate`.
-- Tema `Theme.EndSecurity.Starting`:
-  - `windowSplashScreenBackground` = `#2F2F2F`;
-  - `windowSplashScreenAnimatedIcon` = la capa frontal del ícono (`@drawable/ic_launcher_foreground`);
-  - `postSplashScreenTheme` = el tema actual;
-  - **sin** `windowSplashScreenBrandingImage`.
-- `setKeepOnScreenCondition` solo hasta que Compose dibuje su primer cuadro (no hasta que se decida el destino).
-- `setOnExitAnimationListener`: quita la vista del sistema **sin animarla** (`remove()`), porque la continuidad la da el escudo de Compose, que ocupa exactamente el mismo lugar.
-- Si quieres medir la posición real del ícono, usa `splashScreenView.iconView` para alinear. Compruébalo en Android 12+ y en Android 9–11, donde la librería de compatibilidad dibuja su propia versión.
+## Paso 3 · Detalle y «copiada» (SCR-12, SCR-13; OP-05, OP-06)
+**Figma:** `46:608` y `62:2946`.
+- Muestra nombre, «editada hace …» (de `password_changed_at`), usuario, contraseña oculta con el ojo y sitio.
+- El bloque de salud («Segura…») **no se muestra todavía**; llega con Salud.
+- **Copiar** (DEC-25):
+  - `ClipData` con `EXTRA_IS_SENSITIVE` en Android 13+;
+  - el portapapeles se borra a los `clipboard_clear_seconds`: clave nueva en DataStore, **30 s por defecto**, con las opciones 15, 30, 60 y 120 (grafo v1.5.3). Solo se borra si todavía tiene lo que copió la app;
+  - el estado «copiada» dura 2,5 s.
+- `SecureScreen()` en el detalle, porque muestra la contraseña.
+- **Editar** (lápiz) → Nueva/editar con los datos. **Eliminar contraseña** → Paso 5.
 
-## Paso 2 · Pantalla propia (`feature/auth/ui/splash/`)
-- `SplashScreen` en tema oscuro (DEC-51), con `SystemBarsAppearance(darkBackground = true)`. Reemplaza el `Box` vacío que `AppNavHost` muestra mientras `startRoute == null`.
-- El escudo es el mismo vector del ícono (`ic_launcher_foreground` en un `Image`, o su `pathData`).
-  - **Posición inicial:** el centro y el tamaño del ícono del sistema (lienzo de 240 dp centrado).
-  - **Posición final:** la de B.
-- **Animación** (Figma manda en los valores; las skills, en la sensación):
-  - **0–500 ms:** el escudo sube y se reduce con un resorte crítico o casi crítico, sin rebote visible;
-  - **120–520 ms:** la marca pasa de opacidad 0 a 1 y sube 12 dp;
-  - **260–620 ms:** el lema hace lo mismo;
-  - **≥ 800 ms:** los puntos con un pulso suave, solo si `StartDestinationViewModel` todavía no decide;
-  - **salida:** cuando hay destino **y** terminó la entrada, fundido de 250 ms hacia la ruta. No agregues esperas artificiales más allá de terminar la entrada (~620 ms).
-- **«Quitar animaciones»** (`rememberReducedMotion()`): se dibuja B directamente y se sale con un corte.
-- Si el usuario regresa con «atrás» durante el splash, sale de la app.
-- **Accesibilidad:** el escudo es decorativo (`contentDescription = null`). La pantalla anuncia «End Security» una vez y los puntos no se anuncian.
-- Textos en `strings.xml`: el lema es nuevo y la marca usa `app_name`.
+## Paso 4 · Nueva / editar (SCR-14; OP-01, OP-02)
+**Figma:** `46:793`.
+- Campos «Nombre» (obligatorio), «Usuario o correo», «Contraseña» (con ojo y medidor), «Sitio web» y «Notas (opcional)», más el botón «Guardar».
+- El **medidor** usa el mismo `PasswordStrengthEstimator`, sin la política de la contraseña maestra: solo informa la fuerza.
+- **La contraseña del elemento:**
+  - va en `TextFieldState` y nunca en el estado del ViewModel, con `SecureScreen` y `ExcludeFromAutofill`;
+  - el elemento completo se arma solo al tocar «Guardar».
+- **Guardar:**
+  - **nuevo:** UUID del cliente, `created_at` y `password_changed_at` igual a ahora, `ItemCipher.encrypt` y `VaultItemDao.insert` con `sync_state = pending`;
+  - **editar:** con el `local_seq` esperado (regla 8). `password_changed_at` solo cambia si cambió la contraseña (DEC-04).
+- Un botón «Generar» junto a la contraseña queda deshabilitado con `TODO(tarea del Generador)`.
+- Al salir sin guardar con cambios, una hoja: «¿Descartar cambios?», con «Descartar» (peligro) y «Seguir editando».
 
-## Paso 3 · Navegación (DEC-56, grafo v1.5.2)
-- El splash se muestra **en cada arranque en frío**, también la primera vez.
-- Destino, sin cambios a la lógica actual:
-  - sin onboarding visto → onboarding;
-  - con cuenta local → Desbloquear;
-  - si no → Iniciar sesión.
-- El splash no queda en la pila: atrás desde el destino sale de la app.
-- **No** se muestra al volver de segundo plano (arranque en caliente) ni al bloquearse la bóveda.
+## Paso 5 · Eliminar con «Deshacer» (SCR-16, SCR-17; OP-03, OP-47)
+**Figma:** hoja `62:2972` y lista con aviso `62:3009`.
+- La hoja muestra «¿Eliminar {nombre}?», con «Eliminar» (peligro) y «Cancelar».
+- Al confirmar, la lista muestra «{nombre} se eliminó · **Deshacer**» durante **5 s**.
+- La lápida **no se escribe hasta que pasan los 5 s** (o se bloquea la bóveda, o la app pasa a segundo plano). «Deshacer» la cancela sin tocar Room (DEC-56).
+- Un elemento que nunca se subió se borra físicamente; uno ya sincronizado queda como lápida `pending` (como ya hace `VaultItemDao.delete`).
+
+## Fuera de esta tarea
+La **sincronización** (subir los `pending` y bajar cambios, OP-33/34), los conflictos (SCR-18…21), el Generador y Salud
+llegan en las tareas 12 y 13. Por ahora, lo que se crea o edita queda en `pending` en Room.
 
 ## Terminado cuando
-- Pasan las pruebas del `ViewModel` o estado del splash: los puntos aparecen solo después de 800 ms; la salida espera a que termine la entrada; con «reducir movimiento», B aparece sin animación.
-- Hay `@Preview` de B (final), del estado inicial y con los puntos.
-- **En el emulador** (Android 12+) y, si es posible, en un emulador con Android 9–11:
-  - no hay salto visible entre A y B;
-  - los tres destinos funcionan;
-  - con «Quitar animaciones» activado no hay movimiento.
-- Si puedes grabar un video corto con `adb shell screenrecord`, deja la ruta en el reporte, no en el repositorio.
-- `assembleDebug`, `testDebugUnitTest`, `assembleRelease` y lint pasan.
-- Los commits están hechos y subidos.
+- **Pruebas unitarias:**
+  - búsqueda sin acentos;
+  - orden;
+  - elemento dañado;
+  - guardar nuevo y editar (con `password_changed_at` solo si cambia);
+  - «Deshacer» dentro y fuera de los 5 s;
+  - bloquear durante los 5 s aplica la lápida;
+  - el portapapeles se borra solo si es lo de la app.
+- **Prueba instrumentada:** el portapapeles con `EXTRA_IS_SENSITIVE`.
+- **En el emulador:**
+  - crear 3 contraseñas, buscar, ver el detalle, copiar, editar, eliminar y deshacer, eliminar y esperar;
+  - bloquear con el candado y desbloquear: los elementos siguen ahí.
+- `security-reviewer` revisa los Pasos 1.1, 3 y 4. **REQUIERE REVISIÓN HUMANA.**
+- `assembleRelease` y lint pasan. Los commits están hechos y subidos.
 
 ## Al terminar
-Llena `ai/handoff/reporte.md`. Incluye qué aportó cada skill y en qué te apartaste de ellas. Cambia el estado de arriba a `hecha` y detente.
+Llena `ai/handoff/reporte.md`, cambia el estado de arriba a `hecha` y detente.
