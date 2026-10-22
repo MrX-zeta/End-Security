@@ -8,6 +8,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -23,6 +26,7 @@ import com.luis.end_security.feature.auth.ui.login.LoginRoute
 import com.luis.end_security.feature.auth.ui.twofactor.TwoFactorRoute
 import com.luis.end_security.feature.auth.ui.onboarding.OnboardingRoute
 import com.luis.end_security.feature.auth.ui.signup.SignUpRoute
+import com.luis.end_security.feature.auth.ui.splash.SplashRoute
 import com.luis.end_security.feature.auth.ui.verify.VerifyEmailRoute
 import com.luis.end_security.feature.auth.ui.verify.VerifyEmailViewModel
 import com.luis.end_security.feature.settings.ui.legal.LegalDocument
@@ -40,12 +44,21 @@ fun AppNavHost(
 ) {
     val startRoute by startViewModel.startRoute.collectAsStateWithLifecycle()
     val route = debugStartRoute ?: startRoute
-    if (route == null) {
-        // Lectura de DataStore en curso (milisegundos): solo el fondo.
-        Box(modifier.fillMaxSize().background(MaterialTheme.colorScheme.background))
-        return
+    // El splash (SCR-46) se ve en cada arranque en frío y no queda en la pila. `rememberSaveable`
+    // evita que reaparezca al girar la pantalla o al restaurar la actividad. Con una ruta de
+    // depuración no se muestra.
+    var splashFinished by rememberSaveable { mutableStateOf(debugStartRoute != null) }
+    Box(modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+        // La ruta se arma debajo en cuanto se decide, para que el fundido de salida la revele.
+        if (route != null) AppNavigation(route = route)
+        if (!splashFinished) {
+            SplashRoute(destinationReady = route != null, onFinished = { splashFinished = true })
+        }
     }
+}
 
+@Composable
+private fun AppNavigation(route: String, modifier: Modifier = Modifier) {
     // La app es clara (DEC-51): íconos oscuros en las barras; el onboarding los cambia mientras se ve.
     SystemBarsAppearance(darkBackground = false)
     val navController = rememberNavController()

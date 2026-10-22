@@ -135,6 +135,8 @@
 
     <!-- Acceso con el backend (tarea 10). Textos del README de docs/api. -->
     <string name="button_loading">Cargando</string>
+    <!-- Splash (SCR-46) -->
+    <string name="splash_tagline">TUS CONTRASEÑAS, SOLO TUYAS</string>
     <string name="auth_error_generic">No pudimos conectar. Intenta de nuevo.</string>
     <string name="verify_debug_code">Código de prueba: %1$s</string>
     <plurals name="vault_recovery_codes_left">

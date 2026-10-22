@@ -2,4 +2,7 @@
 <resources>
     <!-- Fondo del ícono adaptativo (DEC-59): on-surface #111111 de «Carbón y miel». -->
     <color name="ic_launcher_background">#FF111111</color>
+
+    <!-- Fondo del splash del sistema: el background del tema oscuro (DEC-50), #2F2F2F. -->
+    <color name="splash_background">#FF2F2F2F</color>
 </resources>
