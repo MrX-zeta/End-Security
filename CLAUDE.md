@@ -1,6 +1,6 @@
 # End Security
 
-Gestor de contraseñas Androi con cifrado de conocimiento cero, 2FA TOTP y detección de filtraciones (HIBP con k-anonimato).
+Gestor de contraseñas Android con cifrado de conocimiento cero, 2FA TOTP y detección de filtraciones (HIBP con k-anonimato).
 Proyecto de Seguridad Informática (UP Chiapas), 2 personas, entrega a fines de noviembre de 2026.
 Todo el código lo escribe Claude y lo revisa una persona del equipo.
 
@@ -10,6 +10,7 @@ Todo el código lo escribe Claude y lo revisa una persona del equipo.
    Búscalo con Grep por id (p. ej. `"id": "DEC-05"`); no lo leas completo si no hace falta.
 3. `docs/arquitectura.md`: arquitectura MVVM de la app.
 4. `docs/bd/modelo-datos.md` y `docs/bd/schema.sql`: base de datos del servidor, Room, DataStore y Redis.
+5. `docs/api/openapi.yaml` y `docs/api/README.md`: contrato con el backend (endpoints EP-*, errores, formatos).
 
 Si algo no está decidido (estado `propuesto`, `pendiente`) o no aparece en el grafo: **pregunta antes de inventarlo**.
 Si una decisión cambia, propón actualizar el grafo (nodo + relaciones + versión en `meta`) y espera aprobación.
@@ -17,7 +18,7 @@ Si una decisión cambia, propón actualizar el grafo (nodo + relaciones + versi�
 ## Stack
 - Android: Kotlin 2.2, Jetpack Compose + Material 3, AGP 9.2 (Kotlin integrado), minSdk 28, targetSdk 36.
   Namespace `com.luis.end_security`. MVVM + UDF, Hilt, Room, DataStore, Retrofit/OkHttp, WorkManager.
-- Backend (aún no creado): NestJS + PostgreSQL 16 + Redis en Docker Compose.
+- Backend: NestJS + PostgreSQL 16 + Redis en Docker Compose. **Lo desarrolla otra persona del equipo; no se escribe aquí** (DEC-61).
 
 ## Comandos
 - Compilar: `./gradlew assembleDebug`
@@ -47,6 +48,12 @@ Regla de dependencias: `ui → domain ← data`. `ui` nunca usa Retrofit, Room n
 8. Borrar un elemento = lápida. Toda escritura de elemento lleva la versión esperada.
 9. Las renovaciones de token se hacen una a la vez (single-flight).
 10. Casos de uso solo cuando tienen lógica real; si no, el ViewModel llama al repositorio.
+
+## Backend y API (DEC-61)
+- No escribas código del backend. El límite es el contrato `docs/api/`; si algo del contrato no alcanza o parece mal, anótalo en el reporte y pregunta.
+- La app habla con el servidor solo por interfaces de dominio (`AuthApi`, `VaultApi`, `AccountApi`, `SessionApi`). Mientras no exista el backend,
+  sus implementaciones usan un transporte falso (`core/network/fake/`, estado en `fake_server.json`) que responde **exactamente** como el contrato: mismos códigos de error, formatos y casos genéricos.
+- Bytes en Base64url sin relleno, UUID canónicos, errores por `code` (RFC 9457). Nunca uses el `title` del error como texto de la UI.
 
 ## Relevo de tareas (`ai/handoff/`)
 El diseño y la planeación se hacen en otra sesión; las tareas llegan por archivo. Protocolo completo en `ai/handoff/README.md`.

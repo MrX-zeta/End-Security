@@ -1,7 +1,7 @@
 {
   "meta": {
     "nombre": "Grafo de conocimiento — End Security",
-    "version": "1.5.1",
+    "version": "1.5.4",
     "actualizado": "2026-10-19",
     "fase": "Implementación de la app (acceso y núcleo criptográfico listos) y contrato de la API v1.0.0 para el backend.",
     "historial": [
@@ -79,6 +79,21 @@
         "version": "1.5.1",
         "fecha": "2026-10-19",
         "cambio": "Revisión de la tarea 09: regla de format_version (DEC-04), copias del JSON (DEC-27), autobloqueo y ocultar datos al bloquear (DEC-26)."
+      },
+      {
+        "version": "1.5.2",
+        "fecha": "2026-10-21",
+        "cambio": "Splash (SCR-46, propuesta 3 sin manchas ni disco) con su navegación (DEC-56)."
+      },
+      {
+        "version": "1.5.3",
+        "fecha": "2026-10-22",
+        "cambio": "Contrato 1.1.0 (bloqueo en el quinto fallo, DEC-32/DEC-61); portapapeles 30 s por defecto (DEC-25)."
+      },
+      {
+        "version": "1.5.4",
+        "fecha": "2026-10-22",
+        "cambio": "Syslog RFC 5424 con 5 niveles para todas las operaciones del backend (DEC-62); alcance del backend en docs/backend/README.md."
       }
     ],
     "proposito": "Fuente de verdad del contexto, decisiones técnicas y huecos resueltos del proyecto, para personas y agentes de IA.",
@@ -162,15 +177,15 @@
       "implementa": "endpoint → operación"
     },
     "estadisticas": {
-      "nodos": 378,
-      "aristas": 1066,
+      "nodos": 380,
+      "aristas": 1076,
       "por_tipo": {
         "proyecto": 1,
         "objetivo": 6,
         "restriccion": 5,
         "actor": 3,
         "tecnologia": 28,
-        "decision": 61,
+        "decision": 62,
         "hueco": 37,
         "amenaza": 13,
         "riesgo_aceptado": 11,
@@ -182,7 +197,7 @@
         "fuera_de_alcance": 13,
         "pregunta_abierta": 12,
         "invariante": 32,
-        "pantalla": 45,
+        "pantalla": 46,
         "endpoint": 25
       }
     }
@@ -775,7 +790,7 @@
       "id": "DEC-25",
       "tipo": "decision",
       "nombre": "Portapapeles seguro",
-      "descripcion": "Copias marcadas como sensibles (EXTRA_IS_SENSITIVE en Android 13+) y borrado automático configurable.",
+      "descripcion": "Copias marcadas como sensibles (EXTRA_IS_SENSITIVE en Android 13+) y borrado automático configurable (clipboard_clear_seconds: 30 s por defecto; opciones 15, 30, 60 y 120). Solo se borra si el portapapeles sigue teniendo lo que copió la app.",
       "estado": "decidido"
     },
     {
@@ -849,7 +864,7 @@
       "id": "DEC-32",
       "tipo": "decision",
       "nombre": "Rate limiting y bloqueo por intentos",
-      "descripcion": "En Redis para login (por IP y por HMAC del correo), verificación TOTP, prelogin, registro y envío de correos. Tras 5 fallos se bloquea la cuenta 15 min y se registra account_locked. Ninguna clave de Redis contiene correos en claro. En la app, el bloqueo se muestra como «Demasiados intentos. Vuelve a intentarlo en N min.» (Iniciar sesión, 2FA y código de respaldo), con el botón deshabilitado hasta que pase el tiempo.",
+      "descripcion": "En Redis para login (por IP y por HMAC del correo), verificación TOTP, prelogin, registro y envío de correos. Tras 5 fallos se bloquea la cuenta 15 min y se registra account_locked; el quinto fallo ya responde 429 (contrato 1.1.0). Ninguna clave de Redis contiene correos en claro. En la app, el bloqueo se muestra como «Demasiados intentos. Vuelve a intentarlo en N min.» (Iniciar sesión, 2FA y código de respaldo), con el botón deshabilitado hasta que pase el tiempo.",
       "estado": "decidido"
     },
     {
@@ -1110,7 +1125,7 @@
       "id": "DEC-56",
       "tipo": "decision",
       "nombre": "Navegación y flujos de la app",
-      "descripcion": "Barra inferior con 4 pestañas (Bóveda, Salud, Generador, Ajustes) en todas las vistas con sesión iniciada; no aparece en onboarding, registro ni acceso. La flecha de atrás regresa a la pantalla de origen; tocar una pestaña lleva a su raíz. Salud tiene un selector fijo «Resumen | Progreso» que no suma pasos al historial. El detalle de un elemento tiene el botón «Eliminar contraseña»; la confirmación aparece en una hoja inferior sobre el mismo detalle y, al confirmar, la lista muestra «… se eliminó · Deshacer» durante 5 s. Eliminar la cuenta pide contraseña maestra y código, luego una hoja de confirmación y termina en la pantalla «Tu cuenta fue eliminada», que regresa al onboarding. En el último paso del onboarding, «Comenzar» lleva a Crear cuenta y «Ya tengo una cuenta» a Iniciar sesión; «Omitir» lleva a Iniciar sesión. Términos y Aviso de privacidad se abren desde Crear cuenta en una hoja inferior a pantalla casi completa (las contraseñas escritas se conservan); desde Ajustes, como pantalla.",
+      "descripcion": "Barra inferior con 4 pestañas (Bóveda, Salud, Generador, Ajustes) en todas las vistas con sesión iniciada; no aparece en onboarding, registro ni acceso. La flecha de atrás regresa a la pantalla de origen; tocar una pestaña lleva a su raíz. Salud tiene un selector fijo «Resumen | Progreso» que no suma pasos al historial. El detalle de un elemento tiene el botón «Eliminar contraseña»; la confirmación aparece en una hoja inferior sobre el mismo detalle y, al confirmar, la lista muestra «… se eliminó · Deshacer» durante 5 s. Eliminar la cuenta pide contraseña maestra y código, luego una hoja de confirmación y termina en la pantalla «Tu cuenta fue eliminada», que regresa al onboarding. En el último paso del onboarding, «Comenzar» lleva a Crear cuenta y «Ya tengo una cuenta» a Iniciar sesión; «Omitir» lleva a Iniciar sesión. Al abrir la app se muestra el splash (SCR-46): el splash del sistema (#2F2F2F + ícono) cede a una pantalla propia sin manchas ni disco, donde el escudo sube y aparecen «End Security» y el lema «Tus contraseñas, solo tuyas»; después va a onboarding, Iniciar sesión o Desbloquear. Términos y Aviso de privacidad se abren desde Crear cuenta en una hoja inferior a pantalla casi completa (las contraseñas escritas se conservan); desde Ajustes, como pantalla.",
       "estado": "decidido",
       "detalles": {
         "pestanas": [
@@ -3867,6 +3882,20 @@
       }
     },
     {
+      "id": "SCR-46",
+      "tipo": "pantalla",
+      "nombre": "Splash",
+      "descripcion": "Vista 'Splash' del módulo MOD-AUTH.",
+      "estado": "decidido",
+      "detalles": {
+        "figma_nodo": "165:3711",
+        "tipo_vista": "pantalla",
+        "pestana_activa": null,
+        "requiere_red": false,
+        "tema": "oscuro"
+      }
+    },
+    {
       "id": "DEC-61",
       "tipo": "decision",
       "nombre": "Contrato de API y división del trabajo",
@@ -3877,7 +3906,24 @@
           "docs/api/openapi.yaml",
           "docs/api/README.md"
         ],
-        "version_contrato": "1.0.0"
+        "version_contrato": "1.1.0"
+      }
+    },
+    {
+      "id": "DEC-62",
+      "tipo": "decision",
+      "nombre": "Registro de operaciones con syslog (RFC 5424)",
+      "descripcion": "Requisito del profesor: cada operación del usuario queda registrada con el estándar syslog. El backend registra una línea por petición (interceptor global) y los eventos del sistema, con facility local0 y 5 de los 8 niveles: crit (integridad o servicio caído), err (fallos 5xx, correo, mantenimiento), warning (fallos de autenticación, límites, reúso de token, validación), notice (cambios de seguridad exitosos) e info (operaciones normales). Formato RFC 5424 con datos estructurados [endsec@32473 req ep op status code ms user sess ip], IP truncada; nunca correos, llaves, tokens, códigos, sales ni bloques. pino → stdout → driver syslog de Docker → rsyslog en red interna, rotación diaria y 90 días. Complementa a audit_log (DEC-19), no lo reemplaza. Las operaciones locales de la app no se registran en el servidor (conocimiento cero) y la app no escribe logs en release. Detalle en docs/backend/README.md §5.",
+      "estado": "decidido",
+      "detalles": {
+        "niveles": {
+          "crit": 2,
+          "err": 3,
+          "warning": 4,
+          "notice": 5,
+          "info": 6
+        },
+        "facility": "local0"
       }
     },
     {
@@ -8632,6 +8678,44 @@
       "relacion": "definida_por"
     },
     {
+      "de": "SCR-46",
+      "a": "MOD-AUTH",
+      "relacion": "parte_de"
+    },
+    {
+      "de": "SCR-46",
+      "a": "DEC-60",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "SCR-46",
+      "a": "DEC-56",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "SCR-46",
+      "a": "DEC-59",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "SCR-46",
+      "a": "SCR-01",
+      "relacion": "navega_a",
+      "nota": "primera vez"
+    },
+    {
+      "de": "SCR-46",
+      "a": "SCR-04",
+      "relacion": "navega_a",
+      "nota": "sin cuenta local, onboarding visto"
+    },
+    {
+      "de": "SCR-46",
+      "a": "SCR-09",
+      "relacion": "navega_a",
+      "nota": "con cuenta local"
+    },
+    {
       "de": "SCR-01",
       "a": "SCR-02",
       "relacion": "navega_a",
@@ -9323,6 +9407,21 @@
     {
       "de": "DEC-61",
       "a": "DEC-44",
+      "relacion": "depende_de"
+    },
+    {
+      "de": "DEC-62",
+      "a": "DEC-19",
+      "relacion": "depende_de"
+    },
+    {
+      "de": "DEC-62",
+      "a": "DEC-61",
+      "relacion": "depende_de"
+    },
+    {
+      "de": "DEC-62",
+      "a": "DEC-23",
       "relacion": "depende_de"
     },
     {

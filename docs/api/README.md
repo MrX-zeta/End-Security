@@ -1,11 +1,14 @@
 # Contrato de la API — End Security
 
-> Versión **1.0.0** · 2026-10-19 · Fuente de verdad del límite entre la app y el backend.
+> Versión **1.1.0** · 2026-10-22 · Fuente de verdad del límite entre la app y el backend.
 > La especificación máquina-legible es [`openapi.yaml`](openapi.yaml) (OpenAPI 3.1). Este documento explica las reglas
 > que el YAML no alcanza a expresar. Las decisiones vienen del grafo (`ai/context/knowledge-graph.json`): cada endpoint
 > es un nodo `EP-*` conectado a su operación `OP-*`.
 
 ## Quién hace qué
+La lista completa de actividades del backend (validación, limpieza de entradas, límites, syslog, proxy) está en
+[`docs/backend/README.md`](../backend/README.md).
+
 | Parte | Responsable | Dónde |
 |---|---|---|
 | Backend (NestJS + PostgreSQL + Redis) | Compañero del equipo | Repositorio o carpeta del backend; `docs/bd/schema.sql` es la migración 001 |
@@ -82,11 +85,12 @@ Cuerpo: `{ "type": "about:blank", "title": "…", "status": 401, "code": "invali
 
    | Qué | Límite |
    |---|---|
-   | `login` por HMAC del correo | 5 fallos → 15 min |
+   | `login` por HMAC del correo | 5 fallos → 15 min. **El quinto fallo ya responde `429 rate_limited`** con `retryAfterSeconds = 900` (no `invalid_credentials`), y lo mismo para correos inexistentes |
    | `login` por IP | 20 por minuto |
    | `prelogin` y `register` por IP | 10 por minuto |
-   | `2fa/verify` y `2fa/recovery` por reto y por cuenta | 5 fallos → 15 min |
+   | `2fa/verify` y `2fa/recovery` por reto y por cuenta | 5 fallos → 15 min (el quinto ya responde 429) |
    | `email/resend` por cuenta | 1 cada 60 s y 5 por hora |
+   | Código de verificación de correo | Vale **15 min** y admite 5 intentos (`email_verifications.attempts`) |
 8. **Bitácora (DEC-19).** Cada endpoint que cambia algo inserta su evento al final de la transacción. La tabla de abajo dice cuál.
 9. **Nunca** se registran en logs los cuerpos, `authKey`, tokens, códigos, sal ni bloques.
 
@@ -146,6 +150,12 @@ Cuerpo: `{ "type": "about:blank", "title": "…", "status": 401, "code": "invali
 
 Las operaciones locales (OP-04…10, OP-19…21, OP-35, OP-36, OP-43…47) no tienen endpoint. HIBP (OP-10) va directo
 de la app a la API de Have I Been Pwned (DEC-21) y nunca pasa por el backend.
+
+## Historial
+| Versión | Fecha | Cambio |
+|---|---|---|
+| 1.0.0 | 2026-10-19 | Primera versión |
+| 1.1.0 | 2026-10-22 | El quinto fallo de `login`/2FA responde 429 directamente; el código de correo dura 15 min |
 
 ## Cómo cambiar el contrato
 1. Se propone el cambio en `openapi.yaml` y en este archivo, y se sube la versión: menor si se agrega algo compatible, mayor si se rompe algo.

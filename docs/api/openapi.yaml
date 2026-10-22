@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: End Security API
-  version: 1.0.0
+  version: 1.1.0
   description: |
     Contrato entre la app Android y el backend de End Security. Las reglas que este archivo no expresa
     (anti-enumeración, límites, bitácora, piso de KDF) están en `docs/api/README.md` y son parte del contrato.
@@ -90,6 +90,7 @@ paths:
       tags: [auth]
       operationId: verifyEmail
       summary: Verificar el correo al registrarse e iniciar la primera sesión (EP-03, OP-12)
+      description: El código vale 15 min y admite 5 intentos.
       security: []
       requestBody:
         required: true
@@ -144,6 +145,7 @@ paths:
       tags: [auth]
       operationId: login
       summary: Iniciar sesión con la authKey (EP-05, OP-14)
+      description: El quinto fallo seguido (también con un correo inexistente) ya responde 429 `rate_limited` con retryAfterSeconds = 900.
       security: []
       requestBody:
         required: true
