@@ -1,10 +1,11 @@
 package com.luis.end_security.core.designsystem.component
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicSecureTextField
 import androidx.compose.foundation.text.KeyboardOptions
@@ -24,6 +25,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.editableText
+import androidx.compose.ui.semantics.password
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
@@ -60,6 +65,8 @@ fun PasswordField(
     imeAction: ImeAction = ImeAction.Done,
     onKeyboardAction: KeyboardActionHandler? = null,
     maxLength: Int? = null,
+    /** Un botón más antes del ojo, p. ej. «Generar contraseña» (SCR-14). Solo con `onVisibleChange`. */
+    extraAction: (@Composable () -> Unit)? = null,
 ) {
     FieldLayout(label = label, supportingText = supportingText, isError = isError, modifier = modifier) {
         // Sin botón del ojo no hay forma de ocultarla otra vez: siempre va oculta.
@@ -82,13 +89,25 @@ fun PasswordField(
             onKeyboardAction = onKeyboardAction,
             modifier = Modifier
                 .fillMaxWidth()
-                .fieldSemantics(label, supportingText, isError, contentType = null),
+                .fieldSemantics(label, supportingText, isError, contentType = null)
+                .maskedEditableText(state, hidden = !shown),
             decorator = TextFieldDecorator { innerTextField ->
                 FieldContainer(
                     leadingIcon = R.drawable.ic_lock_20,
                     endPadding = if (onVisibleChange != null) PasswordFieldEndPadding else FieldStartPadding,
                     trailing = onVisibleChange?.let { onChange ->
-                        { VisibilityToggle(visible = visible, onVisibleChange = onChange) }
+                        {
+                            Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+                                extraAction?.invoke()
+                                FieldActionButton(
+                                    icon = if (visible) R.drawable.ic_eye_off_20 else R.drawable.ic_eye_20,
+                                    contentDescription = stringResource(
+                                        if (visible) R.string.password_hide else R.string.password_show,
+                                    ),
+                                    onClick = { onChange(!visible) },
+                                )
+                            }
+                        }
                     },
                 ) {
                     innerTextField()
@@ -98,26 +117,15 @@ fun PasswordField(
     }
 }
 
-/** Botón de ícono amarillo (acción, DEC-50) de 40 × 40 con área táctil de 48. */
-@Composable
-private fun VisibilityToggle(visible: Boolean, onVisibleChange: (Boolean) -> Unit) {
-    Surface(
-        onClick = { onVisibleChange(!visible) },
-        shape = ToggleButtonShape,
-        color = MaterialTheme.colorScheme.primary,
-        contentColor = MaterialTheme.colorScheme.onPrimary,
-    ) {
-        Box(modifier = Modifier.size(40.dp), contentAlignment = Alignment.Center) {
-            Icon(
-                painter = painterResource(if (visible) R.drawable.ic_eye_off_20 else R.drawable.ic_eye_20),
-                contentDescription = stringResource(
-                    if (visible) R.string.password_hide else R.string.password_show,
-                ),
-                modifier = Modifier.size(20.dp),
-            )
-        }
+/**
+ * Con la contraseña oculta, el árbol de accesibilidad (TalkBack, `uiautomator`, cualquier servicio)
+ * solo debe ver una máscara de la misma longitud, nunca el texto (DEC-26, regla no negociable 6).
+ */
+private fun Modifier.maskedEditableText(state: TextFieldState, hidden: Boolean): Modifier =
+    if (!hidden) this else semantics {
+        password()
+        editableText = AnnotatedString("•".repeat(state.text.length))
     }
-}
 
 @Preview(name = "Campo de contraseña")
 @Composable
