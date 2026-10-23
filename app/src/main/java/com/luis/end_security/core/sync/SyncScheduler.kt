@@ -22,6 +22,11 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Singleton
 
+/** Detiene la sincronización y, con el motor en reposo, ejecuta el borrado de los datos locales (cerrar sesión). */
+interface SyncShutdown {
+    suspend fun stop(whileIdle: suspend () -> Unit)
+}
+
 /**
  * Cuándo sincronizar (tarea 12). Dispara [SyncEngine] en primer plano:
  * - al desbloquear la bóveda;
@@ -39,12 +44,13 @@ class SyncScheduler @Inject constructor(
     private val clock: DeviceClock,
     @param:ApplicationScope private val scope: CoroutineScope,
     @param:ApplicationContext private val context: Context,
-) : SyncTrigger, DefaultLifecycleObserver {
+) : SyncTrigger, SyncShutdown, DefaultLifecycleObserver {
 
     private val lock = Any()
     private var job: Job? = null
     private var running = false
     private var rerun = false
+    private var closing = false
 
     init {
         var previous: VaultState = session.state.value
@@ -67,6 +73,27 @@ class SyncScheduler @Inject constructor(
         }
     }
 
+    /**
+     * Cerrar sesión: se cancela lo que espera o corre, se quita la ejecución periódica y se espera a que el motor
+     * quede libre. Después, `clearAllTables()` no compite con una sincronización que escriba en Room.
+     */
+    override suspend fun stop(whileIdle: suspend () -> Unit) {
+        val running = synchronized(lock) {
+            // Mientras se cierra, ningún disparador (cambio, red, primer plano, desbloqueo) arranca otra pasada.
+            closing = true
+            rerun = false
+            job?.also { it.cancel() }
+        }
+        try {
+            SyncWorker.cancel(context)
+            running?.join()
+            // El borrado va **dentro** del mutex del motor: ninguna sincronización puede escribir en Room mientras tanto.
+            engine.whileIdle(whileIdle)
+        } finally {
+            synchronized(lock) { closing = false }
+        }
+    }
+
     override fun changed() = request(CHANGE_DEBOUNCE_MILLIS)
 
     fun requestNow() = request(0)
@@ -85,6 +112,7 @@ class SyncScheduler @Inject constructor(
      */
     private fun request(delayMillis: Long) {
         synchronized(lock) {
+            if (closing) return
             if (running) {
                 rerun = true
                 return
@@ -139,4 +167,7 @@ abstract class SyncModule {
 
     @Binds
     abstract fun bindSyncTrigger(impl: SyncScheduler): SyncTrigger
+
+    @Binds
+    abstract fun bindSyncShutdown(impl: SyncScheduler): SyncShutdown
 }

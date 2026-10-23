@@ -186,6 +186,9 @@ class ConflictResolverTest {
         val kept = read(repoA, UUID.fromString(fresh.id))
         assertEquals("Netflix A", kept.item.name)
         assertEquals("clave-local-1", kept.item.password)
+        val original = (detail.local as VersionSide.Live).item
+        assertEquals("conserva su antigüedad real", original.createdAt, kept.item.createdAt)
+        assertEquals(original.passwordChangedAt, kept.item.passwordChangedAt)
         assertTrue("la fila vieja ya no está en conflicto", a.dao.all[id.toString()]?.syncState != SyncState.Conflict)
         assertTrue(resolver.observeConflicts().first().isEmpty())
     }

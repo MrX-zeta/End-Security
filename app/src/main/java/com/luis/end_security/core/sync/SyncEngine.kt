@@ -10,11 +10,14 @@ import com.luis.end_security.core.database.dao.VaultItemDao
 import com.luis.end_security.core.database.entity.VaultItemEntity
 import com.luis.end_security.feature.vault.domain.RemoteVaultItem
 import com.luis.end_security.feature.vault.domain.VaultApi
+import com.luis.end_security.feature.vault.domain.WriteResult
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
@@ -77,6 +80,9 @@ class SyncEngine @Inject constructor(
     override val offline: StateFlow<Boolean> = _offline.asStateFlow()
 
     override fun isUploading(id: UUID): Boolean = id.toString() in inFlight
+
+    /** Espera a que no haya una sincronización en curso y ejecuta [block] sin que empiece otra (cerrar sesión). */
+    suspend fun <T> whileIdle(block: suspend () -> T): T = mutex.withLock { block() }
 
     suspend fun sync(): SyncOutcome = mutex.withLock {
         val outcome = run()
@@ -141,7 +147,7 @@ class SyncEngine @Inject constructor(
                 val written = result.value
                 items.markUploaded(row.id, row.localSeq, written.version, written.revision)
                 // Si la fila se borró físicamente mientras subía, el servidor quedó con un elemento que ya no existe aquí.
-                if (items.get(row.id) == null) api.deleteItem(uuid, written.version)
+                if (items.get(row.id) == null) rescueDelete(row, uuid, written)
                 Step.Continue
             }
             is ApiResult.Failure -> when (val error = result.error) {
@@ -160,6 +166,28 @@ class SyncEngine @Inject constructor(
                 else -> Step.Stop(error.toOutcome())
             }
         }
+    }
+
+    /**
+     * La fila se borró mientras subía y el servidor ya la tiene: se le manda el DELETE. Si no llega a confirmarse (sin
+     * red, 5xx, cancelación), **no se ignora**: queda una lápida `pending` con la versión del servidor y la siguiente
+     * ejecución la reintenta; así el elemento eliminado no reaparece en la siguiente descarga.
+     */
+    private suspend fun rescueDelete(row: VaultItemEntity, uuid: UUID, written: WriteResult) {
+        // Primero la lápida y sin poder cancelarse: si algo corta el DELETE (red, WorkManager, cerrar sesión), ya está
+        // escrita y la siguiente ejecución la reintenta; el elemento eliminado no reaparece.
+        withContext(NonCancellable) {
+            val now = clock.wallMillis()
+            items.insert(
+                VaultItemEntity(
+                    row.id, row.formatVersion, null, null, written.version, written.revision, row.localSeq + 1,
+                    com.luis.end_security.core.database.entity.SyncState.Pending, now, now,
+                ),
+            )
+        }
+        val result = api.deleteItem(uuid, written.version)
+        val done = result is ApiResult.Success || (result is ApiResult.Failure && result.error == ApiError.NotFound)
+        if (done) withContext(NonCancellable) { items.removeTombstone(row.id) }
     }
 
     private suspend fun uploadTombstone(row: VaultItemEntity, uuid: UUID): Step {
@@ -194,6 +222,9 @@ class SyncEngine @Inject constructor(
 
     private suspend fun download(): Step {
         var since = accounts.get()?.syncCursor ?: return Step.Stop(SyncOutcome.NotSignedIn)
+        // El cursor con que se empezó: durante una descarga completa no avanza hasta la última página, así que si se
+        // interrumpe a la mitad la siguiente ejecución vuelve a recibir `410` y empieza la descarga completa desde cero.
+        val startCursor = since
         var full = false
         val remoteIds = mutableSetOf<String>()
         while (true) {
@@ -215,7 +246,7 @@ class SyncEngine @Inject constructor(
                     if (full) page.items.forEach { remoteIds += it.id.toString() }
                     items.applyRemotePage(
                         changes = page.items.map { it.toRow() },
-                        cursor = page.nextSince,
+                        cursor = if (full && page.hasMore) startCursor else page.nextSince,
                         now = clock.wallMillis(),
                         keepOnly = if (full && !page.hasMore) remoteIds else null,
                     )

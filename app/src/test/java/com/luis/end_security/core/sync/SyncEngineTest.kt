@@ -272,6 +272,98 @@ class SyncEngineTest {
     }
 
     @Test
+    fun `una descarga completa interrumpida a la mitad no avanza el cursor ni deja fantasmas`() {
+        val vanished = phone.createLocal()
+        phone.sync()
+        val cursorBefore = runBlocking { phone.accounts.get()!!.syncCursor }
+        // Otro teléfono sube más de una página de elementos.
+        val other = world.secondDevice()
+        val ids = (1..205).map { other.createLocal() }
+        other.sync()
+        // El servidor purgó lápidas y «vanished» ya no existe allá; el cursor de este teléfono quedó atrás (410).
+        world.state.items.remove(vanished.toString())
+        // Solo lo viejo se purgó: el cursor de este teléfono expira, pero el de las páginas de la descarga completa no.
+        world.state.users.values.first().purgedThroughRevision = cursorBefore + 1
+        // Primera pasada: 410, primera página y se corta la red en la segunda.
+        var lists = 0
+        world.interceptor = { request ->
+            if (request.method == "GET" && request.path.startsWith("/vault/items")) {
+                lists++
+                if (lists == 3) HttpResponse(503, """{"type":"about:blank","title":"x","status":503,"code":"internal_error"}""") else null
+            } else {
+                null
+            }
+        }
+
+        assertEquals(SyncOutcome.RetryLater, phone.sync())
+
+        assertEquals("el cursor no avanzó: sigue la descarga completa por hacer", cursorBefore, runBlocking { phone.accounts.get()!!.syncCursor })
+        assertNotNull("todavía no se sabe que desapareció", phone.row(vanished))
+        world.interceptor = null
+
+        // Segunda pasada: vuelve a recibir 410, descarga todo desde cero y reconcilia.
+        assertEquals(SyncOutcome.Synced, phone.sync())
+
+        assertNull("sin fantasmas", phone.row(vanished))
+        assertTrue(ids.all { phone.row(it) != null })
+        assertTrue(runBlocking { phone.accounts.get()!!.syncCursor } > cursorBefore)
+    }
+
+    @Test
+    fun `si el DELETE de rescate falla queda una lapida pending que se reintenta`() {
+        val id = phone.createLocal()
+        world.afterServer = { request ->
+            if (request.method == "PUT") {
+                world.afterServer = null
+                // La fila se borra físicamente mientras el PUT ya llegó al servidor (ventana estrecha del borrado).
+                assertTrue(phone.deleteLocal(id, uploadInFlight = false))
+                assertNull(phone.row(id))
+            }
+        }
+        world.interceptor = { request ->
+            if (request.method == "DELETE") HttpResponse(503, """{"type":"about:blank","title":"x","status":503,"code":"internal_error"}""") else null
+        }
+
+        phone.sync()
+
+        val tombstone = phone.row(id)
+        assertNotNull("el resultado ya no se ignora: queda la lápida", tombstone)
+        assertEquals(SyncState.Pending, tombstone!!.syncState)
+        assertNull(tombstone.ciphertext)
+        assertEquals(1L, tombstone.serverVersion)
+
+        // La siguiente ejecución (con el servidor otra vez bien) la envía y la fila se va; el elemento no reaparece.
+        world.interceptor = null
+        assertEquals(SyncOutcome.Synced, phone.sync())
+        assertNull(phone.row(id))
+        assertTrue(world.serverItem(id)!!.deleted)
+    }
+
+    @Test
+    fun `whileIdle espera a que termine la sincronizacion en curso`() {
+        phone.createLocal()
+        val started = java.util.concurrent.CountDownLatch(1)
+        val release = java.util.concurrent.CountDownLatch(1)
+        world.interceptor = { request ->
+            if (request.method == "PUT") {
+                started.countDown()
+                release.await(5, java.util.concurrent.TimeUnit.SECONDS)
+            }
+            null
+        }
+        runBlocking {
+            val syncing = async(kotlinx.coroutines.Dispatchers.Default) { phone.engine.sync() }
+            assertTrue(started.await(5, java.util.concurrent.TimeUnit.SECONDS))
+            val idle = async(kotlinx.coroutines.Dispatchers.Default) { phone.engine.whileIdle { "libre" } }
+            kotlinx.coroutines.delay(150)
+            assertFalse("sigue esperando mientras sube", idle.isCompleted)
+            release.countDown()
+            assertEquals("libre", idle.await())
+            assertEquals(SyncOutcome.Synced, syncing.await())
+        }
+    }
+
+    @Test
     fun `borrar mientras se sube deja una lapida pending y despues se envia el DELETE`() {
         val id = phone.createLocal()
         world.afterServer = { request ->

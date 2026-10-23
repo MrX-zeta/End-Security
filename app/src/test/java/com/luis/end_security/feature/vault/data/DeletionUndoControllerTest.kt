@@ -53,7 +53,7 @@ class DeletionUndoControllerTest {
 
         override fun observeConflictIds(): Flow<List<UUID>> = emptyFlow()
 
-        override suspend fun create(draft: ItemDraft): SaveResult = error("no se usa")
+        override suspend fun create(draft: ItemDraft, createdAt: java.time.Instant?, passwordChangedAt: java.time.Instant?): SaveResult = error("no se usa")
 
         override suspend fun update(id: UUID, expectedLocalSeq: Long, draft: ItemDraft): SaveResult = error("no se usa")
 

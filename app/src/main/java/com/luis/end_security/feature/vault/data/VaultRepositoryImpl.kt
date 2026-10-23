@@ -101,12 +101,12 @@ class VaultRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun create(draft: ItemDraft): SaveResult = withContext(defaultDispatcher) {
+    override suspend fun create(draft: ItemDraft, createdAt: Instant?, passwordChangedAt: Instant?): SaveResult = withContext(defaultDispatcher) {
         val userId = (session.state.value as? VaultState.Unlocked)?.userId ?: return@withContext SaveResult.Locked
         val id = UUID.randomUUID()
         val now = Instant.ofEpochMilli(clock.wallMillis())
         // `created_at` y `password_changed_at` nacen iguales (DEC-04).
-        val item = draft.toItem(createdAt = now, passwordChangedAt = now)
+        val item = draft.toItem(createdAt = createdAt ?: now, passwordChangedAt = passwordChangedAt ?: createdAt ?: now)
         val sealed = try {
             session.withVaultKey { key -> ItemCipher.encrypt(key, id, userId, item) }
         } catch (_: VaultLockedException) {

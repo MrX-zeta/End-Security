@@ -178,9 +178,16 @@ class ConflictResolver @Inject constructor(
         // Si ya cambió algo, no se crea nada: un reintento no dejaría duplicados.
         val current = dao.get(detail.id.toString())
         if (current == null || current.syncState != SyncState.Conflict || current.localSeq != detail.localSeq) return false
-        val created = repository.create(ItemDraft(item.name, item.username, item.password, item.url, item.notes))
+        val created = repository.create(
+            ItemDraft(item.name, item.username, item.password, item.url, item.notes),
+            createdAt = item.createdAt,
+            passwordChangedAt = item.passwordChangedAt,
+        )
         if (created !is SaveResult.Saved) return false
-        return dao.resolveWithRemote(detail.toRemoteRow(), detail.localSeq)
+        if (dao.resolveWithRemote(detail.toRemoteRow(), detail.localSeq)) return true
+        // Cambió algo entre la comprobación y aquí: se quita el nuevo (nunca se subió) para que un reintento no duplique.
+        repository.delete(created.id, expectedLocalSeq = 1)
+        return false
     }
 
     // --- Ayudantes ---

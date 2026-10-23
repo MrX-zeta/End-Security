@@ -19,6 +19,7 @@ import com.luis.end_security.core.database.entity.AccountEntity
 import com.luis.end_security.core.datastore.UnlockAttemptStore
 import com.luis.end_security.core.network.TokenManager
 import com.luis.end_security.core.session.VaultSession
+import com.luis.end_security.core.sync.SyncShutdown
 import com.luis.end_security.core.session.VaultState
 import com.luis.end_security.feature.account.domain.AccountInfo
 import com.luis.end_security.feature.account.domain.Authenticated
@@ -59,6 +60,7 @@ class AuthRepositoryImpl @Inject constructor(
     private val session: VaultSession,
     private val attempts: UnlockAttemptStore,
     private val pending: PendingAuth,
+    private val sync: SyncShutdown,
     @param:DefaultDispatcher private val defaultDispatcher: CoroutineDispatcher,
     @ApplicationScope scope: CoroutineScope,
 ) : AuthRepository {
@@ -312,7 +314,8 @@ class AuthRepositoryImpl @Inject constructor(
     suspend fun signOutLocally() = withContext(NonCancellable) {
         pending.clear()
         tokens.clear()
-        withContext(Dispatchers.IO) { database.clearAllTables() }
+        // Sin sincronización a medias: el borrado corre con el motor en reposo y ningún disparador arranca otra pasada.
+        sync.stop { withContext(Dispatchers.IO) { database.clearAllTables() } }
         attempts.recordSuccess()
         session.lock()
     }

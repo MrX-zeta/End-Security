@@ -2,6 +2,7 @@ package com.luis.end_security.feature.vault.domain
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
+import java.time.Instant
 import java.util.UUID
 
 /**
@@ -31,8 +32,11 @@ interface VaultRepository {
     /** El elemento [id] y sus cambios; descifra solo ese. `null` si no existe, se borró o la bóveda se bloquea. */
     fun observeEntry(id: UUID): Flow<VaultEntry?>
 
-    /** OP-01: genera el id, cifra y guarda como `pending`. */
-    suspend fun create(draft: ItemDraft): SaveResult
+    /**
+     * OP-01: genera el id, cifra y guarda como `pending`. [createdAt] y [passwordChangedAt] solo se pasan cuando
+     * el elemento ya existía (p. ej. «Conservar la mía» ante una lápida remota): conservan su antigüedad real.
+     */
+    suspend fun create(draft: ItemDraft, createdAt: Instant? = null, passwordChangedAt: Instant? = null): SaveResult
 
     /**
      * OP-02: cifra de nuevo con el [expectedLocalSeq] que se leyó. `password_changed_at` solo cambia
