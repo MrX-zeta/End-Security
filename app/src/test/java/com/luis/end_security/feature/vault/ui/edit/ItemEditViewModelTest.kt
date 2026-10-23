@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import com.luis.end_security.feature.auth.domain.PasswordStrengthEstimator
 import com.luis.end_security.feature.vault.domain.ItemDraft
 import com.luis.end_security.feature.vault.domain.SaveResult
+import com.luis.end_security.feature.vault.ui.FakePasswordHandoff
 import com.luis.end_security.feature.vault.ui.FakeVaultRepository
 import com.luis.end_security.feature.vault.ui.item
 import com.luis.end_security.feature.vault.ui.readable
@@ -42,6 +43,7 @@ class ItemEditViewModelTest {
     }
     private val gmail = readable("Gmail", localSeq = 4, item = item("Gmail", "ana@correo.com", "Tortuga-29", "google.com", "nota"))
     private val repository = FakeVaultRepository(listOf(gmail))
+    private val handoff = FakePasswordHandoff()
 
     @Before
     fun setUp() = Dispatchers.setMain(dispatcher)
@@ -50,13 +52,13 @@ class ItemEditViewModelTest {
     fun tearDown() = Dispatchers.resetMain()
 
     private fun TestScope.newForm(): ItemEditViewModel {
-        val viewModel = ItemEditViewModel(SavedStateHandle(), repository, estimator, dispatcher)
+        val viewModel = ItemEditViewModel(SavedStateHandle(), repository, estimator, handoff, dispatcher)
         runCurrent()
         return viewModel
     }
 
     private fun TestScope.editForm(id: UUID = gmail.id): ItemEditViewModel {
-        val viewModel = ItemEditViewModel(SavedStateHandle(mapOf(ItemEditViewModel.ID_ARG to id.toString())), repository, estimator, dispatcher)
+        val viewModel = ItemEditViewModel(SavedStateHandle(mapOf(ItemEditViewModel.ID_ARG to id.toString())), repository, estimator, handoff, dispatcher)
         // La pantalla pide los valores al armar sus campos.
         viewModel.requestPrefill()
         runCurrent()
@@ -291,5 +293,36 @@ class ItemEditViewModelTest {
 
         assertEquals(EditStatus.Gone, viewModel.state.value.status)
         assertEquals(ItemEditEffect.Close, viewModel.effects.first())
+    }
+
+    @Test
+    fun `Nueva desde el Generador recibe la contrasena una sola vez`() = runTest(dispatcher) {
+        handoff.put("Gen-Contrasena-77".toCharArray())
+        val viewModel = ItemEditViewModel(
+            SavedStateHandle(mapOf(ItemEditViewModel.GENERATED_ARG to true)), repository, estimator, handoff, dispatcher,
+        )
+        viewModel.requestPrefill()
+        runCurrent()
+
+        assertEquals("Gen-Contrasena-77", viewModel.state.value.prefill?.password)
+        assertEquals("", viewModel.state.value.prefill?.name)
+        assertFalse("ya se tomó: no queda otra copia", handoff.hasPending)
+
+        // Si la pantalla se recrea, ya no está: el formulario arranca vacío.
+        viewModel.onPrefillApplied()
+        viewModel.requestPrefill()
+        runCurrent()
+        assertNull(viewModel.state.value.prefill)
+    }
+
+    @Test
+    fun `una Nueva normal no toma lo que haya en la entrega`() = runTest(dispatcher) {
+        handoff.put("Sobra".toCharArray())
+        val viewModel = newForm()
+        viewModel.requestPrefill()
+        runCurrent()
+
+        assertNull(viewModel.state.value.prefill)
+        assertTrue(handoff.hasPending)
     }
 }

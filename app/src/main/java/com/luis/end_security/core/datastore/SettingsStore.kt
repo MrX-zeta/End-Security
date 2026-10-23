@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.intPreferencesKey
+import com.luis.end_security.core.crypto.GeneratorOptions
 import com.luis.end_security.core.security.ClipboardSettings
 import com.luis.end_security.core.session.AutoLockSettings
 import kotlinx.coroutines.flow.Flow
@@ -47,6 +48,29 @@ class SettingsStore @Inject constructor(
         .catch { error -> if (error is IOException) emit(emptyPreferences()) else throw error }
         .map { preferences -> ClipboardSettings.sanitize(preferences[Keys.CLIPBOARD_CLEAR_SECONDS]) }
 
+    /** Opciones del Generador (DEC-24): se recuerdan; la contraseña generada nunca se guarda. */
+    val generatorOptions: Flow<GeneratorOptions> = dataStore.data
+        .catch { error -> if (error is IOException) emit(emptyPreferences()) else throw error }
+        .map { preferences ->
+            GeneratorOptions(
+                length = preferences[Keys.GENERATOR_LENGTH] ?: GeneratorOptions.DEFAULT_LENGTH,
+                uppercase = preferences[Keys.GENERATOR_UPPER] ?: true,
+                digits = preferences[Keys.GENERATOR_DIGITS] ?: true,
+                symbols = preferences[Keys.GENERATOR_SYMBOLS] ?: true,
+                avoidAmbiguous = preferences[Keys.GENERATOR_AVOID_AMBIGUOUS] ?: false,
+            ).sanitized()
+        }
+
+    suspend fun setGeneratorOptions(options: GeneratorOptions) {
+        dataStore.edit { preferences ->
+            preferences[Keys.GENERATOR_LENGTH] = options.length
+            preferences[Keys.GENERATOR_UPPER] = options.uppercase
+            preferences[Keys.GENERATOR_DIGITS] = options.digits
+            preferences[Keys.GENERATOR_SYMBOLS] = options.symbols
+            preferences[Keys.GENERATOR_AVOID_AMBIGUOUS] = options.avoidAmbiguous
+        }
+    }
+
     suspend fun setOnboardingCompleted() {
         dataStore.edit { preferences -> preferences[Keys.ONBOARDING_COMPLETED] = true }
     }
@@ -56,5 +80,10 @@ class SettingsStore @Inject constructor(
         val BIOMETRIC_ENABLED = booleanPreferencesKey("biometric_enabled")
         val AUTOLOCK_MINUTES = intPreferencesKey("autolock_minutes")
         val CLIPBOARD_CLEAR_SECONDS = intPreferencesKey("clipboard_clear_seconds")
+        val GENERATOR_LENGTH = intPreferencesKey("generator_length")
+        val GENERATOR_UPPER = booleanPreferencesKey("generator_upper")
+        val GENERATOR_DIGITS = booleanPreferencesKey("generator_digits")
+        val GENERATOR_SYMBOLS = booleanPreferencesKey("generator_symbols")
+        val GENERATOR_AVOID_AMBIGUOUS = booleanPreferencesKey("generator_avoid_ambiguous")
     }
 }

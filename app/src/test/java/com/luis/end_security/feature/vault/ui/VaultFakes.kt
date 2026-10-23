@@ -13,6 +13,7 @@ import com.luis.end_security.feature.vault.domain.DeletionUndo
 import com.luis.end_security.feature.vault.domain.KeepVersion
 import com.luis.end_security.feature.vault.domain.ResolveResult
 import com.luis.end_security.feature.vault.domain.ItemDraft
+import com.luis.end_security.feature.vault.domain.PasswordHandoff
 import com.luis.end_security.feature.vault.domain.PendingDeletion
 import com.luis.end_security.feature.vault.domain.DamagedEntry
 import com.luis.end_security.feature.vault.domain.ReadableEntry
@@ -82,7 +83,7 @@ class FakeVaultRepository(initial: List<VaultEntry> = emptyList()) : VaultReposi
 
     override fun observeEntry(id: UUID): Flow<VaultEntry?> = entries.map { list -> list.firstOrNull { it.id == id } }
 
-    override suspend fun create(draft: ItemDraft): SaveResult {
+    override suspend fun create(draft: ItemDraft, createdAt: Instant?, passwordChangedAt: Instant?): SaveResult {
         created += draft
         return saveResult ?: SaveResult.Saved(UUID.randomUUID())
     }
@@ -160,4 +161,25 @@ class FakeConflictRepository : ConflictRepository {
     override fun clearResolved() {
         _lastResolved.value = null
     }
+}
+
+/** [PasswordHandoff] sin sesión: una sola copia que se borra al tomarla. */
+class FakePasswordHandoff : PasswordHandoff {
+    private var pending: CharArray? = null
+    var puts = 0
+
+    override fun put(password: CharArray) {
+        puts++
+        pending?.fill('\u0000')
+        pending = password.copyOf()
+    }
+
+    override fun take(): CharArray? = pending.also { pending = null }
+
+    override fun clear() {
+        pending?.fill('\u0000')
+        pending = null
+    }
+
+    val hasPending: Boolean get() = pending != null
 }

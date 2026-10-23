@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.luis.end_security.core.common.DefaultDispatcher
 import com.luis.end_security.feature.auth.domain.PasswordStrengthEstimator
 import com.luis.end_security.feature.vault.domain.ItemDraft
+import com.luis.end_security.feature.vault.domain.PasswordHandoff
 import com.luis.end_security.feature.vault.domain.ReadableEntry
 import com.luis.end_security.feature.vault.domain.SaveResult
 import com.luis.end_security.feature.vault.domain.VaultItem
@@ -87,11 +88,15 @@ class ItemEditViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val repository: VaultRepository,
     private val estimator: PasswordStrengthEstimator,
+    private val handoff: PasswordHandoff,
     @param:DefaultDispatcher private val defaultDispatcher: CoroutineDispatcher,
 ) : ViewModel() {
 
     private val itemId: UUID? = savedStateHandle.get<String>(ID_ARG)?.let { runCatching { UUID.fromString(it) }.getOrNull() }
     private val isNew = savedStateHandle.get<String>(ID_ARG) == null
+
+    // «Guardar en la bóveda» del Generador: la contraseña viene por memoria ([PasswordHandoff]), no por la ruta.
+    private val fromGenerator = isNew && savedStateHandle.get<Boolean>(GENERATED_ARG) == true
 
     private val _state = MutableStateFlow(ItemEditUiState(isNew = isNew, status = if (isNew) EditStatus.Ready else EditStatus.Loading))
     val state: StateFlow<ItemEditUiState> = _state.asStateFlow()
@@ -109,7 +114,10 @@ class ItemEditViewModel @Inject constructor(
      * Se leen de nuevo del repositorio; el ViewModel no los retiene.
      */
     fun requestPrefill() {
-        if (isNew) return
+        if (isNew) {
+            if (fromGenerator) applyGeneratedPassword()
+            return
+        }
         viewModelScope.launch {
             val loaded = itemId?.let { repository.entry(it) } as? ReadableEntry
             if (loaded == null) {
@@ -148,6 +156,18 @@ class ItemEditViewModel @Inject constructor(
                 _state.update { it.withErrors(nameError = false, error = null) }
             }
         }
+    }
+
+    /**
+     * Nueva contraseña desde el Generador: la contraseña se entrega **una sola vez** (se toma y se borra de la
+     * entrega). Si la pantalla se recrea (girar), ya no está y el formulario arranca vacío.
+     */
+    private fun applyGeneratedPassword() {
+        val taken = handoff.take() ?: return
+        val password = String(taken)
+        taken.fill('\u0000')
+        _state.update { it.withStatus(EditStatus.Ready, prefill = FormValues("", "", password, "", "")) }
+        onPasswordChanged(password)
     }
 
     /** La pantalla ya copió el [FormValues] a sus campos: se suelta el de este estado. */
@@ -252,8 +272,14 @@ class ItemEditViewModel @Inject constructor(
         isNew, status, prefill, strengthScore, nameError, isSaving, error, show,
     )
 
+    override fun onCleared() {
+        // Una contraseña generada que nadie tomó (p. ej. doble toque en «Guardar en la bóveda») no se queda en memoria.
+        if (fromGenerator) handoff.clear()
+    }
+
     companion object {
         const val ID_ARG = "id"
+        const val GENERATED_ARG = "generated"
         const val STRENGTH_DEBOUNCE_MILLIS = 150L
     }
 }

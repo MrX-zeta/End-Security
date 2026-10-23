@@ -47,9 +47,17 @@ object Routes {
     fun conflictItem(id: UUID): String = "conflict/$id"
 
     /** SCR-14: nueva contraseña (sin `id`) o editar una existente. */
-    const val VAULT_EDIT = "vault_edit?$ITEM_ID_ARG={$ITEM_ID_ARG}"
+    const val GENERATED_ARG = "generated"
+
+    const val VAULT_EDIT = "vault_edit?$ITEM_ID_ARG={$ITEM_ID_ARG}&$GENERATED_ARG={$GENERATED_ARG}"
 
     const val VAULT_NEW = "vault_edit"
+
+    /** «Guardar en la bóveda» desde el Generador: Nueva contraseña con la generada (va por memoria, no por la ruta). */
+    const val VAULT_NEW_GENERATED = "vault_edit?$GENERATED_ARG=true"
+
+    /** SCR-15: el Generador. */
+    const val GENERATOR = "generator"
 
     fun vaultEdit(id: UUID): String = "vault_edit?$ITEM_ID_ARG=$id"
 

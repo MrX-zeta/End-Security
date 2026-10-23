@@ -298,4 +298,23 @@
     <string name="conflict_error_unavailable">Esa versión no se puede conservar.</string>
     <string name="conflict_retry">Reintentar</string>
     <string name="conflict_selected">Seleccionada</string>
+
+    <!-- Generador (SCR-15, DEC-24) -->
+    <string name="generator_title_bold">Generador</string>
+    <string name="generator_title_regular">crea una contraseña segura</string>
+    <string name="generator_regenerate">Generar otra</string>
+    <string name="generator_copy">Copiar contraseña</string>
+    <string name="generator_length">Longitud</string>
+    <plurals name="generator_length_value">
+        <item quantity="one">%1$d carácter</item>
+        <item quantity="other">%1$d caracteres</item>
+    </plurals>
+    <string name="generator_upper">Mayúsculas (A–Z)</string>
+    <string name="generator_digits">Números (0–9)</string>
+    <string name="generator_symbols">Símbolos (!@#)</string>
+    <string name="generator_avoid">Evitar parecidos</string>
+    <string name="generator_avoid_hint">Como l, 1, O y 0</string>
+    <string name="generator_save">Guardar en la bóveda</string>
+    <string name="generator_use">Usar esta contraseña</string>
+    <string name="generator_password_description">Contraseña generada: %1$s</string>
 </resources>

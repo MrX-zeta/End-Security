@@ -6,6 +6,8 @@ import com.luis.end_security.core.sync.SyncEngine
 import com.luis.end_security.core.sync.SyncOutcome
 import com.luis.end_security.feature.vault.domain.ConflictRepository
 import com.luis.end_security.feature.vault.domain.DeletionUndo
+import com.luis.end_security.feature.vault.domain.GeneratorRepository
+import com.luis.end_security.feature.vault.domain.PasswordHandoff
 import com.luis.end_security.feature.vault.domain.VaultRepository
 import com.luis.end_security.feature.vault.domain.VaultSyncRepository
 import dagger.Binds
@@ -44,4 +46,10 @@ abstract class VaultDataModule {
 
     @Binds
     abstract fun bindDeletionUndo(impl: DeletionUndoController): DeletionUndo
+
+    @Binds
+    abstract fun bindGeneratorRepository(impl: GeneratorRepositoryImpl): GeneratorRepository
+
+    @Binds
+    abstract fun bindPasswordHandoff(impl: PasswordHandoffImpl): PasswordHandoff
 }

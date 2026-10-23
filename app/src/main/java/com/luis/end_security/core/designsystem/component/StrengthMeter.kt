@@ -22,6 +22,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.luis.end_security.core.designsystem.theme.EndSecurityTheme
 import com.luis.end_security.core.designsystem.theme.PreviewSurface
@@ -42,27 +43,33 @@ fun StrengthMeter(
     label: String?,
     modifier: Modifier = Modifier,
     labelColor: Color = color,
+    /** Ancho de cada barra: 52 en los formularios, 28 en el resultado del Generador (Figma 46:1026). */
+    barWidth: Dp = 52.dp,
+    /** La etiqueta debajo de las barras (Generador) en vez de a su lado. */
+    labelBelow: Boolean = false,
 ) {
     val emptyColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
-    Row(
-        modifier = modifier
-            .heightIn(min = 18.dp)
-            .clearAndSetSemantics {
-                if (label != null) {
-                    contentDescription = label
-                    liveRegion = LiveRegionMode.Polite
-                }
-            },
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
+    val semantics = Modifier
+        .heightIn(min = 18.dp)
+        .clearAndSetSemantics {
+            if (label != null) {
+                contentDescription = label
+                liveRegion = LiveRegionMode.Polite
+            }
+        }
+    @Composable
+    fun Bars() {
         repeat(StrengthMeterBars) { index ->
             Box(
                 modifier = Modifier
-                    .size(width = 52.dp, height = 6.dp)
+                    .size(width = barWidth, height = 6.dp)
                     .background(if (index < filledBars) color else emptyColor, BarShape),
             )
         }
+    }
+
+    @Composable
+    fun Label() {
         if (label != null) {
             Text(
                 text = label,
@@ -71,6 +78,21 @@ fun StrengthMeter(
                 color = labelColor,
                 maxLines = 1,
             )
+        }
+    }
+    if (labelBelow) {
+        Column(modifier = modifier.then(semantics), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) { Bars() }
+            Label()
+        }
+    } else {
+        Row(
+            modifier = modifier.then(semantics),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Bars()
+            Label()
         }
     }
 }

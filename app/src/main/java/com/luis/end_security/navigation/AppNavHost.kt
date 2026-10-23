@@ -15,6 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
+import com.luis.end_security.core.designsystem.component.BottomNavTab
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -36,6 +37,7 @@ import com.luis.end_security.feature.unlock.ui.UnlockRoute
 import com.luis.end_security.feature.vault.ui.VaultLoadingRoute
 import com.luis.end_security.feature.vault.ui.detail.ItemDetailRoute
 import com.luis.end_security.feature.vault.ui.edit.ItemEditRoute
+import com.luis.end_security.feature.vault.ui.generator.GeneratorRoute
 import com.luis.end_security.feature.vault.ui.conflict.ConflictDetailRoute
 import com.luis.end_security.feature.vault.ui.conflict.ConflictListRoute
 import com.luis.end_security.feature.vault.ui.list.VaultListRoute
@@ -68,6 +70,18 @@ private fun AppNavigation(route: String, modifier: Modifier = Modifier) {
     SystemBarsAppearance(darkBackground = false)
     val navController = rememberNavController()
     val lockGuardViewModel: LockGuardViewModel = hiltViewModel()
+    // Barra inferior (DEC-56): Bóveda y Generador ya navegan; Salud y Ajustes siguen como marcadores hasta que existan.
+    val onTabSelected: (BottomNavTab) -> Unit = { tab ->
+        when (tab) {
+            BottomNavTab.Vault -> navController.navigate(Routes.VAULT) {
+                popUpTo(Routes.VAULT) { inclusive = false }
+                launchSingleTop = true
+            }
+            BottomNavTab.Generator -> navController.navigate(Routes.GENERATOR) { launchSingleTop = true }
+            // TODO(DEC-56): Salud y Ajustes llevan a su raíz cuando existan.
+            BottomNavTab.Health, BottomNavTab.Settings -> Unit
+        }
+    }
     // Si la bóveda se bloquea: a Desbloquear (o a Iniciar sesión sin cuenta), sin nada debajo.
     LockGuard(
         viewModel = lockGuardViewModel,
@@ -128,12 +142,20 @@ private fun AppNavigation(route: String, modifier: Modifier = Modifier) {
                 onNavigateToLogin = { navController.navigateClearingStack(Routes.LOGIN) },
             )
         }
+        composable(Routes.GENERATOR, exitTransition = { ExitTransition.None }, popExitTransition = { ExitTransition.None }) {
+            RequireUnlocked(onLocked = lockGuardViewModel::onProtectedScreenLocked) {
+                GeneratorRoute(
+                    onTabSelected = onTabSelected,
+                    onOpenNewWithPassword = { navController.navigate(Routes.VAULT_NEW_GENERATED) { launchSingleTop = true } },
+                )
+            }
+        }
         composable(Routes.VAULT_LOADING, exitTransition = { ExitTransition.None }, popExitTransition = { ExitTransition.None }) {
             RequireUnlocked(onLocked = lockGuardViewModel::onProtectedScreenLocked) {
                 // OP-32: descarga inicial real y después a la Bóveda.
                 // TODO(DEC-56): cada pestaña lleva a su raíz cuando existan Salud, Generador y Ajustes.
                 VaultLoadingRoute(
-                    onTabSelected = {},
+                    onTabSelected = onTabSelected,
                     onDone = {
                         navController.navigate(Routes.VAULT) {
                             popUpTo(Routes.VAULT_LOADING) { inclusive = true }
@@ -146,7 +168,7 @@ private fun AppNavigation(route: String, modifier: Modifier = Modifier) {
             RequireUnlocked(onLocked = lockGuardViewModel::onProtectedScreenLocked) {
                 // TODO(DEC-56): Salud, Generador y Ajustes llevan a su raíz cuando existan.
                 VaultListRoute(
-                    onTabSelected = {},
+                    onTabSelected = onTabSelected,
                     onOpenItem = { id -> navController.navigate(Routes.vaultItem(id)) { launchSingleTop = true } },
                     onOpenNew = { navController.navigate(Routes.VAULT_NEW) { launchSingleTop = true } },
                     onOpenConflict = { id -> navController.navigate(Routes.conflictItem(id)) { launchSingleTop = true } },
@@ -159,7 +181,7 @@ private fun AppNavigation(route: String, modifier: Modifier = Modifier) {
                 ConflictListRoute(
                     onBack = { navController.popBackStack() },
                     onOpen = { id -> navController.navigate(Routes.conflictItem(id)) { launchSingleTop = true } },
-                    onTabSelected = {},
+                    onTabSelected = onTabSelected,
                 )
             }
         }
@@ -173,7 +195,7 @@ private fun AppNavigation(route: String, modifier: Modifier = Modifier) {
                 ConflictDetailRoute(
                     onClose = { navController.popBackStack() },
                     onBack = { navController.popBackStack() },
-                    onTabSelected = {},
+                    onTabSelected = onTabSelected,
                 )
             }
         }
@@ -190,7 +212,7 @@ private fun AppNavigation(route: String, modifier: Modifier = Modifier) {
                         itemId = itemId,
                         onBack = { navController.popBackStack() },
                         onEdit = { id -> navController.navigate(Routes.vaultEdit(id)) { launchSingleTop = true } },
-                        onTabSelected = {},
+                        onTabSelected = onTabSelected,
                     )
                 }
             }
@@ -204,15 +226,21 @@ private fun AppNavigation(route: String, modifier: Modifier = Modifier) {
                     nullable = true
                     defaultValue = null
                 },
+                navArgument(Routes.GENERATED_ARG) {
+                    type = NavType.BoolType
+                    defaultValue = false
+                },
             ),
             exitTransition = { ExitTransition.None },
             popExitTransition = { ExitTransition.None },
-        ) {
+        ) { entry ->
+            // Si vino de «Guardar en la bóveda» del Generador, al guardar se va a la Bóveda a ver la nueva.
+            val fromGenerator = entry.arguments?.getBoolean(Routes.GENERATED_ARG) == true
             RequireUnlocked(onLocked = lockGuardViewModel::onProtectedScreenLocked) {
                 ItemEditRoute(
                     onClose = { navController.popBackStack() },
-                    onSaved = { navController.popBackStack() },
-                    onTabSelected = {},
+                    onSaved = { if (fromGenerator) onTabSelected(BottomNavTab.Vault) else navController.popBackStack() },
+                    onTabSelected = onTabSelected,
                 )
             }
         }

@@ -75,6 +75,7 @@ import com.luis.end_security.core.security.SecureScreen
 import com.luis.end_security.feature.auth.ui.signup.PasswordStrengthLevel
 import com.luis.end_security.feature.auth.ui.signup.StrengthColorRole
 import com.luis.end_security.feature.vault.domain.ItemDraft
+import com.luis.end_security.feature.vault.ui.generator.GeneratorSheet
 
 /** Los cinco campos de SCR-14. Viven aquí, en memoria, y nunca en `rememberSaveable` (regla no negociable 6). */
 private class FormFields {
@@ -98,8 +99,9 @@ private class FormFields {
         notes = notes.text.toString().ifBlank { null },
     )
 
-    fun apply(values: FormValues) {
-        baseline = values
+    fun apply(values: FormValues, asBaseline: Boolean = true) {
+        // Una contraseña recién generada no era lo que había al abrir: salir sin guardar pide confirmación.
+        baseline = if (asBaseline) values else FormValues.EMPTY
         name.setTextAndPlaceCursorAtEnd(values.name)
         username.setTextAndPlaceCursorAtEnd(values.username)
         password.setTextAndPlaceCursorAtEnd(values.password)
@@ -123,6 +125,8 @@ fun ItemEditRoute(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val fields = remember { FormFields() }
     var passwordVisible by remember { mutableStateOf(false) }
+    // «Generar»: la hoja con el generador. No se guarda (`remember`, no `rememberSaveable`).
+    var showGenerator by remember { mutableStateOf(false) }
     // «Guardar» espera a que los campos tengan los datos: si la actividad se recrea (al girar) los
     // campos nacen vacíos y guardar así borraría la contraseña guardada.
     var formReady by remember(fields) { mutableStateOf(state.isNew) }
@@ -141,7 +145,7 @@ fun ItemEditRoute(
     LaunchedEffect(fields) { viewModel.requestPrefill() }
     LaunchedEffect(state.prefill) {
         state.prefill?.let {
-            fields.apply(it)
+            fields.apply(it, asBaseline = !state.isNew)
             formReady = true
             viewModel.onPrefillApplied()
         }
@@ -175,7 +179,17 @@ fun ItemEditRoute(
         onDiscardDismiss = viewModel::onDiscardDismiss,
         onReload = viewModel::onReload,
         onKeepMine = viewModel::onKeepMine,
+        onGenerate = { showGenerator = true },
     )
+    if (showGenerator) {
+        GeneratorSheet(
+            onUse = { generated ->
+                fields.password.setTextAndPlaceCursorAtEnd(generated)
+                showGenerator = false
+            },
+            onDismiss = { showGenerator = false },
+        )
+    }
 }
 
 @Composable
@@ -193,6 +207,7 @@ private fun ItemEditScreen(
     modifier: Modifier = Modifier,
     onReload: () -> Unit = {},
     onKeepMine: () -> Unit = {},
+    onGenerate: () -> Unit = {},
 ) {
     val focusManager = LocalFocusManager.current
     // Con el teclado abierto, la barra de abajo estorba: se oculta.
@@ -261,6 +276,7 @@ private fun ItemEditScreen(
                     visible = passwordVisible,
                     onVisibleChange = onPasswordVisibleChange,
                     strengthScore = state.strengthScore,
+                    onGenerate = onGenerate,
                 )
                 LabeledTextField(
                     state = fields.url,
@@ -328,13 +344,14 @@ private fun ItemEditScreen(
     }
 }
 
-/** Contraseña con el ojo, el botón «Generar» (aún deshabilitado) y el medidor de fuerza debajo. */
+/** Contraseña con el ojo, el botón «Generar» (abre el generador en una hoja) y el medidor de fuerza debajo. */
 @Composable
 private fun PasswordFieldWithMeter(
     fields: FormFields,
     visible: Boolean,
     onVisibleChange: (Boolean) -> Unit,
     strengthScore: Int?,
+    onGenerate: () -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         PasswordField(
@@ -344,12 +361,10 @@ private fun PasswordFieldWithMeter(
             onVisibleChange = onVisibleChange,
             imeAction = ImeAction.Next,
             extraAction = {
-                // TODO(tarea del Generador): genera una contraseña y la pone en el campo.
                 FieldActionButton(
                     icon = R.drawable.ic_dice_22,
                     contentDescription = stringResource(R.string.item_form_generate),
-                    onClick = {},
-                    enabled = false,
+                    onClick = onGenerate,
                 )
             },
         )
