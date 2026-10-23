@@ -2,15 +2,14 @@ package com.luis.end_security.feature.vault.ui.list
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.luis.end_security.core.designsystem.component.initialOf
 import com.luis.end_security.core.session.VaultSession
 import com.luis.end_security.core.session.VaultState
 import com.luis.end_security.feature.auth.domain.AuthRepository
-import com.luis.end_security.feature.vault.domain.DamagedEntry
+import com.luis.end_security.core.sync.SyncStatus
 import com.luis.end_security.feature.vault.domain.DeletionUndo
 import com.luis.end_security.feature.vault.domain.ItemSearch
-import com.luis.end_security.feature.vault.domain.ReadableEntry
-import com.luis.end_security.feature.vault.domain.UnsupportedEntry
-import com.luis.end_security.feature.vault.domain.VaultEntry
+import com.luis.end_security.feature.vault.domain.VaultSummary
 import com.luis.end_security.feature.vault.domain.VaultRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
@@ -33,18 +32,23 @@ sealed interface VaultRow {
         override fun toString(): String = "VaultRow.Item(***)"
     }
 
-    /** No se pudo descifrar: «Elemento dañado». */
+    /** No se pudo descifrar: «Elemento dañado». Abre un detalle mínimo con «Eliminar». */
     class Damaged(override val id: UUID) : VaultRow {
         override fun toString(): String = "VaultRow.Damaged(***)"
     }
 
-    /** De una versión más nueva de la app: solo lectura. */
+    /** De una versión más nueva de la app: «Actualiza la app para ver esta contraseña». Con «Eliminar». */
     class Newer(override val id: UUID) : VaultRow {
         override fun toString(): String = "VaultRow.Newer(***)"
     }
 }
 
-/** Estado de Bóveda · Lista y vacía (SCR-10, SCR-11). */
+/** El aviso «{nombre} se eliminó · Deshacer»; [name] es `null` si el elemento estaba dañado o era de otra versión. */
+class DeletedNotice(val name: String?) {
+    override fun toString(): String = "DeletedNotice(***)"
+}
+
+/** Estado de Bóveda · Lista y vacía (SCR-10, SCR-11) y sus avisos (SCR-18, SCR-44). */
 class VaultListUiState(
     /** Inicial del avatar de la cuenta. */
     val accountInitial: String = "?",
@@ -56,8 +60,11 @@ class VaultListUiState(
     val query: String = "",
     /** «Te quedan N códigos de respaldo» tras entrar con uno, si quedan 3 o menos. */
     val recoveryCodesLeft: Int? = null,
-    /** Nombre del elemento que se acaba de eliminar y aún se puede deshacer. */
-    val deletedName: String? = null,
+    val deleted: DeletedNotice? = null,
+    /** Contraseñas que cambiaron en dos dispositivos y esperan que se elija una versión (SCR-18). */
+    val conflictCount: Int = 0,
+    /** La última sincronización falló por falta de red (SCR-44). */
+    val offline: Boolean = false,
 ) {
     /** SCR-11: la bóveda no tiene ningún elemento. */
     val isEmpty: Boolean get() = !isLoading && totalCount == 0
@@ -72,13 +79,20 @@ sealed interface VaultListEffect {
     data class OpenItem(val id: UUID) : VaultListEffect
 
     data object OpenNew : VaultListEffect
+
+    /** Un solo conflicto: directo a «Elegir versión». */
+    data class OpenConflict(val id: UUID) : VaultListEffect
+
+    /** Varios: a «Por resolver». */
+    data object OpenConflicts : VaultListEffect
 }
 
 /**
  * La lista de la bóveda (OP-04, OP-07). Los elementos se descifran en memoria (en el repositorio, fuera
- * del hilo principal) y la búsqueda es local: el texto buscado vive aquí, nunca en `SavedStateHandle`
- * ni en disco, y se borra al bloquear. Con la bóveda bloqueada el repositorio emite una lista vacía,
- * así que el estado se vacía solo (hallazgo 3 de la tarea 09).
+ * del hilo principal) y **solo con nombre, usuario y sitio**: la lista no ve contraseñas ni notas. La
+ * búsqueda es local: el texto buscado vive aquí, nunca en `SavedStateHandle` ni en disco, y se borra al
+ * bloquear. Con la bóveda bloqueada el repositorio emite una lista vacía, así que el estado se vacía solo
+ * (hallazgo 3 de la tarea 09).
  */
 @HiltViewModel
 class VaultListViewModel @Inject constructor(
@@ -86,38 +100,48 @@ class VaultListViewModel @Inject constructor(
     private val session: VaultSession,
     private val deletion: DeletionUndo,
     private val auth: AuthRepository,
+    syncStatus: SyncStatus,
 ) : ViewModel() {
 
     private val query = MutableStateFlow("")
     private val recoveryCodesLeft = MutableStateFlow(auth.consumeRecoveryCodesNotice())
     private val accountInitial = MutableStateFlow("?")
+    private var conflictIds: List<UUID> = emptyList()
 
     private val _effects = Channel<VaultListEffect>(Channel.BUFFERED)
     val effects: Flow<VaultListEffect> = _effects.receiveAsFlow()
 
+    private class Extras(val codesLeft: Int?, val initial: String, val conflicts: List<UUID>, val offline: Boolean)
+
+    private val extras = combine(
+        recoveryCodesLeft, accountInitial, repository.observeConflictIds(), syncStatus.offline,
+    ) { codes, initial, conflicts, offline -> Extras(codes, initial, conflicts, offline) }
+
     val state: StateFlow<VaultListUiState> = combine(
-        repository.observeEntries(),
+        repository.observeSummaries(),
         query,
         deletion.pending,
-        recoveryCodesLeft,
-        accountInitial,
-    ) { entries, query, pending, codesLeft, initial ->
+        extras,
+    ) { entries, query, pending, extras ->
+        conflictIds = extras.conflicts
         val visible = entries.filter { it.id != pending?.id }
         VaultListUiState(
-            accountInitial = initial,
+            accountInitial = extras.initial,
             isLoading = false,
             rows = ItemSearch.sorted(visible).filteredBy(query).map { it.toRow() },
             totalCount = visible.size,
             query = query,
-            recoveryCodesLeft = codesLeft,
-            deletedName = pending?.name,
+            recoveryCodesLeft = extras.codesLeft,
+            deleted = pending?.let { DeletedNotice(it.name) },
+            conflictCount = extras.conflicts.size,
+            offline = extras.offline,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS), VaultListUiState())
 
     init {
         viewModelScope.launch {
             val name = auth.localAccountName()
-            accountInitial.value = name?.let { com.luis.end_security.core.designsystem.component.initialOf(it) } ?: "?"
+            accountInitial.value = name?.let { initialOf(it) } ?: "?"
         }
         viewModelScope.launch {
             session.state.collect { state ->
@@ -140,26 +164,33 @@ class VaultListViewModel @Inject constructor(
     fun onUndoDelete() = deletion.undo()
 
     fun onItemClick(row: VaultRow) {
-        // Un elemento dañado o de otra versión no tiene detalle: no se puede abrir ni editar.
-        if (row is VaultRow.Item) viewModelScope.launch { _effects.send(VaultListEffect.OpenItem(row.id)) }
+        // Todas las filas abren un detalle: el normal, o uno mínimo con «Eliminar» si está dañado o es de otra versión.
+        viewModelScope.launch { _effects.send(VaultListEffect.OpenItem(row.id)) }
     }
 
     fun onAddClick() {
         viewModelScope.launch { _effects.send(VaultListEffect.OpenNew) }
     }
 
-    private fun List<VaultEntry>.filteredBy(query: String): List<VaultEntry> =
-        if (query.isBlank()) this else filter { it is ReadableEntry && ItemSearch.matches(it.item, query) }
+    /** «Resolver»: con un solo conflicto, directo a «Elegir versión»; con varios, a «Por resolver». */
+    fun onResolveClick() {
+        val ids = conflictIds
+        viewModelScope.launch {
+            when (ids.size) {
+                0 -> Unit
+                1 -> _effects.send(VaultListEffect.OpenConflict(ids.single()))
+                else -> _effects.send(VaultListEffect.OpenConflicts)
+            }
+        }
+    }
 
-    private fun VaultEntry.toRow(): VaultRow = when (this) {
-        is ReadableEntry -> VaultRow.Item(
-            id = id,
-            name = item.name,
-            username = item.username,
-            initial = com.luis.end_security.core.designsystem.component.initialOf(item.name),
-        )
-        is DamagedEntry -> VaultRow.Damaged(id)
-        is UnsupportedEntry -> VaultRow.Newer(id)
+    private fun List<VaultSummary>.filteredBy(query: String): List<VaultSummary> =
+        if (query.isBlank()) this else filter { it is VaultSummary.Readable && ItemSearch.matches(it, query) }
+
+    private fun VaultSummary.toRow(): VaultRow = when (this) {
+        is VaultSummary.Readable -> VaultRow.Item(id = id, name = name, username = username, initial = initialOf(name))
+        is VaultSummary.Damaged -> VaultRow.Damaged(id)
+        is VaultSummary.Unsupported -> VaultRow.Newer(id)
     }
 
     private companion object {

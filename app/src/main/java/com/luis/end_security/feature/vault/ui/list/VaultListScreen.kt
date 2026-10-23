@@ -53,6 +53,7 @@ import com.luis.end_security.core.designsystem.component.LetterTile
 import com.luis.end_security.core.designsystem.component.MessageBar
 import com.luis.end_security.core.designsystem.component.NeumorphicDisc
 import com.luis.end_security.core.designsystem.component.NoticeCard
+import com.luis.end_security.core.designsystem.component.OfflineNotice
 import com.luis.end_security.core.designsystem.component.OrganicBlob
 import com.luis.end_security.core.designsystem.component.OutlinedIconButton
 import com.luis.end_security.core.designsystem.component.PrimaryButton
@@ -72,16 +73,22 @@ fun VaultListRoute(
     onTabSelected: (BottomNavTab) -> Unit,
     onOpenItem: (UUID) -> Unit,
     onOpenNew: () -> Unit,
+    onOpenConflict: (UUID) -> Unit,
+    onOpenConflicts: () -> Unit,
     viewModel: VaultListViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val currentOnOpenItem by rememberUpdatedState(onOpenItem)
     val currentOnOpenNew by rememberUpdatedState(onOpenNew)
+    val currentOnOpenConflict by rememberUpdatedState(onOpenConflict)
+    val currentOnOpenConflicts by rememberUpdatedState(onOpenConflicts)
     LaunchedEffect(viewModel) {
         viewModel.effects.collect { effect ->
             when (effect) {
                 is VaultListEffect.OpenItem -> currentOnOpenItem(effect.id)
                 VaultListEffect.OpenNew -> currentOnOpenNew()
+                is VaultListEffect.OpenConflict -> currentOnOpenConflict(effect.id)
+                VaultListEffect.OpenConflicts -> currentOnOpenConflicts()
             }
         }
     }
@@ -95,6 +102,7 @@ fun VaultListRoute(
         onItemClick = viewModel::onItemClick,
         onAddClick = viewModel::onAddClick,
         onUndoDelete = viewModel::onUndoDelete,
+        onResolve = viewModel::onResolveClick,
     )
 }
 
@@ -109,6 +117,7 @@ fun VaultListScreen(
     onAddClick: () -> Unit,
     onUndoDelete: () -> Unit,
     modifier: Modifier = Modifier,
+    onResolve: () -> Unit = {},
 ) {
     Column(
         modifier = modifier
@@ -124,6 +133,7 @@ fun VaultListScreen(
                     onQueryChange = onQueryChange,
                     onLockNow = onLockNow,
                     onItemClick = onItemClick,
+                    onResolve = onResolve,
                 )
             }
             // Abajo: el botón «+» y, si se acaba de eliminar algo, el aviso con «Deshacer».
@@ -145,9 +155,10 @@ fun VaultListScreen(
                             .offset(x = 8.dp),
                     )
                 }
-                state.deletedName?.let { name ->
+                state.deleted?.let { notice ->
                     MessageBar(
-                        text = stringResource(R.string.vault_deleted, name),
+                        text = notice.name?.let { stringResource(R.string.vault_deleted, it) }
+                            ?: stringResource(R.string.vault_deleted_generic),
                         icon = R.drawable.ic_trash_20,
                         actionLabel = stringResource(R.string.vault_undo),
                         onAction = onUndoDelete,
@@ -166,6 +177,7 @@ private fun ListContent(
     onQueryChange: (String) -> Unit,
     onLockNow: () -> Unit,
     onItemClick: (VaultRow) -> Unit,
+    onResolve: () -> Unit,
 ) {
     LazyColumn(
         modifier = Modifier
@@ -196,6 +208,20 @@ private fun ListContent(
                 onValueChange = onQueryChange,
                 placeholder = stringResource(R.string.vault_search_hint),
             )
+            // SCR-44: sin conexión, y SCR-18: contraseñas que cambiaron en dos dispositivos.
+            if (state.offline) {
+                Spacer(Modifier.height(16.dp))
+                OfflineNotice()
+            }
+            if (state.conflictCount > 0) {
+                Spacer(Modifier.height(16.dp))
+                MessageBar(
+                    text = pluralStringResource(R.plurals.vault_conflicts_notice, state.conflictCount, state.conflictCount),
+                    icon = R.drawable.ic_repeat_20,
+                    actionLabel = stringResource(R.string.vault_resolve),
+                    onAction = onResolve,
+                )
+            }
             Spacer(Modifier.height(16.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -278,7 +304,8 @@ private fun VaultItemRow(row: VaultRow, onClick: () -> Unit) {
             initial = "↑"
         }
     }
-    val clickable = row is VaultRow.Item
+    // Todas abren un detalle: el normal, o uno mínimo con «Eliminar» si está dañada o es de otra versión.
+    val clickable = true
     val openLabel = stringResource(R.string.vault_item_open, title)
     Row(
         modifier = Modifier
@@ -320,13 +347,11 @@ private fun VaultItemRow(row: VaultRow, onClick: () -> Unit) {
                 )
             }
         }
-        if (clickable) {
-            Icon(
-                painter = painterResource(R.drawable.ic_chevron_right_20),
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurface,
-            )
-        }
+        Icon(
+            painter = painterResource(R.drawable.ic_chevron_right_20),
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurface,
+        )
     }
 }
 
@@ -433,7 +458,7 @@ private fun VaultListUndoPreview() {
     PreviewSurface {
         VaultListScreen(
             state = VaultListUiState(
-                accountInitial = "L", isLoading = false, rows = PreviewRows, totalCount = 23, deletedName = "Gmail",
+                accountInitial = "L", isLoading = false, rows = PreviewRows, totalCount = 23, deleted = DeletedNotice("Gmail"),
             ),
             onTabSelected = {}, onQueryChange = {}, onLockNow = {}, onItemClick = {}, onAddClick = {}, onUndoDelete = {},
         )

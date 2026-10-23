@@ -124,6 +124,32 @@ class ItemEditViewModel @Inject constructor(
         }
     }
 
+    /**
+     * «Recargar» tras un conflicto al guardar: se descarta lo escrito y el formulario vuelve a llenarse con lo
+     * que hay ahora en el teléfono, con su `local_seq` nuevo.
+     */
+    fun onReload() {
+        _state.update { it.withErrors(nameError = false, error = null) }
+        requestPrefill()
+    }
+
+    /**
+     * «Conservar lo mío»: lo escrito se queda y el siguiente «Guardar» lo pone encima, tomando el `local_seq`
+     * actual como esperado. Solo ocurre porque la persona lo confirmó.
+     */
+    fun onKeepMine() {
+        viewModelScope.launch {
+            val current = itemId?.let { repository.entry(it) } as? ReadableEntry
+            if (current == null) {
+                _state.update { it.withStatus(EditStatus.Gone) }
+                close()
+            } else {
+                expectedLocalSeq = current.localSeq
+                _state.update { it.withErrors(nameError = false, error = null) }
+            }
+        }
+    }
+
     /** La pantalla ya copió el [FormValues] a sus campos: se suelta el de este estado. */
     fun onPrefillApplied() {
         _state.update { it.withStatus(it.status, prefill = null) }

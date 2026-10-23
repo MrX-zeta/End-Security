@@ -3,11 +3,21 @@ package com.luis.end_security.feature.vault.ui
 import com.luis.end_security.core.common.DeviceClock
 import com.luis.end_security.core.crypto.SecureBytes
 import com.luis.end_security.core.security.SecretClipboard
+import com.luis.end_security.core.sync.SyncStatus
 import com.luis.end_security.core.session.VaultSession
+import com.luis.end_security.feature.vault.domain.ConflictDetail
+import com.luis.end_security.feature.vault.domain.ConflictLoad
+import com.luis.end_security.feature.vault.domain.ConflictRepository
+import com.luis.end_security.feature.vault.domain.ConflictRow
 import com.luis.end_security.feature.vault.domain.DeletionUndo
+import com.luis.end_security.feature.vault.domain.KeepVersion
+import com.luis.end_security.feature.vault.domain.ResolveResult
 import com.luis.end_security.feature.vault.domain.ItemDraft
 import com.luis.end_security.feature.vault.domain.PendingDeletion
+import com.luis.end_security.feature.vault.domain.DamagedEntry
 import com.luis.end_security.feature.vault.domain.ReadableEntry
+import com.luis.end_security.feature.vault.domain.UnsupportedEntry
+import com.luis.end_security.feature.vault.domain.VaultSummary
 import com.luis.end_security.feature.vault.domain.SaveResult
 import com.luis.end_security.feature.vault.domain.VaultEntry
 import com.luis.end_security.feature.vault.domain.VaultItem
@@ -55,6 +65,21 @@ class FakeVaultRepository(initial: List<VaultEntry> = emptyList()) : VaultReposi
 
     override suspend fun entry(id: UUID): VaultEntry? = entries.value.firstOrNull { it.id == id }
 
+    /** Para la lista: lo mismo que las entradas, sin contraseña ni notas. */
+    override fun observeSummaries(): Flow<List<VaultSummary>> = entries.map { list ->
+        list.map { entry ->
+            when (entry) {
+                is ReadableEntry -> VaultSummary.Readable(entry.id, entry.localSeq, entry.item.name, entry.item.username, entry.item.url, false)
+                is DamagedEntry -> VaultSummary.Damaged(entry.id, entry.localSeq)
+                is UnsupportedEntry -> VaultSummary.Unsupported(entry.id, entry.localSeq)
+            }
+        }
+    }
+
+    val conflictIds = MutableStateFlow<List<UUID>>(emptyList())
+
+    override fun observeConflictIds(): Flow<List<UUID>> = conflictIds
+
     override fun observeEntry(id: UUID): Flow<VaultEntry?> = entries.map { list -> list.firstOrNull { it.id == id } }
 
     override suspend fun create(draft: ItemDraft): SaveResult {
@@ -68,6 +93,11 @@ class FakeVaultRepository(initial: List<VaultEntry> = emptyList()) : VaultReposi
     }
 
     override suspend fun delete(id: UUID, expectedLocalSeq: Long): Boolean = true
+}
+
+/** [SyncStatus] que se mueve a mano: «sin conexión» o no. */
+class FakeSyncStatus : SyncStatus {
+    override val offline = MutableStateFlow(false)
 }
 
 class FakeDeletionUndo : DeletionUndo {
@@ -97,5 +127,37 @@ class FakeSecretClipboard(private val seconds: Int = 30) : SecretClipboard {
     override suspend fun copy(text: String): Int {
         copied += text
         return seconds
+    }
+}
+
+/** [ConflictRepository] que se mueve a mano. */
+class FakeConflictRepository : ConflictRepository {
+    val conflicts = MutableStateFlow<List<ConflictRow>>(emptyList())
+    var loadResult: ConflictLoad = ConflictLoad.Failed
+    var resolveResult: ResolveResult = ResolveResult.Resolved("Netflix")
+    val resolved = mutableListOf<Pair<ConflictDetail, KeepVersion>>()
+    var loads = 0
+
+    private val _lastResolved = MutableStateFlow<String?>(null)
+    override val lastResolved: StateFlow<String?> = _lastResolved.asStateFlow()
+
+    fun noticeResolved(name: String?) {
+        _lastResolved.value = name
+    }
+
+    override fun observeConflicts(): Flow<List<ConflictRow>> = conflicts
+
+    override suspend fun load(id: UUID): ConflictLoad {
+        loads++
+        return loadResult
+    }
+
+    override suspend fun resolve(detail: ConflictDetail, keep: KeepVersion): ResolveResult {
+        resolved += detail to keep
+        return resolveResult
+    }
+
+    override fun clearResolved() {
+        _lastResolved.value = null
     }
 }

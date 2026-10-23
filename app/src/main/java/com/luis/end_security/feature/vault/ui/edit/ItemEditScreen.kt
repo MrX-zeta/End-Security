@@ -173,6 +173,8 @@ fun ItemEditRoute(
         onTabSelected = onTabSelected,
         onDiscardConfirm = viewModel::onDiscardConfirm,
         onDiscardDismiss = viewModel::onDiscardDismiss,
+        onReload = viewModel::onReload,
+        onKeepMine = viewModel::onKeepMine,
     )
 }
 
@@ -189,6 +191,8 @@ private fun ItemEditScreen(
     onDiscardConfirm: () -> Unit,
     onDiscardDismiss: () -> Unit,
     modifier: Modifier = Modifier,
+    onReload: () -> Unit = {},
+    onKeepMine: () -> Unit = {},
 ) {
     val focusManager = LocalFocusManager.current
     // Con el teclado abierto, la barra de abajo estorba: se oculta.
@@ -286,7 +290,22 @@ private fun ItemEditScreen(
             ) {
                 when (state.error) {
                     SaveError.Generic -> InlineErrorMessage(text = stringResource(R.string.item_form_error_generic))
-                    SaveError.Conflict -> InlineErrorMessage(text = stringResource(R.string.item_form_error_conflict))
+                    SaveError.Conflict -> {
+                        InlineErrorMessage(text = stringResource(R.string.item_form_error_conflict))
+                        // Recargar descarta lo escrito; conservarlo lo decide la persona.
+                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+                            SecondaryButton(
+                                text = stringResource(R.string.item_form_reload),
+                                onClick = onReload,
+                                modifier = Modifier.weight(1f),
+                            )
+                            SecondaryButton(
+                                text = stringResource(R.string.item_form_keep_mine),
+                                onClick = onKeepMine,
+                                modifier = Modifier.weight(1f),
+                            )
+                        }
+                    }
                     null -> Unit
                 }
                 PrimaryButton(

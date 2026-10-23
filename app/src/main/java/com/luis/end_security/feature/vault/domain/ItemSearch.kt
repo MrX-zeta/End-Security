@@ -14,17 +14,22 @@ object ItemSearch {
         diacritics.replace(Normalizer.normalize(text.trim(), Normalizer.Form.NFD), "").lowercase(Locale.ROOT)
 
     /** Por nombre, usuario y sitio. Una consulta vacía muestra todo. */
-    fun matches(item: VaultItem, query: String): Boolean {
+    fun matches(summary: VaultSummary.Readable, query: String): Boolean =
+        matches(summary.name, summary.username, summary.url, query)
+
+    fun matches(item: VaultItem, query: String): Boolean = matches(item.name, item.username, item.url, query)
+
+    private fun matches(name: String, username: String, url: String?, query: String): Boolean {
         val needle = normalize(query)
         if (needle.isEmpty()) return true
-        return normalize(item.name).contains(needle) ||
-            normalize(item.username).contains(needle) ||
-            item.url?.let { normalize(it).contains(needle) } == true
+        return normalize(name).contains(needle) ||
+            normalize(username).contains(needle) ||
+            url?.let { normalize(it).contains(needle) } == true
     }
 
     /** Alfabético por nombre (sin acentos ni mayúsculas); los dañados o de otra versión, al final. */
-    fun sorted(entries: List<VaultEntry>): List<VaultEntry> {
-        val (readable, others) = entries.partition { it is ReadableEntry }
-        return readable.sortedBy { normalize((it as ReadableEntry).item.name) } + others.sortedBy { it.id }
+    fun sorted(entries: List<VaultSummary>): List<VaultSummary> {
+        val (readable, others) = entries.partition { it is VaultSummary.Readable }
+        return readable.sortedBy { normalize((it as VaultSummary.Readable).name) } + others.sortedBy { it.id }
     }
 }

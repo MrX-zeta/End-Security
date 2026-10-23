@@ -10,6 +10,7 @@ import com.luis.end_security.feature.vault.domain.PendingDeletion
 import com.luis.end_security.feature.vault.domain.SaveResult
 import com.luis.end_security.feature.vault.domain.VaultEntry
 import com.luis.end_security.feature.vault.domain.VaultRepository
+import com.luis.end_security.feature.vault.domain.VaultSummary
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
@@ -47,6 +48,10 @@ class DeletionUndoControllerTest {
         override suspend fun entry(id: UUID): VaultEntry? = null
 
         override fun observeEntry(id: UUID): Flow<VaultEntry?> = emptyFlow()
+
+        override fun observeSummaries(): Flow<List<VaultSummary>> = emptyFlow()
+
+        override fun observeConflictIds(): Flow<List<UUID>> = emptyFlow()
 
         override suspend fun create(draft: ItemDraft): SaveResult = error("no se usa")
 

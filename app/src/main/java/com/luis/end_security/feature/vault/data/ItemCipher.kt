@@ -9,7 +9,10 @@ import com.luis.end_security.feature.vault.domain.VaultItem
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.decodeFromStream
+import java.io.ByteArrayInputStream
 import java.time.Instant
 import java.time.format.DateTimeParseException
 import java.util.UUID
@@ -29,6 +32,7 @@ class ItemFormatException : Exception()
  * Los campos desconocidos se ignoran al leer. Regla (DEC-29): un campo nuevo sube
  * `format_version`; si no, una app vieja que edite el elemento lo perdería sin aviso.
  */
+@OptIn(ExperimentalSerializationApi::class)
 object ItemCipher {
     const val FORMAT_VERSION = 1
 
@@ -69,8 +73,43 @@ object ItemCipher {
         }
     }
 
+    /**
+     * Para la lista: descifra y toma **solo** nombre, usuario y sitio. La contraseña y las notas no se
+     * guardan ni se devuelven (el decodificador las salta; puede armar un texto temporal que no se retiene) y los
+     * bytes se borran al terminar. Mismos errores que [decrypt].
+     */
+    fun decryptSummary(vaultKey: SecretReader, itemId: UUID, userId: UUID, formatVersion: Int, sealed: Sealed): ItemSummary {
+        val plaintext = vaultKey.withBytes { AesGcm.open(it, sealed, aad(itemId, userId, formatVersion)) }
+        try {
+            if (formatVersion != FORMAT_VERSION) throw ItemFormatException()
+            val summary = json.decodeFromStream(ItemSummaryJson.serializer(), ByteArrayInputStream(plaintext))
+            return ItemSummary(summary.name, summary.username, summary.url)
+        } catch (_: SerializationException) {
+            throw ItemFormatException()
+        } catch (_: IllegalArgumentException) {
+            throw ItemFormatException()
+        } finally {
+            plaintext.wipe()
+        }
+    }
+
     private fun aad(itemId: UUID, userId: UUID, formatVersion: Int): ByteArray =
         "$itemId|$userId|$formatVersion".toByteArray(Charsets.US_ASCII)
+}
+
+/** Nombre, usuario y sitio de un elemento: lo único que la lista necesita. */
+class ItemSummary(val name: String, val username: String, val url: String?) {
+    override fun toString(): String = "ItemSummary(***)"
+}
+
+/** Solo los campos de la lista de `json_elemento_v1`; el resto (contraseña, notas, fechas) se ignora al leer. */
+@Serializable
+internal class ItemSummaryJson(
+    @SerialName("name") val name: String,
+    @SerialName("username") val username: String,
+    @SerialName("url") val url: String? = null,
+) {
+    override fun toString(): String = "ItemSummaryJson(***)"
 }
 
 /** `json_elemento_v1` (DEC-29), con los nombres del grafo y fechas ISO-8601. */

@@ -135,7 +135,14 @@ fun ItemDetailScreen(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background),
     ) {
-        if (state.status != DetailStatus.Found) {
+        if (state.status == DetailStatus.Damaged || state.status == DetailStatus.Newer) {
+            UnreadableDetail(
+                newer = state.status == DetailStatus.Newer,
+                onBack = onBack,
+                onDelete = onDelete,
+                modifier = Modifier.weight(1f),
+            )
+        } else if (state.status != DetailStatus.Found) {
             // Cargando, eliminado o bloqueado: nada que mostrar.
             Box(modifier = Modifier.weight(1f))
         } else {
@@ -212,12 +219,55 @@ fun ItemDetailScreen(
         BottomNavBar(selected = BottomNavTab.Vault, onTabSelected = onTabSelected)
     }
     if (state.showDeleteSheet) {
-        DeleteConfirmationSheet(name = state.name, onConfirm = onDeleteConfirm, onDismiss = onDeleteDismiss)
+        DeleteConfirmationSheet(name = state.name.takeIf { it.isNotEmpty() }, onConfirm = onDeleteConfirm, onDismiss = onDeleteDismiss)
+    }
+}
+
+/**
+ * Detalle mínimo de un elemento dañado o de una versión más nueva: sin campos ni «Editar», solo «Eliminar»
+ * (nunca se reescribe con el formato viejo, DEC-04).
+ */
+@Composable
+private fun UnreadableDetail(newer: Boolean, onBack: () -> Unit, onDelete: () -> Unit, modifier: Modifier = Modifier) {
+    Column(modifier = modifier.statusBarsPadding()) {
+        TopBar(onBack = onBack, onEdit = null)
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 32.dp, vertical = 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            LetterTile(
+                letter = "?",
+                size = 85.dp,
+                cornerRadius = 24.dp,
+                container = MaterialTheme.colorScheme.onSurface,
+                textStyle = MaterialTheme.typography.headlineMedium.copy(fontSize = 40.sp),
+            )
+            Spacer(Modifier.height(16.dp))
+            Text(
+                text = stringResource(if (newer) R.string.item_newer_title else R.string.item_damaged_title),
+                style = MaterialTheme.typography.headlineMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.semantics { heading() },
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = stringResource(if (newer) R.string.item_newer_body else R.string.item_damaged_body),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+            )
+            Spacer(Modifier.height(20.dp))
+            DeleteLink(onClick = onDelete)
+        }
     }
 }
 
 @Composable
-private fun TopBar(onBack: () -> Unit, onEdit: () -> Unit) {
+private fun TopBar(onBack: () -> Unit, onEdit: (() -> Unit)?) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -235,12 +285,14 @@ private fun TopBar(onBack: () -> Unit, onEdit: () -> Unit) {
                 .padding(start = 14.dp)
                 .semantics { heading() },
         )
-        OutlinedIconButton(
-            icon = R.drawable.ic_pencil_20,
-            contentDescription = stringResource(R.string.item_edit),
-            onClick = onEdit,
-            size = 44.dp,
-        )
+        if (onEdit != null) {
+            OutlinedIconButton(
+                icon = R.drawable.ic_pencil_20,
+                contentDescription = stringResource(R.string.item_edit),
+                onClick = onEdit,
+                size = 44.dp,
+            )
+        }
     }
 }
 
@@ -347,7 +399,7 @@ private const val MAX_DOTS = 24
 /** SCR-16 · «¿Eliminar {nombre}?» en hoja inferior (Figma 62:2972). */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun DeleteConfirmationSheet(name: String, onConfirm: () -> Unit, onDismiss: () -> Unit) {
+private fun DeleteConfirmationSheet(name: String?, onConfirm: () -> Unit, onDismiss: () -> Unit) {
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
@@ -363,7 +415,7 @@ private fun DeleteConfirmationSheet(name: String, onConfirm: () -> Unit, onDismi
 
 @Composable
 private fun DeleteConfirmationContent(
-    name: String,
+    name: String?,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
@@ -387,7 +439,7 @@ private fun DeleteConfirmationContent(
         }
         Spacer(Modifier.height(16.dp))
         Text(
-            text = stringResource(R.string.item_delete_title, name),
+            text = name?.let { stringResource(R.string.item_delete_title, it) } ?: stringResource(R.string.item_delete_title_generic),
             style = MaterialTheme.typography.titleLarge,
             textAlign = TextAlign.Center,
             modifier = Modifier.semantics { heading() },

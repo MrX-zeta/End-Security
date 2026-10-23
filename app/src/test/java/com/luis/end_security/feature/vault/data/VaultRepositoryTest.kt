@@ -5,6 +5,8 @@ import com.luis.end_security.core.crypto.SecureBytes
 import com.luis.end_security.core.database.entity.SyncState
 import com.luis.end_security.core.database.entity.VaultItemEntity
 import com.luis.end_security.core.session.VaultSession
+import com.luis.end_security.core.sync.SyncTrigger
+import com.luis.end_security.core.sync.UploadGuard
 import com.luis.end_security.feature.vault.domain.DamagedEntry
 import com.luis.end_security.feature.vault.domain.ItemDraft
 import com.luis.end_security.feature.vault.domain.ReadableEntry
@@ -33,7 +35,17 @@ class VaultRepositoryTest {
     }
     private val session = VaultSession(clock)
     private val dao = FakeVaultItemDao()
-    private val repository = VaultRepositoryImpl(dao, session, clock, Dispatchers.Unconfined)
+    private val uploads = object : UploadGuard {
+        var uploading = false
+        override fun isUploading(id: UUID) = uploading
+    }
+    private val triggers = object : SyncTrigger {
+        var count = 0
+        override fun changed() {
+            count++
+        }
+    }
+    private val repository = VaultRepositoryImpl(dao, session, clock, Dispatchers.Unconfined, uploads, triggers)
     private val userId = UUID.fromString("0b9f3c2e-5d1a-4f7e-9a2b-6c8d1e4f7a90")
 
     @Before

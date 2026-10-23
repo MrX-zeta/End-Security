@@ -12,7 +12,7 @@ class ItemSearchTest {
     private fun item(name: String, username: String = "", url: String? = null) =
         VaultItem(name, username, "x", url, null, Instant.EPOCH, Instant.EPOCH)
 
-    private fun entry(name: String) = ReadableEntry(UUID.randomUUID(), 1, item(name))
+    private fun summary(name: String) = VaultSummary.Readable(UUID.randomUUID(), 1, name, "", null, false)
 
     @Test
     fun `busca sin acentos ni mayusculas`() {
@@ -41,17 +41,17 @@ class ItemSearchTest {
 
     @Test
     fun `el orden es alfabetico sin acentos ni mayusculas`() {
-        val sorted = ItemSearch.sorted(listOf(entry("zoom"), entry("Éter"), entry("amazon"), entry("Bbva"), entry("etsy")))
-        assertEquals(listOf("amazon", "Bbva", "Éter", "etsy", "zoom"), sorted.map { (it as ReadableEntry).item.name })
+        val sorted = ItemSearch.sorted(listOf(summary("zoom"), summary("Éter"), summary("amazon"), summary("Bbva"), summary("etsy")))
+        assertEquals(listOf("amazon", "Bbva", "Éter", "etsy", "zoom"), sorted.map { (it as VaultSummary.Readable).name })
     }
 
     @Test
     fun `los danados y los de otra version van al final`() {
-        val damaged = DamagedEntry(UUID.randomUUID(), 1)
-        val newer = UnsupportedEntry(UUID.randomUUID(), 1, 2)
-        val sorted = ItemSearch.sorted(listOf(damaged, entry("Zeta"), newer, entry("Alfa")))
-        assertEquals("Alfa", (sorted[0] as ReadableEntry).item.name)
-        assertEquals("Zeta", (sorted[1] as ReadableEntry).item.name)
-        assertTrue(sorted.drop(2).all { it !is ReadableEntry })
+        val damaged = VaultSummary.Damaged(UUID.randomUUID(), 1)
+        val newer = VaultSummary.Unsupported(UUID.randomUUID(), 1)
+        val sorted = ItemSearch.sorted(listOf(damaged, summary("Zeta"), newer, summary("Alfa")))
+        assertEquals("Alfa", (sorted[0] as VaultSummary.Readable).name)
+        assertEquals("Zeta", (sorted[1] as VaultSummary.Readable).name)
+        assertTrue(sorted.drop(2).all { it !is VaultSummary.Readable })
     }
 }

@@ -8,11 +8,14 @@ import com.luis.end_security.core.designsystem.component.initialOf
 import com.luis.end_security.core.security.SecretClipboard
 import com.luis.end_security.core.session.VaultSession
 import com.luis.end_security.core.session.VaultState
+import com.luis.end_security.feature.vault.domain.DamagedEntry
 import com.luis.end_security.feature.vault.domain.DeletionUndo
 import com.luis.end_security.feature.vault.domain.EditedAge
 import com.luis.end_security.feature.vault.domain.PendingDeletion
 import com.luis.end_security.feature.vault.domain.ReadableEntry
 import com.luis.end_security.feature.vault.domain.SiteUrl
+import com.luis.end_security.feature.vault.domain.UnsupportedEntry
+import com.luis.end_security.feature.vault.domain.VaultEntry
 import com.luis.end_security.feature.vault.domain.VaultItem
 import com.luis.end_security.feature.vault.domain.VaultRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -37,7 +40,11 @@ enum class CopiedKind { Password, Username }
 
 class CopiedNotice(val kind: CopiedKind, val seconds: Int)
 
-enum class DetailStatus { Loading, Found, Gone }
+/**
+ * [Damaged] y [Newer] son el detalle mínimo de un elemento que no se puede leer: dañado, o escrito por una
+ * versión más nueva de la app. Solo se puede eliminar; nunca se edita ni se reescribe.
+ */
+enum class DetailStatus { Loading, Found, Damaged, Newer, Gone }
 
 /**
  * Estado del detalle (SCR-12). La contraseña solo está aquí, como `String`, mientras se ve
@@ -102,6 +109,9 @@ class ItemDetailViewModel @Inject constructor(
 
     // El elemento completo, solo en memoria y solo mientras la bóveda está abierta.
     private var entry: ReadableEntry? = null
+
+    // Un elemento dañado o de otra versión: solo se necesita su `local_seq` para eliminarlo.
+    private var unreadable: VaultEntry? = null
     private var copiedJob: Job? = null
     private var closing = false
 
@@ -109,15 +119,28 @@ class ItemDetailViewModel @Inject constructor(
         viewModelScope.launch {
             // Solo este elemento: no se descifra toda la bóveda en cada cambio de Room.
             val changes = itemId?.let { repository.observeEntry(it) } ?: flowOf(null)
-            changes.collectLatest { entry ->
-                val current = entry as? ReadableEntry
-                if (current == null || deletion.pending.value?.id == itemId) onGone() else onFound(current)
+            changes.collectLatest { found ->
+                when {
+                    deletion.pending.value?.id == itemId -> onGone()
+                    found is ReadableEntry -> onFound(found)
+                    found is DamagedEntry -> onUnreadable(found, DetailStatus.Damaged)
+                    found is UnsupportedEntry -> onUnreadable(found, DetailStatus.Newer)
+                    else -> onGone()
+                }
             }
         }
     }
 
+    private fun onUnreadable(found: VaultEntry, status: DetailStatus) {
+        entry = null
+        unreadable = found
+        copiedJob?.cancel()
+        _state.update { old -> ItemDetailUiState(status = status, showDeleteSheet = old.showDeleteSheet) }
+    }
+
     private fun onFound(found: ReadableEntry) {
         entry = found
+        unreadable = null
         val item = found.item
         _state.update { old ->
             ItemDetailUiState(
@@ -141,6 +164,7 @@ class ItemDetailViewModel @Inject constructor(
     /** Ya no está (se eliminó, no se puede leer o la bóveda se bloqueó): se olvida todo lo descifrado. */
     private fun onGone() {
         entry = null
+        unreadable = null
         copiedJob?.cancel()
         _state.value = ItemDetailUiState(status = DetailStatus.Gone)
         // Con la bóveda bloqueada navega LockGuard; aquí solo se sale si el elemento desapareció.
@@ -190,9 +214,16 @@ class ItemDetailViewModel @Inject constructor(
 
     /** «Eliminar» (OP-03): el borrado espera 5 s a su «Deshacer» en la lista (SCR-17). */
     fun onDeleteConfirm() {
-        val current = entry ?: return
         if (closing) return
-        deletion.schedule(PendingDeletion(current.id, current.item.name, current.localSeq))
+        val readable = entry
+        val other = unreadable
+        val pending = when {
+            readable != null -> PendingDeletion(readable.id, readable.item.name, readable.localSeq)
+            // Dañado o de otra versión: se elimina sin nombre («Se eliminó una contraseña · Deshacer»).
+            other != null -> PendingDeletion(other.id, null, other.localSeq)
+            else -> return
+        }
+        deletion.schedule(pending)
         _state.update { it.copy(showDeleteSheet = false) }
         // A la lista, que ya oculta el elemento y muestra «Se eliminó · Deshacer».
         close()
@@ -200,6 +231,7 @@ class ItemDetailViewModel @Inject constructor(
 
     override fun onCleared() {
         entry = null
+        unreadable = null
     }
 
     private fun ItemDetailUiState.copy(

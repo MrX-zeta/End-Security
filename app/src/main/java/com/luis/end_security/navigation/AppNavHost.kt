@@ -36,6 +36,8 @@ import com.luis.end_security.feature.unlock.ui.UnlockRoute
 import com.luis.end_security.feature.vault.ui.VaultLoadingRoute
 import com.luis.end_security.feature.vault.ui.detail.ItemDetailRoute
 import com.luis.end_security.feature.vault.ui.edit.ItemEditRoute
+import com.luis.end_security.feature.vault.ui.conflict.ConflictDetailRoute
+import com.luis.end_security.feature.vault.ui.conflict.ConflictListRoute
 import com.luis.end_security.feature.vault.ui.list.VaultListRoute
 
 @Composable
@@ -147,6 +149,31 @@ private fun AppNavigation(route: String, modifier: Modifier = Modifier) {
                     onTabSelected = {},
                     onOpenItem = { id -> navController.navigate(Routes.vaultItem(id)) { launchSingleTop = true } },
                     onOpenNew = { navController.navigate(Routes.VAULT_NEW) { launchSingleTop = true } },
+                    onOpenConflict = { id -> navController.navigate(Routes.conflictItem(id)) { launchSingleTop = true } },
+                    onOpenConflicts = { navController.navigate(Routes.CONFLICTS) { launchSingleTop = true } },
+                )
+            }
+        }
+        composable(Routes.CONFLICTS, exitTransition = { ExitTransition.None }, popExitTransition = { ExitTransition.None }) {
+            RequireUnlocked(onLocked = lockGuardViewModel::onProtectedScreenLocked) {
+                ConflictListRoute(
+                    onBack = { navController.popBackStack() },
+                    onOpen = { id -> navController.navigate(Routes.conflictItem(id)) { launchSingleTop = true } },
+                    onTabSelected = {},
+                )
+            }
+        }
+        composable(
+            route = Routes.CONFLICT_ITEM,
+            arguments = listOf(navArgument(Routes.ITEM_ID_ARG) { type = NavType.StringType }),
+            exitTransition = { ExitTransition.None },
+            popExitTransition = { ExitTransition.None },
+        ) {
+            RequireUnlocked(onLocked = lockGuardViewModel::onProtectedScreenLocked) {
+                ConflictDetailRoute(
+                    onClose = { navController.popBackStack() },
+                    onBack = { navController.popBackStack() },
+                    onTabSelected = {},
                 )
             }
         }

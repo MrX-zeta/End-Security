@@ -42,6 +42,35 @@ class UnsupportedEntry(
     override fun toString(): String = "UnsupportedEntry(***)"
 }
 
+/**
+ * Lo que necesita la lista (SCR-10): nombre, usuario y sitio, **sin la contraseña ni las notas**. Se arma
+ * descifrando el bloque y tomando solo esos tres campos; el resto del JSON se borra al terminar.
+ */
+sealed interface VaultSummary {
+    val id: UUID
+    val localSeq: Long
+
+    class Readable(
+        override val id: UUID,
+        override val localSeq: Long,
+        val name: String,
+        val username: String,
+        val url: String?,
+        /** Hay una versión distinta en otro dispositivo (SCR-18…21). */
+        val inConflict: Boolean,
+    ) : VaultSummary {
+        override fun toString(): String = "VaultSummary.Readable(***)"
+    }
+
+    class Damaged(override val id: UUID, override val localSeq: Long) : VaultSummary {
+        override fun toString(): String = "VaultSummary.Damaged(***)"
+    }
+
+    class Unsupported(override val id: UUID, override val localSeq: Long) : VaultSummary {
+        override fun toString(): String = "VaultSummary.Unsupported(***)"
+    }
+}
+
 /** Los campos que escribe la persona al crear o editar (SCR-14). La contraseña es una `String` (DEC-27). */
 class ItemDraft(
     val name: String,
@@ -67,10 +96,10 @@ sealed interface SaveResult {
     data object Locked : SaveResult
 }
 
-/** Un borrado que espera su «Deshacer» (SCR-17). */
+/** Un borrado que espera su «Deshacer» (SCR-17). [name] es `null` para un elemento dañado o de otra versión. */
 class PendingDeletion(
     val id: UUID,
-    val name: String,
+    val name: String?,
     val localSeq: Long,
 ) {
     override fun equals(other: Any?): Boolean = other is PendingDeletion && id == other.id && localSeq == other.localSeq

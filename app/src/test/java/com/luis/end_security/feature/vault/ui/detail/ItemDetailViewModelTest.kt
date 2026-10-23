@@ -1,5 +1,7 @@
 package com.luis.end_security.feature.vault.ui.detail
 
+import com.luis.end_security.feature.vault.domain.UnsupportedEntry
+import com.luis.end_security.feature.vault.domain.DamagedEntry
 import androidx.lifecycle.SavedStateHandle
 import com.luis.end_security.feature.vault.domain.EditedAge
 import com.luis.end_security.feature.vault.ui.FakeDeletionUndo
@@ -211,5 +213,41 @@ class ItemDetailViewModelTest {
         assertEquals("Gmail personal", viewModel.state.value.name)
         assertEquals("otro@correo.com", viewModel.state.value.username)
         assertEquals(19, viewModel.state.value.passwordLength)
+    }
+
+    @Test
+    fun `un elemento danado abre el detalle minimo y se elimina sin nombre`() = runTest(dispatcher) {
+        val bad = DamagedEntry(UUID.randomUUID(), 7)
+        repository.entries.value = listOf(bad)
+        val viewModel = viewModel(bad.id)
+
+        assertEquals(DetailStatus.Damaged, viewModel.state.value.status)
+        assertEquals("", viewModel.state.value.name)
+
+        viewModel.onDeleteClick()
+        assertTrue(viewModel.state.value.showDeleteSheet)
+        viewModel.onDeleteConfirm()
+        runCurrent()
+
+        val scheduled = deletion.scheduled.single()
+        assertEquals(bad.id, scheduled.id)
+        assertNull("sin nombre: el aviso es generico", scheduled.name)
+        assertEquals(7L, scheduled.localSeq)
+        assertEquals(ItemDetailEffect.Close, viewModel.effects.first())
+    }
+
+    @Test
+    fun `un elemento de una version mas nueva abre el detalle minimo y no se lee ni se copia`() = runTest(dispatcher) {
+        val newer = UnsupportedEntry(UUID.randomUUID(), 3, 2)
+        repository.entries.value = listOf(newer)
+        val viewModel = viewModel(newer.id)
+
+        assertEquals(DetailStatus.Newer, viewModel.state.value.status)
+        viewModel.onCopyPassword()
+        runCurrent()
+        assertTrue("no hay nada que copiar", clipboard.copied.isEmpty())
+
+        viewModel.onDeleteConfirm()
+        assertNull(deletion.scheduled.single().name)
     }
 }

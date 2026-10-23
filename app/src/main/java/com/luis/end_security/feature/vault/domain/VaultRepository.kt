@@ -16,6 +16,15 @@ interface VaultRepository {
      */
     fun observeEntries(): Flow<List<VaultEntry>>
 
+    /**
+     * La lista (OP-04, OP-07): como [observeEntries] pero **sin contraseñas ni notas**. De cada bloque se toman
+     * solo nombre, usuario y sitio.
+     */
+    fun observeSummaries(): Flow<List<VaultSummary>>
+
+    /** Los elementos que esperan que se elija una versión (SCR-18). Incluye los eliminados en conflicto. */
+    fun observeConflictIds(): Flow<List<UUID>>
+
     /** OP-05: un elemento, o `null` si no existe o la bóveda está bloqueada. */
     suspend fun entry(id: UUID): VaultEntry?
 

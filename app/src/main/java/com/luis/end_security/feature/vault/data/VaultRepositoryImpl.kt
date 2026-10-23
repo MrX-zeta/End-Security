@@ -8,6 +8,8 @@ import com.luis.end_security.core.database.dao.VaultItemDao
 import com.luis.end_security.core.database.entity.SyncState
 import com.luis.end_security.core.database.entity.VaultItemEntity
 import com.luis.end_security.core.session.VaultLockedException
+import com.luis.end_security.core.sync.SyncTrigger
+import com.luis.end_security.core.sync.UploadGuard
 import com.luis.end_security.core.session.VaultSession
 import com.luis.end_security.core.session.VaultState
 import com.luis.end_security.feature.vault.domain.DamagedEntry
@@ -18,6 +20,7 @@ import com.luis.end_security.feature.vault.domain.UnsupportedEntry
 import com.luis.end_security.feature.vault.domain.VaultEntry
 import com.luis.end_security.feature.vault.domain.VaultItem
 import com.luis.end_security.feature.vault.domain.VaultRepository
+import com.luis.end_security.feature.vault.domain.VaultSummary
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -42,6 +45,8 @@ class VaultRepositoryImpl @Inject constructor(
     private val session: VaultSession,
     private val clock: DeviceClock,
     @param:DefaultDispatcher private val defaultDispatcher: CoroutineDispatcher,
+    private val uploads: UploadGuard,
+    private val syncTrigger: SyncTrigger,
 ) : VaultRepository {
 
     @OptIn(ExperimentalCoroutinesApi::class)
@@ -53,6 +58,19 @@ class VaultRepositoryImpl @Inject constructor(
             }
         }
         .flowOn(defaultDispatcher)
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    override fun observeSummaries(): Flow<List<VaultSummary>> = session.state
+        .flatMapLatest { state ->
+            when (state) {
+                VaultState.Locked -> flowOf(emptyList())
+                is VaultState.Unlocked -> dao.observeVisible().map { rows -> summarizeAll(rows, state.userId) }
+            }
+        }
+        .flowOn(defaultDispatcher)
+
+    override fun observeConflictIds(): Flow<List<UUID>> =
+        dao.observeConflictIds().map { ids -> ids.mapNotNull { runCatching { UUID.fromString(it) }.getOrNull() } }
 
     @OptIn(ExperimentalCoroutinesApi::class)
     override fun observeEntry(id: UUID): Flow<VaultEntry?> = session.state
@@ -95,6 +113,7 @@ class VaultRepositoryImpl @Inject constructor(
             return@withContext SaveResult.Locked
         }
         dao.insert(newRow(id, sealed, now))
+        syncTrigger.changed()
         SaveResult.Saved(id)
     }
 
@@ -111,15 +130,26 @@ class VaultRepositoryImpl @Inject constructor(
                 val changedAt = if (current.password == draft.password) current.passwordChangedAt else now
                 val item = draft.toItem(createdAt = current.createdAt, passwordChangedAt = changedAt)
                 val sealed = session.withVaultKey { key -> ItemCipher.encrypt(key, id, userId, item) }
-                val changed = dao.updateContent(id.toString(), sealed.nonce, sealed.ciphertext, expectedLocalSeq, now.toEpochMilli())
-                if (changed == 0) SaveResult.Conflict else SaveResult.Saved(id)
+                val changed = dao.updateContent(
+                    id.toString(), sealed.nonce, sealed.ciphertext, expectedLocalSeq, now.toEpochMilli(), row.formatVersion,
+                )
+                if (changed == 0) {
+                    SaveResult.Conflict
+                } else {
+                    syncTrigger.changed()
+                    SaveResult.Saved(id)
+                }
             } catch (_: VaultLockedException) {
                 SaveResult.Locked
             }
         }
 
-    override suspend fun delete(id: UUID, expectedLocalSeq: Long): Boolean =
-        dao.delete(id.toString(), expectedLocalSeq, clock.wallMillis())
+    override suspend fun delete(id: UUID, expectedLocalSeq: Long): Boolean {
+        // Con una subida en curso, la fila no se borra: queda lápida y el motor envía el DELETE al terminar.
+        val deleted = dao.delete(id.toString(), expectedLocalSeq, clock.wallMillis(), uploadInFlight = uploads.isUploading(id))
+        if (deleted) syncTrigger.changed()
+        return deleted
+    }
 
     // --- Ayudantes ---
 
@@ -128,6 +158,32 @@ class VaultRepositoryImpl @Inject constructor(
         rows.mapNotNull { toEntry(it, userId) }
     } catch (_: VaultLockedException) {
         emptyList()
+    }
+
+    private fun summarizeAll(rows: List<VaultItemEntity>, userId: UUID): List<VaultSummary> = try {
+        rows.mapNotNull { toSummary(it, userId) }
+    } catch (_: VaultLockedException) {
+        emptyList()
+    }
+
+    private fun toSummary(row: VaultItemEntity, userId: UUID): VaultSummary? {
+        val id = runCatching { UUID.fromString(row.id) }.getOrNull() ?: return null
+        val nonce = row.nonce
+        val ciphertext = row.ciphertext
+        if (nonce == null || ciphertext == null) return null // lápida
+        if (row.formatVersion > ItemCipher.FORMAT_VERSION) return VaultSummary.Unsupported(id, row.localSeq)
+        return try {
+            val summary = session.withVaultKey { key ->
+                ItemCipher.decryptSummary(key, id, userId, row.formatVersion, Sealed(nonce, ciphertext))
+            }
+            VaultSummary.Readable(id, row.localSeq, summary.name, summary.username, summary.url, row.syncState == SyncState.Conflict)
+        } catch (_: AuthenticationFailed) {
+            VaultSummary.Damaged(id, row.localSeq)
+        } catch (_: ItemFormatException) {
+            VaultSummary.Damaged(id, row.localSeq)
+        } catch (_: IllegalArgumentException) {
+            VaultSummary.Damaged(id, row.localSeq)
+        }
     }
 
     private fun toEntry(row: VaultItemEntity, userId: UUID): VaultEntry? {

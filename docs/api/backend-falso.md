@@ -51,3 +51,15 @@ el código del correo dura
 una vez. Un correo que no existe responde igual y tarda lo mismo que una contraseña incorrecta.
 
 No aplica el límite por IP (no hay IP) y el cambio de correo es mínimo. Lo demás se anota en el reporte de la tarea.
+
+## Sincronización y conflictos (tarea 12)
+
+- El backend falso responde también `GET /vault/items/{id}` (EP-26, contrato 1.2.0): la versión actual de un elemento, lápida incluida, o `404 not_found` si no existe. La app lo usa para «Elegir versión».
+- Con la app en depuración se puede simular al **otro dispositivo** sin un segundo teléfono: el receptor `app/src/debug/.../OtherDeviceReceiver` (solo existe en `debug`; el permiso `DUMP` lo limita a `adb shell`) escribe en el backend falso una versión distinta de un elemento, cifrada con la `vault_key` de la sesión abierta. La bóveda debe estar desbloqueada.
+
+  ```
+  adb -s emulator-5554 shell am broadcast -a com.luis.end_security.debug.OTHER_DEVICE -n com.luis.end_security/.debug.OtherDeviceReceiver --es name "Netflix" --es new_name "Netflix (otro)"
+  ```
+
+  Extras: `name` (nombre actual del elemento), `new_name` y `new_password` (opcionales), o `--ez delete true` para dejar una lápida. El resultado sale en logcat con la etiqueta `OtherDevice` (`ok` o el motivo del fallo, nunca datos).
+- Para un conflicto: en «Modo avión» o antes de que pasen los 2 s de la sincronización, edita un elemento en la app, manda el comando desde `adb` y vuelve a primer plano; el aviso «1 contraseña cambió en dos dispositivos» aparece en la Bóveda.

@@ -229,4 +229,67 @@ class ItemEditViewModelTest {
         viewModel.onPasswordChanged("")
         assertNull(viewModel.state.value.strengthScore)
     }
+
+    @Test
+    fun `Recargar tras un conflicto vuelve a llenar el formulario con lo nuevo y su local_seq`() = runTest(dispatcher) {
+        repository.saveResult = SaveResult.Conflict
+        val viewModel = editForm()
+        viewModel.onPrefillApplied()
+        viewModel.onSave(draft(name = "Lo que escribi"))
+        runCurrent()
+        assertEquals(SaveError.Conflict, viewModel.state.value.error)
+
+        // Otro cambio llegó a este teléfono mientras tanto.
+        repository.saveResult = null
+        repository.entries.value = listOf(
+            readable("Gmail nuevo", gmail.id, 9, item("Gmail nuevo", "otro@correo.com", "Clave-Nueva-55")),
+        )
+        viewModel.onReload()
+        runCurrent()
+
+        assertNull(viewModel.state.value.error)
+        assertEquals("Gmail nuevo", viewModel.state.value.prefill?.name)
+        viewModel.onPrefillApplied()
+        viewModel.onSave(draft(name = "Gmail nuevo"))
+        runCurrent()
+        assertEquals("guarda sobre el local_seq nuevo", 9L, repository.updated.last().second)
+    }
+
+    @Test
+    fun `Conservar lo mio toma el local_seq nuevo sin tocar lo escrito`() = runTest(dispatcher) {
+        repository.saveResult = SaveResult.Conflict
+        val viewModel = editForm()
+        viewModel.onPrefillApplied()
+        viewModel.onSave(draft(name = "Lo que escribi"))
+        runCurrent()
+        assertEquals(SaveError.Conflict, viewModel.state.value.error)
+
+        repository.saveResult = null
+        repository.entries.value = listOf(readable("Gmail nuevo", gmail.id, 9, item("Gmail nuevo")))
+        viewModel.onKeepMine()
+        runCurrent()
+
+        assertNull(viewModel.state.value.error)
+        assertNull("no se vuelve a llenar el formulario", viewModel.state.value.prefill)
+        viewModel.onSave(draft(name = "Lo que escribi"))
+        runCurrent()
+        val (_, seq, saved) = repository.updated.last()
+        assertEquals(9L, seq)
+        assertEquals("Lo que escribi", saved.name)
+    }
+
+    @Test
+    fun `Recargar o Conservar lo mio con el elemento ya eliminado cierra la pantalla`() = runTest(dispatcher) {
+        repository.saveResult = SaveResult.Conflict
+        val viewModel = editForm()
+        viewModel.onSave(draft())
+        runCurrent()
+
+        repository.entries.value = emptyList()
+        viewModel.onKeepMine()
+        runCurrent()
+
+        assertEquals(EditStatus.Gone, viewModel.state.value.status)
+        assertEquals(ItemEditEffect.Close, viewModel.effects.first())
+    }
 }

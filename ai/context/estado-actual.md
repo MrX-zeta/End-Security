@@ -15,7 +15,7 @@
   - Onboarding, registro y acceso, Bóveda, Generador, Salud (Resumen | Progreso), Ajustes, 2FA, dispositivos, actividad, contraseña maestra y eliminar cuenta.
   - Estados: copiada, eliminar con «Deshacer», conflictos agrupados («Por resolver» → «Elegir versión»), 5 pantallas de carga y 2 sin conexión.
   - 4 puntos de inicio del prototipo: App completa, Bóveda con sesión, Sin conexión · Bóveda, Sin conexión · Dispositivos.
-- Implementación (Claude Code, rama `development`): tareas 01 a 11 aprobadas (registro, acceso, 2FA y desbloqueo reales con backend falso; splash; Bóveda: lista, detalle, nueva/editar, eliminar con Deshacer). Tema Carbón y miel en Compose, componentes base, DEC-37 aplicado, onboarding SCR-01…03 con DataStore Iniciar sesión SCR-04 Crear cuenta SCR-05 (medidor zxcvbn4j, NFKC) Verificar correo SCR-06, 2FA SCR-07, código de respaldo SCR-08, Desbloquear SCR-09 y Bóveda · cargando SCR-39 con barra inferior, todo solo interfaz, con `SecureScreen` y `ExcludeFromAutofill` en `core/security`.
+- Implementación (Claude Code, rama `development`): tareas 01 a 11 aprobadas (registro, acceso, 2FA y desbloqueo reales con backend falso; splash; Bóveda: lista, detalle, nueva/editar, eliminar con Deshacer); tarea 12 hecha, en revisión (sincronización, sin conexión y conflictos). Tema Carbón y miel en Compose, componentes base, DEC-37 aplicado, onboarding SCR-01…03 con DataStore Iniciar sesión SCR-04 Crear cuenta SCR-05 (medidor zxcvbn4j, NFKC) Verificar correo SCR-06, 2FA SCR-07, código de respaldo SCR-08, Desbloquear SCR-09 y Bóveda · cargando SCR-39 con barra inferior, todo solo interfaz, con `SecureScreen` y `ExcludeFromAutofill` en `core/security`.
 - Relevo entre sesiones por `ai/handoff/` (`siguiente.md` ↔ `reporte.md`).
 - **Contrato de la API v1.2.0** (`docs/api/openapi.yaml` + `docs/api/README.md`, DEC-61): 26 endpoints. El backend lo hace otra persona del equipo; la app usa implementaciones falsas del contrato hasta unirlos.
 
@@ -28,7 +28,7 @@
 - `core/crypto`: Argon2id + HKDF (Bouncy Castle 1.86) con vectores de RFC 9106/5869 y vector propio; AES-256-GCM (JCA) con vectores de NIST, `SecureBytes` y envoltura de la `vault_key`; bloqueo local de Desbloquear en DataStore. Ícono instalado.
 - Base local: Room (solo bloques cifrados), `VaultSession` + `AutoLocker` (5 min por defecto), `LockGuard` e `ItemCipher` (JSON v1).
 - Alcance del backend en `docs/backend/README.md` (B1…B15), con syslog RFC 5424 de 5 niveles (DEC-62).
-- Tarea 12 en `ai/handoff/siguiente.md`: sincronización (OP-33/34), sin conexión (SCR-44) y conflictos (SCR-18…21).
+- Tarea 12 (`ai/handoff/reporte.md`): sincronización (OP-33/34), sin conexión (SCR-44) y conflictos (SCR-18…21) hechas; esperan la revisión humana.
 - Protección legal (PEND-12): lista de documentos en `docs/legal/README.md`; falta redactarlos y agregar la casilla en Crear cuenta y el grupo «Legal y ayuda» en Ajustes.
 
 ## Siguiente

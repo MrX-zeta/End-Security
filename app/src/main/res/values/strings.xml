@@ -229,9 +229,73 @@
     <string name="item_form_generate">Generar contraseña</string>
     <string name="item_form_save">Guardar</string>
     <string name="item_form_error_generic">No pudimos guardar. Intenta de nuevo.</string>
-    <string name="item_form_error_conflict">Esta contraseña cambió. Ciérrala y ábrela de nuevo.</string>
+    <string name="item_form_error_conflict">Esta contraseña cambió mientras la editabas. Recárgala o conserva lo que escribiste.</string>
     <string name="item_discard_title">¿Descartar cambios?</string>
     <string name="item_discard_body">Lo que escribiste todavía no se ha guardado.</string>
     <string name="item_discard_confirm">Descartar</string>
     <string name="item_discard_keep">Seguir editando</string>
+
+    <!-- Sincronización y conflictos (tarea 12; SCR-18…21, SCR-44) -->
+    <string name="vault_offline_notice">Sin conexión. Tus cambios se guardan y se subirán al reconectar.</string>
+    <plurals name="vault_conflicts_notice">
+        <item quantity="one">%d contraseña cambió en dos dispositivos</item>
+        <item quantity="many">%d contraseñas cambiaron en dos dispositivos</item>
+        <item quantity="other">%d contraseñas cambiaron en dos dispositivos</item>
+    </plurals>
+    <string name="vault_resolve">Resolver</string>
+    <string name="vault_deleted_generic">Se eliminó la contraseña</string>
+    <string name="item_damaged_title">No se puede abrir esta contraseña</string>
+    <string name="item_damaged_body">Su contenido no se pudo leer en este teléfono. Puedes eliminarla.</string>
+    <string name="item_newer_title">Actualiza la app para ver esta contraseña</string>
+    <string name="item_newer_body">Se guardó con una versión más nueva de End Security.</string>
+    <string name="item_delete_title_generic">¿Eliminar esta contraseña?</string>
+    <string name="item_form_reload">Recargar</string>
+    <string name="item_form_keep_mine">Conservar lo mío</string>
+
+    <string name="conflicts_title">Por resolver</string>
+    <plurals name="conflicts_heading_bold">
+        <item quantity="one">%d contraseña</item>
+        <item quantity="many">%d contraseñas</item>
+        <item quantity="other">%d contraseñas</item>
+    </plurals>
+    <plurals name="conflicts_heading_regular">
+        <item quantity="one">cambió en dos lugares</item>
+        <item quantity="many">cambiaron en dos lugares</item>
+        <item quantity="other">cambiaron en dos lugares</item>
+    </plurals>
+    <string name="conflicts_body">Se editaron en este teléfono y en otro dispositivo sin conexión. Elige qué versión conservar de cada una.</string>
+    <string name="conflicts_row_when">En este teléfono · %1$s</string>
+    <string name="conflicts_hint">Mientras tanto puedes seguir usándolas: se muestra la versión de este teléfono.</string>
+    <string name="conflicts_resolved">%1$s quedó resuelta</string>
+    <string name="conflicts_resolved_generic">La contraseña quedó resuelta</string>
+    <string name="conflicts_unnamed">Contraseña eliminada</string>
+    <string name="conflicts_when_today">hoy, %1$s</string>
+    <string name="conflicts_when_yesterday">ayer, %1$s</string>
+    <string name="conflicts_when_date">%1$s, %2$s</string>
+
+    <string name="conflict_title">Elige una versión</string>
+    <string name="conflict_heading_bold">%1$s cambió</string>
+    <string name="conflict_heading_bold_generic">Esta contraseña cambió</string>
+    <string name="conflict_heading_regular">en dos lugares a la vez</string>
+    <string name="conflict_body">Editaste esta contraseña en dos dispositivos sin conexión. Elige cuál conservar; la otra se descartará.</string>
+    <string name="conflict_here">En este teléfono</string>
+    <string name="conflict_there">En otro dispositivo</string>
+    <string name="conflict_field_name">Nombre</string>
+    <string name="conflict_field_username">Usuario</string>
+    <string name="conflict_field_password">Contraseña</string>
+    <string name="conflict_field_site">Sitio web</string>
+    <string name="conflict_field_notes">Notas</string>
+    <string name="conflict_empty_value">—</string>
+    <string name="conflict_deleted_here">Se eliminó en este teléfono</string>
+    <string name="conflict_deleted_there">Se eliminó en otro dispositivo</string>
+    <string name="conflict_unreadable">No se pudo abrir esta versión</string>
+    <string name="conflict_keep">Conservar esta versión</string>
+    <string name="conflict_keep_mine">Conservar la mía</string>
+    <string name="conflict_keep_other">Conservar la del otro dispositivo</string>
+    <string name="conflict_delete">Eliminarla</string>
+    <string name="conflict_error_offline">Necesitamos conexión para ver la otra versión.</string>
+    <string name="conflict_error_generic">No pudimos cargar la otra versión.</string>
+    <string name="conflict_error_unavailable">Esa versión no se puede conservar.</string>
+    <string name="conflict_retry">Reintentar</string>
+    <string name="conflict_selected">Seleccionada</string>
 </resources>

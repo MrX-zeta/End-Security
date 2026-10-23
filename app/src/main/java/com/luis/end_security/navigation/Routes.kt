@@ -38,6 +38,14 @@ object Routes {
 
     fun vaultItem(id: UUID): String = "vault_item/$id"
 
+    /** SCR-19: «Por resolver», la lista de contraseñas que cambiaron en dos dispositivos. */
+    const val CONFLICTS = "conflicts"
+
+    /** SCR-21: «Elegir versión» de un elemento en conflicto. */
+    const val CONFLICT_ITEM = "conflict/{$ITEM_ID_ARG}"
+
+    fun conflictItem(id: UUID): String = "conflict/$id"
+
     /** SCR-14: nueva contraseña (sin `id`) o editar una existente. */
     const val VAULT_EDIT = "vault_edit?$ITEM_ID_ARG={$ITEM_ID_ARG}"
 

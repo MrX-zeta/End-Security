@@ -7,6 +7,8 @@ import com.luis.end_security.core.common.DeviceClock
 import com.luis.end_security.core.crypto.SecureBytes
 import com.luis.end_security.core.database.AppDatabase
 import com.luis.end_security.core.session.VaultSession
+import com.luis.end_security.core.sync.SyncTrigger
+import com.luis.end_security.core.sync.UploadGuard
 import com.luis.end_security.feature.vault.data.VaultRepositoryImpl
 import com.luis.end_security.feature.vault.domain.ItemDraft
 import com.luis.end_security.feature.vault.domain.ReadableEntry
@@ -42,7 +44,15 @@ class VaultRepositoryDeviceTest {
             AppDatabase::class.java,
         ).build()
         session = VaultSession(clock).also { it.unlock(userId, SecureBytes.copyOf(ByteArray(32) { 7 })) }
-        repository = VaultRepositoryImpl(database.vaultItemDao(), session, clock, Dispatchers.Default)
+        repository = VaultRepositoryImpl(
+            database.vaultItemDao(), session, clock, Dispatchers.Default,
+            object : UploadGuard {
+                override fun isUploading(id: UUID) = false
+            },
+            object : SyncTrigger {
+                override fun changed() = Unit
+            },
+        )
     }
 
     @After
