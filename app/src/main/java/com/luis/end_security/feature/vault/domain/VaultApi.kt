@@ -47,6 +47,9 @@ interface VaultApi {
     /** EP-12: lápida. */
     suspend fun deleteItem(id: UUID, expectedVersion: Long): ApiResult<WriteResult>
 
+    /** EP-26: la versión actual de un elemento en el servidor, lápida incluida; `not_found` si ya no existe. Para resolver conflictos. */
+    suspend fun getItem(id: UUID): ApiResult<RemoteVaultItem>
+
     companion object {
         const val DEFAULT_PAGE_SIZE = 200
     }

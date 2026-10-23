@@ -93,6 +93,7 @@ class FakeServer(
             path.startsWith("/vault/items/") -> withSession(request) { _, user ->
                 val id = canonicalUuid(path.removePrefix("/vault/items/"))
                 when (request.method) {
+                    "GET" -> getItem(user, id)
                     "PUT" -> putItem(user, id, parse(body, PutItemRequestDto.serializer()))
                     "DELETE" -> deleteItem(user, id, query["expectedVersion"]?.toLongOrNull() ?: throw IllegalArgumentException())
                     else -> problem(404, "not_found")
@@ -369,6 +370,12 @@ class FakeServer(
                 currentRevision = user.vaultRevision,
             ),
         )
+    }
+
+    /** EP-26: la versión actual de un elemento, lápida incluida. */
+    private fun getItem(user: FakeUser, id: String): HttpResponse {
+        val item = state.items[id]?.takeIf { it.userId == user.id } ?: return problem(404, "not_found")
+        return ok(VaultItemDto.serializer(), item.toDto())
     }
 
     private fun putItem(user: FakeUser, id: String, dto: PutItemRequestDto): HttpResponse {

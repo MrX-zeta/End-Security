@@ -7,14 +7,16 @@ import com.luis.end_security.core.network.ApiMappers.toDomain
 import com.luis.end_security.core.network.Base64Url
 import com.luis.end_security.core.network.dto.PutItemRequestDto
 import com.luis.end_security.core.network.dto.VaultChangesDto
+import com.luis.end_security.core.network.dto.VaultItemDto
 import com.luis.end_security.core.network.dto.WriteResultDto
+import com.luis.end_security.feature.vault.domain.RemoteVaultItem
 import com.luis.end_security.feature.vault.domain.VaultApi
 import com.luis.end_security.feature.vault.domain.VaultChanges
 import com.luis.end_security.feature.vault.domain.WriteResult
 import java.util.UUID
 import javax.inject.Inject
 
-/** [VaultApi] sobre el contrato (EP-10…EP-12). */
+/** [VaultApi] sobre el contrato (EP-10…EP-12 y EP-26). */
 class VaultApiImpl @Inject constructor(
     private val client: ApiClient,
 ) : VaultApi {
@@ -36,6 +38,11 @@ class VaultApiImpl @Inject constructor(
     override suspend fun deleteItem(id: UUID, expectedVersion: Long): ApiResult<WriteResult> =
         client.call<Unit, WriteResultDto, WriteResult>(
             "DELETE", "/vault/items/$id?expectedVersion=$expectedVersion", null, null, WriteResultDto.serializer(), true,
+        ) { it.toDomain() }
+
+    override suspend fun getItem(id: UUID): ApiResult<RemoteVaultItem> =
+        client.call<Unit, VaultItemDto, RemoteVaultItem>(
+            "GET", "/vault/items/$id", null, null, VaultItemDto.serializer(), authenticated = true,
         ) { it.toDomain() }
 
     private fun WriteResultDto.toDomain() = WriteResult(

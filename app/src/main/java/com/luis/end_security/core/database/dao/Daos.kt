@@ -81,26 +81,159 @@ abstract class VaultItemDao {
     abstract fun observe(id: String): Flow<VaultItemEntity?>
 
     /**
-     * Elementos que llegan del servidor en la descarga inicial: quedan `synced` con su versión y
-     * revisión. Las lápidas se borran de Room (modelo de datos §8.2, «cambio remoto»).
+     * Aplica una página de `GET /vault/items` (OP-32/OP-33) y guarda el cursor **en la misma transacción**
+     * (modelo de datos §8.2): o quedan filas y cursor, o ninguno. Por cada cambio remoto:
+     *
+     * | Fila local | Cambio remoto |
+     * |---|---|
+     * | no existe | se guarda `synced`; una lápida no se guarda |
+     * | ya conoce esa versión (`server_version >= version`) | se ignora (es el eco de su propia subida) |
+     * | `synced` | se reemplaza, o se borra si es lápida |
+     * | `pending` o `conflict` | queda `conflict`; si las dos lados son lápida, se borra la fila |
+     *
+     * `local_seq` solo sube al reemplazar: una edición abierta con el valor anterior ya no pasa (regla 8, INV-27).
+     *
+     * [keepOnly] (descarga completa tras `410`): las filas `synced` que el servidor ya no tiene se borran;
+     * `pending` y `conflict` no se pierden.
      */
     @Transaction
-    open suspend fun applyRemote(items: List<VaultItemEntity>, tombstoneIds: List<String>) {
-        // Una fila `pending` o `conflict` tiene cambios sin subir: no se pisa ni se borra. Marcar
-        // el conflicto y resolverlo con la vault_key (ConflictResolver) toca a OP-33.
-        upsertAll(items.filter { isSyncedOrAbsent(it.id) }.map { remote ->
-            // `local_seq` solo sube: si una pantalla abrió la fila con un valor, el reemplazo remoto lo
-            // invalida (regla 8, INV-27); con 0 otra edición pasaría la comprobación sin ver el cambio.
-            val previous = get(remote.id)?.localSeq ?: -1L
-            VaultItemEntity(
-                remote.id, remote.formatVersion, remote.nonce, remote.ciphertext, remote.serverVersion,
-                remote.serverRevision, previous + 1, remote.syncState, remote.deletedAt, remote.updatedAt,
-            )
-        })
-        tombstoneIds.filter { isSyncedOrAbsent(it) }.forEach { deletePhysically(it) }
+    open suspend fun applyRemotePage(changes: List<RemoteRow>, cursor: Long, now: Long, keepOnly: Set<String>? = null) {
+        for (remote in changes) {
+            val local = get(remote.id)
+            when {
+                local == null -> if (!remote.deleted) upsertAll(listOf(remote.toEntity(localSeq = 0)))
+                local.serverVersion != null && remote.version <= local.serverVersion -> Unit
+                local.syncState == SyncState.Synced ->
+                    if (remote.deleted) deletePhysically(remote.id) else upsertAll(listOf(remote.toEntity(localSeq = local.localSeq + 1)))
+                // Lo local también está borrado (lápida pendiente) y el servidor también: no hay nada que resolver.
+                local.deletedAt != null && remote.deleted -> deletePhysically(remote.id)
+                // Mismo bloque (el nonce es aleatorio): es el eco de nuestra propia subida, que el servidor aceptó pero
+                // cuya respuesta no llegó. No es un conflicto; queda `synced` con la versión del servidor.
+                local.deletedAt == null && !remote.deleted && sameBlock(local, remote) ->
+                    upsertAll(listOf(remote.toEntity(localSeq = local.localSeq)))
+                else -> markConflict(remote.id)
+            }
+        }
+        updateSyncCursor(cursor, now)
+        keepOnly?.let { keep -> syncedIds().filter { it !in keep }.forEach { deletePhysically(it) } }
     }
 
-    private suspend fun isSyncedOrAbsent(id: String): Boolean = syncStateOf(id).let { it == null || it == SyncState.Synced }
+    private fun sameBlock(local: VaultItemEntity, remote: RemoteRow): Boolean {
+        val nonce = local.nonce
+        val ciphertext = local.ciphertext
+        return nonce != null && ciphertext != null && local.formatVersion == remote.formatVersion &&
+            nonce.contentEquals(remote.nonce) && ciphertext.contentEquals(remote.ciphertext)
+    }
+
+    /** Cursor y hora de la última sincronización (en la misma tabla `account`, dentro de la transacción de arriba). */
+    @Query("UPDATE account SET sync_cursor = :cursor, last_sync_at = :at")
+    protected abstract suspend fun updateSyncCursor(cursor: Long, at: Long)
+
+    @Query("SELECT id FROM vault_items WHERE sync_state = 'synced'")
+    protected abstract suspend fun syncedIds(): List<String>
+
+    // --- Subida (OP-34) ---
+
+    /** Los pendientes, en orden de `local_seq` (de uno en uno). Las lápidas pendientes incluidas. */
+    @Query("SELECT * FROM vault_items WHERE sync_state = 'pending' ORDER BY local_seq, id")
+    abstract suspend fun pendingRows(): List<VaultItemEntity>
+
+    /** Los que esperan que la persona elija una versión (SCR-18…21). */
+    @Query("SELECT * FROM vault_items WHERE sync_state = 'conflict' ORDER BY updated_at DESC")
+    abstract suspend fun conflictRows(): List<VaultItemEntity>
+
+    @Query("SELECT id FROM vault_items WHERE sync_state = 'conflict'")
+    abstract fun observeConflictIds(): Flow<List<String>>
+
+    /** Los conflictos con su bloque (lápidas incluidas), para «Por resolver». */
+    @Query("SELECT * FROM vault_items WHERE sync_state = 'conflict' ORDER BY updated_at DESC")
+    abstract fun observeConflicts(): Flow<List<VaultItemEntity>>
+
+    /** El servidor ya no tiene el elemento: deja de ser conflicto y se vuelve a crear (`pending`, sin versión). */
+    @Query(
+        """
+        UPDATE vault_items SET sync_state = 'pending', server_version = NULL, server_revision = NULL
+        WHERE id = :id AND local_seq = :expectedLocalSeq AND sync_state = 'conflict'
+        """,
+    )
+    abstract suspend fun reopenAsPending(id: String, expectedLocalSeq: Long): Int
+
+    /**
+     * Respuesta `created`/`updated` (§8.2): guarda la versión del servidor y, **solo si el `local_seq` no
+     * cambió durante la subida** y el elemento no se borró, queda `synced`; si no, sigue `pending`.
+     */
+    @Query(
+        """
+        UPDATE vault_items
+        SET server_version = :version, server_revision = :revision,
+            sync_state = CASE WHEN local_seq = :uploadedLocalSeq AND deleted_at IS NULL AND sync_state = 'pending'
+                              THEN 'synced' ELSE sync_state END
+        WHERE id = :id
+        """,
+    )
+    abstract suspend fun markUploaded(id: String, uploadedLocalSeq: Long, version: Long, revision: Long): Int
+
+    /** Respuesta `409` (§8.2). */
+    @Query("UPDATE vault_items SET sync_state = 'conflict' WHERE id = :id")
+    abstract suspend fun markConflict(id: String)
+
+    /** Respuesta `404` al editar (§8.2): se purgó en el servidor; se vuelve a crear. */
+    @Query("UPDATE vault_items SET server_version = NULL, server_revision = NULL WHERE id = :id")
+    abstract suspend fun clearServerVersion(id: String)
+
+    /** Respuesta `deleted` (§8.2): la lápida ya llegó al servidor; se borra la fila. */
+    @Query("DELETE FROM vault_items WHERE id = :id AND deleted_at IS NOT NULL")
+    abstract suspend fun removeTombstone(id: String)
+
+    // --- Resolver conflictos (OP-46, DEC-57) ---
+
+    /**
+     * Elige la versión del servidor: la fila local se reemplaza y queda `synced`. `local_seq` sube.
+     * `false` si el `local_seq` ya no coincide (se editó mientras tanto): no se pisa una edición reciente.
+     */
+    @Transaction
+    open suspend fun resolveWithRemote(remote: RemoteRow, expectedLocalSeq: Long): Boolean {
+        val local = get(remote.id) ?: return false
+        if (local.syncState != SyncState.Conflict || local.localSeq != expectedLocalSeq) return false
+        if (remote.deleted) deletePhysically(remote.id) else upsertAll(listOf(remote.toEntity(localSeq = local.localSeq + 1)))
+        return true
+    }
+
+    /**
+     * Elige la versión de este teléfono: el bloque nuevo (nonce nuevo) se guarda con la `server_version` del
+     * servidor y queda `pending` para subirse. `false` si el `local_seq` ya no coincide (se editó mientras tanto).
+     */
+    @Query(
+        """
+        UPDATE vault_items
+        SET nonce = :nonce, ciphertext = :ciphertext, server_version = :serverVersion, server_revision = :serverRevision,
+            local_seq = local_seq + 1, updated_at = :now, sync_state = 'pending'
+        WHERE id = :id AND local_seq = :expectedLocalSeq AND sync_state = 'conflict'
+        """,
+    )
+    abstract suspend fun resolveKeepingLocal(
+        id: String,
+        nonce: ByteArray,
+        ciphertext: ByteArray,
+        serverVersion: Long,
+        serverRevision: Long,
+        expectedLocalSeq: Long,
+        now: Long,
+    ): Int
+
+    /**
+     * Conservar la mía cuando la del servidor es una lápida (o cuando la mía es la lápida): la lápida local
+     * queda `pending` con la `server_version` que dice el servidor, para que el `DELETE` pase.
+     */
+    @Query(
+        """
+        UPDATE vault_items
+        SET server_version = :serverVersion, server_revision = :serverRevision, local_seq = local_seq + 1,
+            updated_at = :now, sync_state = 'pending'
+        WHERE id = :id AND local_seq = :expectedLocalSeq AND sync_state = 'conflict'
+        """,
+    )
+    abstract suspend fun resolveRekeep(id: String, serverVersion: Long, serverRevision: Long, expectedLocalSeq: Long, now: Long): Int
 
     @Query("SELECT sync_state FROM vault_items WHERE id = :id")
     protected abstract suspend fun syncStateOf(id: String): SyncState?
@@ -114,28 +247,39 @@ abstract class VaultItemDao {
 
     /**
      * Editar (OP-02): bloque nuevo, `local_seq + 1` y `pending` (un `conflict` se queda en
-     * `conflict`). Devuelve las filas cambiadas: 0 si el `local_seq` esperado no coincide.
+     * `conflict`). Devuelve las filas cambiadas: 0 si el `local_seq` esperado no coincide o si la fila es de otra
+     * `format_version` (defensa en profundidad: una versión más nueva nunca se reescribe con el formato viejo).
      */
     @Query(
         """
         UPDATE vault_items
         SET nonce = :nonce, ciphertext = :ciphertext, local_seq = local_seq + 1, updated_at = :now,
             sync_state = CASE WHEN sync_state = 'conflict' THEN 'conflict' ELSE 'pending' END
-        WHERE id = :id AND local_seq = :expectedLocalSeq AND deleted_at IS NULL
+        WHERE id = :id AND local_seq = :expectedLocalSeq AND deleted_at IS NULL AND format_version = :formatVersion
         """,
     )
-    abstract suspend fun updateContent(id: String, nonce: ByteArray, ciphertext: ByteArray, expectedLocalSeq: Long, now: Long): Int
+    abstract suspend fun updateContent(
+        id: String,
+        nonce: ByteArray,
+        ciphertext: ByteArray,
+        expectedLocalSeq: Long,
+        now: Long,
+        formatVersion: Int,
+    ): Int
 
     /**
      * Borrar (OP-03): si nunca se subió, se borra la fila; si ya está en el servidor, queda una
      * lápida (`nonce`/`ciphertext` en `null`, `pending`) para subir el borrado. `false` si el
-     * elemento no existe o el `local_seq` esperado no coincide.
+     * elemento no existe o el `local_seq` esperado no coincide. [uploadInFlight]: el motor de sincronización
+     * lo está subiendo ahora mismo.
      */
     @Transaction
-    open suspend fun delete(id: String, expectedLocalSeq: Long, now: Long): Boolean {
+    open suspend fun delete(id: String, expectedLocalSeq: Long, now: Long, uploadInFlight: Boolean = false): Boolean {
         val item = get(id) ?: return false
         if (item.localSeq != expectedLocalSeq || item.deletedAt != null) return false
-        if (item.serverVersion == null) {
+        // Con una subida en curso no se borra la fila: el servidor va a recibirlo, así que queda lápida
+        // `pending` y al terminar la subida se envía el DELETE (tarea 12, borrar mientras se sube).
+        if (item.serverVersion == null && !uploadInFlight) {
             deletePhysically(id)
         } else {
             tombstone(id, now)
@@ -182,4 +326,34 @@ abstract class HealthSnapshotDao {
     /** Conserva 12 meses: borra los días anteriores a [firstDayToKeep] (`AAAA-MM-DD`). */
     @Query("DELETE FROM health_snapshots WHERE day < :firstDayToKeep")
     abstract suspend fun deleteBefore(firstDayToKeep: String)
+}
+
+/**
+ * Un cambio que viene del servidor (`VaultItem` del contrato) tal como lo necesita Room: solo el bloque cifrado.
+ * Una lápida lleva `nonce` y `ciphertext` en `null`.
+ */
+class RemoteRow(
+    val id: String,
+    val version: Long,
+    val revision: Long,
+    val formatVersion: Int,
+    val nonce: ByteArray?,
+    val ciphertext: ByteArray?,
+    val deleted: Boolean,
+    val updatedAt: Long,
+) {
+    fun toEntity(localSeq: Long) = VaultItemEntity(
+        id = id,
+        formatVersion = formatVersion,
+        nonce = nonce,
+        ciphertext = ciphertext,
+        serverVersion = version,
+        serverRevision = revision,
+        localSeq = localSeq,
+        syncState = SyncState.Synced,
+        deletedAt = if (deleted) updatedAt else null,
+        updatedAt = updatedAt,
+    )
+
+    override fun toString(): String = "RemoteRow(id=$id, version=$version, deleted=$deleted)"
 }
