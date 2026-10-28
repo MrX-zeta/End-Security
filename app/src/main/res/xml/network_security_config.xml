@@ -10,4 +10,11 @@
             <certificates src="system" />
         </trust-anchors>
     </base-config>
+    <!-- Have I Been Pwned (DEC-21): sin pinning, con las autoridades del sistema. -->
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="false">api.pwnedpasswords.com</domain>
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </domain-config>
 </network-security-config>

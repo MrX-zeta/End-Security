@@ -14,6 +14,9 @@ object Hashes {
 
     fun sha256(data: ByteArray): ByteArray = MessageDigest.getInstance("SHA-256").digest(data)
 
+    /** Solo para el prefijo de Have I Been Pwned (DEC-21): su API pide SHA-1. No protege nada por sí mismo. */
+    fun sha1(data: ByteArray): ByteArray = MessageDigest.getInstance("SHA-1").digest(data)
+
     /** Comparación en tiempo constante (`.claude/rules/crypto.md`). */
     fun constantTimeEquals(a: ByteArray, b: ByteArray): Boolean = MessageDigest.isEqual(a, b)
 

@@ -310,6 +310,9 @@ abstract class BreachCheckDao {
 
     @Query("SELECT * FROM breach_checks WHERE item_id = :itemId")
     abstract suspend fun get(itemId: String): BreachCheckEntity?
+
+    @Query("SELECT * FROM breach_checks")
+    abstract suspend fun getAll(): List<BreachCheckEntity>
 }
 
 /** Historial cifrado de la salud (TBL-L-HEALTH). */

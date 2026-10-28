@@ -2,6 +2,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- Have I Been Pwned (DEC-21): la app consulta la range API directo, solo con el prefijo del SHA-1. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
     <!-- Solo para saber cuándo vuelve la red y reintentar la sincronización. -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
