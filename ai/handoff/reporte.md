@@ -1,58 +1,63 @@
-# Reporte · Tarea 13 · Cabos de la sincronización y Generador (SCR-15, OP-08)
+# Reporte · Tarea 14 · Salud (SCR-22…28, SCR-40; OP-09, OP-10, OP-44, OP-45)
 
 **Estado:** hecha
-**Fecha:** 2026-10-22
+**Fecha:** 2026-10-28
 
-**REQUIERE REVISIÓN HUMANA:** `PasswordGenerator` (aleatoriedad), la entrega de la contraseña generada (`PasswordHandoff`), el cierre de sesión con la sincronización (`SyncScheduler.stop`, `SyncEngine`) y SQL/rescate de borrado. Pasó por el subagente `security-reviewer` (ver abajo).
+**REQUIERE REVISIÓN HUMANA:** análisis que descifra toda la bóveda (`HealthRepositoryImpl`), la caché cifrada de HIBP y las fotos diarias (`HealthStores`), el cliente de red (`HibpClient`, permiso `INTERNET`) y SQL de Room. Pasó por el subagente `security-reviewer` (ver abajo).
 
 ## Qué se hizo
 
-### Paso 1 · Cabos de la tarea 12
-1. **Descarga completa tras `410`:** el cursor no avanza hasta la última página; si se interrumpe, la siguiente ejecución recibe otra vez `410` y empieza desde cero. Prueba: 205 elementos, se corta en la segunda página (cursor intacto, el «fantasma» sigue), y la segunda pasada reconcilia y lo quita.
-2. **DELETE de rescate:** la lápida `pending` (con la versión del servidor) se escribe **antes** del DELETE y sin poder cancelarse; solo se quita si el servidor confirma (o responde `not_found`). Si falla, se reintenta en la siguiente ejecución. Prueba con el DELETE rechazado y luego aceptado.
-3. **«Conservar la mía» ante una lápida remota:** conserva `createdAt` y `password_changed_at` originales (`VaultRepository.create(draft, createdAt, passwordChangedAt)`). Prueba en `ConflictResolverTest`.
-4. **Cerrar sesión:** `signOutLocally` llama a `SyncShutdown.stop { clearAllTables() }`: cancela el job, quita el `SyncWorker` periódico, impide que cualquier disparador arranque otra pasada y ejecuta el borrado **dentro del mutex del motor** (`SyncEngine.whileIdle`). Prueba de que `whileIdle` espera a una subida en curso.
+### Paso 1 · Análisis (`feature/health/domain`)
+- **`HealthAnalyzer`** (Kotlin puro): fuerza con el mismo estimador (débil 0–1, regular 2, fuerte 3–4), repetidas por SHA-256 **en memoria** (no se guarda ni el hash ni el grupo), antigua = más de 365 días, filtrada = cuenta de HIBP > 0. Niveles: Crítico = filtrada; Alto = repetida o débil; Medio = regular o antigua; Bajo = el resto. Puntuación `round(100 × promedio(pesos))` con 1,0 / 0,7 / 0,35 / 0; sin elementos no hay puntuación. Mensajes en 90, 70 y 50. El resultado (`HealthReport`/`ItemHealth`) **no lleva contraseñas**: solo ids, nombres, niveles, largos, cuentas y fechas.
+- **`HealthRepositoryImpl`:** descifra solo durante el análisis (`Dispatchers.Default`); dañados y de versión desconocida no cuentan; el estado se vacía al bloquear.
+- **Progreso (`HealthProgressCalculator`):** un punto por semana (el último valor), «+N puntos … de X a Y», «fortalecidas este mes», «filtradas resueltas» (máximo del mes menos hoy, mínimo 0) y la distribución por fuerza.
+- **Foto diaria (OP-45):** una fila cifrada por día local (reemplaza la de hoy), solo totales (INV-29), y se borran las de más de 12 meses.
 
-### Paso 2 · Generador (SCR-15, DEC-24)
-- **`PasswordGenerator`** (`core/crypto`): solo `SecureRandom` con `nextInt(bound)` (sin sesgo de módulo), al menos un carácter de cada clase activa, Fisher-Yates, devuelve `CharArray`. Longitud 8–64 (16 por omisión), minúsculas siempre, símbolos `!@#$%^&*()-_=+[]{};:,.?/`, «Evitar parecidos» quita `l 1 I O 0 |`.
-- **Opciones** en DataStore (`generator_length`, `generator_upper`, `generator_digits`, `generator_symbols`, `generator_avoid_ambiguous`); la contraseña **nunca** se guarda en disco y se genera de nuevo al abrir.
-- **Pantalla** (Figma `46:996`): título en dos pesos, resultado en monoespaciada sobre la tarjeta oscura con medidor (barras de 28 dp y la etiqueta debajo), dado («Generar otra») y copiar; «Longitud» con deslizador (pista de 4 dp, disco de 24 dp); cuatro interruptores con el carácter que agregan (`A`, `1`, `#`, `Il`) y «Guardar en la bóveda». La pestaña **Generador** de la barra inferior ya navega (y **Bóveda** vuelve); Salud y Ajustes siguen como marcadores.
-- **Copiar** usa `SecretClipboard` (DEC-25), con el aviso «Copiada · se borra del portapapeles en N s».
-- **«Guardar en la bóveda»:** `PasswordHandoff` (memoria, una sola copia, se borra al tomarla o al bloquear, y solo se guarda con la bóveda abierta) → Nueva contraseña con el campo ya lleno; **no** viaja por la ruta ni por `SavedStateHandle`. Al salir sin guardar pide confirmación (la generada cuenta como cambio). Al guardar desde aquí se va a la Bóveda para ver la nueva.
-- **«Generar» en Nueva/editar:** ya no está deshabilitado; abre el mismo generador en una **hoja inferior** (FLAG_SECURE de su ventana) con «Usar esta contraseña», que la devuelve al campo.
-- **Seguridad de pantalla:** `SecureScreen()` en la pantalla y en la hoja; la contraseña se borra al salir de primer plano, al cerrar la hoja, tras «Usar» y al bloquear.
-- **Accesibilidad:** la contraseña se anuncia carácter por carácter, el dado dice «Generar otra», el deslizador anuncia «N caracteres», las filas son interruptores de una pieza (TalkBack no lee los cuadros), botones de 48 dp (probado). **Animación:** al generar otra, opacidad ≤ 140 ms y el dado gira una vez; con «reducir movimiento» no se anima.
+### Paso 2 · HIBP (`feature/health/data`, DEC-21)
+- **`HibpClient`** (`HttpURLConnection`, aparte de `ApiTransport`): `GET /range/{5 hex de SHA-1}` con `Add-Padding: true` y `User-Agent: EndSecurity-Android`; el sufijo se busca en memoria, las líneas con cuenta 0 son relleno; espera de 10 s; sin redirecciones; nada a logs. Un prefijo por contraseña distinta, en serie.
+- **Red:** `INTERNET` en el manifiesto y `api.pwnedpasswords.com` en `network_security_config.xml` con CA del sistema, sin pinning.
+- **Caché (`BreachCache`):** `{pwned_count, local_seq, checked_at}` cifrado con la `vault_key` y AAD `breach|itemId|userId|1`; se vuelve a consultar si cambió el elemento (`local_seq`) o a los 7 días.
+- **Cuándo:** al desbloquear (como máximo una vez al día), con «Revisar ahora» y la primera vez que se abre Salud (SCR-40). Sin red lo no revisado queda «pendiente» y no cuenta como filtrado; no se insiste en cada apertura (5 min entre intentos).
+
+### Paso 3 · Pantallas
+- **Resumen (SCR-22), Progreso (SCR-23) y cargando (SCR-40)** en una sola ruta con el selector fijo «Resumen | Progreso» (no suma historial): aro con la puntuación, mensaje, «Revisado hoy a las … · Revisar ahora» (o «sin conexión») y las cuatro filas; gráfica de 12 semanas, indicadores y distribución con «Ver ranking de fuerza»; estado vacío «Agrega contraseñas para ver la salud de tu bóveda».
+- **Ranking (SCR-24/25)** con «Más fuertes | Más débiles» (los 10 primeros, largo y nivel) y su pie; «Débiles» del Resumen abre «Más débiles».
+- **Filtradas, Repetidas y Antiguas (SCR-26…28):** textos de Figma, «Misma contraseña en N sitios», «Cambiar»/tocar una fila lleva a Editar ese elemento, «Ninguna, bien hecho» y la atribución «Datos de Have I Been Pwned».
+- **Bóveda:** aviso «N contraseñas necesitan atención · Ver» (Crítico + Alto), triángulos en esas filas y, en el detalle, el bloque de salud («Segura · Fuerte, única y sin filtraciones» o el problema más grave).
+- Todo en `RequireUnlocked` con `SecureScreen()`; la pestaña **Salud** de la barra inferior navega. Íconos nuevos: alerta, escudo con alerta y reloj de 20 dp.
 
 ## Pruebas (salida real)
-- **`testDebugUnitTest`: 479, 0 fallas.** Nuevas: `PasswordGeneratorTest` (10 000 generaciones por cada una de las 16 combinaciones: largo, clase por clase, nada de clases apagadas ni de parecidos; límites 8 y 64; chi-cuadrada dentro de cada clase; la primera posición toma las 4 clases), `GeneratorViewModelTest` (12: opciones recordadas, regenerar, copiar, entrega única, borrar al salir y al bloquear, sin `SavedStateHandle`), `SettingsStoreGeneratorTest` (4), `PasswordHandoffTest` (4), 2 de `ItemEditViewModelTest`, y las del Paso 1 en `SyncEngineTest` y `ConflictResolverTest`.
-- **`connectedDebugAndroidTest`: 62 pruebas, 59 pasan y 3 fallan: las 3 de `ClipboardDeviceTest`.** Siguen fallando por el portapapeles compartido del emulador («host clipboard» pisa lo copiado). Desactivar «Enable clipboard sharing» es un ajuste del emulador que no cambié desde aquí; no toqué las pruebas, como indicaba la tarea. Quedan para repetirlas con eso desactivado (E3 de `revisiones-pendientes.md`). Nuevas que pasan: `GeneratorScreenTest` (6: textos y estructura del Figma, anuncio carácter por carácter, el dado/copiar/guardar/interruptores responden, deslizador, botones ≥ 48 dp, hoja con «Usar esta contraseña»).
+- **`testDebugUnitTest`: 543, 0 fallas.** Nuevas: `HealthAnalyzerTest` (14: cada nivel y prioridad, puntuación a mano incluidos 0, 51, 70, 78, 85 y 100, mensajes, grupos de repetidas, límite de 365 días, pendientes), `HealthProgressTest` (7), `HibpClientTest` (13, con un servidor local: prefijo, encabezados, nunca el sufijo ni la contraseña, relleno, tiempo de espera, respuesta vacía, cuenta negativa y cuerpo enorme; vector `password` → `5BAA61E4…` → prefijo `5BAA6`), `HealthRepositoryTest` (16: una consulta por contraseña distinta, caché, `local_seq` cambiado, 7 días, sin red, dañados, una foto por día, recorte de 12 meses, caché cifrada y atada al usuario, bloqueo a mitad de una revisión), `HealthViewModelTest` (9) y casos en la lista y el detalle.
+- **`connectedDebugAndroidTest`: 72, 70 pasan y 2 fallan: `ClipboardDeviceTest` (portapapeles compartido del emulador, ya anotado como E3; no lo toqué).** Nuevas que pasan: `HealthScreensTest` (10: textos del diseño, filas que abren, estado vacío, listas) y `HibpClientDeviceTest` con la **red real**.
 - **`lintDebug`: 0 errores. `assembleRelease`: compila.**
 
 ## En el emulador
-Hice una corrida punta a punta con la **app real** (Hilt, navegación, DataStore, Room, backend falso): Desbloquear → Bóveda → pestaña Generador → generar (16) → dado → apagar «Símbolos» → copiar (aviso con 30 s) → «Guardar en la bóveda» → Nueva contraseña con la máscara de 16 puntos. **La dejé fuera del repositorio** porque era inestable: a veces la prueba de Compose se queda esperando a que la app «esté en reposo» (hay animaciones sin fin en el arranque) y nunca terminaba; una corrida pasó, otras se colgaron en el primer paso. No dejé a medio camino ni una prueba que se cuelgue ni código de depuración para ella. **Sin verificar punta a punta en la app real:** guardar el elemento y verlo en la lista, y la hoja «Generar» dentro de Nueva (la hoja y «Usar esta contraseña» sí están probadas como componente, y la entrega por `PasswordHandoff` y el VM de Nueva por pruebas JVM). Conviene que la persona del equipo pruebe esas dos a mano en el Redmi.
-- Las capturas de las pantallas (la secuencia con FLAG_SECURE da negro) salen de `GeneratorScreenTest`, que dibuja las pantallas sin `SecureScreen`; no se quitó ninguna protección. Para esa corrida puse las animaciones del emulador en 0 y **ya las devolví a 1**.
+- `HibpClientDeviceTest` (red real): «password123» sale **filtrada** (más de 1 000 veces) y una contraseña aleatoria **no**. Valida el permiso `INTERNET` y la configuración de red reales.
+- Las pantallas se revisaron con capturas de `HealthScreensTest` (dibujan los composables sin `SecureScreen`, no se quitó ninguna protección): Resumen y Progreso coinciden con el diseño.
+- **No recorrí por la interfaz de la app real** crear «password123» y una fuerte y ver la puntuación bajar ni el modo avión: la prueba de Compose contra la app real se colgaba (ver tarea 13). Eso queda cubierto por `HealthRepositoryTest` (crítica por filtrada, pendiente sin red) y la prueba de red real, y **queda para probarlo a mano en el Redmi**.
+- Textos que **no** vi en Figma: la descripción de «Antiguas» (`62:2788` no se abrió; se usó el patrón de las otras listas), el título «Aún sin historial» y las leyendas de la ausencia de historial.
 
 ## Revisión con `security-reviewer`
-Sin hallazgos críticos ni altos. El generador es correcto en lo criptográfico. **Corregí:**
-- (Medio) `stop()` ahora ejecuta `clearAllTables()` **dentro** del mutex del motor y bloquea los disparadores mientras se cierra (antes el borrado corría fuera de la exclusión).
-- (Medio) El rescate del DELETE: la lápida se escribe antes y sin poder cancelarse (antes una cancelación podía dejar al elemento eliminado reapareciendo).
-- (Medio) «Usar esta contraseña» no borraba lo generado de la hoja y el ViewModel se quedaba con ella: ahora `onHide()` tras entregarla y al salir de composición.
-- (Bajo) `PasswordHandoff.put` solo con la bóveda abierta y `ItemEditViewModel` la limpia en `onCleared` si nadie la tomó (doble toque); la descripción hablada se calcula una vez por contraseña y la opacidad va en `graphicsLayer` (menos copias); «Conservar la mía» ante lápida quita el elemento recién creado si no se pudo resolver (sin duplicados al reintentar).
+Sin hallazgos críticos. **Corregí:**
+- (Alta) Con un análisis o una revisión en curso, el bloqueo no vaciaba el estado y el informe podía reaparecer. Ahora el bloqueo corta el trabajo (época por sesión), no se publica nada si se bloqueó durante el análisis y la red se detiene; el trabajo del desbloqueo corre aparte del colector.
+- (Media) `VaultLockedException` sin capturar en análisis y revisión; ya no cierra la app.
+- (Media) La caché se podía «rejuvenecer» cambiando columnas en claro: `local_seq` y la hora van dentro del bloque cifrado y se verifican al abrir.
+- (Media) HIBP: cuerpo con tope de 2 MB, y una respuesta vacía, sin formato o con cuenta negativa ya **no** se toma por «limpia» (queda pendiente).
+- (Media/Baja) El detalle ya no vuelve a descifrar toda la bóveda al abrirse; la firma de «¿cambió la bóveda?» sale de los resúmenes (sin contraseñas); los bytes del SHA-1/SHA-256 se sobrescriben; no se reintenta HIBP en cada apertura sin red.
 
-**Quedan abiertos (anotados, no corregidos):**
-- (Bajo) `session.lock()` va al final de `signOutLocally`: la llave sigue en memoria mientras espera el fin de una sincronización en curso. No lo moví a antes porque el `LockGuard` mandaría a Desbloquear en vez de Iniciar sesión (todavía hay cuenta local); si el equipo prefiere lo contrario, se cambia el orden.
-- (Bajo) Un efecto `Use` pendiente en el canal del `GeneratorViewModel` podría repetirse si la hoja se cierra justo antes de recogerlo (ventana mínima; se limpia con `onHide`).
-- Rotación en Nueva con la generada: se pierde (es de un solo uso por diseño); el formulario arranca vacío.
-- Sesgo leve e inevitable a favor de las clases pequeñas por «al menos uno de cada clase» (lo pide DEC-24).
+**Quedan abiertos:**
+- `checkBreaches` mantiene el mutex del repositorio durante la red (hasta N × 10 s); un bloqueo lo corta, pero otro `refresh()` espera.
+- Filas de caché de elementos ya borrados se descifran hasta que se borran con el cierre de sesión (se borran con el elemento por la llave foránea; solo cuenta lo huérfano de otro origen).
+- La cantidad y el momento de las consultas a HIBP revelan a quien observa la red cuántas contraseñas distintas hay (el relleno cubre solo el tamaño).
+- Las contraseñas en `String` siguen en el heap durante el análisis (limitación conocida, DEC-27).
 
 ## Decisiones y desviaciones a revisar
-- En la tarjeta oscura el medidor usa barras en **amarillo** y la etiqueta en claro, como en Figma `46:1022` (en los formularios el medidor sigue sin amarillo, DEC-50).
-- El Generador se resuelve con **un solo interruptor «Evitar parecidos»** sobre las 4 clases; «Minúsculas» no se puede apagar.
-- Interruptor (no está en Figma el estado «apagado»): encendido en `primary` con disco `on-primary`; apagado gris (`outline` al 60 %).
-- Al guardar desde el Generador se va a la **Bóveda** (no vuelve al Generador).
-- `LifecycleEventEffect(ON_STOP)`: al abrir Nueva desde el Generador, este se vacía (la contraseña ya se entregó) y al volver genera otra.
+- El **eje de la gráfica** va de 50 a 100 como en Figma; si alguna semana baja de 50, llega hasta 0.
+- «Revisado hoy a las …» se calcula con la fila más reciente de la caché (no hay ajuste en DataStore): se borra al cerrar sesión.
+- La Bóveda mantiene el análisis al día en segundo plano (1 s después de cada cambio) para el aviso y los triángulos.
+- «Débiles» abre el ranking en «Más débiles»; Filtradas, Repetidas y Antiguas llevan a Editar ese elemento.
 
 ## Vistas nuevas (cómo llegar)
-- **Generador (SCR-15):** barra inferior → «Generador», desde cualquier pantalla con barra.
-- **Hoja del generador:** Nueva contraseña (o Editar) → botón del dado «Generar contraseña» junto al ojo.
-- **Nueva con la contraseña puesta:** Generador → «Guardar en la bóveda».
+- **Salud (SCR-22/23/40):** barra inferior → «Salud» (también «Ver» en el aviso de la Bóveda).
+- **Ranking (SCR-24/25):** Salud → Progreso → «Ver ranking de fuerza», o Resumen → «Débiles».
+- **Filtradas / Repetidas / Antiguas (SCR-26…28):** Salud → Resumen → la fila correspondiente.
