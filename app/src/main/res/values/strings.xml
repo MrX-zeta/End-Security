@@ -317,4 +317,129 @@
     <string name="generator_save">Guardar en la bóveda</string>
     <string name="generator_use">Usar esta contraseña</string>
     <string name="generator_password_description">Contraseña generada: %1$s</string>
+
+    <!-- Salud (SCR-22…28, SCR-40; DEC-20, DEC-21, DEC-54) -->
+    <string name="health_title_bold">Salud</string>
+    <string name="health_title_regular">de tu bóveda</string>
+    <string name="health_tab_summary">Resumen</string>
+    <string name="health_tab_progress">Progreso</string>
+    <string name="health_score_of">de 100</string>
+    <string name="health_score_description">Puntuación de salud: %1$d de 100</string>
+    <string name="health_message_excellent">Excelente</string>
+    <string name="health_message_good">Bien, pero puedes mejorar</string>
+    <string name="health_message_attention">Necesita atención</string>
+    <string name="health_message_risk">En riesgo</string>
+    <string name="health_checked_today">Revisado hoy a las %1$s</string>
+    <string name="health_checked_yesterday">Revisado ayer a las %1$s</string>
+    <string name="health_checked_date">Revisado el %1$s a las %2$s</string>
+    <string name="health_not_checked">Sin revisar</string>
+    <string name="health_offline_suffix">sin conexión</string>
+    <string name="health_check_now">Revisar ahora</string>
+    <string name="health_checking">Revisando filtraciones…</string>
+    <string name="health_loading_description">Calculando la salud de tu bóveda</string>
+    <string name="health_row_breached">Filtradas</string>
+    <string name="health_row_breached_hint">Aparecen en filtraciones</string>
+    <string name="health_row_repeated">Repetidas</string>
+    <string name="health_row_repeated_hint">Usas la misma en varios sitios</string>
+    <string name="health_row_weak">Débiles</string>
+    <string name="health_row_weak_hint">Son fáciles de adivinar</string>
+    <string name="health_row_old">Antiguas</string>
+    <string name="health_row_old_hint">Más de un año sin cambio</string>
+    <string name="health_empty">Agrega contraseñas para ver la salud de tu bóveda</string>
+    <string name="health_delta_same">Sin cambios</string>
+    <plurals name="health_delta_up">
+        <item quantity="one">+%1$d punto</item>
+        <item quantity="other">+%1$d puntos</item>
+    </plurals>
+    <plurals name="health_delta_down">
+        <item quantity="one">−%1$d punto</item>
+        <item quantity="other">−%1$d puntos</item>
+    </plurals>
+    <string name="health_delta_sub">en las últimas 12 semanas · de %1$d a %2$d</string>
+    <string name="health_no_history_title">Aún sin historial</string>
+    <string name="health_no_history_sub">Hoy tu puntuación es %1$d. Vuelve en unos días para ver cómo evoluciona.</string>
+    <string name="health_chart_description">Puntuación por semana, de %1$d a %2$d</string>
+    <string name="health_strengthened">fortalecidas este mes</string>
+    <string name="health_resolved">filtradas resueltas</string>
+    <string name="health_by_strength">Por fuerza</string>
+    <plurals name="health_total">
+        <item quantity="one">%1$d en total</item>
+        <item quantity="other">%1$d en total</item>
+    </plurals>
+    <string name="health_legend_weak">Débiles · %1$d</string>
+    <string name="health_legend_fair">Regulares · %1$d</string>
+    <string name="health_legend_strong">Fuertes · %1$d</string>
+    <string name="health_see_ranking">Ver ranking de fuerza</string>
+    <string name="health_ranking_title">Fuerza de tus contraseñas</string>
+    <string name="health_ranking_strongest">Más fuertes</string>
+    <string name="health_ranking_weakest">Más débiles</string>
+    <plurals name="health_chars">
+        <item quantity="one">%1$d carácter</item>
+        <item quantity="other">%1$d caracteres</item>
+    </plurals>
+    <string name="health_ranking_footnote">La fuerza se calcula en tu teléfono. Tus contraseñas no salen de él.</string>
+    <string name="health_ranking_row">Puesto %1$d, %2$s, %3$s, %4$s</string>
+    <string name="health_breached_title">Filtradas</string>
+    <plurals name="health_breached_heading_bold">
+        <item quantity="one">%1$d contraseña</item>
+        <item quantity="other">%1$d contraseñas</item>
+    </plurals>
+    <plurals name="health_breached_heading_regular">
+        <item quantity="one">apareció en filtraciones</item>
+        <item quantity="other">aparecieron en filtraciones</item>
+    </plurals>
+    <string name="health_breached_notice">Otros sitios sufrieron robos de datos y estas contraseñas quedaron expuestas. Cámbialas cuanto antes.</string>
+    <plurals name="health_breached_seen">
+        <item quantity="one">Vista en %1$d filtración</item>
+        <item quantity="other">Vista en %1$d filtraciones</item>
+    </plurals>
+    <string name="health_breached_footnote">Para revisarlas no enviamos tus contraseñas: solo un fragmento que no permite reconstruirlas.</string>
+    <string name="health_hibp_attribution">Datos de Have I Been Pwned</string>
+    <plurals name="health_pending_breach">
+        <item quantity="one">%1$d contraseña sin revisar todavía</item>
+        <item quantity="other">%1$d contraseñas sin revisar todavía</item>
+    </plurals>
+    <string name="health_none_good_job">Ninguna, bien hecho</string>
+    <string name="health_repeated_title">Repetidas</string>
+    <plurals name="health_repeated_heading_bold">
+        <item quantity="one">%1$d contraseña</item>
+        <item quantity="other">%1$d contraseñas</item>
+    </plurals>
+    <string name="health_repeated_heading_one">se repite en %1$d sitios</string>
+    <string name="health_repeated_heading_many">se repiten en %1$d sitios</string>
+    <string name="health_repeated_notice">Si una se filtra, quedan expuestos todos los sitios que la comparten.</string>
+    <string name="health_repeated_group">Misma contraseña en %1$d sitios</string>
+    <string name="health_review_badge">Revisar</string>
+    <string name="health_change">Cambiar</string>
+    <string name="health_change_description">Cambiar la contraseña de %1$s</string>
+    <string name="health_old_title">Antiguas</string>
+    <plurals name="health_old_heading_bold">
+        <item quantity="one">%1$d contraseña</item>
+        <item quantity="other">%1$d contraseñas</item>
+    </plurals>
+    <plurals name="health_old_heading_regular">
+        <item quantity="one">lleva más de un año sin cambio</item>
+        <item quantity="other">llevan más de un año sin cambio</item>
+    </plurals>
+    <plurals name="vault_attention_notice">
+        <item quantity="one">%1$d contraseña necesita atención</item>
+        <item quantity="other">%1$d contraseñas necesitan atención</item>
+    </plurals>
+    <string name="vault_attention_action">Ver</string>
+    <string name="vault_row_at_risk">En riesgo</string>
+    <string name="health_detail_safe_title">Segura</string>
+    <string name="health_detail_safe_body">Fuerte, única y sin filtraciones</string>
+    <string name="health_detail_breached_title">Filtrada</string>
+    <plurals name="health_detail_breached_body">
+        <item quantity="one">Apareció en %1$d filtración</item>
+        <item quantity="other">Apareció en %1$d filtraciones</item>
+    </plurals>
+    <string name="health_detail_repeated_title">Repetida</string>
+    <string name="health_detail_repeated_body">Usas la misma en %1$d sitios</string>
+    <string name="health_detail_weak_title">Débil</string>
+    <string name="health_detail_weak_body">Es fácil de adivinar</string>
+    <string name="health_detail_old_title">Antigua</string>
+    <string name="health_detail_old_body">Más de un año sin cambio</string>
+    <string name="health_detail_fair_title">Regular</string>
+    <string name="health_detail_fair_body">Podría ser más fuerte</string>
 </resources>

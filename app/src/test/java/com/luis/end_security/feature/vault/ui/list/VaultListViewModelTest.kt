@@ -5,6 +5,7 @@ import com.luis.end_security.feature.vault.domain.DamagedEntry
 import com.luis.end_security.feature.vault.domain.PendingDeletion
 import com.luis.end_security.feature.vault.domain.UnsupportedEntry
 import com.luis.end_security.feature.vault.ui.FakeDeletionUndo
+import com.luis.end_security.feature.vault.ui.FakeHealthRepository
 import com.luis.end_security.feature.vault.ui.FakeSyncStatus
 import com.luis.end_security.feature.vault.ui.FakeVaultRepository
 import com.luis.end_security.feature.vault.ui.TestClock
@@ -16,6 +17,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -39,6 +41,7 @@ class VaultListViewModelTest {
     private val repository = FakeVaultRepository()
     private val deletion = FakeDeletionUndo()
     private val syncStatus = FakeSyncStatus()
+    private val health = FakeHealthRepository()
     private val auth = FakeAuthRepository().apply { accountName = "luis@correo.com" }
 
     @Before
@@ -51,7 +54,7 @@ class VaultListViewModelTest {
     }
 
     private fun kotlinx.coroutines.test.TestScope.viewModel(): VaultListViewModel {
-        val viewModel = VaultListViewModel(repository, session, deletion, auth, syncStatus)
+        val viewModel = VaultListViewModel(repository, session, deletion, auth, syncStatus, health)
         backgroundScope.launch { viewModel.state.collect {} }
         runCurrent()
         return viewModel
@@ -243,5 +246,45 @@ class VaultListViewModelTest {
         val state = viewModel().state.value
         assertFalse(state.toString().contains("Secreto"))
         assertFalse(state.rows.joinToString { it.toString() }.contains("Secreto"))
+    }
+
+    @Test
+    fun `las de nivel Alto o Critico llevan triangulo y el aviso las cuenta`() = runTest(dispatcher) {
+        val weak = readable("Debil")
+        val fine = readable("Bien")
+        repository.entries.value = listOf(weak, fine)
+        val estimator = object : com.luis.end_security.feature.auth.domain.PasswordStrengthEstimator {
+            override fun score(password: CharSequence): Int = if (password.startsWith("debil")) 0 else 4
+        }
+        val now = java.time.Instant.ofEpochMilli(clock.now)
+        val report = com.luis.end_security.feature.health.domain.HealthAnalyzer.analyze(
+            listOf(
+                com.luis.end_security.feature.health.domain.AnalysisItem(weak.id, "Debil", "debil-1", now, 0),
+                com.luis.end_security.feature.health.domain.AnalysisItem(fine.id, "Bien", "Fuerte-Larga-1", now, 0),
+            ),
+            now, estimator,
+        )
+        health.set(com.luis.end_security.feature.health.domain.HealthState(report))
+        val viewModel = viewModel()
+
+        assertEquals(1, viewModel.state.value.attentionCount)
+        val rows = viewModel.state.value.rows.filterIsInstance<VaultRow.Item>()
+        assertTrue(rows.first { it.name == "Debil" }.atRisk)
+        assertFalse(rows.first { it.name == "Bien" }.atRisk)
+
+        viewModel.onAttentionClick()
+        runCurrent()
+        assertEquals(VaultListEffect.OpenHealth, viewModel.effects.first())
+    }
+
+    @Test
+    fun `sin analisis no hay aviso de atencion y la lista pide mantener Salud al dia`() = runTest(dispatcher) {
+        repository.entries.value = listOf(readable("Gmail"))
+        val viewModel = viewModel()
+        assertEquals(0, viewModel.state.value.attentionCount)
+        // El análisis local se mantiene al día con la bóveda, con una pequeña espera.
+        advanceTimeBy(1_500)
+        runCurrent()
+        assertTrue(health.refreshes >= 1)
     }
 }

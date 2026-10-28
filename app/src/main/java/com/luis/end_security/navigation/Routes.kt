@@ -59,6 +59,21 @@ object Routes {
     /** SCR-15: el Generador. */
     const val GENERATOR = "generator"
 
+    /** SCR-22, SCR-23 y SCR-40: Salud (Resumen | Progreso). */
+    const val HEALTH = "health"
+
+    const val RANKING_TAB_ARG = "tab"
+
+    /** SCR-24 y SCR-25: ranking de fuerza («Más fuertes» o «Más débiles», según `tab`). */
+    const val HEALTH_RANKING = "health_ranking?$RANKING_TAB_ARG={$RANKING_TAB_ARG}"
+
+    fun healthRanking(weakest: Boolean): String = "health_ranking?$RANKING_TAB_ARG=${if (weakest) "Weakest" else "Strongest"}"
+
+    /** SCR-26, SCR-27 y SCR-28. */
+    const val HEALTH_BREACHED = "health_breached"
+    const val HEALTH_REPEATED = "health_repeated"
+    const val HEALTH_OLD = "health_old"
+
     fun vaultEdit(id: UUID): String = "vault_edit?$ITEM_ID_ARG=$id"
 
     /**

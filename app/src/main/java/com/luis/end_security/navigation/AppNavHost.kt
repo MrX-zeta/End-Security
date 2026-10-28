@@ -38,6 +38,11 @@ import com.luis.end_security.feature.vault.ui.VaultLoadingRoute
 import com.luis.end_security.feature.vault.ui.detail.ItemDetailRoute
 import com.luis.end_security.feature.vault.ui.edit.ItemEditRoute
 import com.luis.end_security.feature.vault.ui.generator.GeneratorRoute
+import com.luis.end_security.feature.health.ui.HealthBreachedRoute
+import com.luis.end_security.feature.health.ui.HealthOldRoute
+import com.luis.end_security.feature.health.ui.HealthRankingRoute
+import com.luis.end_security.feature.health.ui.HealthRepeatedRoute
+import com.luis.end_security.feature.health.ui.HealthRoute
 import com.luis.end_security.feature.vault.ui.conflict.ConflictDetailRoute
 import com.luis.end_security.feature.vault.ui.conflict.ConflictListRoute
 import com.luis.end_security.feature.vault.ui.list.VaultListRoute
@@ -78,8 +83,12 @@ private fun AppNavigation(route: String, modifier: Modifier = Modifier) {
                 launchSingleTop = true
             }
             BottomNavTab.Generator -> navController.navigate(Routes.GENERATOR) { launchSingleTop = true }
-            // TODO(DEC-56): Salud y Ajustes llevan a su raíz cuando existan.
-            BottomNavTab.Health, BottomNavTab.Settings -> Unit
+            BottomNavTab.Health -> navController.navigate(Routes.HEALTH) {
+                popUpTo(Routes.HEALTH) { inclusive = false }
+                launchSingleTop = true
+            }
+            // TODO(DEC-56): Ajustes lleva a su raíz cuando exista.
+            BottomNavTab.Settings -> Unit
         }
     }
     // Si la bóveda se bloquea: a Desbloquear (o a Iniciar sesión sin cuenta), sin nada debajo.
@@ -142,6 +151,60 @@ private fun AppNavigation(route: String, modifier: Modifier = Modifier) {
                 onNavigateToLogin = { navController.navigateClearingStack(Routes.LOGIN) },
             )
         }
+        composable(Routes.HEALTH, exitTransition = { ExitTransition.None }, popExitTransition = { ExitTransition.None }) {
+            RequireUnlocked(onLocked = lockGuardViewModel::onProtectedScreenLocked) {
+                HealthRoute(
+                    onTabSelected = onTabSelected,
+                    onOpenBreached = { navController.navigate(Routes.HEALTH_BREACHED) { launchSingleTop = true } },
+                    onOpenRepeated = { navController.navigate(Routes.HEALTH_REPEATED) { launchSingleTop = true } },
+                    onOpenWeak = { navController.navigate(Routes.healthRanking(weakest = true)) { launchSingleTop = true } },
+                    onOpenOld = { navController.navigate(Routes.HEALTH_OLD) { launchSingleTop = true } },
+                    onOpenRanking = { navController.navigate(Routes.healthRanking(weakest = false)) { launchSingleTop = true } },
+                )
+            }
+        }
+        composable(
+            route = Routes.HEALTH_RANKING,
+            arguments = listOf(
+                navArgument(Routes.RANKING_TAB_ARG) {
+                    type = NavType.StringType
+                    defaultValue = "Strongest"
+                },
+            ),
+            exitTransition = { ExitTransition.None },
+            popExitTransition = { ExitTransition.None },
+        ) {
+            RequireUnlocked(onLocked = lockGuardViewModel::onProtectedScreenLocked) {
+                HealthRankingRoute(onBack = { navController.popBackStack() }, onTabSelected = onTabSelected)
+            }
+        }
+        composable(Routes.HEALTH_BREACHED, exitTransition = { ExitTransition.None }, popExitTransition = { ExitTransition.None }) {
+            RequireUnlocked(onLocked = lockGuardViewModel::onProtectedScreenLocked) {
+                HealthBreachedRoute(
+                    onBack = { navController.popBackStack() },
+                    onChange = { id -> navController.navigate(Routes.vaultEdit(id)) { launchSingleTop = true } },
+                    onTabSelected = onTabSelected,
+                )
+            }
+        }
+        composable(Routes.HEALTH_REPEATED, exitTransition = { ExitTransition.None }, popExitTransition = { ExitTransition.None }) {
+            RequireUnlocked(onLocked = lockGuardViewModel::onProtectedScreenLocked) {
+                HealthRepeatedRoute(
+                    onBack = { navController.popBackStack() },
+                    onChange = { id -> navController.navigate(Routes.vaultEdit(id)) { launchSingleTop = true } },
+                    onTabSelected = onTabSelected,
+                )
+            }
+        }
+        composable(Routes.HEALTH_OLD, exitTransition = { ExitTransition.None }, popExitTransition = { ExitTransition.None }) {
+            RequireUnlocked(onLocked = lockGuardViewModel::onProtectedScreenLocked) {
+                HealthOldRoute(
+                    onBack = { navController.popBackStack() },
+                    onChange = { id -> navController.navigate(Routes.vaultEdit(id)) { launchSingleTop = true } },
+                    onTabSelected = onTabSelected,
+                )
+            }
+        }
         composable(Routes.GENERATOR, exitTransition = { ExitTransition.None }, popExitTransition = { ExitTransition.None }) {
             RequireUnlocked(onLocked = lockGuardViewModel::onProtectedScreenLocked) {
                 GeneratorRoute(
@@ -173,6 +236,7 @@ private fun AppNavigation(route: String, modifier: Modifier = Modifier) {
                     onOpenNew = { navController.navigate(Routes.VAULT_NEW) { launchSingleTop = true } },
                     onOpenConflict = { id -> navController.navigate(Routes.conflictItem(id)) { launchSingleTop = true } },
                     onOpenConflicts = { navController.navigate(Routes.CONFLICTS) { launchSingleTop = true } },
+                    onOpenHealth = { onTabSelected(BottomNavTab.Health) },
                 )
             }
         }

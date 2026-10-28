@@ -5,6 +5,7 @@ import com.luis.end_security.feature.vault.domain.DamagedEntry
 import androidx.lifecycle.SavedStateHandle
 import com.luis.end_security.feature.vault.domain.EditedAge
 import com.luis.end_security.feature.vault.ui.FakeDeletionUndo
+import com.luis.end_security.feature.vault.ui.FakeHealthRepository
 import com.luis.end_security.feature.vault.ui.FakeSecretClipboard
 import com.luis.end_security.feature.vault.ui.FakeVaultRepository
 import com.luis.end_security.feature.vault.ui.TestClock
@@ -40,6 +41,7 @@ class ItemDetailViewModelTest {
     private val session = openedSession(clock)
     private val clipboard = FakeSecretClipboard()
     private val deletion = FakeDeletionUndo()
+    private val health = FakeHealthRepository()
     private val changedAt = Instant.ofEpochMilli(clock.now).minusSeconds(3 * 30 * 86_400L)
     private val gmail = readable(
         "Gmail",
@@ -59,7 +61,7 @@ class ItemDetailViewModelTest {
     private fun TestScope.viewModel(id: UUID = gmail.id): ItemDetailViewModel {
         val viewModel = ItemDetailViewModel(
             SavedStateHandle(mapOf(ItemDetailViewModel.ID_ARG to id.toString())),
-            repository, clipboard, deletion, session, clock,
+            repository, clipboard, deletion, session, clock, health,
         )
         runCurrent()
         return viewModel
@@ -249,5 +251,25 @@ class ItemDetailViewModelTest {
 
         viewModel.onDeleteConfirm()
         assertNull(deletion.scheduled.single().name)
+    }
+
+    @Test
+    fun `el bloque de salud sigue al analisis de este elemento`() = runTest(dispatcher) {
+        val viewModel = viewModel()
+        assertEquals(null, viewModel.state.value.health)
+
+        val estimator = object : com.luis.end_security.feature.auth.domain.PasswordStrengthEstimator {
+            override fun score(password: CharSequence): Int = 0
+        }
+        val now = Instant.ofEpochMilli(clock.now)
+        val report = com.luis.end_security.feature.health.domain.HealthAnalyzer.analyze(
+            listOf(com.luis.end_security.feature.health.domain.AnalysisItem(gmail.id, "Gmail", "x-debil", now, 0)), now, estimator,
+        )
+        health.set(com.luis.end_security.feature.health.domain.HealthState(report))
+        runCurrent()
+
+        val block = viewModel.state.value.health!!
+        assertEquals(com.luis.end_security.feature.health.domain.RiskLevel.High, block.level)
+        assertFalse(viewModel.state.value.toString().contains("x-debil"))
     }
 }

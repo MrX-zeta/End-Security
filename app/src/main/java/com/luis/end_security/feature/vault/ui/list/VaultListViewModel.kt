@@ -7,16 +7,19 @@ import com.luis.end_security.core.session.VaultSession
 import com.luis.end_security.core.session.VaultState
 import com.luis.end_security.feature.auth.domain.AuthRepository
 import com.luis.end_security.core.sync.SyncStatus
+import com.luis.end_security.feature.health.domain.HealthRepository
 import com.luis.end_security.feature.vault.domain.DeletionUndo
 import com.luis.end_security.feature.vault.domain.ItemSearch
 import com.luis.end_security.feature.vault.domain.VaultSummary
 import com.luis.end_security.feature.vault.domain.VaultRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
@@ -28,7 +31,14 @@ import javax.inject.Inject
 sealed interface VaultRow {
     val id: UUID
 
-    class Item(override val id: UUID, val name: String, val username: String, val initial: String) : VaultRow {
+    class Item(
+        override val id: UUID,
+        val name: String,
+        val username: String,
+        val initial: String,
+        /** Nivel Crítico o Alto en Salud (DEC-20): lleva el triángulo de riesgo. */
+        val atRisk: Boolean = false,
+    ) : VaultRow {
         override fun toString(): String = "VaultRow.Item(***)"
     }
 
@@ -65,6 +75,8 @@ class VaultListUiState(
     val conflictCount: Int = 0,
     /** La última sincronización falló por falta de red (SCR-44). */
     val offline: Boolean = false,
+    /** Contraseñas de nivel Crítico o Alto: «N contraseñas necesitan atención» (Salud). */
+    val attentionCount: Int = 0,
 ) {
     /** SCR-11: la bóveda no tiene ningún elemento. */
     val isEmpty: Boolean get() = !isLoading && totalCount == 0
@@ -85,6 +97,9 @@ sealed interface VaultListEffect {
 
     /** Varios: a «Por resolver». */
     data object OpenConflicts : VaultListEffect
+
+    /** «Ver» en el aviso de contraseñas que necesitan atención: a Salud. */
+    data object OpenHealth : VaultListEffect
 }
 
 /**
@@ -101,6 +116,7 @@ class VaultListViewModel @Inject constructor(
     private val deletion: DeletionUndo,
     private val auth: AuthRepository,
     syncStatus: SyncStatus,
+    private val health: HealthRepository,
 ) : ViewModel() {
 
     private val query = MutableStateFlow("")
@@ -122,23 +138,33 @@ class VaultListViewModel @Inject constructor(
         query,
         deletion.pending,
         extras,
-    ) { entries, query, pending, extras ->
+        health.state,
+    ) { entries, query, pending, extras, healthState ->
+        val risky = healthState.report?.needAttention?.map { it.id }?.toSet().orEmpty()
         conflictIds = extras.conflicts
         val visible = entries.filter { it.id != pending?.id }
         VaultListUiState(
             accountInitial = extras.initial,
             isLoading = false,
-            rows = ItemSearch.sorted(visible).filteredBy(query).map { it.toRow() },
+            rows = ItemSearch.sorted(visible).filteredBy(query).map { it.toRow(risky) },
             totalCount = visible.size,
             query = query,
             recoveryCodesLeft = extras.codesLeft,
             deleted = pending?.let { DeletedNotice(it.name) },
             conflictCount = extras.conflicts.size,
             offline = extras.offline,
+            attentionCount = risky.size,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS), VaultListUiState())
 
     init {
+        // Salud: el análisis local se mantiene al día con la bóveda (sin red; no se repite si nada cambió).
+        viewModelScope.launch {
+            repository.observeSummaries().collectLatest {
+                delay(HEALTH_DEBOUNCE_MILLIS)
+                health.refresh()
+            }
+        }
         viewModelScope.launch {
             val name = auth.localAccountName()
             accountInitial.value = name?.let { initialOf(it) } ?: "?"
@@ -168,6 +194,10 @@ class VaultListViewModel @Inject constructor(
         viewModelScope.launch { _effects.send(VaultListEffect.OpenItem(row.id)) }
     }
 
+    fun onAttentionClick() {
+        viewModelScope.launch { _effects.send(VaultListEffect.OpenHealth) }
+    }
+
     fun onAddClick() {
         viewModelScope.launch { _effects.send(VaultListEffect.OpenNew) }
     }
@@ -187,13 +217,14 @@ class VaultListViewModel @Inject constructor(
     private fun List<VaultSummary>.filteredBy(query: String): List<VaultSummary> =
         if (query.isBlank()) this else filter { it is VaultSummary.Readable && ItemSearch.matches(it, query) }
 
-    private fun VaultSummary.toRow(): VaultRow = when (this) {
-        is VaultSummary.Readable -> VaultRow.Item(id = id, name = name, username = username, initial = initialOf(name))
+    private fun VaultSummary.toRow(risky: Set<UUID>): VaultRow = when (this) {
+        is VaultSummary.Readable -> VaultRow.Item(id = id, name = name, username = username, initial = initialOf(name), atRisk = id in risky)
         is VaultSummary.Damaged -> VaultRow.Damaged(id)
         is VaultSummary.Unsupported -> VaultRow.Newer(id)
     }
 
     private companion object {
+        const val HEALTH_DEBOUNCE_MILLIS = 1_000L
         const val STOP_TIMEOUT_MILLIS = 5_000L
     }
 }

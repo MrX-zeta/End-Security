@@ -75,6 +75,7 @@ fun VaultListRoute(
     onOpenNew: () -> Unit,
     onOpenConflict: (UUID) -> Unit,
     onOpenConflicts: () -> Unit,
+    onOpenHealth: () -> Unit,
     viewModel: VaultListViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -82,6 +83,7 @@ fun VaultListRoute(
     val currentOnOpenNew by rememberUpdatedState(onOpenNew)
     val currentOnOpenConflict by rememberUpdatedState(onOpenConflict)
     val currentOnOpenConflicts by rememberUpdatedState(onOpenConflicts)
+    val currentOnOpenHealth by rememberUpdatedState(onOpenHealth)
     LaunchedEffect(viewModel) {
         viewModel.effects.collect { effect ->
             when (effect) {
@@ -89,6 +91,7 @@ fun VaultListRoute(
                 VaultListEffect.OpenNew -> currentOnOpenNew()
                 is VaultListEffect.OpenConflict -> currentOnOpenConflict(effect.id)
                 VaultListEffect.OpenConflicts -> currentOnOpenConflicts()
+                VaultListEffect.OpenHealth -> currentOnOpenHealth()
             }
         }
     }
@@ -103,6 +106,7 @@ fun VaultListRoute(
         onAddClick = viewModel::onAddClick,
         onUndoDelete = viewModel::onUndoDelete,
         onResolve = viewModel::onResolveClick,
+        onAttention = viewModel::onAttentionClick,
     )
 }
 
@@ -118,6 +122,7 @@ fun VaultListScreen(
     onUndoDelete: () -> Unit,
     modifier: Modifier = Modifier,
     onResolve: () -> Unit = {},
+    onAttention: () -> Unit = {},
 ) {
     Column(
         modifier = modifier
@@ -134,6 +139,7 @@ fun VaultListScreen(
                     onLockNow = onLockNow,
                     onItemClick = onItemClick,
                     onResolve = onResolve,
+                    onAttention = onAttention,
                 )
             }
             // Abajo: el botón «+» y, si se acaba de eliminar algo, el aviso con «Deshacer».
@@ -178,6 +184,7 @@ private fun ListContent(
     onLockNow: () -> Unit,
     onItemClick: (VaultRow) -> Unit,
     onResolve: () -> Unit,
+    onAttention: () -> Unit,
 ) {
     LazyColumn(
         modifier = Modifier
@@ -220,6 +227,16 @@ private fun ListContent(
                     icon = R.drawable.ic_repeat_20,
                     actionLabel = stringResource(R.string.vault_resolve),
                     onAction = onResolve,
+                )
+            }
+            // Salud: contraseñas de nivel Crítico o Alto.
+            if (state.attentionCount > 0) {
+                Spacer(Modifier.height(16.dp))
+                MessageBar(
+                    text = pluralStringResource(R.plurals.vault_attention_notice, state.attentionCount, state.attentionCount),
+                    icon = R.drawable.ic_alert_20,
+                    actionLabel = stringResource(R.string.vault_attention_action),
+                    onAction = onAttention,
                 )
             }
             Spacer(Modifier.height(16.dp))
@@ -346,6 +363,14 @@ private fun VaultItemRow(row: VaultRow, onClick: () -> Unit) {
                     overflow = TextOverflow.Ellipsis,
                 )
             }
+        }
+        if (row is VaultRow.Item && row.atRisk) {
+            // Nivel Crítico o Alto en Salud (Figma «Elemento de bóveda · en riesgo»).
+            Icon(
+                painter = painterResource(R.drawable.ic_alert_20),
+                contentDescription = stringResource(R.string.vault_row_at_risk),
+                tint = MaterialTheme.colorScheme.error,
+            )
         }
         Icon(
             painter = painterResource(R.drawable.ic_chevron_right_20),

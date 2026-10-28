@@ -8,6 +8,8 @@ import com.luis.end_security.core.designsystem.component.initialOf
 import com.luis.end_security.core.security.SecretClipboard
 import com.luis.end_security.core.session.VaultSession
 import com.luis.end_security.core.session.VaultState
+import com.luis.end_security.feature.health.domain.HealthRepository
+import com.luis.end_security.feature.health.domain.ItemHealth
 import com.luis.end_security.feature.vault.domain.DamagedEntry
 import com.luis.end_security.feature.vault.domain.DeletionUndo
 import com.luis.end_security.feature.vault.domain.EditedAge
@@ -65,6 +67,8 @@ class ItemDetailUiState(
     val shownPassword: String? = null,
     val copied: CopiedNotice? = null,
     val showDeleteSheet: Boolean = false,
+    /** La salud de este elemento (Salud, DEC-20); `null` mientras no hay análisis. Sin contraseña. */
+    val health: ItemHealth? = null,
 ) {
     val passwordVisible: Boolean get() = shownPassword != null
 
@@ -97,6 +101,7 @@ class ItemDetailViewModel @Inject constructor(
     private val deletion: DeletionUndo,
     private val session: VaultSession,
     private val clock: DeviceClock,
+    private val healthRepository: HealthRepository,
 ) : ViewModel() {
 
     private val itemId: UUID? = savedStateHandle.get<String>(ID_ARG)?.let { runCatching { UUID.fromString(it) }.getOrNull() }
@@ -116,6 +121,12 @@ class ItemDetailViewModel @Inject constructor(
     private var closing = false
 
     init {
+        // El bloque de salud sigue al análisis (que se mantiene al día con la bóveda).
+        viewModelScope.launch {
+            healthRepository.state.collect { state ->
+                _state.update { it.copy(health = itemId?.let { id -> state.report?.forItem(id) }) }
+            }
+        }
         viewModelScope.launch {
             // Solo este elemento: no se descifra toda la bóveda en cada cambio de Room.
             val changes = itemId?.let { repository.observeEntry(it) } ?: flowOf(null)
@@ -157,6 +168,7 @@ class ItemDetailViewModel @Inject constructor(
                 shownPassword = if (old.passwordVisible) item.password else null,
                 copied = old.copied,
                 showDeleteSheet = old.showDeleteSheet,
+                health = old.health,
             )
         }
     }
@@ -237,12 +249,13 @@ class ItemDetailViewModel @Inject constructor(
     private fun ItemDetailUiState.copy(
         copied: CopiedNotice? = this.copied,
         showDeleteSheet: Boolean = this.showDeleteSheet,
+        health: ItemHealth? = this.health,
     ) = ItemDetailUiState(
-        status, name, initial, edited, username, site, siteOpenable, notes, passwordLength, shownPassword, copied, showDeleteSheet,
+        status, name, initial, edited, username, site, siteOpenable, notes, passwordLength, shownPassword, copied, showDeleteSheet, health,
     )
 
     private fun ItemDetailUiState.withShownPassword(password: String?) = ItemDetailUiState(
-        status, name, initial, edited, username, site, siteOpenable, notes, passwordLength, password, copied, showDeleteSheet,
+        status, name, initial, edited, username, site, siteOpenable, notes, passwordLength, password, copied, showDeleteSheet, health,
     )
 
     companion object {

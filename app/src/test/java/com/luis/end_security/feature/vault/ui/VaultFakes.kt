@@ -15,6 +15,9 @@ import com.luis.end_security.feature.vault.domain.ResolveResult
 import com.luis.end_security.feature.vault.domain.ItemDraft
 import com.luis.end_security.feature.vault.domain.PasswordHandoff
 import com.luis.end_security.feature.vault.domain.PendingDeletion
+import com.luis.end_security.feature.health.domain.HealthRepository
+import com.luis.end_security.feature.health.domain.HealthState
+import com.luis.end_security.feature.health.domain.SnapshotPoint
 import com.luis.end_security.feature.vault.domain.DamagedEntry
 import com.luis.end_security.feature.vault.domain.ReadableEntry
 import com.luis.end_security.feature.vault.domain.UnsupportedEntry
@@ -182,4 +185,30 @@ class FakePasswordHandoff : PasswordHandoff {
     }
 
     val hasPending: Boolean get() = pending != null
+}
+
+/** [HealthRepository] que se mueve a mano: el análisis se pone en [state]. */
+class FakeHealthRepository : HealthRepository {
+    private val _state = MutableStateFlow(HealthState())
+    override val state: StateFlow<HealthState> = _state.asStateFlow()
+    var refreshes = 0
+    val checks = mutableListOf<Boolean>()
+
+    fun set(state: HealthState) {
+        _state.value = state
+    }
+
+    override suspend fun refresh() {
+        refreshes++
+    }
+
+    override suspend fun checkBreaches(force: Boolean) {
+        checks += force
+    }
+
+    override suspend fun open() {
+        refresh()
+    }
+
+    override fun observeProgress(): Flow<List<SnapshotPoint>> = MutableStateFlow(emptyList())
 }

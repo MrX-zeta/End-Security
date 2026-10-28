@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -38,6 +39,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -65,6 +67,9 @@ import com.luis.end_security.core.designsystem.component.ReadOnlyField
 import com.luis.end_security.core.designsystem.component.SecondaryButton
 import com.luis.end_security.core.designsystem.theme.PreviewSurface
 import com.luis.end_security.core.security.SecureScreen
+import com.luis.end_security.feature.health.domain.ItemHealth
+import com.luis.end_security.feature.health.domain.RiskLevel
+import com.luis.end_security.feature.health.domain.StrengthClass
 import com.luis.end_security.feature.vault.domain.EditedAge
 import java.util.UUID
 
@@ -189,6 +194,10 @@ fun ItemDetailScreen(
                         onTogglePassword = onTogglePassword,
                         onOpenSite = onOpenSite,
                     )
+                    state.health?.let { health ->
+                        Spacer(Modifier.height(12.dp))
+                        HealthBlock(health)
+                    }
                     Spacer(Modifier.height(20.dp))
                     DeleteLink(onClick = onDelete)
                     Spacer(Modifier.height(16.dp))
@@ -355,6 +364,65 @@ private fun Fields(
                 displayText = notes,
                 leadingIcon = R.drawable.ic_file_text_20,
             )
+        }
+    }
+}
+
+/**
+ * El bloque de salud del elemento (Salud, DEC-20): «Segura · Fuerte, única y sin filtraciones», o el problema más grave
+ * (filtrada, repetida, débil, antigua, regular). Se calcula en el teléfono.
+ */
+@Composable
+private fun HealthBlock(health: ItemHealth) {
+    val colors = MaterialTheme.colorScheme
+    val safe = health.level == RiskLevel.Low
+    val critical = health.level == RiskLevel.Critical || health.level == RiskLevel.High
+    val title: String
+    val body: String
+    when {
+        health.breached -> {
+            title = stringResource(R.string.health_detail_breached_title)
+            body = pluralStringResource(R.plurals.health_detail_breached_body, health.breachCount, health.breachCount)
+        }
+        health.repeated -> {
+            title = stringResource(R.string.health_detail_repeated_title)
+            body = stringResource(R.string.health_detail_repeated_body, health.repeatCount)
+        }
+        health.strength == StrengthClass.Weak -> {
+            title = stringResource(R.string.health_detail_weak_title)
+            body = stringResource(R.string.health_detail_weak_body)
+        }
+        health.old -> {
+            title = stringResource(R.string.health_detail_old_title)
+            body = stringResource(R.string.health_detail_old_body)
+        }
+        health.strength == StrengthClass.Fair -> {
+            title = stringResource(R.string.health_detail_fair_title)
+            body = stringResource(R.string.health_detail_fair_body)
+        }
+        else -> {
+            title = stringResource(R.string.health_detail_safe_title)
+            body = stringResource(R.string.health_detail_safe_body)
+        }
+    }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(if (critical) colors.errorContainer else colors.surface, RoundedCornerShape(18.dp))
+            .padding(horizontal = 16.dp, vertical = 14.dp)
+            .semantics(mergeDescendants = true) { contentDescription = "$title. $body" },
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            painter = painterResource(if (safe) R.drawable.ic_shield_check_22 else R.drawable.ic_alert_20),
+            contentDescription = null,
+            tint = if (critical) colors.error else colors.onSurface,
+            modifier = Modifier.size(20.dp),
+        )
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(text = title, style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold), color = colors.onSurface)
+            Text(text = body, style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
         }
     }
 }
