@@ -52,6 +52,7 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -63,6 +64,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.luis.end_security.R
 import com.luis.end_security.core.designsystem.component.BlobShape
 import com.luis.end_security.core.designsystem.component.DangerButton
+import com.luis.end_security.core.designsystem.component.FieldErrorText
 import com.luis.end_security.core.designsystem.component.OrganicBlob
 import com.luis.end_security.core.designsystem.component.OutlinedIconButton
 import com.luis.end_security.core.designsystem.component.PasswordField
@@ -71,7 +73,10 @@ import com.luis.end_security.core.designsystem.component.PromptLink
 import com.luis.end_security.core.designsystem.component.SecondaryButton
 import com.luis.end_security.core.designsystem.component.TwoWeightTitle
 import com.luis.end_security.core.designsystem.theme.PreviewSurface
+import com.luis.end_security.core.security.BiometricPromptTexts
 import com.luis.end_security.core.security.ExcludeFromAutofill
+import com.luis.end_security.core.security.authenticateWithCipher
+import com.luis.end_security.core.security.findFragmentActivity
 import com.luis.end_security.core.security.SecureScreen
 import com.luis.end_security.feature.auth.domain.MasterPasswordPolicy
 import com.luis.end_security.feature.auth.ui.lockoutMessage
@@ -96,11 +101,32 @@ fun UnlockRoute(
     val currentOnAction by rememberUpdatedState(viewModel::onAction)
     val currentOnNavigateToVault by rememberUpdatedState(onNavigateToVault)
     val currentOnNavigateToLogin by rememberUpdatedState(onNavigateToLogin)
+    val context = LocalContext.current
+    val currentTexts by rememberUpdatedState(
+        BiometricPromptTexts(
+            title = stringResource(R.string.biometric_unlock_title),
+            subtitle = null,
+            negativeButton = stringResource(R.string.biometric_use_password),
+        ),
+    )
     LaunchedEffect(viewModel) {
         viewModel.effects.collect { effect ->
             when (effect) {
                 UnlockEffect.NavigateToVault -> currentOnNavigateToVault()
                 UnlockEffect.NavigateToLogin -> currentOnNavigateToLogin()
+                is UnlockEffect.ShowBiometricPrompt -> {
+                    val activity = context.findFragmentActivity()
+                    if (activity == null) {
+                        currentOnAction(UnlockAction.BiometricCancelled)
+                    } else {
+                        activity.authenticateWithCipher(
+                            cipher = effect.cipher,
+                            texts = currentTexts,
+                            onSuccess = { cipher -> currentOnAction(UnlockAction.BiometricAuthenticated(cipher)) },
+                            onFailure = { currentOnAction(UnlockAction.BiometricCancelled) },
+                        )
+                    }
+                }
             }
         }
     }
@@ -204,6 +230,12 @@ fun UnlockScreen(
                 )
                 Spacer(Modifier.height(28.dp))
                 Column(modifier = Modifier.bringIntoViewRequester(formRequester)) {
+                    if (state.biometricInvalidated) {
+                        FieldErrorText(
+                            text = stringResource(R.string.unlock_biometric_invalidated),
+                            modifier = Modifier.padding(bottom = 12.dp),
+                        )
+                    }
                     PasswordField(
                         state = passwordState,
                         label = stringResource(R.string.unlock_password_label),

@@ -1,7 +1,7 @@
 package com.luis.end_security
 
 import android.os.Bundle
-import androidx.activity.ComponentActivity
+import androidx.fragment.app.FragmentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.LaunchedEffect
@@ -13,7 +13,7 @@ import com.luis.end_security.navigation.Routes
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
-class MainActivity : ComponentActivity() {
+class MainActivity : FragmentActivity() {
     /** Compose ya dibujó su primer cuadro: el splash del sistema puede irse. */
     @Volatile
     private var firstFrameDrawn = false

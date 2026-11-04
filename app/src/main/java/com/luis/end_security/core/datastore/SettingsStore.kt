@@ -71,6 +71,15 @@ class SettingsStore @Inject constructor(
         }
     }
 
+    /** Guarda el autobloqueo (OP-21); un valor fuera de las opciones se sanea. */
+    suspend fun setAutolockMinutes(minutes: Int) {
+        dataStore.edit { preferences -> preferences[Keys.AUTOLOCK_MINUTES] = AutoLockSettings.sanitize(minutes) }
+    }
+
+    suspend fun setBiometricEnabled(enabled: Boolean) {
+        dataStore.edit { preferences -> preferences[Keys.BIOMETRIC_ENABLED] = enabled }
+    }
+
     suspend fun setOnboardingCompleted() {
         dataStore.edit { preferences -> preferences[Keys.ONBOARDING_COMPLETED] = true }
     }

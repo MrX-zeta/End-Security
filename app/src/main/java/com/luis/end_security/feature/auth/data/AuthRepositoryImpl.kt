@@ -1,5 +1,7 @@
 package com.luis.end_security.feature.auth.data
 
+import com.luis.end_security.core.crypto.keystore.BiometricKeyStore
+import com.luis.end_security.core.datastore.SettingsStore
 import android.os.Build
 import com.luis.end_security.core.common.ApiError
 import com.luis.end_security.core.common.ApiResult
@@ -61,6 +63,8 @@ class AuthRepositoryImpl @Inject constructor(
     private val attempts: UnlockAttemptStore,
     private val pending: PendingAuth,
     private val sync: SyncShutdown,
+    private val biometricKeys: BiometricKeyStore,
+    private val settings: SettingsStore,
     @param:DefaultDispatcher private val defaultDispatcher: CoroutineDispatcher,
     @ApplicationScope scope: CoroutineScope,
 ) : AuthRepository {
@@ -253,6 +257,9 @@ class AuthRepositoryImpl @Inject constructor(
             withContext(NonCancellable) {
                 tokens.save(authenticated.tokens)
                 accountDao.replace(account)
+                // La fila nueva no tiene huella: ni llave del Keystore ni opción encendida de una cuenta anterior.
+                runCatching { biometricKeys.deleteAll() }
+                runCatching { settings.setBiometricEnabled(false) }
                 attempts.recordSuccess()
                 if (session.state.value is VaultState.Unlocked) session.lock()
                 session.unlock(authenticated.account.userId, vaultKey)
@@ -312,12 +319,19 @@ class AuthRepositoryImpl @Inject constructor(
 
     /** Borra tokens, Room y llaves en memoria. También tras `session_revoked`. */
     suspend fun signOutLocally() = withContext(NonCancellable) {
-        pending.clear()
-        tokens.clear()
-        // Sin sincronización a medias: el borrado corre con el motor en reposo y ningún disparador arranca otra pasada.
-        sync.stop { withContext(Dispatchers.IO) { database.clearAllTables() } }
-        attempts.recordSuccess()
-        session.lock()
+        try {
+            // La llave de la huella se borra lo primero (DEC-09): nada que abra la bóveda de esta cuenta queda.
+            runCatching { biometricKeys.deleteAll() }
+            runCatching { settings.setBiometricEnabled(false) }
+            runCatching { pending.clear() }
+            runCatching { tokens.clear() }
+            // Sin sincronización a medias: el borrado corre con el motor en reposo y ningún disparador arranca otra pasada.
+            sync.stop { withContext(Dispatchers.IO) { database.clearAllTables() } }
+            attempts.recordSuccess()
+        } finally {
+            // Pase lo que pase en los pasos anteriores, la vault_key en memoria se borra (INV-07).
+            session.lock()
+        }
     }
 
     override suspend fun localAccountName(): String? = accountDao.get()?.let { it.displayName ?: it.email }

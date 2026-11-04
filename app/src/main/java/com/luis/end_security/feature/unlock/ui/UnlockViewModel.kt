@@ -1,6 +1,10 @@
 package com.luis.end_security.feature.unlock.ui
 
 import androidx.lifecycle.ViewModel
+import com.luis.end_security.feature.unlock.domain.BiometricPreparation
+import com.luis.end_security.feature.unlock.domain.BiometricResult
+import com.luis.end_security.feature.unlock.domain.BiometricUnlock
+import javax.crypto.Cipher
 import androidx.lifecycle.viewModelScope
 import com.luis.end_security.core.common.Countdown
 import com.luis.end_security.feature.auth.domain.AuthRepository
@@ -41,6 +45,8 @@ data class UnlockUiState(
     val lockoutSecondsLeft: Int = 0,
     /** Hoja «¿Cerrar sesión?» abierta. */
     val showSignOutConfirmation: Boolean = false,
+    /** «Tu huella cambió. Entra con tu contraseña…»: la llave se invalidó y ya se desactivó todo (DEC-09). */
+    val biometricInvalidated: Boolean = false,
 ) {
     val isLockedOut: Boolean get() = lockoutSecondsLeft > 0
 
@@ -61,6 +67,14 @@ sealed interface UnlockAction {
     /** Botón de huella. */
     data object BiometricClicked : UnlockAction
 
+    /** El `BiometricPrompt` aceptó la huella con este `Cipher` ya autenticado. */
+    class BiometricAuthenticated(val cipher: Cipher) : UnlockAction {
+        override fun toString(): String = "BiometricAuthenticated(***)"
+    }
+
+    /** El `BiometricPrompt` se canceló («Usar contraseña») o falló: se queda en Desbloquear. */
+    data object BiometricCancelled : UnlockAction
+
     /** «Cerrar sesión» en «¿No eres Ana?». */
     data object SignOutClicked : UnlockAction
 
@@ -77,6 +91,9 @@ sealed interface UnlockEffect {
 
     /** Sesión cerrada (o no hay cuenta): a Iniciar sesión, sin nada debajo. */
     data object NavigateToLogin : UnlockEffect
+
+    /** La pantalla muestra el `BiometricPrompt` con este `Cipher` de descifrado (OP-20). */
+    class ShowBiometricPrompt(val cipher: Cipher) : UnlockEffect
 }
 
 @HiltViewModel
@@ -84,6 +101,7 @@ class UnlockViewModel @Inject constructor(
     settings: UnlockSettingsRepository,
     attempts: UnlockAttemptRepository,
     private val auth: AuthRepository,
+    private val biometric: BiometricUnlock,
     timeSource: TimeSource,
 ) : ViewModel() {
 
@@ -101,10 +119,20 @@ class UnlockViewModel @Inject constructor(
     private var passwordIsEmpty = true
     private val lockoutCountdown = Countdown(timeSource)
 
+    /** El diálogo de la huella sale **una sola vez** por entrada a la pantalla (no en bucle si se cancela). */
+    private var autoPrompted = false
+
+    /** Hay un diálogo de huella abierto o descifrando: un toque más no abre otro. */
+    private var biometricBusy = false
+
     init {
         viewModelScope.launch {
             settings.biometricEnabled.collect { enabled ->
                 _state.update { it.copy(biometricAvailable = enabled) }
+                if (enabled && !autoPrompted) {
+                    autoPrompted = true
+                    startBiometric()
+                }
             }
         }
         viewModelScope.launch {
@@ -132,12 +160,57 @@ class UnlockViewModel @Inject constructor(
                 }
             }
             is UnlockAction.Submit -> submit(action.password)
-            // TODO(OP-20): BiometricPrompt con CryptoObject (DEC-09): la llave del Keystore abre la
-            //  vault_key envuelta (bio_wrapped_vault_key). Si la biometría cambió, pedir la contraseña.
-            UnlockAction.BiometricClicked -> Unit
+            UnlockAction.BiometricClicked -> startBiometric()
+            is UnlockAction.BiometricAuthenticated -> completeBiometric(action.cipher)
+            UnlockAction.BiometricCancelled -> biometricBusy = false
             UnlockAction.SignOutClicked -> _state.update { it.copy(showSignOutConfirmation = true) }
             UnlockAction.SignOutDismissed -> _state.update { it.copy(showSignOutConfirmation = false) }
             UnlockAction.SignOutConfirmed -> signOut()
+        }
+    }
+
+    /** OP-20, paso 1: prepara el `Cipher` de descifrado y pide a la pantalla el diálogo de la huella. */
+    private fun startBiometric() {
+        if (biometricBusy || _state.value.isLoading) return
+        biometricBusy = true
+        viewModelScope.launch {
+            val prepared = try {
+                biometric.prepareUnlock()
+            } catch (_: RuntimeException) {
+                BiometricPreparation.Failed
+            }
+            when (prepared) {
+                is BiometricPreparation.Ready -> _effects.send(UnlockEffect.ShowBiometricPrompt(prepared.cipher))
+                BiometricPreparation.Invalidated -> {
+                    biometricBusy = false
+                    // La huella cambió: ya se desactivó todo; se pide la contraseña maestra.
+                    _state.update { it.copy(biometricInvalidated = true) }
+                }
+                else -> biometricBusy = false
+            }
+        }
+    }
+
+    /** OP-20, paso 2: con la huella aceptada, abre la bóveda. No cuenta ni reinicia los intentos de la contraseña. */
+    private fun completeBiometric(cipher: Cipher) {
+        // Con un cierre de sesión o un desbloqueo con contraseña en curso, la huella no abre nada.
+        if (_state.value.isLoading) {
+            biometricBusy = false
+            return
+        }
+        viewModelScope.launch {
+            val result = try {
+                biometric.completeUnlock(cipher)
+            } catch (_: RuntimeException) {
+                BiometricResult.Failed
+            } finally {
+                biometricBusy = false
+            }
+            when (result) {
+                BiometricResult.Done -> _effects.send(UnlockEffect.NavigateToVault)
+                BiometricResult.Invalidated -> _state.update { it.copy(biometricInvalidated = true) }
+                BiometricResult.Failed -> Unit
+            }
         }
     }
 

@@ -17,6 +17,9 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
+import com.luis.end_security.feature.unlock.FakeBiometricUnlock
+import com.luis.end_security.feature.unlock.domain.BiometricPreparation
+import com.luis.end_security.feature.unlock.domain.BiometricResult
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -32,6 +35,7 @@ class UnlockViewModelTest {
     private val dispatcher = StandardTestDispatcher()
     private val scope = TestScope(dispatcher)
     private val settings = FakeUnlockSettings()
+    private val biometric = FakeBiometricUnlock()
     private val attempts = FakeUnlockAttempts()
     private val auth = FakeAuthRepository().apply {
         accountName = "Ana"
@@ -53,7 +57,7 @@ class UnlockViewModelTest {
     @Before
     fun setUp() {
         Dispatchers.setMain(dispatcher)
-        viewModel = UnlockViewModel(settings, attempts, auth, dispatcher.scheduler.timeSource)
+        viewModel = UnlockViewModel(settings, attempts, auth, biometric, dispatcher.scheduler.timeSource)
     }
 
     @After
@@ -168,7 +172,7 @@ class UnlockViewModelTest {
     @Test
     fun `un bloqueo guardado sigue al abrir la pantalla`() = scope.runTest {
         attempts.remaining = 40.seconds
-        viewModel = UnlockViewModel(settings, attempts, auth, dispatcher.scheduler.timeSource)
+        viewModel = UnlockViewModel(settings, attempts, auth, biometric, dispatcher.scheduler.timeSource)
         runCurrent()
         assertEquals(40, state.lockoutSecondsLeft)
     }
@@ -233,5 +237,79 @@ class UnlockViewModelTest {
             failures = 0
             remaining = Duration.ZERO
         }
+    }
+
+    // ---- Tarea 16: desbloqueo con huella (OP-20)
+
+    private fun cipher(): javax.crypto.Cipher = javax.crypto.Cipher.getInstance("AES/GCM/NoPadding")
+
+    @Test
+    fun `con la huella activada el dialogo sale una sola vez al entrar`() = scope.runTest {
+        biometric.unlockPreparation = BiometricPreparation.Ready(cipher())
+        settings.biometricEnabled.value = true
+        runCurrent()
+        assertEquals(1, biometric.prepareUnlockCalls)
+        assertTrue(viewModel.effects.first() is UnlockEffect.ShowBiometricPrompt)
+        // Cancelar no lo vuelve a abrir en bucle.
+        viewModel.onAction(UnlockAction.BiometricCancelled)
+        settings.biometricEnabled.value = false
+        settings.biometricEnabled.value = true
+        runCurrent()
+        assertEquals(1, biometric.prepareUnlockCalls)
+    }
+
+    @Test
+    fun `el boton de huella vuelve a abrir el dialogo tras cancelar`() = scope.runTest {
+        biometric.unlockPreparation = BiometricPreparation.Ready(cipher())
+        settings.biometricEnabled.value = true
+        runCurrent()
+        viewModel.onAction(UnlockAction.BiometricCancelled)
+        viewModel.onAction(UnlockAction.BiometricClicked)
+        runCurrent()
+        assertEquals(2, biometric.prepareUnlockCalls)
+    }
+
+    @Test
+    fun `un segundo toque con el dialogo abierto no abre otro`() = scope.runTest {
+        biometric.unlockPreparation = BiometricPreparation.Ready(cipher())
+        settings.biometricEnabled.value = true
+        runCurrent()
+        viewModel.onAction(UnlockAction.BiometricClicked)
+        runCurrent()
+        assertEquals(1, biometric.prepareUnlockCalls)
+    }
+
+    @Test
+    fun `aceptar la huella abre la boveda y no toca los intentos de la contrasena`() = scope.runTest {
+        attempts.failures = 2
+        runCurrent()
+        viewModel.onAction(UnlockAction.BiometricAuthenticated(cipher()))
+        runCurrent()
+        assertEquals(UnlockEffect.NavigateToVault, viewModel.effects.first())
+        assertEquals(1, biometric.completeUnlockCalls)
+        assertEquals(2, attempts.failures)
+    }
+
+    @Test
+    fun `huella cambiada desactiva y muestra el mensaje para entrar con la contrasena`() = scope.runTest {
+        biometric.unlockPreparation = BiometricPreparation.Invalidated
+        settings.biometricEnabled.value = true
+        runCurrent()
+        assertTrue(state.biometricInvalidated)
+    }
+
+    @Test
+    fun `datos que no descifran tambien piden la contrasena`() = scope.runTest {
+        biometric.unlockResult = BiometricResult.Invalidated
+        viewModel.onAction(UnlockAction.BiometricAuthenticated(cipher()))
+        runCurrent()
+        assertTrue(state.biometricInvalidated)
+    }
+
+    @Test
+    fun `sin la huella activada no se abre ningun dialogo`() = scope.runTest {
+        runCurrent()
+        assertEquals(0, biometric.prepareUnlockCalls)
+        assertFalse(state.biometricInvalidated)
     }
 }

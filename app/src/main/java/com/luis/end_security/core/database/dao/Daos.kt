@@ -26,6 +26,14 @@ abstract class AccountDao {
     @Query("SELECT EXISTS(SELECT 1 FROM account)")
     abstract suspend fun exists(): Boolean
 
+    /** Guarda la `vault_key` envuelta con la llave biométrica del Keystore (OP-35, DEC-09). */
+    @Query("UPDATE account SET bio_iv = :iv, bio_wrapped_vault_key = :wrapped")
+    abstract suspend fun setBiometric(iv: ByteArray, wrapped: ByteArray)
+
+    /** Quita el envoltorio biométrico (desactivar, huella invalidada, cerrar sesión). */
+    @Query("UPDATE account SET bio_iv = NULL, bio_wrapped_vault_key = NULL")
+    abstract suspend fun clearBiometric()
+
     /**
      * Reemplaza la cuenta: nunca quedan dos filas. Si es otra cuenta, también se borran los datos
      * de la anterior (elementos, caché de HIBP y salud), para no mezclar bloques de dos usuarios.
@@ -135,6 +143,10 @@ abstract class VaultItemDao {
     // --- Subida (OP-34) ---
 
     /** Los pendientes, en orden de `local_seq` (de uno en uno). Las lápidas pendientes incluidas. */
+    /** Cambios que aún no están en el servidor: `pending` y `conflict` (cerrar sesión los perdería). */
+    @Query("SELECT COUNT(*) FROM vault_items WHERE sync_state IN ('pending', 'conflict')")
+    abstract suspend fun unsyncedCount(): Int
+
     @Query("SELECT * FROM vault_items WHERE sync_state = 'pending' ORDER BY local_seq, id")
     abstract suspend fun pendingRows(): List<VaultItemEntity>
 

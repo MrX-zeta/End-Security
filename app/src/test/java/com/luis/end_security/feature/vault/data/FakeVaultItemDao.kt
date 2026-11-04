@@ -37,6 +37,22 @@ class FakeAccountDao(initial: AccountEntity? = null) : AccountDao() {
         row.value = account
     }
 
+    override suspend fun setBiometric(iv: ByteArray, wrapped: ByteArray) {
+        val old = row.value ?: return
+        row.value = AccountEntity(
+            old.userId, old.email, old.displayName, old.kdfSalt, old.kdfMemoryKiB, old.kdfIterations, old.kdfParallelism,
+            old.pvkNonce, old.pvkCiphertext, old.keyVersion, old.syncCursor, old.lastSyncAt, iv, wrapped,
+        )
+    }
+
+    override suspend fun clearBiometric() {
+        val old = row.value ?: return
+        row.value = AccountEntity(
+            old.userId, old.email, old.displayName, old.kdfSalt, old.kdfMemoryKiB, old.kdfIterations, old.kdfParallelism,
+            old.pvkNonce, old.pvkCiphertext, old.keyVersion, old.syncCursor, old.lastSyncAt, null, null,
+        )
+    }
+
     override suspend fun deleteBreachChecks() = Unit
 
     override suspend fun deleteVaultItems() = Unit
@@ -121,6 +137,9 @@ class FakeVaultItemDao(private val account: FakeAccountDao? = null) : VaultItemD
     }
 
     override suspend fun syncedIds(): List<String> = rows.value.values.filter { it.syncState == SyncState.Synced }.map { it.id }
+
+    override suspend fun unsyncedCount(): Int =
+        rows.value.values.count { it.syncState == SyncState.Pending || it.syncState == SyncState.Conflict }
 
     override suspend fun pendingRows(): List<VaultItemEntity> =
         rows.value.values.filter { it.syncState == SyncState.Pending }.sortedWith(compareBy({ it.localSeq }, { it.id }))
