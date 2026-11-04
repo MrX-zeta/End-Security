@@ -70,6 +70,18 @@ class UnlockAttemptStore @Inject constructor(
         }
     }
 
+    /**
+     * Como [recordSuccess] pero **sin tragarse** el fallo de escritura: la limpieza de una cuenta eliminada debe saber si los
+     * intentos y el bloqueo de esa cuenta quedaron borrados (si no, la cuenta siguiente heredaría el bloqueo).
+     */
+    suspend fun reset() {
+        dataStore.edit { preferences ->
+            preferences.remove(Keys.FAILURES)
+            preferences.remove(Keys.LOCKED_UNTIL_WALL)
+            preferences.remove(Keys.LOCKED_UNTIL_ELAPSED)
+        }
+    }
+
     private object Keys {
         val FAILURES = intPreferencesKey("unlock_failures")
         val LOCKED_UNTIL_WALL = longPreferencesKey("unlock_locked_until_wall")

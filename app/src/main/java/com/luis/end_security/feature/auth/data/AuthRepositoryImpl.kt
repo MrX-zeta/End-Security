@@ -20,6 +20,7 @@ import com.luis.end_security.core.database.dao.AccountDao
 import com.luis.end_security.core.database.entity.AccountEntity
 import com.luis.end_security.core.datastore.UnlockAttemptStore
 import com.luis.end_security.core.network.TokenManager
+import com.luis.end_security.core.security.SecretClipboardController
 import com.luis.end_security.core.session.SessionLifecycleLock
 import com.luis.end_security.core.session.VaultSession
 import com.luis.end_security.core.sync.SyncShutdown
@@ -69,6 +70,7 @@ class AuthRepositoryImpl @Inject constructor(
     private val settings: SettingsStore,
     private val sessionLock: SessionLifecycleLock,
     private val serverCheck: ServerAccountCheck,
+    private val clipboard: SecretClipboardController,
     @param:DefaultDispatcher private val defaultDispatcher: CoroutineDispatcher,
     @ApplicationScope scope: CoroutineScope,
 ) : AuthRepository {
@@ -422,23 +424,77 @@ class AuthRepositoryImpl @Inject constructor(
         signOutLocally()
     }
 
-    /** Borra tokens, Room y llaves en memoria. También tras `session_revoked`. */
-    suspend fun signOutLocally() = withContext(NonCancellable) {
+    /**
+     * Borra tokens, Room y llaves en memoria. También tras `session_revoked`. Devuelve `true` si **todos** los pasos salieron
+     * bien; un fallo de la limpieza de Room sigue propagándose, como siempre (los pasos previos solo se anotan).
+     */
+    suspend fun signOutLocally(): Boolean = withContext(NonCancellable) {
       sessionLock.mutex.withLock {
+        var clean = true
         try {
             // La llave de la huella se borra lo primero (DEC-09): nada que abra la bóveda de esta cuenta queda.
-            runCatching { biometricKeys.deleteAll() }
-            runCatching { settings.setBiometricEnabled(false) }
-            runCatching { pending.clear() }
-            runCatching { tokens.clear() }
+            clean = runCatching { biometricKeys.deleteAll() }.isSuccess && clean
+            clean = runCatching { settings.setBiometricEnabled(false) }.isSuccess && clean
+            clean = runCatching { pending.clear() }.isSuccess && clean
+            clean = runCatching { tokens.clear() }.isSuccess && clean
             // Sin sincronización a medias: el borrado corre con el motor en reposo y ningún disparador arranca otra pasada.
             sync.stop { withContext(Dispatchers.IO) { database.clearAllTables() } }
-            attempts.recordSuccess()
+            // Sin `recordSuccess`: ese se traga el fallo de escritura y aquí hace falta saber si el bloqueo quedó borrado.
+            clean = runCatching { attempts.reset() }.isSuccess && clean
         } finally {
             // Pase lo que pase en los pasos anteriores, la vault_key en memoria se borra (INV-07).
             session.lock()
         }
+        clean
       }
+    }
+
+    // --- Eliminar cuenta (OP-28, tarea 20) ---
+
+    override suspend fun wipeAfterAccountDeletion(): Boolean = withContext(NonCancellable) {
+        // La marca va primero y con el `user_id` de la cuenta que se elimina: si el proceso muere a mitad de la limpieza, al
+        // arrancar se reintenta, pero solo si la cuenta local sigue siendo esa (no se borra una cuenta nueva).
+        val userId = runCatching { accountDao.get()?.userId }.getOrNull().orEmpty()
+        // Dos intentos: sin marca, un fallo de la limpieza no se reintentaría nunca.
+        repeat(2) { attempt ->
+            if (runCatching { settings.setWipePending(userId) }.isSuccess) return@repeat
+            if (attempt == 0) kotlinx.coroutines.yield()
+        }
+        runWipe()
+    }
+
+    override suspend fun completePendingWipe(): Boolean {
+        val mark = try {
+            settings.wipePendingUser()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            null
+        } ?: return true
+        // Una marca de otra cuenta (la eliminada ya se limpió en otro intento y desde entonces entró una cuenta nueva): se quita
+        // sin tocar nada. Borraría los datos de la cuenta nueva.
+        val local = runCatching { accountDao.get() }.getOrNull()
+        if (mark.isNotEmpty() && local != null && local.userId != mark) {
+            runCatching { settings.clearWipePending() }
+            return true
+        }
+        return withContext(NonCancellable) { runWipe() }
+    }
+
+    /** Todos los pasos se intentan aunque uno falle; solo con todos bien se quita la marca de limpieza pendiente. */
+    private suspend fun runWipe(): Boolean {
+        val local = try {
+            signOutLocally()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            false
+        }
+        val clipboardCleared = runCatching { clipboard.clearIfOurs() }.isSuccess
+        val preferences = runCatching { settings.resetAccountPreferences() }.isSuccess
+        val complete = local && clipboardCleared && preferences
+        if (complete) runCatching { settings.clearWipePending() }
+        return complete
     }
 
     override suspend fun localAccountName(): String? = accountDao.get()?.let { it.displayName ?: it.email }

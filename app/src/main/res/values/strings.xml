@@ -472,7 +472,6 @@
     <string name="settings_activity">Actividad reciente</string>
     <string name="settings_sign_out">Cerrar sesión</string>
     <string name="settings_delete_account">Eliminar cuenta</string>
-    <string name="settings_coming_soon">Disponible pronto</string>
     <string name="settings_autolock_title">Bloqueo automático</string>
     <string name="settings_autolock_body">Tu bóveda se bloquea cuando la app pasa este tiempo en segundo plano.</string>
     <string name="settings_autolock_option_0">Al salir de la app</string>
@@ -668,4 +667,26 @@
     <string name="activity_kind_account_deleted">Eliminación de cuenta solicitada</string>
     <string name="activity_kind_account_anonymized">Cuenta anonimizada</string>
     <string name="activity_kind_unknown">Actividad en tu cuenta</string>
+
+    <!-- Eliminar cuenta (SCR-36, SCR-37, SCR-38; Figma 47:2290, 62:3233, 62:3270) -->
+    <string name="delete_title">Eliminar cuenta</string>
+    <string name="delete_heading_bold">Eliminar tu cuenta</string>
+    <string name="delete_heading_regular">no se puede deshacer</string>
+    <string name="delete_consequence_passwords">Se borrarán todas tus contraseñas de nuestros servidores.</string>
+    <string name="delete_consequence_sessions">Se cerrará la sesión en todos tus dispositivos.</string>
+    <string name="delete_consequence_history">Tu historial quedará anónimo.</string>
+    <string name="delete_password_label">Contraseña maestra</string>
+    <string name="delete_submit">Eliminar mi cuenta</string>
+    <string name="delete_sheet_title">¿Eliminar tu cuenta para siempre?</string>
+    <plurals name="delete_sheet_body">
+        <item quantity="one">Se borrará tu %d contraseña de nuestros servidores y se cerrará la sesión en todos tus dispositivos. No podrás recuperarla.</item>
+        <item quantity="many">Se borrarán tus %d contraseñas de nuestros servidores y se cerrará la sesión en todos tus dispositivos. No podrás recuperarlas.</item>
+        <item quantity="other">Se borrarán tus %d contraseñas de nuestros servidores y se cerrará la sesión en todos tus dispositivos. No podrás recuperarlas.</item>
+    </plurals>
+    <string name="delete_sheet_body_empty">Se borrará tu cuenta de nuestros servidores y se cerrará la sesión en todos tus dispositivos. No podrás recuperarla.</string>
+    <string name="delete_sheet_confirm">Sí, eliminar mi cuenta</string>
+    <string name="settings_delete_needs_connection">Necesitas conexión para eliminar tu cuenta.</string>
+    <string name="deleted_title">Tu cuenta fue eliminada</string>
+    <string name="deleted_body">Borramos tus contraseñas de nuestros servidores. Gracias por haber usado End Security.</string>
+    <string name="deleted_go_home">Ir al inicio</string>
 </resources>

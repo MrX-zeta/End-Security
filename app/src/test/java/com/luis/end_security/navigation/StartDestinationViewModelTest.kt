@@ -1,6 +1,7 @@
 package com.luis.end_security.navigation
 
 import com.luis.end_security.feature.account.domain.AccountRepository
+import com.luis.end_security.feature.auth.domain.FakeAuthRepository
 import com.luis.end_security.feature.auth.domain.OnboardingRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -22,7 +23,7 @@ class StartDestinationViewModelTest {
     @After
     fun tearDown() = Dispatchers.resetMain()
 
-    private fun startRoute(hasAccount: Boolean, onboardingSeen: Boolean): String? {
+    private fun startRoute(hasAccount: Boolean, onboardingSeen: Boolean, auth: FakeAuthRepository = FakeAuthRepository()): String? {
         val onboarding = object : OnboardingRepository {
             override val isCompleted = MutableStateFlow(onboardingSeen)
             override suspend fun markCompleted() = Unit
@@ -30,7 +31,7 @@ class StartDestinationViewModelTest {
         val accounts = object : AccountRepository {
             override suspend fun hasLocalAccount() = hasAccount
         }
-        return StartDestinationViewModel(onboarding, accounts).startRoute.value
+        return StartDestinationViewModel(onboarding, accounts, auth).startRoute.value
     }
 
     @Test
@@ -47,5 +48,12 @@ class StartDestinationViewModelTest {
     @Test
     fun `la primera vez empieza en el onboarding`() {
         assertEquals(Routes.ONBOARDING, startRoute(hasAccount = false, onboardingSeen = false))
+    }
+
+    @Test
+    fun `antes de decidir repite la limpieza pendiente de una cuenta eliminada`() {
+        val auth = FakeAuthRepository()
+        startRoute(hasAccount = false, onboardingSeen = true, auth = auth)
+        assertEquals(1, auth.pendingWipeCalls)
     }
 }

@@ -88,6 +88,29 @@ class FakeAuthRepository : AuthRepository {
         signOutError?.let { throw it }
     }
 
+    /** Lo que devuelve la limpieza tras eliminar la cuenta; `false` = parte no se pudo borrar. */
+    var wipeResult: Boolean = true
+    var wipeCalls = 0
+    var pendingWipeCalls = 0
+
+    /** Se invoca al empezar la limpieza (para mirar el estado de otras piezas en ese momento). */
+    var onWipe: (() -> Unit)? = null
+
+    /** Cada llamada a la limpieza, en orden con las demás de [calls]. */
+    override suspend fun wipeAfterAccountDeletion(): Boolean {
+        wipeCalls++
+        onWipe?.invoke()
+        calls += "wipeAfterAccountDeletion"
+        waitGate()
+        return wipeResult
+    }
+
+    override suspend fun completePendingWipe(): Boolean {
+        pendingWipeCalls++
+        calls += "completePendingWipe"
+        return true
+    }
+
     override suspend fun localAccountName(): String? = accountName
 
     override fun consumeRecoveryCodesNotice(): Int? = recoveryCodesNotice.also { recoveryCodesNotice = null }

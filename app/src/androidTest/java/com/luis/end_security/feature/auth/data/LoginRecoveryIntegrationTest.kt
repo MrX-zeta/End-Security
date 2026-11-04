@@ -125,6 +125,17 @@ class LoginRecoveryIntegrationTest {
             settings = SettingsStore(dataStore),
             sessionLock = SessionLifecycleLock(),
             serverCheck = ServerAccountCheck(db.vaultItemDao()),
+            clipboard = com.luis.end_security.core.security.SecretClipboardController(
+                object : com.luis.end_security.core.security.ClipboardPort {
+                    override fun set(label: String, text: String) = Unit
+
+                    override fun currentLabel(): String? = null
+
+                    override fun clear() = Unit
+                },
+                SettingsStore(dataStore),
+                scope,
+            ),
             defaultDispatcher = Dispatchers.Default,
             scope = scope,
         )

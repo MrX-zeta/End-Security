@@ -6,11 +6,13 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
 import com.luis.end_security.core.crypto.GeneratorOptions
 import com.luis.end_security.core.security.ClipboardSettings
 import com.luis.end_security.core.session.AutoLockSettings
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import java.io.IOException
 import javax.inject.Inject
@@ -80,6 +82,47 @@ class SettingsStore @Inject constructor(
         dataStore.edit { preferences -> preferences[Keys.BIOMETRIC_ENABLED] = enabled }
     }
 
+    /**
+     * Cuenta eliminada (tarea 20): las opciones ligadas a la cuenta (generador, bloqueo automático, portapapeles y huella)
+     * vuelven a sus valores por defecto. **Se conserva** «onboarding visto» y la marca de limpieza pendiente.
+     */
+    suspend fun resetAccountPreferences() {
+        dataStore.edit { preferences ->
+            preferences.remove(Keys.AUTOLOCK_MINUTES)
+            preferences.remove(Keys.CLIPBOARD_CLEAR_SECONDS)
+            preferences.remove(Keys.GENERATOR_LENGTH)
+            preferences.remove(Keys.GENERATOR_UPPER)
+            preferences.remove(Keys.GENERATOR_DIGITS)
+            preferences.remove(Keys.GENERATOR_SYMBOLS)
+            preferences.remove(Keys.GENERATOR_AVOID_AMBIGUOUS)
+            preferences[Keys.BIOMETRIC_ENABLED] = false
+        }
+    }
+
+    /**
+     * `true` si la limpieza local tras eliminar la cuenta no terminó: se reintenta al arrancar (tarea 20). La marca lleva el
+     * `user_id` de la cuenta eliminada (`""` si no se pudo leer) para no borrar, al reintentar, una cuenta **nueva** que entró
+     * después.
+     */
+    suspend fun isWipePending(): Boolean = wipePendingUser() != null
+
+    /** El `user_id` de la cuenta eliminada con limpieza pendiente (`""` si se desconoce); `null` sin marca. */
+    suspend fun wipePendingUser(): String? {
+        val preferences = dataStore.data
+            .catch { error -> if (error is IOException) emit(emptyPreferences()) else throw error }
+            .first()
+        return preferences[Keys.WIPE_PENDING_USER]
+    }
+
+    /** Deja la marca de limpieza pendiente de la cuenta [userId] (`""` si se desconoce). */
+    suspend fun setWipePending(userId: String) {
+        dataStore.edit { preferences -> preferences[Keys.WIPE_PENDING_USER] = userId }
+    }
+
+    suspend fun clearWipePending() {
+        dataStore.edit { preferences -> preferences.remove(Keys.WIPE_PENDING_USER) }
+    }
+
     suspend fun setOnboardingCompleted() {
         dataStore.edit { preferences -> preferences[Keys.ONBOARDING_COMPLETED] = true }
     }
@@ -87,6 +130,7 @@ class SettingsStore @Inject constructor(
     private object Keys {
         val ONBOARDING_COMPLETED = booleanPreferencesKey("onboarding_completed")
         val BIOMETRIC_ENABLED = booleanPreferencesKey("biometric_enabled")
+        val WIPE_PENDING_USER = stringPreferencesKey("wipe_pending_user")
         val AUTOLOCK_MINUTES = intPreferencesKey("autolock_minutes")
         val CLIPBOARD_CLEAR_SECONDS = intPreferencesKey("clipboard_clear_seconds")
         val GENERATOR_LENGTH = intPreferencesKey("generator_length")

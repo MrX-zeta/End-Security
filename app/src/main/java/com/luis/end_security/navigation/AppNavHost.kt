@@ -43,7 +43,9 @@ import com.luis.end_security.feature.health.ui.HealthOldRoute
 import com.luis.end_security.feature.health.ui.HealthRankingRoute
 import com.luis.end_security.feature.health.ui.HealthRepeatedRoute
 import com.luis.end_security.feature.health.ui.HealthRoute
+import com.luis.end_security.feature.account.ui.AccountDeletedRoute
 import com.luis.end_security.feature.account.ui.ChangePasswordRoute
+import com.luis.end_security.feature.account.ui.DeleteAccountRoute
 import com.luis.end_security.feature.activity.ui.ActivityRoute
 import com.luis.end_security.feature.activity.ui.DevicesRoute
 import com.luis.end_security.feature.account.ui.TwoFactorActiveRoute
@@ -108,6 +110,8 @@ private fun AppNavigation(route: String, modifier: Modifier = Modifier) {
     // Si la bóveda se bloquea: a Desbloquear (o a Iniciar sesión sin cuenta), sin nada debajo.
     LockGuard(
         viewModel = lockGuardViewModel,
+        // Cuenta eliminada: sin `RequireUnlocked` (la sesión ya se cerró) y con la pila limpia.
+        onAccountDeleted = { navController.navigateClearingStack(Routes.ACCOUNT_DELETED) },
         onLocked = { destination ->
             navController.navigateClearingStack(
                 when (destination) {
@@ -178,12 +182,25 @@ private fun AppNavigation(route: String, modifier: Modifier = Modifier) {
                     onOpenChangePassword = { navController.navigate(Routes.CHANGE_PASSWORD) { launchSingleTop = true } },
                     onOpenDevices = { navController.navigate(Routes.DEVICES) { launchSingleTop = true } },
                     onOpenActivity = { navController.navigate(Routes.ACTIVITY) { launchSingleTop = true } },
+                    onOpenDeleteAccount = { navController.navigate(Routes.DELETE_ACCOUNT) { launchSingleTop = true } },
                     twoFactorDisabled = disabled,
                     onTwoFactorDisabledShown = { handle[Routes.RESULT_TWO_FACTOR_DISABLED] = false },
                     passwordChanged = passwordResult,
                     onPasswordChangedShown = { handle[Routes.RESULT_PASSWORD_CHANGED] = 0 },
                 )
             }
+        }
+        composable(Routes.DELETE_ACCOUNT) {
+            RequireUnlocked(onLocked = lockGuardViewModel::onProtectedScreenLocked) {
+                DeleteAccountRoute(
+                    onBack = { navController.popBackStack() },
+                    onTabSelected = onTabSelected,
+                )
+            }
+        }
+        // Cuenta eliminada: sin `RequireUnlocked` (la sesión ya se cerró) y con la pila limpia.
+        composable(Routes.ACCOUNT_DELETED, enterTransition = { EnterTransition.None }, exitTransition = { ExitTransition.None }) {
+            AccountDeletedRoute(onGoHome = { navController.navigateClearingStack(Routes.LOGIN) })
         }
         composable(Routes.DEVICES) {
             RequireUnlocked(onLocked = lockGuardViewModel::onProtectedScreenLocked) {

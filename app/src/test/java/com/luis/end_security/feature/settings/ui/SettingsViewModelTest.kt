@@ -116,14 +116,24 @@ class SettingsViewModelTest {
     }
 
     @Test
-    fun `las filas de tareas futuras solo avisan Disponible pronto`() = scope.runTest {
+    fun `Eliminar cuenta con red abre la pantalla`() = scope.runTest {
         create()
-        for (row in FutureRow.entries) {
-            val before = state.notice
-            viewModel.onAction(SettingsAction.FutureRowClicked(row))
-            assertEquals(NoticeKind.ComingSoon, state.notice?.kind)
-            assertTrue(before != state.notice)
-        }
+        viewModel.onAction(SettingsAction.DeleteAccountClicked)
+        runCurrent()
+        assertEquals(SettingsEffect.OpenDeleteAccount, viewModel.effects.first())
+        assertNull(state.notice)
+    }
+
+    @Test
+    fun `Eliminar cuenta sin red avisa y no navega`() = scope.runTest {
+        create()
+        repo.twoFactor = null
+        viewModel.onAction(SettingsAction.DeleteAccountClicked)
+        runCurrent()
+        assertEquals(NoticeKind.NeedsConnectionToDelete, state.notice?.kind)
+        // Ningún efecto de navegación: el canal sigue vacío.
+        val effect = kotlinx.coroutines.withTimeoutOrNull(1) { viewModel.effects.first() }
+        assertNull(effect)
         assertNull(state.signOutSheet)
         assertFalse(state.showAutoLockSheet)
     }

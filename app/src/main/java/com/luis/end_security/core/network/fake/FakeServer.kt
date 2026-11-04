@@ -455,15 +455,20 @@ class FakeServer(
         return ok(KeyVersionDto.serializer(), KeyVersionDto(user.keyVersion))
     }
 
-    @Suppress("UNUSED_PARAMETER")
+    /**
+     * EP-18: baja lógica (DEC-18). Reautentica, borra elementos, 2FA, códigos y verificaciones, revoca **todas** las sesiones y
+     * registra `account_deleted`. Después el correo se comporta como uno inexistente (`activeUserByEmail` ignora las bajas):
+     * `prelogin` da la sal falsa de siempre (DEC-07), `login` calcula el mismo Argon2 y responde `invalid_credentials`, y
+     * `register` puede crear otra cuenta con ese correo (anti-enumeración).
+     */
     private fun deleteAccount(session: FakeSession, user: FakeUser, dto: ReauthRequestDto): HttpResponse {
         checkReauth(user, dto.reauth)
+        event(user, "account_deleted", true, session.deviceName)
         user.deleted = true
         user.twoFactor = null
         user.verification = null
         state.items.values.removeAll { it.userId == user.id }
         state.sessions.values.filter { it.userId == user.id }.forEach { it.revoked = true }
-        // `account_deleted` no está en el enum de ActivityEvent del contrato (ver reporte).
         return HttpResponse(204, null)
     }
 

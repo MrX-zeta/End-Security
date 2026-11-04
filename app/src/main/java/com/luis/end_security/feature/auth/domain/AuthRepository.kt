@@ -69,6 +69,17 @@ interface AuthRepository {
     /** OP-18: cierra la sesión en el servidor (aunque no haya red) y borra todo lo local. */
     suspend fun signOut()
 
+    /**
+     * Tras el 204 de EP-18 (tarea 20): borra **todo** lo de la cuenta en este teléfono (tokens, Room, llaves biométricas y su
+     * bandera, `vault_key`, portapapeles, intentos de desbloqueo y las opciones ligadas a la cuenta; se conserva «onboarding
+     * visto»). Nunca lanza: devuelve `false` si algo no se pudo borrar y deja una marca para reintentarlo al arrancar
+     * ([completePendingWipe]).
+     */
+    suspend fun wipeAfterAccountDeletion(): Boolean
+
+    /** Al arrancar: si una limpieza anterior no terminó, la repite. `true` si no había nada pendiente o ya terminó. */
+    suspend fun completePendingWipe(): Boolean
+
     /** Nombre o correo para «¿No eres Ana?»; `null` sin cuenta. */
     suspend fun localAccountName(): String?
 

@@ -23,11 +23,8 @@ import kotlinx.coroutines.launch
 import javax.crypto.Cipher
 import javax.inject.Inject
 
-/** Las filas que llevan a pantallas de tareas futuras (Eliminar cuenta, T20); por ahora solo avisan «Disponible pronto». */
-enum class FutureRow { DeleteAccount }
-
 /** Avisos breves al pie de Ajustes. */
-enum class NoticeKind { ComingSoon, NeedsConnection, TwoFactorDisabled, PasswordChanged, BiometricOff }
+enum class NoticeKind { NeedsConnection, NeedsConnectionToDelete, TwoFactorDisabled, PasswordChanged, BiometricOff }
 
 /** [id] cambia en cada aviso, para que dos iguales seguidos vuelvan a mostrarse. */
 data class SettingsNotice(val kind: NoticeKind, val id: Int)
@@ -54,7 +51,8 @@ data class SettingsUiState(
 )
 
 sealed interface SettingsAction {
-    data class FutureRowClicked(val row: FutureRow) : SettingsAction
+    /** «Eliminar cuenta»: sin red avisa y no navega; con red abre SCR-36. */
+    data object DeleteAccountClicked : SettingsAction
 
     /** «Verificación en 2 pasos»: activar si está inactiva, administrar si está activa (T17). */
     data object TwoFactorClicked : SettingsAction
@@ -96,6 +94,9 @@ sealed interface SettingsEffect {
 
     /** 2 pasos activa: a su pantalla de administración. */
     data object OpenTwoFactorActive : SettingsEffect
+
+    /** Con red: a Eliminar cuenta. */
+    data object OpenDeleteAccount : SettingsEffect
 }
 
 @HiltViewModel
@@ -167,6 +168,13 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    /** Eliminar la cuenta necesita red: se pregunta al servidor (y de paso si hay 2FA); sin respuesta, avisa y no navega. */
+    private fun openDeleteAccount() {
+        viewModelScope.launch {
+            if (settings.twoFactorEnabled() == null) notify(NoticeKind.NeedsConnectionToDelete) else _effects.send(SettingsEffect.OpenDeleteAccount)
+        }
+    }
+
     private fun refreshBiometricRow() {
         val status = availability.status()
         _state.update {
@@ -181,9 +189,7 @@ class SettingsViewModel @Inject constructor(
 
     fun onAction(action: SettingsAction) {
         when (action) {
-            is SettingsAction.FutureRowClicked ->
-                // TODO(T20): Eliminar cuenta.
-                notify(NoticeKind.ComingSoon)
+            SettingsAction.DeleteAccountClicked -> openDeleteAccount()
             SettingsAction.TwoFactorClicked -> openTwoFactor()
             is SettingsAction.PasswordChanged -> viewModelScope.launch {
                 notify(NoticeKind.PasswordChanged)

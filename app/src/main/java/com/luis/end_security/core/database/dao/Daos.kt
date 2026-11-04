@@ -108,6 +108,10 @@ abstract class VaultItemDao {
     @Query("SELECT * FROM vault_items WHERE id = :id")
     abstract suspend fun get(id: String): VaultItemEntity?
 
+    /** Elementos que se ven en la Bóveda (sin lápidas): «Se borrarán tus N contraseñas…» al eliminar la cuenta. */
+    @Query("SELECT COUNT(*) FROM vault_items WHERE deleted_at IS NULL")
+    abstract suspend fun visibleCount(): Int
+
     /** Un elemento cualquiera con bloque (no lápida): sirve para comprobar que una `vault_key` abre lo que hay en el teléfono. */
     @Query("SELECT * FROM vault_items WHERE ciphertext IS NOT NULL AND nonce IS NOT NULL LIMIT 1")
     abstract suspend fun anySealed(): VaultItemEntity?

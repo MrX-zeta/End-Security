@@ -7,15 +7,19 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.luis.end_security.core.session.AccountDeletionGate
 import com.luis.end_security.core.session.VaultSession
 import com.luis.end_security.core.session.VaultState
 import com.luis.end_security.feature.account.domain.AccountRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+
+private const val GATE_REOPEN_MILLIS = 500L
 
 /** A dónde ir cuando la bóveda se bloquea. */
 enum class LockDestination { Unlock, Login }
@@ -29,16 +33,33 @@ enum class LockDestination { Unlock, Login }
 class LockGuardViewModel @Inject constructor(
     session: VaultSession,
     private val accounts: AccountRepository,
+    private val deletion: AccountDeletionGate,
 ) : ViewModel() {
 
     private val _lockedEvents = Channel<LockDestination>(Channel.CONFLATED)
     val lockedEvents: Flow<LockDestination> = _lockedEvents.receiveAsFlow()
 
+    /** La cuenta se eliminó y la limpieza terminó: a «Cuenta eliminada» (tarea 20). */
+    val accountDeleted: Flow<Unit> = deletion.deleted
+
+    /**
+     * Ya se navegó a «Cuenta eliminada»: los bloqueos vuelven a mandar a Desbloquear o a Iniciar sesión. La puerta se reabre un
+     * momento después, para que el bloqueo de la propia limpieza (que el colector atiende de forma asíncrona) no la encuentre
+     * ya cerrada y mande a otra pantalla.
+     */
+    fun onAccountDeletedHandled() {
+        viewModelScope.launch {
+            delay(GATE_REOPEN_MILLIS)
+            deletion.end()
+        }
+    }
+
     init {
         viewModelScope.launch {
             var previous: VaultState = session.state.value
             session.state.collect { current ->
-                if (previous is VaultState.Unlocked && current is VaultState.Locked) _lockedEvents.send(destination())
+                // Eliminando la cuenta, la propia limpieza bloquea la bóveda: la navegación va a «Cuenta eliminada», no a Desbloquear.
+                if (previous is VaultState.Unlocked && current is VaultState.Locked && !deletion.active) _lockedEvents.send(destination())
                 previous = current
             }
         }
@@ -49,6 +70,7 @@ class LockGuardViewModel @Inject constructor(
      * bloqueada: la pila que Android restaura tras matar el proceso (la llave no sobrevive).
      */
     fun onProtectedScreenLocked() {
+        if (deletion.active) return
         viewModelScope.launch { _lockedEvents.send(destination()) }
     }
 
@@ -67,10 +89,19 @@ class LockGuardViewModel @Inject constructor(
 @Composable
 fun LockGuard(
     onLocked: (LockDestination) -> Unit,
+    onAccountDeleted: () -> Unit = {},
     viewModel: LockGuardViewModel = hiltViewModel(),
 ) {
     val currentOnLocked by rememberUpdatedState(onLocked)
+    val currentOnAccountDeleted by rememberUpdatedState(onAccountDeleted)
     LaunchedEffect(viewModel) {
         viewModel.lockedEvents.collect { currentOnLocked(it) }
+    }
+    // Fuera de la pantalla de Eliminar: esa sale de la composición en cuanto la limpieza bloquea la bóveda.
+    LaunchedEffect(viewModel) {
+        viewModel.accountDeleted.collect {
+            currentOnAccountDeleted()
+            viewModel.onAccountDeletedHandled()
+        }
     }
 }

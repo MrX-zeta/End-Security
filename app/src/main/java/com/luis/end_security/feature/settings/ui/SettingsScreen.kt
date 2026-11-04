@@ -88,6 +88,7 @@ fun SettingsRoute(
     onOpenChangePassword: () -> Unit = {},
     onOpenDevices: () -> Unit = {},
     onOpenActivity: () -> Unit = {},
+    onOpenDeleteAccount: () -> Unit = {},
     twoFactorDisabled: Boolean = false,
     onTwoFactorDisabledShown: () -> Unit = {},
     /** 0 nada; [com.luis.end_security.navigation.Routes.PASSWORD_CHANGED] o `…_BIOMETRIC_OFF` al volver de cambiar la contraseña. */
@@ -97,6 +98,7 @@ fun SettingsRoute(
 ) {
     val currentOpenSetup by rememberUpdatedState(onOpenTwoFactorSetup)
     val currentOpenActive by rememberUpdatedState(onOpenTwoFactorActive)
+    val currentOpenDelete by rememberUpdatedState(onOpenDeleteAccount)
     // Al volver de «Desactivar» con éxito (resultado de la pantalla anterior): aviso y recarga.
     LaunchedEffect(passwordChanged) {
         if (passwordChanged != 0) {
@@ -139,6 +141,7 @@ fun SettingsRoute(
                 SettingsEffect.NavigateToLogin -> currentOnNavigateToLogin()
                 SettingsEffect.OpenTwoFactorSetup -> currentOpenSetup()
                 SettingsEffect.OpenTwoFactorActive -> currentOpenActive()
+                SettingsEffect.OpenDeleteAccount -> currentOpenDelete()
             }
         }
     }
@@ -274,7 +277,7 @@ fun SettingsScreen(
                         label = stringResource(R.string.settings_delete_account),
                         value = null,
                         danger = true,
-                        onClick = { onAction(SettingsAction.FutureRowClicked(FutureRow.DeleteAccount)) },
+                        onClick = { onAction(SettingsAction.DeleteAccountClicked) },
                     )
                 }
             }
@@ -306,7 +309,7 @@ private fun NoticeBar(notice: SettingsNotice?, modifier: Modifier = Modifier) {
     LaunchedEffect(notice) {
         if (notice != null) {
             shown = notice
-            delay(if (notice.kind == NoticeKind.ComingSoon) 2_500 else 4_000)
+            delay(4_000)
             if (shown == notice) shown = null
         }
     }
@@ -314,8 +317,8 @@ private fun NoticeBar(notice: SettingsNotice?, modifier: Modifier = Modifier) {
         MessageBar(
             text = stringResource(
                 when (it.kind) {
-                    NoticeKind.ComingSoon -> R.string.settings_coming_soon
                     NoticeKind.NeedsConnection -> R.string.settings_two_factor_needs_connection
+                    NoticeKind.NeedsConnectionToDelete -> R.string.settings_delete_needs_connection
                     NoticeKind.TwoFactorDisabled -> R.string.settings_two_factor_disabled
                     NoticeKind.PasswordChanged -> R.string.cp_changed
                     NoticeKind.BiometricOff -> R.string.cp_biometric_off

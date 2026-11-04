@@ -74,6 +74,12 @@ object Routes {
     /** SCR-35: Contraseña maestra (cambiarla, OP-27). */
     const val CHANGE_PASSWORD = "settings_change_password"
 
+    /** SCR-36 (con su hoja SCR-37): Eliminar cuenta (OP-28). */
+    const val DELETE_ACCOUNT = "settings_delete_account"
+
+    /** SCR-38: Cuenta eliminada. Fuera de `RequireUnlocked`; se llega con la pila limpia. */
+    const val ACCOUNT_DELETED = "account_deleted"
+
     /** SCR-33: Dispositivos con sesión abierta (OP-29, OP-30). */
     const val DEVICES = "settings_devices"
 
