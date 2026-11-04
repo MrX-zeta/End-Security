@@ -1,111 +1,74 @@
-# Tarea 14 · Salud (SCR-22…28, SCR-40; OP-09, OP-10, OP-44, OP-45)
+# Tarea 15 · Mensajes de error en los formularios
 
 **Estado:** hecha
-**Escrita:** 2026-10-22 · sesión de diseño
+**Escrita:** 2026-11-03 · sesión de diseño
 
-## Revisión de la tarea 13
-Aprobada, con la revisión humana de `PasswordGenerator`: es correcto. Usa `nextInt(bound)`, pone al menos un carácter de
-cada clase, mezcla con Fisher-Yates y devuelve `CharArray`. También están bien:
-- `SyncShutdown` con el borrado dentro del mutex;
-- la lápida de rescate escrita antes del DELETE;
-- `PasswordHandoff`.
+## Revisión de la tarea 14
+Aprobada. Revisé `HibpClient`, `HealthStores`, `HealthRepositoryImpl`, el manifiesto y `network_security_config.xml`:
+- HIBP solo recibe el prefijo de 5 caracteres; sin redirecciones; cuerpo con tope de 2 MB; los bytes del hash se sobrescriben;
+- la caché y las fotos van cifradas con su propia AAD (`breach|…`, `health|…`);
+- el bloqueo corta el análisis y la revisión (época por sesión);
+- sin tráfico en claro y nada a logs.
 
-Aprobadas tus desviaciones:
-- barras amarillas en la tarjeta oscura del generador;
-- el interruptor apagado en gris;
-- ir a la Bóveda después de guardar.
+Aprobadas tus desviaciones (eje de 50 a 100, «Revisado hoy» desde la caché, análisis en segundo plano para la Bóveda, «Débiles» abre el ranking). Los cuatro puntos abiertos se aceptan como están.
 
-Sobre lo que quedó abierto:
-- **`lock()` al final de `signOutLocally`:** se queda así. Son segundos y el flujo es correcto.
-- **`ClipboardDeviceTest`:** la persona del equipo desactivará el portapapeles compartido del emulador y las repetirá (E3 en `revisiones-pendientes.md`).
-- **Las dos pruebas a mano** (guardar lo generado y verlo en la lista; la hoja «Generar» dentro de Nueva) quedaron anotadas para el Redmi.
+**Un ajuste para esta tarea:** `epoch` en `HealthRepositoryImpl` se lee y se escribe desde varios hilos (el colector del estado de sesión y el trabajo en `Dispatchers.Default`). Márcalo `@Volatile` (o usa `AtomicInteger`).
 
-## Objetivo
-La pestaña **Salud** completa. Todo se calcula en el teléfono con la bóveda abierta. Al servidor nunca le llega nada:
-HIBP se consulta directo y solo con el prefijo (DEC-20, DEC-21, DEC-54, DEC-55; grafo **v1.5.7**, que ya tiene las fórmulas).
+Las pruebas a mano que no pudiste hacer quedaron como M8 y M9 en `revisiones-pendientes.md`.
 
-**Figma:**
-- Resumen `47:1045` y Progreso `62:2357`;
-- Ranking `62:2477` / `62:2634`;
-- Filtradas `47:1186`, Repetidas `54:2496` y Antiguas `62:2788`;
-- Salud · cargando `69:3307`.
+## Por qué esta tarea
+En la demostración con el profesor, **«Crear cuenta» e «Iniciar sesión» se quedaban con el botón apagado sin decir por qué**. El profesor pensó que solo aceptaba @gmail.com: en realidad la contraseña no llegaba a la fuerza mínima o faltaba aceptar los términos, y nada lo indicaba. Ningún formulario debe dejar a la persona sin saber qué corregir.
 
-## Paso 1 · Análisis (`feature/health/domain` + `data`)
-- **`HealthAnalyzer`** (dominio, Kotlin puro). Por cada elemento legible calcula:
-  - **fuerza** con el mismo estimador: débil (0–1), regular (2) o fuerte (3–4);
-  - **repetida:** misma contraseña en 2 o más elementos. Se agrupa con SHA-256 **en memoria**; ni el hash ni el grupo se guardan;
-  - **antigua:** `password_changed_at` hace más de 365 días;
-  - **filtrada:** la cuenta de HIBP es mayor que 0 (del Paso 2).
-- **Nivel por elemento (DEC-20):**
-  - Crítico: filtrada;
-  - Alto: repetida o débil;
-  - Medio: regular o antigua;
-  - Bajo: el resto.
-- **Puntuación global:** `round(100 × promedio(pesos))`, con los pesos Bajo 1,0 · Medio 0,7 · Alto 0,35 · Crítico 0. Si no hay elementos, no hay puntuación y se muestra el estado vacío.
-- **Mensajes:**
-  - 90 o más: «Excelente»;
-  - 70–89: «Bien, pero puedes mejorar»;
-  - 50–69: «Necesita atención»;
-  - menos de 50: «En riesgo».
-- Los elementos dañados o de versión desconocida no cuentan.
-- Las contraseñas descifradas existen solo durante el análisis (`Dispatchers.Default`) y se descartan al terminar. El resultado que se queda en memoria no tiene contraseñas: solo ids, nombres, niveles, largos y fechas.
+## Regla general (todos los formularios)
+1. **El botón principal está siempre activo** (salvo mientras carga o durante el bloqueo por intentos). Al tocarlo con algo mal:
+   - cada campo con problema se marca: borde `danger` de 2 dp e ícono de alerta + mensaje en `danger` debajo;
+   - la pantalla se desplaza al **primer** campo con error y le da el foco;
+   - no se manda nada al servidor.
+2. **Cuándo aparece cada error:** al **salir del campo** (si tiene texto) o al **tocar el botón**. Nunca mientras se escribe por primera vez. En cuanto el campo queda bien, el error se quita en ese momento (mientras escribe).
+3. **Accesibilidad:** el campo usa `isError` y `Modifier.semantics { error(mensaje) }`, y el mensaje se anuncia con `liveRegion = Polite`. Con TalkBack se debe oír el error al tocar el botón. No uses solo el color: siempre ícono + texto.
+4. Los mensajes **no** repiten lo que se escribió (ni el correo ni nada de la contraseña) y nada termina en logs.
+5. Un componente común para no repetir: el campo de texto del sistema de diseño acepta `errorText: String?` y pinta borde, ícono y mensaje; `InlineErrorMessage` se reutiliza para los errores que no son de un campo.
 
-## Paso 2 · HIBP (`feature/health/data`, DEC-21)
-- `GET https://api.pwnedpasswords.com/range/{prefijo}`:
-  - el prefijo son los 5 primeros caracteres hex en mayúsculas del SHA-1 de la contraseña en UTF-8;
-  - encabezados `Add-Padding: true` y `User-Agent: EndSecurity-Android`;
-  - se busca el sufijo en memoria, y **las líneas con cuenta 0 son relleno**.
-- **Un prefijo por elemento distinto, en serie** (las repetidas comparten consulta). Tiempo de espera de 10 s.
-- **Red:**
-  - agrega `INTERNET` al manifiesto;
-  - en `network_security_config.xml`, `api.pwnedpasswords.com` usa las CA del sistema **sin pinning**;
-  - el pinning de la API propia llega al unir el backend.
-  - **No uses `ApiTransport`** (es la API propia): un cliente HTTP mínimo aparte, con OkHttp solo si ya está; si no, `HttpURLConnection`.
-- **Caché:** `breach_checks`, cifrada con la `vault_key` (`ItemCipher` u otro cifrador con su propia AAD `breach|itemId|userId|v`), guarda la cuenta y `checked_local_seq`. Se vuelve a consultar si el elemento cambió o si la revisión tiene más de 7 días.
-- **Cuándo:** al desbloquear, como máximo una vez al día; con «Revisar ahora»; y la primera vez que se abre Salud (SCR-40, «Revisando filtraciones…»).
-- **Sin red:** la pantalla muestra lo que haya en caché, y lo no revisado queda «pendiente» sin contar como filtrado. Muestra «Revisado hoy a las 10:30» o «Sin revisar · sin conexión».
-- **Nunca se registra en logs** un prefijo, un sufijo ni una cuenta.
+**Figma** (página Minimalista, fila «Tarea 15 · Mensajes de error en formularios»):
+- `210:3711` Crear cuenta · errores al enviar;
+- `210:3875` Login · correo inválido;
+- `210:3949` Login · credenciales incorrectas.
 
-## Paso 3 · Pantallas
-- **Resumen (SCR-22):**
-  - título en dos pesos y el selector fijo «Resumen | Progreso», que no suma pasos al historial (DEC-56);
-  - círculo con la puntuación «78 de 100», el mensaje, «Revisado hoy a las 10:30 · Revisar ahora»;
-  - cuatro filas: Filtradas, Repetidas, Débiles y Antiguas, con su número.
-- **Progreso (SCR-23):**
-  - «+N puntos en las últimas 12 semanas · de X a Y», con la gráfica de `health_snapshots` (un punto por semana; el último valor de cada semana);
-  - «fortalecidas este mes»: elementos con `password_changed_at` de este mes que hoy son fuertes;
-  - «filtradas resueltas»: el máximo de filtradas en las fotos del mes menos las de hoy, sin bajar de 0;
-  - «Por fuerza», con la distribución;
-  - «Ver ranking de fuerza».
-- **Ranking (SCR-24/25):** «Más fuertes | Más débiles», los 10 primeros con su largo y nivel. El pie dice «La fuerza se calcula en tu teléfono…».
-- **Filtradas, Repetidas y Antiguas (SCR-26…28)** con los textos de Figma:
-  - Repetidas se agrupa por contraseña («Misma contraseña en N sitios»);
-  - «Cambiar» o tocar una fila lleva a Editar ese elemento.
-- **Foto diaria (OP-45, DEC-55):** después de cada análisis, una fila cifrada en `health_snapshots` por día local, que reemplaza la de hoy. Se borran las de más de 12 meses.
-- **Bóveda:** ahora sí van el aviso «N contraseñas necesitan atención» (Crítico + Alto) y los triángulos en las filas de nivel Crítico o Alto. En el detalle va el bloque de salud («Segura · Fuerte, única y sin filtraciones», o el problema más grave).
-- **Estados vacíos:** sin contraseñas, «Agrega contraseñas para ver la salud de tu bóveda»; Filtradas, Repetidas o Antiguas vacías, «Ninguna, bien hecho».
-- Todo dentro de `RequireUnlocked`, y los ViewModel se vacían al bloquear. La barra inferior con **Salud** activa ya navega.
-- **Atribución de HIBP:** una línea pequeña al pie de Filtradas, «Datos de Have I Been Pwned». Lo completo va en «Acerca de» (PEND-12).
+## Paso 1 · Crear cuenta (SCR-05)
+- **Correo:** «Escribe un correo válido, por ejemplo nombre@correo.com». Usa el mismo `EmailFormat` (no se limita a ningún dominio).
+- **Lista de requisitos** debajo del medidor de fuerza, visible en cuanto se empieza a escribir la contraseña. Cada línea con palomita `success` o tache `danger` (ícono + texto, nunca solo color):
+  - «12 caracteres o más»;
+  - «Fuerza buena o mejor» (puntaje 3 o más);
+  - «Las contraseñas coinciden» (se evalúa en cuanto la confirmación tiene el mismo largo o más; antes, la línea va en gris neutro).
+  - Si hay caracteres prohibidos, se mantiene el mensaje que ya existe en lugar de la lista.
+- **Confirmación:** «Las contraseñas no coinciden.» con las reglas de arriba.
+- **Términos:** la casilla sin marcar se pinta con borde `danger` y debajo: «Acepta los Términos y el Aviso de privacidad para continuar.»
+- El botón ya no depende de `canSubmit` para estar activo; `canSubmit` se queda como la validación que se revisa al tocarlo (renómbralo si conviene, p. ej. `isFormValid`).
+
+## Paso 2 · Iniciar sesión y Desbloquear
+- **Correo** con el mismo mensaje que el registro.
+- **Contraseña vacía:** «Escribe tu contraseña maestra.»
+- **Credenciales incorrectas:** se marcan **los dos campos** y el mensaje va debajo de la contraseña: «Correo o contraseña incorrectos.» (un solo mensaje para no revelar si el correo tiene cuenta, como ya está). El texto de ayuda «Si la olvidas…» se oculta mientras se ve el error.
+- **Desbloquear:** vacía → «Escribe tu contraseña maestra.»; incorrecta → se mantiene «Contraseña incorrecta.» con el campo marcado.
+- El bloqueo por intentos se queda como está (botón apagado con su cuenta regresiva, que **sí** explica por qué).
+
+## Paso 3 · Códigos (Verificar correo SCR-06, 2FA, código de respaldo)
+- Botón activo; con menos de los dígitos necesarios: «Escribe los 6 dígitos del código.» / «Escribe el código completo (XXXX-XXXX).»
+- Los errores del servidor que ya existen (`verify_error_wrong_code`, `verify_error_expired`, `two_factor_error_wrong_code`, `backup_code_error_invalid`) se muestran con el mismo estilo de campo marcado.
+
+## Paso 4 · Nueva / Editar contraseña
+- Ya existe `nameError`: comprueba que use el mismo estilo (borde, ícono y mensaje «Escribe un nombre.» o el que ya tenga), que el botón «Guardar» esté activo desde el principio en Editar (hoy `formReady` lo apaga hasta cargar; mientras carga sí puede ir apagado) y que salte al campo.
 
 ## Terminado cuando
-- **Pruebas de `HealthAnalyzer`:**
-  - cada nivel;
-  - la puntuación con casos calculados a mano (incluye 0 y 100);
-  - las repetidas en grupos;
-  - el límite de 365 días;
-  - que dañados y de versión desconocida no cuentan.
-- **Pruebas del cliente HIBP** con un servidor falso local (MockWebServer o un `HttpURLConnection` falso):
-  - el prefijo correcto;
-  - los encabezados;
-  - que se ignora el relleno;
-  - el tiempo de espera;
-  - que nunca se manda el sufijo ni la contraseña.
-  - Agrega además un vector conocido: `password` → SHA-1 `5BAA6…`, prefijo `5BAA6`.
-- **Pruebas de caché:** se vuelve a revisar con `local_seq` cambiado y a los 7 días.
-- **Pruebas de la foto diaria:** una por día y recorte de 12 meses.
-- **En el emulador con red:** crea una contraseña «password123» y otra fuerte. «password123» sale **filtrada** y Crítica, y la puntuación baja. Las repetidas y débiles se ven, y en modo avión aparece «sin conexión».
-- `security-reviewer` revisa los Pasos 1 y 2. **REQUIERE REVISIÓN HUMANA.**
-- `assembleRelease` y lint pasan. Los commits están hechos y subidos.
+- **Pruebas de ViewModel** por pantalla: el error no aparece mientras se escribe, aparece al salir del campo y al tocar el botón; se quita al corregir; con errores no se llama al repositorio.
+- **Pruebas de Compose:** en Crear cuenta, tocar el botón con todo vacío o mal muestra los mensajes de correo, requisitos, confirmación y términos, y el foco queda en el correo; los requisitos cambian de tache a palomita; en Iniciar sesión, credenciales incorrectas marca los dos campos. Comprueba la semántica `error` en cada campo.
+- **En el emulador:** recorre a mano Crear cuenta con `x@mail.com` y una contraseña corta (debe quedar claro qué falta) y un inicio de sesión con contraseña equivocada. Toma capturas y compáralas con los tres marcos de Figma.
+- `@Volatile` en `epoch` (tarea 14).
+- `testDebugUnitTest`, `connectedDebugAndroidTest` (salvo E3), lint y `assembleRelease` pasan. Commits hechos y subidos.
+- No hace falta `security-reviewer` salvo que toques `AuthRepositoryImpl` o la política de contraseña (no deberías).
 
 ## Al terminar
 Llena `ai/handoff/reporte.md`, cambia el estado de arriba a `hecha` y detente.
+
+## Después (tarea 16, ya acordada)
+Ajustes (SCR-29): bloqueo automático, desbloqueo con huella y cerrar sesión, como entrada a 2FA, dispositivos y cuenta.
