@@ -1,7 +1,7 @@
 {
   "meta": {
     "nombre": "Grafo de conocimiento — End Security",
-    "version": "1.6.1",
+    "version": "1.6.2",
     "actualizado": "2026-10-19",
     "fase": "Implementación de la app (acceso y núcleo criptográfico listos) y contrato de la API v1.0.0 para el backend.",
     "historial": [
@@ -139,6 +139,11 @@
         "version": "1.6.1",
         "fecha": "2026-11-04",
         "cambio": "DEC-63: el correo nuevo debe ser distinto del actual tras normalizar."
+      },
+      {
+        "version": "1.6.2",
+        "fecha": "2026-11-04",
+        "cambio": "RSG-14 (eliminación sin limpieza local si el proceso muere tras el 204)."
       }
     ],
     "proposito": "Fuente de verdad del contexto, decisiones técnicas y huecos resueltos del proyecto, para personas y agentes de IA.",
@@ -222,8 +227,8 @@
       "implementa": "endpoint → operación"
     },
     "estadisticas": {
-      "nodos": 385,
-      "aristas": 1086,
+      "nodos": 386,
+      "aristas": 1087,
       "por_tipo": {
         "proyecto": 1,
         "objetivo": 6,
@@ -233,7 +238,7 @@
         "decision": 63,
         "hueco": 37,
         "amenaza": 13,
-        "riesgo_aceptado": 13,
+        "riesgo_aceptado": 14,
         "modulo": 10,
         "operacion": 47,
         "tabla": 12,
@@ -1669,6 +1674,13 @@
       "tipo": "riesgo_aceptado",
       "nombre": "Cambio de contraseña a medias por muerte del proceso",
       "descripcion": "Si la app muere justo entre la respuesta 200 de EP-17 y el guardado en Room, este teléfono sigue abriendo con la contraseña vieja (la vault_key es la misma, no se pierde nada) hasta cerrar sesión y entrar con la nueva; la recuperación en login() (tarea 19) acepta la cuenta nueva con tres comprobaciones. Cancelación y bloqueo ya no abren la ventana (NonCancellable).",
+      "estado": "riesgo_aceptado"
+    },
+    {
+      "id": "RSG-14",
+      "tipo": "riesgo_aceptado",
+      "nombre": "Eliminación sin limpieza local si el proceso muere tras el 204",
+      "descripcion": "Si la app muere (o se pierde la respuesta) entre el 204 de EP-18 y escribir la marca de limpieza pendiente, el teléfono conserva la fila local; el primer session_revoked la borra y quedan solo preferencias no secretas. Marcar antes de EP-18 podría borrar una cuenta que sigue viva.",
       "estado": "riesgo_aceptado"
     },
     {
@@ -4812,6 +4824,11 @@
     },
     {
       "de": "RSG-12",
+      "a": "AMZ-05",
+      "relacion": "residual_de"
+    },
+    {
+      "de": "RSG-14",
       "a": "AMZ-05",
       "relacion": "residual_de"
     },

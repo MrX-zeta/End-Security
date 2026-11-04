@@ -22,6 +22,7 @@
 | M14 | Cambiar la contraseña maestra con la huella activa: pide la huella para seguir usándola; desbloquear con la nueva contraseña | Tarea 18 | ☐ |
 | M15 | Dispositivos y Actividad en el Redmi: cerrar otra sesión (con la cuenta abierta en el emulador) y verla en Actividad | Tarea 19 | ☐ |
 | M16 | Eliminar una cuenta de prueba en el Redmi: vuelve al inicio y ya no se puede entrar con ella | Tarea 20 | ☐ |
+| M17 | Cambiar el correo en el Redmi con el código de demostración; entrar con el nuevo; ver la espera de 24 h | Tarea 21 | ☐ |
 
 ## Lectura del código marcado «REQUIERE REVISIÓN HUMANA»
 Hay que leerlo y entenderlo para poder explicarlo en la presentación.
@@ -41,6 +42,7 @@ Hay que leerlo y entenderlo para poder explicarlo en la presentación.
 | R12 | Cambio de contraseña maestra: nueva sal, re-envoltura de la `vault_key` y de la huella | 18 | ☐ |
 | R13 | Recuperación de cuenta con sal nueva en `login()` (tres condiciones) | 19 | ☐ |
 | R14 | Eliminar cuenta: EP-18 con `NonCancellable` y limpieza local completa | 20 | ☐ |
+| R15 | Cambio de correo: `EmailNormalizer`, límites de DEC-63 y actualización del correo local | 21 | ☐ |
 
 ## Antes de unir el backend real o de entregar
 | # | Qué | Hecho |
