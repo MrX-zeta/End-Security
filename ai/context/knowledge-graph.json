@@ -1,7 +1,7 @@
 {
   "meta": {
     "nombre": "Grafo de conocimiento — End Security",
-    "version": "1.5.5",
+    "version": "1.5.10",
     "actualizado": "2026-10-19",
     "fase": "Implementación de la app (acceso y núcleo criptográfico listos) y contrato de la API v1.0.0 para el backend.",
     "historial": [
@@ -99,6 +99,31 @@
         "version": "1.5.5",
         "fecha": "2026-10-22",
         "cambio": "Contrato 1.2.0 con EP-26 (GET /vault/items/{id}) para conflictos; redacción de DEC-25 (portapapeles en segundo plano)."
+      },
+      {
+        "version": "1.5.6",
+        "fecha": "2026-10-22",
+        "cambio": "Revisión de la tarea 12; parámetros del generador (DEC-24)."
+      },
+      {
+        "version": "1.5.7",
+        "fecha": "2026-10-22",
+        "cambio": "Fórmula de salud y niveles (DEC-20); HIBP directo desde la app decidido con sus detalles (DEC-21, PEND-08 resuelto)."
+      },
+      {
+        "version": "1.5.8",
+        "fecha": "2026-11-03",
+        "cambio": "DEC-31: mayúscula, minúscula y número obligatorios en la contraseña maestra; lista de requisitos sin «Fuerza buena»; botón siempre activo."
+      },
+      {
+        "version": "1.5.9",
+        "fecha": "2026-11-03",
+        "cambio": "DEC-09 con el detalle implementado en la tarea 16; la huella abre durante la espera por intentos de contraseña."
+      },
+      {
+        "version": "1.5.10",
+        "fecha": "2026-11-04",
+        "cambio": "Sin diálogo automático de huella en Desbloquear (DEC-09); el portapapeles se borra también al bloquear (DEC-25); re-envoltura de la huella al cambiar la contraseña maestra."
       }
     ],
     "proposito": "Fuente de verdad del contexto, decisiones técnicas y huecos resueltos del proyecto, para personas y agentes de IA.",
@@ -183,7 +208,7 @@
     },
     "estadisticas": {
       "nodos": 381,
-      "aristas": 1078,
+      "aristas": 1079,
       "por_tipo": {
         "proyecto": 1,
         "objetivo": 6,
@@ -637,7 +662,7 @@
       "id": "DEC-09",
       "tipo": "decision",
       "nombre": "Desbloqueo biométrico opcional",
-      "descripcion": "vault_key envuelta con una llave AES del Keystore que exige autenticación biométrica (CryptoObject). Se invalida al registrar una biometría nueva y entonces se pide la contraseña maestra. Desactivado por defecto.",
+      "descripcion": "vault_key envuelta con una llave AES del Keystore que exige autenticación biométrica (CryptoObject). Se invalida al registrar una biometría nueva y entonces se pide la contraseña maestra. Desactivado por defecto. Implementado en la tarea 16: llave AES-256-GCM por usuario (alias end-security/bio|userId), autenticación por uso, solo BIOMETRIC_STRONG (nunca el PIN), StrongBox si hay; bio_iv y bio_wrapped_vault_key en account con AAD end-security/bio|userId|keyVersion; la bandera biometric_enabled en DataStore. La huella puede abrir aunque haya espera por intentos fallidos de contraseña (DEC-08 solo cuenta la contraseña; la huella tiene el bloqueo propio del sistema). Cambiar la contraseña maestra cambia key_version: la huella se vuelve a envolver en ese momento (con un BiometricPrompt; si se cancela, se desactiva). Desbloquear nunca abre el diálogo de la huella por su cuenta: muestra el botón de huella y la persona elige huella o contraseña (decisión del equipo, 2026-11-04).",
       "estado": "decidido"
     },
     {
@@ -742,7 +767,7 @@
       "id": "DEC-20",
       "tipo": "decision",
       "nombre": "Análisis compuesto",
-      "descripcion": "Puntaje por elemento (Crítico/Alto/Medio/Bajo) y salud global del almacén, calculados en el dispositivo. Los resultados nunca se envían al servidor.",
+      "descripcion": "Puntaje por elemento (Crítico/Alto/Medio/Bajo) y salud global del almacén, calculados en el dispositivo. Los resultados nunca se envían al servidor. Nivel por elemento: Crítico = filtrada (HIBP > 0); Alto = repetida (misma contraseña en 2+ elementos) o débil (zxcvbn 0–1); Medio = regular (zxcvbn 2) o antigua (password_changed_at hace más de 365 días); Bajo = el resto. Puntuación global 0–100 = redondeo de 100 × promedio de pesos (Bajo 1,0 · Medio 0,7 · Alto 0,35 · Crítico 0); sin elementos no hay puntuación. Mensajes: ≥ 90 «Excelente», 70–89 «Bien, pero puedes mejorar», 50–69 «Necesita atención», < 50 «En riesgo». Distribución: débiles 0–1, regulares 2, fuertes 3–4 (igual que el medidor de DEC-31). Las repetidas se agrupan con un hash en memoria que nunca se guarda.",
       "estado": "decidido",
       "detalles": {
         "senales": {
@@ -757,8 +782,8 @@
       "id": "DEC-21",
       "tipo": "decision",
       "nombre": "HIBP directo desde la app",
-      "descripcion": "La app consulta la range API sin pasar por el backend (el servidor nunca ve ni prefijos). Se ejecuta al desbloquear o bajo demanda, no en segundo plano. Encabezado Add-Padding. Sin red: estado 'pendiente'.",
-      "estado": "propuesto"
+      "descripcion": "La app consulta la range API sin pasar por el backend (el servidor nunca ve ni prefijos). Se ejecuta al desbloquear o bajo demanda, no en segundo plano. Encabezado Add-Padding. Sin red: estado 'pendiente'. GET https://api.pwnedpasswords.com/range/{5 hex de SHA-1 en mayúsculas} con Add-Padding: true y User-Agent propio; se compara el sufijo en memoria y se descartan las líneas de relleno (cuenta 0). Un prefijo por elemento distinto, en serie. Resultado cifrado en breach_checks con checked_local_seq; se vuelve a revisar si el elemento cambió o si la revisión tiene más de 7 días. Al desbloquear, como máximo una vez al día. Sin pinning (CA del sistema).",
+      "estado": "decidido"
     },
     {
       "id": "DEC-22",
@@ -778,7 +803,7 @@
       "id": "DEC-24",
       "tipo": "decision",
       "nombre": "Generador de contraseñas",
-      "descripcion": "Cálculo local con SecureRandom, sin sesgo de módulo; garantiza al menos un carácter de cada clase seleccionada.",
+      "descripcion": "Cálculo local con SecureRandom, sin sesgo de módulo; garantiza al menos un carácter de cada clase seleccionada. Longitud de 8 a 64 (16 por defecto); minúsculas siempre incluidas; mayúsculas, números y símbolos activados por defecto; «Evitar parecidos» quita l, 1, I, O, 0 y | . Se mezcla con Fisher-Yates usando SecureRandom. Las opciones se recuerdan en DataStore (generator_*); la contraseña generada nunca se guarda salvo con «Guardar en la bóveda». Desde Nueva/editar, «Generar» abre el generador en una hoja inferior y devuelve la contraseña al campo.",
       "estado": "decidido",
       "detalles": {
         "parametros": [
@@ -795,7 +820,7 @@
       "id": "DEC-25",
       "tipo": "decision",
       "nombre": "Portapapeles seguro",
-      "descripcion": "Copias marcadas como sensibles (EXTRA_IS_SENSITIVE en Android 13+) y borrado automático configurable (clipboard_clear_seconds: 30 s por defecto; opciones 15, 30, 60 y 120). Se borra salvo que se pueda comprobar que hay otra cosa copiada (en segundo plano Android 10+ no deja leerlo, así que se borra). Si el proceso muere antes del plazo, se borra al volver a primer plano.",
+      "descripcion": "Copias marcadas como sensibles (EXTRA_IS_SENSITIVE en Android 13+) y borrado automático configurable (clipboard_clear_seconds: 30 s por defecto; opciones 15, 30, 60 y 120). Se borra salvo que se pueda comprobar que hay otra cosa copiada (en segundo plano Android 10+ no deja leerlo, así que se borra). Si el proceso muere antes del plazo, se borra al volver a primer plano. Al bloquear la bóveda también se borra lo que copió la app, si sigue ahí.",
       "estado": "decidido"
     },
     {
@@ -853,7 +878,7 @@
       "id": "DEC-31",
       "tipo": "decision",
       "nombre": "Política de contraseña maestra",
-      "descripcion": "Medidor de fuerza en el registro (zxcvbn4j en el dispositivo, sin red) y mínimo exigido: 12 caracteres y puntaje zxcvbn ≥ 3. Medidor de 4 barras: puntaje 0–1 «Débil» (danger, 1 barra), 2 «Regular» (2 barras), 3 «Fuerte» (success, 3 barras), 4 «Muy fuerte» (success, 4 barras). «Crear cuenta» solo se habilita con el mínimo, la confirmación igual y la casilla legal marcada. Máximo 128 caracteres en los campos de contraseña maestra (acota zxcvbn y Argon2). Antes de medir, comparar o derivar, la contraseña se normaliza a NFKC (NIST SP 800-63B §5.1.1.2) y se codifica en UTF-8 para Argon2 (DEC-05); la longitud se cuenta en puntos de código después de normalizar (un emoji compuesto puede contar varios). NFKC unifica caracteres parecidos («２０２６» = «2026»), y el medidor ya mide el texto normalizado. Normalización completa (siempre, también al entrar y desbloquear): se quitan U+FE0E y U+FE0F y después NFKC (solo cambian la presentación; así «❤» y «❤️» dan la misma llave). Al fijar una contraseña nueva (registro y cambio) se rechazan: controles (Cc), surrogates solitarios (Cs) y todo Default_Ignorable_Code_Point salvo U+200C, U+200D y las etiquetas U+E0020–E007F (banderas); y los puntos de código que no estaban asignados en Unicode 10.0 (la versión de minSdk 28, medida con UCharacter.getAge), para que todos los teléfonos normalicen igual. También se rechazan Cf no ignorables (U+FFF9–FFFB), uso privado (Co) y no-caracteres (U+FDD0–FDEF y los que terminan en FFFE/FFFF). La edad Unicode se revisa en el texto crudo y en el normalizado. ZWJ, ZWNJ y etiquetas se aceptan en cualquier posición (riesgo aceptado: no afecta la reproducibilidad). Riesgo conocido: NFKC no unifica ي/ی ni ك/ک. Mensaje: «Tu contraseña tiene caracteres que no se pueden usar (invisibles o emojis muy nuevos)». Al entrar y desbloquear no se rechaza (respuesta genérica). Codificación a UTF-8 con CodingErrorAction.REPORT: si falla, al entrar es un fallo genérico.",
+      "descripcion": "Medidor de fuerza en el registro (zxcvbn4j en el dispositivo, sin red) y mínimo exigido: 12 caracteres, puntaje zxcvbn ≥ 3 y, por decisión del equipo (2026-11-03), al menos una mayúscula, una minúscula y un número (los símbolos no se exigen). Debajo del medidor, una lista de requisitos con palomita o tache: «12 caracteres o más», «Una mayúscula», «Una minúscula», «Un número» y «Las contraseñas coinciden»; la fuerza la dice solo el medidor. Medidor de 4 barras: puntaje 0–1 «Débil» (danger, 1 barra), 2 «Regular» (2 barras), 3 «Fuerte» (success, 3 barras), 4 «Muy fuerte» (success, 4 barras). «Crear cuenta» siempre está activo: al tocarlo con algo pendiente marca los campos y no envía nada (tarea 15). Máximo 128 caracteres en los campos de contraseña maestra (acota zxcvbn y Argon2). Antes de medir, comparar o derivar, la contraseña se normaliza a NFKC (NIST SP 800-63B §5.1.1.2) y se codifica en UTF-8 para Argon2 (DEC-05); la longitud se cuenta en puntos de código después de normalizar (un emoji compuesto puede contar varios). NFKC unifica caracteres parecidos («２０２６» = «2026»), y el medidor ya mide el texto normalizado. Normalización completa (siempre, también al entrar y desbloquear): se quitan U+FE0E y U+FE0F y después NFKC (solo cambian la presentación; así «❤» y «❤️» dan la misma llave). Al fijar una contraseña nueva (registro y cambio) se rechazan: controles (Cc), surrogates solitarios (Cs) y todo Default_Ignorable_Code_Point salvo U+200C, U+200D y las etiquetas U+E0020–E007F (banderas); y los puntos de código que no estaban asignados en Unicode 10.0 (la versión de minSdk 28, medida con UCharacter.getAge), para que todos los teléfonos normalicen igual. También se rechazan Cf no ignorables (U+FFF9–FFFB), uso privado (Co) y no-caracteres (U+FDD0–FDEF y los que terminan en FFFE/FFFF). La edad Unicode se revisa en el texto crudo y en el normalizado. ZWJ, ZWNJ y etiquetas se aceptan en cualquier posición (riesgo aceptado: no afecta la reproducibilidad). Riesgo conocido: NFKC no unifica ي/ی ni ك/ک. Mensaje: «Tu contraseña tiene caracteres que no se pueden usar (invisibles o emojis muy nuevos)». Al entrar y desbloquear no se rechaza (respuesta genérica). Codificación a UTF-8 con CodingErrorAction.REPORT: si falla, al entrar es un fallo genérico.",
       "estado": "decidido",
       "detalles": {
         "valores": {
@@ -3001,8 +3026,8 @@
       "id": "PEND-08",
       "tipo": "pregunta_abierta",
       "nombre": "HIBP desde la app o desde el backend",
-      "descripcion": "Propuesto: directo desde la app.",
-      "estado": "pendiente"
+      "descripcion": "Resuelto 2026-10-22: directo desde la app (DEC-21).",
+      "estado": "resuelto"
     },
     {
       "id": "PEND-09",
@@ -7178,6 +7203,11 @@
       "de": "PEND-08",
       "a": "DEC-21",
       "relacion": "afina"
+    },
+    {
+      "de": "PEND-08",
+      "a": "DEC-21",
+      "relacion": "resuelta_por"
     },
     {
       "de": "PEND-09",
