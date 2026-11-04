@@ -100,6 +100,11 @@ class SignUpViewModel @Inject constructor(
                 confirmationLength = MasterPasswordNormalizer.codePointLength(normalizedConfirmation),
                 showPasswordRequired = it.showPasswordRequired && password.isEmpty(),
                 meetsLength = MasterPasswordPolicy.meetsLength(passwordLength),
+                hasUppercase = MasterPasswordPolicy.hasUppercase(normalizedPassword),
+                hasLowercase = MasterPasswordPolicy.hasLowercase(normalizedPassword),
+                hasDigit = MasterPasswordPolicy.hasDigit(normalizedPassword),
+                // Al cambiar la contraseña, el aviso de «difícil de adivinar» se vuelve a ganar con el botón.
+                showWeakPassword = false,
                 exceedsMaxLength = exceedsMax,
                 hasForbiddenCharacters = forbidden,
                 confirmationMatches = matches,
@@ -128,6 +133,10 @@ class SignUpViewModel @Inject constructor(
                 passwordLength = 0,
                 confirmationLength = 0,
                 meetsLength = false,
+                hasUppercase = false,
+                hasLowercase = false,
+                hasDigit = false,
+                showWeakPassword = false,
                 exceedsMaxLength = false,
                 hasForbiddenCharacters = false,
                 confirmationMatches = false,
@@ -160,7 +169,8 @@ class SignUpViewModel @Inject constructor(
         val emailBad = !current.isEmailValid
         val passwordEmpty = password.isEmpty()
         val passwordBad = passwordEmpty || !MasterPasswordPolicy.meetsLength(codePoints) ||
-            MasterPasswordPolicy.exceedsMaxLength(codePoints) || current.hasForbiddenCharacters
+            MasterPasswordPolicy.exceedsMaxLength(codePoints) || current.hasForbiddenCharacters ||
+            !MasterPasswordPolicy.meetsCharacterClasses(normalizedPassword)
         val mismatch = !passwordEmpty && !matches(normalizedPassword, normalizedConfirmation)
         val termsBad = !current.termsAccepted
         _state.update {
@@ -188,8 +198,11 @@ class SignUpViewModel @Inject constructor(
         submitJob = viewModelScope.launch {
             val accepted = passesNormalizedPolicy(password, normalizedPassword, normalizedConfirmation)
             if (!accepted) {
-                // Lo único que falta es la fuerza: la lista lo muestra y el foco va a la contraseña.
-                _state.update { it.copy(isLoading = false, focusRequest = focusOn(SignUpField.Password)).withCanSubmit() }
+                // Lo único que falta es la fuerza: se marca la contraseña y el foco va a ella.
+                _state.update {
+                    it.copy(isLoading = false, showWeakPassword = true, focusRequest = focusOn(SignUpField.Password))
+                        .withCanSubmit()
+                }
                 return@launch
             }
             // OP-11: el repositorio genera la cuenta, deriva las llaves (Argon2 fuera del hilo
@@ -228,6 +241,7 @@ class SignUpViewModel @Inject constructor(
             return false
         }
         if (MasterPasswordPolicy.hasForbiddenCharacters(password, normalizedPassword, unicode)) return false
+        if (!MasterPasswordPolicy.meetsCharacterClasses(normalizedPassword)) return false
         if (!matches(normalizedPassword, normalizedConfirmation)) return false
         val score = scoreOrNull(normalizedPassword) ?: return false
         return MasterPasswordPolicy.isAcceptable(codePoints, score)
@@ -256,6 +270,7 @@ class SignUpViewModel @Inject constructor(
             !scorePending &&
             !hasForbiddenCharacters &&
             MasterPasswordPolicy.isAcceptable(passwordLength, strengthScore) &&
+            hasUppercase && hasLowercase && hasDigit &&
             confirmationMatches &&
             termsAccepted &&
             !isLoading,

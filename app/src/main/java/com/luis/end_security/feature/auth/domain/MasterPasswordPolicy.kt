@@ -1,8 +1,10 @@
 package com.luis.end_security.feature.auth.domain
 
 /**
- * Política de la contraseña maestra (DEC-31): de 12 a 128 caracteres y puntaje zxcvbn ≥ 3, sobre
- * el texto normalizado con [MasterPasswordNormalizer] y contando puntos de código.
+ * Política de la contraseña maestra (DEC-31): de 12 a 128 caracteres, al menos una mayúscula, una
+ * minúscula y un número (los símbolos no se exigen) y puntaje zxcvbn ≥ 3, sobre el texto
+ * normalizado con [MasterPasswordNormalizer] y contando puntos de código. Solo vale al fijar una
+ * contraseña (registro y cambio); al entrar y desbloquear no se aplica.
  */
 object MasterPasswordPolicy {
     const val MIN_LENGTH = 12
@@ -23,6 +25,18 @@ object MasterPasswordPolicy {
 
     fun isAcceptable(codePoints: Int, score: Int?): Boolean =
         meetsLength(codePoints) && !exceedsMaxLength(codePoints) && score != null && score >= MIN_SCORE
+
+    /** Al menos una mayúscula, evaluada por punto de código sobre el texto ya normalizado («Ñ» cuenta). */
+    fun hasUppercase(normalized: CharSequence): Boolean = normalized.anyCodePoint { Character.isUpperCase(it) }
+
+    fun hasLowercase(normalized: CharSequence): Boolean = normalized.anyCodePoint { Character.isLowerCase(it) }
+
+    /** Al menos un dígito Unicode (tras NFKC los de otros alfabetos compatibles cuentan). */
+    fun hasDigit(normalized: CharSequence): Boolean = normalized.anyCodePoint { Character.isDigit(it) }
+
+    /** Mayúscula, minúscula y número juntos. */
+    fun meetsCharacterClasses(normalized: CharSequence): Boolean =
+        hasUppercase(normalized) && hasLowercase(normalized) && hasDigit(normalized)
 
     /**
      * Caracteres que no se aceptan **al fijar** una contraseña nueva (registro y cambio de

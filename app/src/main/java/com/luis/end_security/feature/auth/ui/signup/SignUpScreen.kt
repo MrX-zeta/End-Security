@@ -255,7 +255,11 @@ fun SignUpScreen(
                         label = stringResource(R.string.signup_password_label),
                         visible = passwordVisible,
                         onVisibleChange = onPasswordVisibleChange,
-                        errorText = if (state.showPasswordRequired) stringResource(R.string.auth_error_password_required) else null,
+                        errorText = when {
+                            state.showPasswordRequired -> stringResource(R.string.auth_error_password_required)
+                            state.showWeakPassword -> stringResource(R.string.signup_weak_password)
+                            else -> null
+                        },
                         modifier = Modifier.bringIntoViewRequester(passwordBring).focusRequester(passwordFocus),
                         imeAction = ImeAction.Next,
                         onKeyboardAction = { focusManager.moveFocus(FocusDirection.Down) },
@@ -350,7 +354,6 @@ private fun PasswordStrength(state: SignUpUiState) {
 @Composable
 private fun PasswordRequirements(state: SignUpUiState) {
     if (!state.passwordTyped || state.hasForbiddenCharacters) return
-    val score = state.strengthScore
     // La confirmación se evalúa en cuanto tiene el mismo largo o más; antes, la línea va en gris neutro.
     val confirmationReady = state.confirmationLength >= state.passwordLength && state.confirmationLength > 0
     Column(modifier = Modifier.padding(top = 10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -359,12 +362,16 @@ private fun PasswordRequirements(state: SignUpUiState) {
             state = if (state.meetsLength) RequirementState.Met else RequirementState.Unmet,
         )
         RequirementLine(
-            text = stringResource(R.string.signup_req_strength),
-            state = when {
-                score == null -> RequirementState.Neutral
-                score >= MasterPasswordPolicy.MIN_SCORE -> RequirementState.Met
-                else -> RequirementState.Unmet
-            },
+            text = stringResource(R.string.signup_req_upper),
+            state = if (state.hasUppercase) RequirementState.Met else RequirementState.Unmet,
+        )
+        RequirementLine(
+            text = stringResource(R.string.signup_req_lower),
+            state = if (state.hasLowercase) RequirementState.Met else RequirementState.Unmet,
+        )
+        RequirementLine(
+            text = stringResource(R.string.signup_req_digit),
+            state = if (state.hasDigit) RequirementState.Met else RequirementState.Unmet,
         )
         RequirementLine(
             text = stringResource(R.string.signup_req_match),

@@ -105,7 +105,9 @@ class FormErrorsScreenTest {
     fun crearCuentaMuestraLaListaDeRequisitosAlEscribir() {
         renderSignUp(SignUpUiState(passwordTyped = true, passwordLength = 5, meetsLength = false))
         composeRule.onNodeWithText(context.getString(R.string.signup_req_length)).assertIsDisplayed()
-        composeRule.onNodeWithText(context.getString(R.string.signup_req_strength)).assertIsDisplayed()
+        composeRule.onNodeWithText(context.getString(R.string.signup_req_upper)).assertIsDisplayed()
+        composeRule.onNodeWithText(context.getString(R.string.signup_req_lower)).assertIsDisplayed()
+        composeRule.onNodeWithText(context.getString(R.string.signup_req_digit)).assertIsDisplayed()
         composeRule.onNodeWithText(context.getString(R.string.signup_req_match)).assertIsDisplayed()
         capture("tarea15-crear-cuenta-requisitos")
     }

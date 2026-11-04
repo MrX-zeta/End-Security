@@ -121,7 +121,7 @@ class SignUpViewModelTest {
         scoring.scheduler.runCurrent()
         assertTrue(state.canSubmit)
 
-        passwords("otra contrase\u00F1a cualquiera", "otra contrase\u00F1a cualquiera")
+        passwords("Otra contrase\u00F1a cualquiera 1", "Otra contrase\u00F1a cualquiera 1")
         assertFalse(state.canSubmit)
 
         scoring.scheduler.runCurrent()
@@ -369,7 +369,7 @@ class SignUpViewModelTest {
     }
 
     private companion object {
-        const val STRONG = "tortuga-violeta-salta-29-nubes"
+        const val STRONG = "Tortuga-violeta-salta-29-nubes"
     }
 
     // ---- Tarea 15: mensajes de error en el formulario
@@ -411,5 +411,40 @@ class SignUpViewModelTest {
         assertFalse(state.passwordTyped)
         passwords("abc")
         assertTrue(state.passwordTyped)
+    }
+
+    // ---- Tarea 16: reglas de mayúscula, minúscula y número
+
+    @Test
+    fun `sin mayuscula, minuscula o numero no se puede crear la cuenta`() {
+        fillValidForm()
+        for (weak in listOf("tortuga-violeta-salta-29-nubes", "TORTUGA-VIOLETA-SALTA-29-NUBES", "Tortuga-violeta-salta-nubes")) {
+            passwords(weak, weak)
+            assertFalse(weak, state.canSubmit)
+        }
+        passwords(STRONG, STRONG)
+        assertTrue(state.canSubmit)
+    }
+
+    @Test
+    fun `la lista marca cada regla por separado`() {
+        passwords("abcdefghijkl")
+        assertFalse(state.hasUppercase)
+        assertTrue(state.hasLowercase)
+        assertFalse(state.hasDigit)
+        passwords("Abcdefghijk1")
+        assertTrue(state.hasUppercase && state.hasLowercase && state.hasDigit)
+    }
+
+    @Test
+    fun `si solo falla la fuerza se marca la contrasena y se enfoca`() = kotlinx.coroutines.test.runTest(dispatcher) {
+        fillValidForm()
+        estimator.nextScore = 2
+        viewModel.onAction(SignUpAction.Submit(StringBuilder(STRONG), StringBuilder(STRONG)))
+        assertTrue(state.showWeakPassword)
+        assertEquals(SignUpField.Password, state.focusRequest?.field)
+        assertTrue(auth.calls.isEmpty())
+        passwords("${STRONG}x", "${STRONG}x")
+        assertFalse(state.showWeakPassword)
     }
 }

@@ -111,7 +111,7 @@ private fun FieldErrorsPreview() {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             FieldErrorText("Acepta los Términos y el Aviso de privacidad para continuar.")
             RequirementLine("12 caracteres o más", RequirementState.Met)
-            RequirementLine("Fuerza buena o mejor", RequirementState.Unmet)
+            RequirementLine("Una mayúscula", RequirementState.Unmet)
             RequirementLine("Las contraseñas coinciden", RequirementState.Neutral)
         }
     }

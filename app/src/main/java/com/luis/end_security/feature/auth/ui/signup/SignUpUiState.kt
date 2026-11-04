@@ -12,6 +12,12 @@ data class SignUpUiState(
     /** Puntaje zxcvbn de 0 a 4; `null` con el campo vacío. */
     val strengthScore: Int? = null,
     val meetsLength: Boolean = false,
+    /** Tiene al menos una mayúscula, una minúscula y un número (DEC-31). */
+    val hasUppercase: Boolean = false,
+    val hasLowercase: Boolean = false,
+    val hasDigit: Boolean = false,
+    /** «Elige una contraseña más difícil de adivinar.»: cumple la lista pero el puntaje es menor que 3. */
+    val showWeakPassword: Boolean = false,
     /** Más de 128 caracteres tras normalizar: no se calcula el puntaje. */
     val exceedsMaxLength: Boolean = false,
     /** Tiene caracteres invisibles o de control que no se aceptan al fijar la contraseña (DEC-31). */
