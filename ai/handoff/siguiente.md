@@ -1,92 +1,115 @@
-# Tarea 20 · Eliminar la cuenta (SCR-36, 37, 38; OP-28; EP-18)
+# Tarea 21 · Cambiar el correo (OP-26; EP-15, EP-16; DEC-63)
 
 **Estado:** hecha
 **Escrita:** 2026-11-04 · sesión de diseño
 
-## Revisión de la tarea 19
-Aprobada.
-- **Dispositivos y Actividad** coinciden con Figma: «Este» sin acción, cerrar los demás en serie con éxito parcial, los 18 tipos de evento, agrupación por día local y paginación sin duplicados.
-- **La recuperación en `login()`** quedó bien protegida:
-  - las tres condiciones;
-  - la cuenta se identifica por el correo tecleado (M1);
-  - con la contraseña vigente no se manda nada (M2);
-  - se vuelve a leer la fila dentro del candado (B2);
-  - el paralelismo también se compara (B4).
+## Revisión de la tarea 20
+Aprobada. Buen trabajo con los dos hallazgos de `security-reviewer`:
+- **`AccountDeletionGate` con el aviso a `LockGuard`:** se abre dentro del `NonCancellable` antes de limpiar. Aprobado como cambio de diseño: era la única forma con `RequireUnlocked`.
+- **La marca de limpieza con `user_id`.**
 
-Aprobadas tus desviaciones: el aviso de éxito total, el mismo panel de «sin conexión» para cualquier error, `hasMore` apagado con una página vacía y los enlaces con `LinkAnnotation`.
+Aprobadas tus desviaciones: `signOutLocally` que devuelve `Boolean`, N con los elementos que esperan subir y las manchas grises de «Cuenta eliminada».
 
-**Decisiones sobre lo abierto** (grafo v1.6.0):
-- **M2, mitigaciones 2 y 3:** no se aplican. El riesgo queda documentado como **RSG-13**: no se cambia el contrato por tiempo.
-- **B3:** de acuerdo, no se aplica (dejaría fuera a quien tenga la cuenta tras restaurar el servidor).
-- **Alcance de la recuperación:** se acepta como **RSG-12**. Si la app muere en ese instante, este teléfono sigue con la contraseña vieja hasta cerrar sesión y entrar con la nueva. No hay que hacer nada más.
-
-**Contrato 1.3.0** (ya en `docs/api`): límites del cambio de correo (DEC-63). No afecta esta tarea; es para la 21.
+**Lo abierto:**
+- **Hallazgo 3:** se acepta como **RSG-14** (grafo v1.6.2).
+- **Hallazgo 8:** se completa con el backend real.
+- **Falta una cosa:** no volviste a correr las 170 pruebas del emulador juntas después de arreglar `LockGuardAccountDeletedTest`. Córrelas completas en esta tarea.
 
 ## Objetivo
-Eliminar la cuenta desde Ajustes, con reautenticación y doble confirmación, y dejar el teléfono limpio.
+Cambiar el correo de la cuenta. Lo decidió el equipo (DEC-63, cierra PEND-13; contrato 1.3.0):
+- reautenticación (contraseña maestra + TOTP si hay 2FA);
+- código de 6 dígitos al correo nuevo;
+- aviso al correo actual (eso es del servidor);
+- **límites:** 3 solicitudes por hora, 5 por día y **24 h** después de un cambio completado. Al pasarse responde `429 rate_limited` con `retryAfterSeconds`;
+- el correo nuevo debe ser **distinto del actual tras normalizar** (recortar espacios, minúsculas, NFC). Si no, el servidor responde `400 validation_failed`.
 
-**Figma:** Eliminar `47:2290`, confirmar (hoja) `62:3233`, cuenta eliminada `62:3270`.
+**Figma** (página Minimalista, fila «Tarea 21 · Cambiar el correo»):
+- Ajustes con la tarjeta de la cuenta con flecha `227:4476`;
+- Correo · nuevo `227:4534`;
+- Correo · espera de 24 h `227:4726`;
+- Correo · código `227:4802`;
+- Correo · igual al actual `229:4852`;
+- la hoja de reautenticación es `ReauthSheet` (`218:4421`).
 
-## Paso 1 · Pantalla Eliminar (SCR-36)
-- Título en dos pesos «**Eliminar tu cuenta** no se puede deshacer» y la tarjeta con las tres consecuencias de Figma:
-  - «Se borrarán todas tus contraseñas de nuestros servidores.»
-  - «Se cerrará la sesión en todos tus dispositivos.»
-  - «Tu historial quedará anónimo.»
-- «Contraseña maestra» (`PasswordField`) y «Código de tu app» **solo si la 2FA está activa** (Figma siempre lo muestra).
-- Botón «Eliminar mi cuenta» (peligro), siempre activo, con los errores de la tarea 15 para los campos vacíos o incompletos. Al tocarlo con todo bien **no** llama al servidor todavía: abre la hoja (Paso 2).
-- `SecureScreen()` y `ExcludeFromAutofill`. La contraseña vive solo en el `TextFieldState`, como en `ReauthSheet`.
-- En Ajustes, «Eliminar cuenta» deja de decir «Disponible pronto». Sin red: `MessageBar` «Necesitas conexión para eliminar tu cuenta.» y no navega.
+## Paso 1 · Entrada y pantalla del correo nuevo
+- **Ajustes:** la tarjeta de la cuenta lleva una flecha y al tocarla abre «Correo». Sin red: `MessageBar` «Necesitas conexión para cambiar tu correo.» y no navega.
+- **Pantalla `227:4534`:**
+  - aviso oscuro «Te enviaremos un código al correo nuevo para confirmarlo. También avisaremos a tu correo actual.»;
+  - «Correo actual», de solo lectura y atenuado;
+  - «Correo nuevo»;
+  - botón «Continuar», siempre activo (tarea 15).
+- **Validaciones antes de pedir nada**, al salir del campo o al tocar el botón:
+  - formato con `EmailFormat` → el mensaje de la tarea 15;
+  - **igual al actual tras normalizar** → «Es tu correo actual. Escribe uno distinto.» (`229:4852`). Usa una función compartida `EmailNormalizer` (trim + `lowercase(Locale.ROOT)` + NFC), la misma que use el backend falso.
+- Si todo está bien: `ReauthSheet` con «Para cambiar tu correo escribe tu contraseña maestra y el código de tu app.» y el botón «Enviar código». Luego **EP-15** con `newEmail` normalizado y `Reauth`.
+- **Respuestas:**
+  - **202** → pantalla del código. Responde 202 aunque el correo esté en uso (anti-enumeración): no lo distingas;
+  - **`429 rate_limited`** → se cierra la hoja y el campo muestra, con ícono de reloj y en gris (no es error del usuario, `227:4726`), «Podrás cambiar tu correo de nuevo en N h» (o «en N min» con menos de una hora, «en N s» con menos de un minuto), calculado con `retryAfterSeconds` y actualizado cada minuto. Mientras dure, «Continuar» no llama al servidor y repite el mensaje;
+  - `reauth_required` → como en las tareas 17–20 (incluida la regla de la `key_version` mayor);
+  - `400 validation_failed` → el mensaje de «igual al actual» (por si la normalización difiere);
+  - sin red o 5xx → el genérico.
 
-## Paso 2 · Confirmación (SCR-37)
-- Hoja `62:3233`: «¿Eliminar tu cuenta para siempre?» y «Se borrarán tus N contraseñas de nuestros servidores y se cerrará la sesión en todos tus dispositivos. No podrás recuperarlas.» (N = elementos locales no borrados, con plural; con 0: «Se borrará tu cuenta de nuestros servidores…»). Botones «Sí, eliminar mi cuenta» (peligro) y «Cancelar».
-- Al confirmar:
-  - deriva la `auth_key` (reutiliza `ReauthRunner`) y llama **EP-18** con `Reauth`;
-  - el botón queda cargando, la hoja no se cierra y Atrás está deshabilitado;
-  - desde que se manda EP-18 hasta terminar la limpieza local, todo corre en `NonCancellable` (como A1 de la tarea 18).
-- **Errores:**
-  - `reauth_required`: se cierra la hoja y vuelve a la pantalla con «Contraseña o código incorrectos.» marcando los campos (con la regla de la tarea 19 si la `key_version` del servidor es mayor);
-  - límite de intentos: la cuenta regresiva de siempre;
-  - sin red o 5xx: el genérico en la hoja, sin tocar nada local.
+## Paso 2 · Código (`227:4802`)
+- Reutiliza el diseño de Verificar correo:
+  - «Te enviamos un código de 6 dígitos a {correo nuevo}. Tu correo cambia cuando lo confirmes.»;
+  - `CodeField`;
+  - «Confirmar correo».
+- **EP-16** con el código:
+  - **200** → actualiza `account.email` en Room con el correo que devuelve el servidor y vuelve a Ajustes con `MessageBar` «Tu correo ahora es {correo}»;
+  - código incorrecto → «Código incorrecto. Te quedan N intentos.» (los textos de Verificar correo);
+  - vencido o sin intentos → «Este código ya no sirve. Pide uno nuevo.»;
+  - `429` → el bloqueo con su cuenta regresiva.
+- «¿No te llegó? **Pide otro código**» vuelve a la pantalla del correo nuevo **con el correo ya escrito**: pedir otro código es una solicitud nueva, con reautenticación y contando para el límite. Sustituye el «Puedes pedir otro código en 0:45» de Figma.
+- **Atrás** en el código vuelve a la pantalla del correo nuevo. El correo **no** cambia hasta confirmar.
+- **«Modo demostración»:** con el backend falso, muestra el código como en el registro (tarea 10), solo en debug (E1).
 
-## Paso 3 · Limpieza local y pantalla final (SCR-38) — **REQUIERE REVISIÓN HUMANA**
-- **Con el 204, borra todo lo de la cuenta** (reutiliza `signOutLocally` y agrega lo que falte):
-  - tokens;
-  - Room completo;
-  - llaves biométricas del Keystore y la bandera;
-  - `vault_key` de la sesión;
-  - portapapeles si contiene algo copiado por la app;
-  - intentos de desbloqueo;
-  - opciones de DataStore ligadas a la cuenta (generador, bloqueo automático, portapapeles), que vuelven a los valores por defecto. **Se conserva** «onboarding visto».
-- **«Cuenta eliminada» (`62:3270`):**
-  - fuera de `RequireUnlocked`;
-  - con la pila de navegación limpia;
-  - «Tu cuenta fue eliminada», «Borramos tus contraseñas de nuestros servidores. Gracias por haber usado End Security.» y «Ir al inicio» → Iniciar sesión;
-  - Atrás del sistema hace lo mismo.
-- **Si el servidor respondió 204 pero falla parte de la limpieza:** termina igual en «Cuenta eliminada» (la cuenta ya no existe). Lo que no se pudo borrar se reintenta al siguiente arranque: deja una marca en DataStore.
+## Paso 3 · El correo en el resto de la app
+- **Tarjeta de Ajustes:** muestra el correo de Room.
+- **Otro teléfono:** cuando cualquier pantalla reciba `getAccount()` con un correo distinto del local (por ejemplo, Ajustes en otro teléfono), actualiza `account.email` en Room **solo si el `userId` coincide**. Así la recuperación de `login()` (tarea 19), que identifica la cuenta por el correo tecleado, sigue funcionando con el correo nuevo.
+- **Iniciar sesión** con el correo nuevo funciona en este teléfono; con el viejo responde como una cuenta inexistente.
 
-## Backend falso
-EP-18 en `FakeServer`, **solo el backend falso**:
+## Backend falso (solo el falso)
+**EP-15:**
 - reautenticación;
-- baja lógica (`deleted_at`);
-- borra elementos, 2FA, códigos y verificaciones;
-- revoca **todas** las sesiones;
-- registra `account_deleted`;
-- después, `prelogin`, `login` y `register` con ese correo se comportan como en una cuenta inexistente (anti-enumeración: mismos tiempos y cuerpo).
+- normalización y `400 validation_failed` si es el mismo;
+- 202 aunque el correo esté en uso;
+- código de 6 dígitos que reemplaza al anterior, 15 min y 5 intentos;
+- **límites de DEC-63** (3/h y 5/día por cuenta, contando las aceptadas; 24 h desde el último `email_changed`) con `retryAfterSeconds` exacto;
+- registra `email_change_requested`.
+
+**EP-16:**
+- consume el código, cambia el correo (si en ese momento ya lo usa otra cuenta, responde como código inválido);
+- registra `email_changed`;
+- devuelve `Account`.
+
+Usa un reloj inyectable para probar los límites sin esperar.
 
 ## Terminado cuando
+- **Pruebas de `EmailNormalizer`:** espacios, mayúsculas, NFC (correo con «é» compuesta y descompuesta) y que los puntos de Gmail **no** se quitan.
 - **Pruebas de ViewModel:**
-  - campos vacíos o incompletos;
-  - código solo con 2FA;
-  - la hoja con N y plural;
-  - `reauth_required` vuelve a la pantalla marcada;
-  - sin red no toca nada local;
-  - cancelar a mitad no deja el servidor eliminado con el teléfono intacto (`NonCancellable`).
-- **Pruebas de la limpieza:** tras el 204 no queda nada de lo de la lista y se conserva «onboarding visto»; la marca de limpieza pendiente se reintenta al arrancar.
-- **Backend falso:** el flujo con y sin 2FA; la otra sesión queda revocada; un login posterior se comporta como una cuenta inexistente.
-- **Pruebas de Compose:** textos de Figma de las tres vistas; Atrás en «Cuenta eliminada».
-- **En el emulador:** crea una cuenta de prueba con elementos, elimínala y comprueba que vuelve a Iniciar sesión y que no puede entrar con ella. Lo que no se pueda, al reporte como prueba a mano.
-- `security-reviewer` revisa los Pasos 2 y 3. **REQUIERE REVISIÓN HUMANA.**
-- `testDebugUnitTest`, `connectedDebugAndroidTest` (salvo E3), lint y `assembleRelease` pasan. Commits hechos y subidos (incluye `docs/api` y `docs/backend` con el contrato 1.3.0 y el grafo v1.6.0, en un commit `docs:` aparte).
+  - formato;
+  - igual al actual;
+  - reauth;
+  - 202 → código;
+  - 429 con horas, minutos y segundos, con el texto que se actualiza;
+  - código incorrecto, vencido y bloqueado;
+  - «Pide otro código» con el correo escrito;
+  - Atrás no cambia nada;
+  - el 200 actualiza Room.
+- **Backend falso:**
+  - la cuarta solicitud en una hora → 429;
+  - la sexta en un día → 429;
+  - otra solicitud antes de 24 h tras un cambio → 429 con los segundos que faltan;
+  - a las 24 h ya se puede;
+  - mismo correo → 400;
+  - correo en uso → 202 sin código efectivo;
+  - un código nuevo invalida el anterior;
+  - entrar con el correo nuevo funciona y con el viejo no.
+- **Pruebas de Compose:** textos de Figma de las vistas, el mensaje de espera y el de igual al actual.
+- **Paso 3:** la actualización del correo con `userId` igual y que se ignora con otro `userId`.
+- **En el emulador:** cambia el correo de una cuenta de prueba con el código de «Modo demostración», cierra sesión y entra con el nuevo; intenta otro cambio y ve la espera.
+- La corrida **completa** de `connectedDebugAndroidTest` (salvo E3), además de `testDebugUnitTest`, lint y `assembleRelease`. Commits hechos y subidos (el grafo v1.6.2 y `revisiones-pendientes.md` van en un commit `docs:` aparte).
+- `security-reviewer` revisa los Pasos 1 y 3 (normalización, anti-enumeración y la actualización del correo local). **REQUIERE REVISIÓN HUMANA.**
 
 ## Al terminar
 Llena `ai/handoff/reporte.md`, cambia el estado de arriba a `hecha` y detente.
