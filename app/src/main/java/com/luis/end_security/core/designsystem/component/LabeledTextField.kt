@@ -73,6 +73,8 @@ fun LabeledTextField(
     contentType: ContentType? = null,
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
     keyboardActions: KeyboardActions = KeyboardActions.Default,
+    /** Texto gris que se ve con el campo vacío (p. ej. «6 dígitos»). */
+    placeholder: String? = null,
 ) {
     val shownText = errorText ?: supportingText
     val shownError = isError || errorText != null
@@ -90,6 +92,9 @@ fun LabeledTextField(
                 .fieldSemantics(label, shownText, shownError, contentType),
             decorationBox = { innerTextField ->
                 FieldContainer(leadingIcon = leadingIcon, endPadding = FieldStartPadding, isError = shownError) {
+                    if (value.isEmpty() && placeholder != null) {
+                        Text(text = placeholder, style = fieldTextStyle(), color = MaterialTheme.colorScheme.outline)
+                    }
                     innerTextField()
                 }
             },

@@ -22,15 +22,14 @@ import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.luis.end_security.R
+import com.luis.end_security.core.designsystem.component.SignOutSheet
+import com.luis.end_security.core.designsystem.component.SignOutSheetContent
 import com.luis.end_security.core.designsystem.theme.EndSecurityTheme
 import com.luis.end_security.feature.settings.domain.AccountProfile
 import com.luis.end_security.feature.settings.ui.AutoLockSheetContent
-import com.luis.end_security.feature.settings.ui.FutureRow
 import com.luis.end_security.feature.settings.ui.SettingsAction
 import com.luis.end_security.feature.settings.ui.SettingsScreen
 import com.luis.end_security.feature.settings.ui.SettingsUiState
-import com.luis.end_security.feature.settings.ui.SignOutSheet
-import com.luis.end_security.feature.settings.ui.SignOutSheetContent
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -138,7 +137,7 @@ class SettingsScreenTest {
         composeRule.onNodeWithText(str(R.string.settings_two_factor)).performClick()
         composeRule.onNodeWithText(str(R.string.settings_sign_out)).performClick()
         assertTrue(actions.contains(SettingsAction.AutoLockClicked))
-        assertTrue(actions.contains(SettingsAction.FutureRowClicked(FutureRow.TwoFactor)))
+        assertTrue(actions.contains(SettingsAction.TwoFactorClicked))
         assertTrue(actions.contains(SettingsAction.SignOutClicked))
     }
 

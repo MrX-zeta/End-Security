@@ -2,6 +2,7 @@ package com.luis.end_security.feature.settings.ui
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.luis.end_security.core.designsystem.component.SignOutSheet
 import com.luis.end_security.feature.auth.domain.AuthRepository
 import com.luis.end_security.feature.settings.domain.AccountProfile
 import com.luis.end_security.feature.settings.domain.SettingsRepository
@@ -22,17 +23,14 @@ import kotlinx.coroutines.launch
 import javax.crypto.Cipher
 import javax.inject.Inject
 
-/** Hoja de «Cerrar sesión» que se muestra (Figma 215:3811 y 215:4020). */
-sealed interface SignOutSheet {
-    /** «¿Cerrar sesión?» */
-    data object Confirm : SignOutSheet
-
-    /** «Tienes N cambios sin subir»: [count] elementos `pending` o `conflict`. */
-    data class Unsynced(val count: Int) : SignOutSheet
-}
-
 /** Las filas que llevan a pantallas de las tareas 17–20; por ahora solo avisan «Disponible pronto». */
-enum class FutureRow { TwoFactor, MasterPassword, Devices, Activity, DeleteAccount }
+enum class FutureRow { MasterPassword, Devices, Activity, DeleteAccount }
+
+/** Avisos breves al pie de Ajustes. */
+enum class NoticeKind { ComingSoon, NeedsConnection, TwoFactorDisabled }
+
+/** [id] cambia en cada aviso, para que dos iguales seguidos vuelvan a mostrarse. */
+data class SettingsNotice(val kind: NoticeKind, val id: Int)
 
 /** Estado de Ajustes (SCR-29). Nada secreto vive aquí. */
 data class SettingsUiState(
@@ -51,12 +49,18 @@ data class SettingsUiState(
     val showAutoLockSheet: Boolean = false,
     val signOutSheet: SignOutSheet? = null,
     val isSigningOut: Boolean = false,
-    /** Cambia con cada toque a una fila futura: la pantalla muestra «Disponible pronto» un momento. */
-    val comingSoonCount: Int = 0,
+    /** El aviso que se muestra un momento (Disponible pronto, sin conexión, 2 pasos desactivada). */
+    val notice: SettingsNotice? = null,
 )
 
 sealed interface SettingsAction {
     data class FutureRowClicked(val row: FutureRow) : SettingsAction
+
+    /** «Verificación en 2 pasos»: activar si está inactiva, administrar si está activa (T17). */
+    data object TwoFactorClicked : SettingsAction
+
+    /** Volvió de «Desactivar» con éxito: «Verificación en dos pasos desactivada». */
+    data object TwoFactorDisabled : SettingsAction
     data object AutoLockClicked : SettingsAction
     data class AutoLockSelected(val minutes: Int) : SettingsAction
     data object AutoLockDismissed : SettingsAction
@@ -83,6 +87,12 @@ sealed interface SettingsEffect {
 
     /** Sesión cerrada: a Iniciar sesión con la pila limpia. */
     data object NavigateToLogin : SettingsEffect
+
+    /** 2 pasos inactiva: al flujo de activación. */
+    data object OpenTwoFactorSetup : SettingsEffect
+
+    /** 2 pasos activa: a su pantalla de administración. */
+    data object OpenTwoFactorActive : SettingsEffect
 }
 
 @HiltViewModel
@@ -109,8 +119,33 @@ class SettingsViewModel @Inject constructor(
         }
         refreshBiometricRow()
         // Con red: los dos valores de la cuenta. Sin ella se quedan sin valor.
-        viewModelScope.launch { settings.twoFactorEnabled().let { value -> _state.update { it.copy(twoFactorEnabled = value) } } }
+        refreshTwoFactor()
         viewModelScope.launch { settings.deviceCount().let { value -> _state.update { it.copy(deviceCount = value) } } }
+    }
+
+    private var noticeSequence = 0
+
+    private fun notify(kind: NoticeKind) {
+        _state.update { it.copy(notice = SettingsNotice(kind, ++noticeSequence)) }
+    }
+
+    private fun refreshTwoFactor() {
+        viewModelScope.launch {
+            val value = settings.twoFactorEnabled()
+            // Con error se conserva el último valor conocido: no se borra «Activa» por una falla de red pasajera.
+            if (value != null) _state.update { it.copy(twoFactorEnabled = value) }
+        }
+    }
+
+    /** Pregunta al servidor el estado actual: sin red no navega y avisa (T17). */
+    private fun openTwoFactor() {
+        viewModelScope.launch {
+            when (settings.twoFactorEnabled()) {
+                null -> notify(NoticeKind.NeedsConnection)
+                true -> _effects.send(SettingsEffect.OpenTwoFactorActive)
+                false -> _effects.send(SettingsEffect.OpenTwoFactorSetup)
+            }
+        }
     }
 
     private fun refreshBiometricRow() {
@@ -127,8 +162,13 @@ class SettingsViewModel @Inject constructor(
     fun onAction(action: SettingsAction) {
         when (action) {
             is SettingsAction.FutureRowClicked ->
-                // TODO(T17…T20): 2 pasos (T17), Contraseña maestra (T18), Dispositivos y Actividad (T19), Eliminar cuenta (T20).
-                _state.update { it.copy(comingSoonCount = it.comingSoonCount + 1) }
+                // TODO(T18…T20): Contraseña maestra (T18), Dispositivos y Actividad (T19), Eliminar cuenta (T20).
+                notify(NoticeKind.ComingSoon)
+            SettingsAction.TwoFactorClicked -> openTwoFactor()
+            SettingsAction.TwoFactorDisabled -> {
+                notify(NoticeKind.TwoFactorDisabled)
+                refreshTwoFactor()
+            }
             SettingsAction.AutoLockClicked -> _state.update { it.copy(showAutoLockSheet = true) }
             SettingsAction.AutoLockDismissed -> _state.update { it.copy(showAutoLockSheet = false) }
             is SettingsAction.AutoLockSelected -> {
@@ -145,7 +185,11 @@ class SettingsViewModel @Inject constructor(
             SettingsAction.SignOutClicked -> startSignOut()
             SettingsAction.SignOutConfirmed -> signOut()
             SettingsAction.SignOutDismissed -> _state.update { it.copy(signOutSheet = null) }
-            SettingsAction.Resumed -> refreshBiometricRow()
+            SettingsAction.Resumed -> {
+                refreshBiometricRow()
+                // Al volver de activar o desactivar, «Activa» / «Inactiva» se recarga.
+                refreshTwoFactor()
+            }
         }
     }
 

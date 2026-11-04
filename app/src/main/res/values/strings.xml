@@ -114,10 +114,6 @@
     <string name="unlock_not_you">¿No eres %1$s?</string>
     <string name="unlock_not_you_unknown">¿No eres tú?</string>
     <string name="unlock_sign_out">Cerrar sesión</string>
-    <string name="unlock_sign_out_title">¿Cerrar sesión?</string>
-    <string name="unlock_sign_out_body">Para volver a entrar necesitarás tu correo, tu contraseña maestra y tu código de 2 pasos.</string>
-    <string name="unlock_sign_out_confirm">Cerrar sesión</string>
-    <string name="unlock_sign_out_cancel">Cancelar</string>
 
     <!-- Barra inferior (DEC-56). -->
     <string name="nav_vault">Bóveda</string>
@@ -497,6 +493,7 @@
         <item quantity="other">Tienes %d cambios sin subir</item>
     </plurals>
     <string name="settings_sign_out_unsynced_body">Si cierras sesión ahora se perderán. Conéctate a internet y espera a que se suban, o ciérrala de todos modos.</string>
+    <string name="settings_sign_out_unsynced_body_locked">Si cierras sesión ahora se perderán. Desbloquea tu bóveda y espera a que se suban, o ciérrala de todos modos.</string>
     <string name="settings_sign_out_anyway">Cerrar sesión de todos modos</string>
     <string name="biometric_enable_title">Activar desbloqueo con huella</string>
     <string name="biometric_enable_subtitle">Confirma que eres tú</string>
@@ -504,4 +501,52 @@
     <string name="biometric_unlock_title">Desbloquear End Security</string>
     <string name="biometric_use_password">Usar contraseña</string>
     <string name="unlock_biometric_invalidated">Tu huella cambió. Entra con tu contraseña maestra y vuelve a activarla en Ajustes.</string>
+
+    <!-- Verificación en dos pasos (tarea 17) -->
+    <string name="tf_title">Verificación en dos pasos</string>
+    <string name="tf_step_label">Paso %1$d de 3</string>
+    <string name="tf_step1_title_bold">Copia tu clave</string>
+    <string name="tf_step1_title_regular">y agrégala a tu app</string>
+    <string name="tf_key_label">Tu clave</string>
+    <string name="tf_key_generating">Generando tu clave…</string>
+    <string name="tf_key_error">No pudimos generar tu clave. Revisa tu conexión e intenta de nuevo.</string>
+    <string name="tf_key_retry">Reintentar</string>
+    <string name="tf_copy_key">Copiar clave</string>
+    <string name="tf_instruction_1">Abre tu app de autenticación (Google Authenticator, Microsoft Authenticator u otra).</string>
+    <string name="tf_instruction_2">Elige «Agregar cuenta» y luego «Ingresar una clave».</string>
+    <string name="tf_instruction_3">Pega la clave, ponle de nombre End Security y guarda.</string>
+    <string name="tf_key_warning">La clave solo se muestra ahora. No la compartas con nadie.</string>
+    <string name="tf_open_authenticator">Abrir app de autenticación</string>
+    <string name="tf_continue">Continuar</string>
+    <string name="tf_step2_title_bold">Escribe el código</string>
+    <string name="tf_step2_title_regular">que muestra tu app</string>
+    <string name="tf_code_changes_in">El código cambia en %1$d s</string>
+    <string name="tf_confirm">Confirmar</string>
+    <string name="tf_step3_title_bold">Guarda estos códigos</string>
+    <string name="tf_step3_title_regular">en un lugar seguro</string>
+    <string name="tf_codes_notice">Cada código funciona una sola vez. Te servirán para entrar si pierdes tu teléfono.</string>
+    <string name="tf_copy_codes">Copiar códigos</string>
+    <string name="tf_codes_saved">Ya los guardé</string>
+    <string name="tf_copied">Copiado · se borra del portapapeles en %1$d s</string>
+    <string name="tf_active_title_bold">Verificación en dos pasos</string>
+    <string name="tf_active_title_regular">está activa</string>
+    <string name="tf_protected_label">Protegida</string>
+    <string name="tf_protected_body">Al entrar en otro teléfono te pediremos un código de tu app de autenticación.</string>
+    <string name="tf_active_codes_hint">Si pierdes tu teléfono, entra con uno de tus códigos de respaldo. Si ya usaste varios, genera códigos nuevos: los anteriores dejarán de funcionar.</string>
+    <string name="tf_regenerate">Generar códigos de respaldo nuevos</string>
+    <string name="tf_disable">Desactivar</string>
+    <string name="tf_new_codes_title_bold">Guarda tus códigos nuevos</string>
+    <string name="tf_new_codes_title_regular">en un lugar seguro</string>
+    <string name="tf_new_codes_notice">Los códigos anteriores ya no funcionan.</string>
+    <string name="tf_reauth_title">Confirma que eres tú</string>
+    <string name="tf_reauth_body_disable">Para desactivar la verificación en dos pasos escribe tu contraseña maestra y el código de tu app.</string>
+    <string name="tf_reauth_body_regenerate">Para generar códigos nuevos escribe tu contraseña maestra y el código de tu app.</string>
+    <string name="tf_reauth_password_label">Contraseña maestra</string>
+    <string name="tf_reauth_code_label">Código de tu app</string>
+    <string name="tf_reauth_code_placeholder">6 dígitos</string>
+    <string name="tf_reauth_generate">Generar</string>
+    <string name="tf_reauth_cancel">Cancelar</string>
+    <string name="tf_reauth_wrong">Contraseña o código incorrectos.</string>
+    <string name="settings_two_factor_needs_connection">Necesitas conexión para cambiar la verificación en dos pasos.</string>
+    <string name="settings_two_factor_disabled">Verificación en dos pasos desactivada</string>
 </resources>

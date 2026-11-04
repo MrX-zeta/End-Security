@@ -61,11 +61,12 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.luis.end_security.R
 import com.luis.end_security.core.designsystem.component.BottomNavBar
 import com.luis.end_security.core.designsystem.component.BottomNavTab
-import com.luis.end_security.core.designsystem.component.DangerButton
 import com.luis.end_security.core.designsystem.component.FieldErrorText
 import com.luis.end_security.core.designsystem.component.LetterTile
 import com.luis.end_security.core.designsystem.component.MessageBar
-import com.luis.end_security.core.designsystem.component.SecondaryButton
+import com.luis.end_security.core.designsystem.component.SheetIconDisc
+import com.luis.end_security.core.designsystem.component.SignOutBottomSheet
+import com.luis.end_security.core.designsystem.component.SignOutSheet
 import com.luis.end_security.core.designsystem.component.initialOf
 import com.luis.end_security.core.session.AutoLockSettings
 import com.luis.end_security.core.security.BiometricPromptFailure
@@ -79,8 +80,21 @@ import kotlinx.coroutines.delay
 fun SettingsRoute(
     onTabSelected: (BottomNavTab) -> Unit,
     onNavigateToLogin: () -> Unit,
+    onOpenTwoFactorSetup: () -> Unit,
+    onOpenTwoFactorActive: () -> Unit,
+    twoFactorDisabled: Boolean = false,
+    onTwoFactorDisabledShown: () -> Unit = {},
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
+    val currentOpenSetup by rememberUpdatedState(onOpenTwoFactorSetup)
+    val currentOpenActive by rememberUpdatedState(onOpenTwoFactorActive)
+    // Al volver de «Desactivar» con éxito (resultado de la pantalla anterior): aviso y recarga.
+    LaunchedEffect(twoFactorDisabled) {
+        if (twoFactorDisabled) {
+            viewModel.onAction(SettingsAction.TwoFactorDisabled)
+            onTwoFactorDisabledShown()
+        }
+    }
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val currentOnNavigateToLogin by rememberUpdatedState(onNavigateToLogin)
@@ -107,6 +121,8 @@ fun SettingsRoute(
                     }
                 }
                 SettingsEffect.NavigateToLogin -> currentOnNavigateToLogin()
+                SettingsEffect.OpenTwoFactorSetup -> currentOpenSetup()
+                SettingsEffect.OpenTwoFactorActive -> currentOpenActive()
             }
         }
     }
@@ -177,7 +193,7 @@ fun SettingsScreen(
                         value = state.twoFactorEnabled?.let {
                             stringResource(if (it) R.string.settings_two_factor_active else R.string.settings_two_factor_inactive)
                         },
-                        onClick = { onAction(SettingsAction.FutureRowClicked(FutureRow.TwoFactor)) },
+                        onClick = { onAction(SettingsAction.TwoFactorClicked) },
                     )
                     if (state.biometricRowVisible) {
                         RowDivider()
@@ -236,7 +252,7 @@ fun SettingsScreen(
                     )
                 }
             }
-            ComingSoonBar(count = state.comingSoonCount, modifier = Modifier.align(Alignment.BottomCenter).padding(horizontal = 32.dp, vertical = 8.dp))
+            NoticeBar(notice = state.notice, modifier = Modifier.align(Alignment.BottomCenter).padding(horizontal = 32.dp, vertical = 8.dp))
         }
         BottomNavBar(selected = BottomNavTab.Settings, onTabSelected = onTabSelected)
     }
@@ -248,7 +264,7 @@ fun SettingsScreen(
         )
     }
     state.signOutSheet?.let { sheet ->
-        SignOutSheet(
+        SignOutBottomSheet(
             sheet = sheet,
             onConfirm = { onAction(SettingsAction.SignOutConfirmed) },
             onDismiss = { onAction(SettingsAction.SignOutDismissed) },
@@ -258,17 +274,27 @@ fun SettingsScreen(
 
 /** «Disponible pronto» un momento tras tocar una fila de una tarea futura. */
 @Composable
-private fun ComingSoonBar(count: Int, modifier: Modifier = Modifier) {
-    var visibleFor by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(0) }
-    LaunchedEffect(count) {
-        if (count > 0) {
-            visibleFor = count
-            delay(2_500)
-            if (visibleFor == count) visibleFor = 0
+private fun NoticeBar(notice: SettingsNotice?, modifier: Modifier = Modifier) {
+    var shown by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf<SettingsNotice?>(null) }
+    LaunchedEffect(notice) {
+        if (notice != null) {
+            shown = notice
+            delay(if (notice.kind == NoticeKind.ComingSoon) 2_500 else 4_000)
+            if (shown == notice) shown = null
         }
     }
-    if (visibleFor > 0) {
-        MessageBar(text = stringResource(R.string.settings_coming_soon), icon = R.drawable.ic_info_20, modifier = modifier)
+    shown?.let {
+        MessageBar(
+            text = stringResource(
+                when (it.kind) {
+                    NoticeKind.ComingSoon -> R.string.settings_coming_soon
+                    NoticeKind.NeedsConnection -> R.string.settings_two_factor_needs_connection
+                    NoticeKind.TwoFactorDisabled -> R.string.settings_two_factor_disabled
+                },
+            ),
+            icon = R.drawable.ic_info_20,
+            modifier = modifier,
+        )
     }
 }
 
@@ -424,7 +450,7 @@ fun AutoLockSheetContent(selected: Int, onSelect: (Int) -> Unit, modifier: Modif
         modifier = modifier.fillMaxWidth().padding(start = 32.dp, end = 32.dp, top = 8.dp, bottom = 24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        SheetIcon(R.drawable.ic_clock_20, danger = false)
+        SheetIconDisc(R.drawable.ic_clock_20, danger = false)
         Spacer(Modifier.height(12.dp))
         Text(
             text = stringResource(R.string.settings_autolock_title),
@@ -490,76 +516,5 @@ private fun AutoLockOption(minutes: Int, selected: Boolean, onClick: () -> Unit)
                 )
             }
         }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun SignOutSheet(sheet: SignOutSheet, onConfirm: () -> Unit, onDismiss: () -> Unit) {
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        properties = ModalBottomSheetProperties(securePolicy = SecureFlagPolicy.SecureOn),
-        containerColor = MaterialTheme.colorScheme.surface,
-        contentColor = MaterialTheme.colorScheme.onSurface,
-    ) {
-        SignOutSheetContent(sheet = sheet, onConfirm = onConfirm, onCancel = onDismiss, modifier = Modifier.navigationBarsPadding())
-    }
-}
-
-/** Hojas de «Cerrar sesión»: la normal (Figma 215:3811) y la de cambios sin subir (215:4020). */
-@Composable
-fun SignOutSheetContent(sheet: SignOutSheet, onConfirm: () -> Unit, onCancel: () -> Unit, modifier: Modifier = Modifier) {
-    Column(
-        modifier = modifier.fillMaxWidth().padding(start = 32.dp, end = 32.dp, top = 8.dp, bottom = 24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        SheetIcon(R.drawable.ic_log_out_20, danger = true)
-        Spacer(Modifier.height(12.dp))
-        val (title, body, confirm) = when (sheet) {
-            SignOutSheet.Confirm -> Triple(
-                stringResource(R.string.settings_sign_out_title),
-                stringResource(R.string.settings_sign_out_body),
-                stringResource(R.string.settings_sign_out_confirm),
-            )
-            is SignOutSheet.Unsynced -> Triple(
-                pluralStringResource(R.plurals.settings_sign_out_unsynced_title, sheet.count, sheet.count),
-                stringResource(R.string.settings_sign_out_unsynced_body),
-                stringResource(R.string.settings_sign_out_anyway),
-            )
-        }
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-            modifier = Modifier.semantics { heading() },
-        )
-        Spacer(Modifier.height(8.dp))
-        Text(
-            text = body,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-        )
-        Spacer(Modifier.height(20.dp))
-        DangerButton(text = confirm, onClick = onConfirm, modifier = Modifier.fillMaxWidth())
-        Spacer(Modifier.height(12.dp))
-        SecondaryButton(text = stringResource(R.string.settings_sign_out_cancel), onClick = onCancel, modifier = Modifier.fillMaxWidth())
-    }
-}
-
-@Composable
-private fun SheetIcon(@DrawableRes icon: Int, danger: Boolean) {
-    Box(
-        modifier = Modifier
-            .size(64.dp)
-            .background(if (danger) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.background, CircleShape),
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(
-            painter = painterResource(icon),
-            contentDescription = null,
-            tint = if (danger) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.size(24.dp),
-        )
     }
 }

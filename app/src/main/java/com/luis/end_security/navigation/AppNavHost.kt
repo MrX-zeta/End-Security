@@ -43,6 +43,8 @@ import com.luis.end_security.feature.health.ui.HealthOldRoute
 import com.luis.end_security.feature.health.ui.HealthRankingRoute
 import com.luis.end_security.feature.health.ui.HealthRepeatedRoute
 import com.luis.end_security.feature.health.ui.HealthRoute
+import com.luis.end_security.feature.account.ui.TwoFactorActiveRoute
+import com.luis.end_security.feature.account.ui.TwoFactorSetupRoute
 import com.luis.end_security.feature.settings.ui.SettingsRoute
 import com.luis.end_security.feature.vault.ui.conflict.ConflictDetailRoute
 import com.luis.end_security.feature.vault.ui.conflict.ConflictListRoute
@@ -83,7 +85,13 @@ private fun AppNavigation(route: String, modifier: Modifier = Modifier) {
                 popUpTo(Routes.VAULT) { inclusive = false }
                 launchSingleTop = true
             }
-            BottomNavTab.Generator -> navController.navigate(Routes.GENERATOR) { launchSingleTop = true }
+            BottomNavTab.Generator -> {
+                // Desde la verificación en dos pasos salen sus secretos de la pila: así Atrás no los vuelve a mostrar (M3).
+                if (navController.currentDestination?.route in TWO_FACTOR_ROUTES) {
+                    navController.popBackStack(Routes.SETTINGS, inclusive = false)
+                }
+                navController.navigate(Routes.GENERATOR) { launchSingleTop = true }
+            }
             BottomNavTab.Health -> navController.navigate(Routes.HEALTH) {
                 popUpTo(Routes.HEALTH) { inclusive = false }
                 launchSingleTop = true
@@ -154,11 +162,38 @@ private fun AppNavigation(route: String, modifier: Modifier = Modifier) {
                 onNavigateToLogin = { navController.navigateClearingStack(Routes.LOGIN) },
             )
         }
-        composable(Routes.SETTINGS, exitTransition = { ExitTransition.None }, popExitTransition = { ExitTransition.None }) {
+        composable(Routes.SETTINGS, exitTransition = { ExitTransition.None }, popExitTransition = { ExitTransition.None }) { backStackEntry ->
             RequireUnlocked(onLocked = lockGuardViewModel::onProtectedScreenLocked) {
+                val handle = backStackEntry.savedStateHandle
+                val disabled by handle.getStateFlow(Routes.RESULT_TWO_FACTOR_DISABLED, false).collectAsStateWithLifecycle()
                 SettingsRoute(
                     onTabSelected = onTabSelected,
                     onNavigateToLogin = { navController.navigateClearingStack(Routes.LOGIN) },
+                    onOpenTwoFactorSetup = { navController.navigate(Routes.TWO_FACTOR_SETUP) { launchSingleTop = true } },
+                    onOpenTwoFactorActive = { navController.navigate(Routes.TWO_FACTOR_ACTIVE) { launchSingleTop = true } },
+                    twoFactorDisabled = disabled,
+                    onTwoFactorDisabledShown = { handle[Routes.RESULT_TWO_FACTOR_DISABLED] = false },
+                )
+            }
+        }
+        composable(Routes.TWO_FACTOR_SETUP) {
+            RequireUnlocked(onLocked = lockGuardViewModel::onProtectedScreenLocked) {
+                TwoFactorSetupRoute(
+                    // «Ya los guardé» o Atrás en el Paso 3: fuera todo el flujo, de vuelta a Ajustes.
+                    onExit = { navController.popBackStack(Routes.SETTINGS, inclusive = false) },
+                    onTabSelected = onTabSelected,
+                )
+            }
+        }
+        composable(Routes.TWO_FACTOR_ACTIVE) {
+            RequireUnlocked(onLocked = lockGuardViewModel::onProtectedScreenLocked) {
+                TwoFactorActiveRoute(
+                    onBack = { navController.popBackStack() },
+                    onDisabled = {
+                        navController.previousBackStackEntry?.savedStateHandle?.set(Routes.RESULT_TWO_FACTOR_DISABLED, true)
+                        navController.popBackStack()
+                    },
+                    onTabSelected = onTabSelected,
                 )
             }
         }
@@ -360,3 +395,6 @@ private fun NavHostController.navigateClearingStack(route: String) {
         launchSingleTop = true
     }
 }
+
+/** Destinos que muestran la clave TOTP o códigos de respaldo (T17). */
+private val TWO_FACTOR_ROUTES = setOf(Routes.TWO_FACTOR_SETUP, Routes.TWO_FACTOR_ACTIVE)

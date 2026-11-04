@@ -8,6 +8,15 @@
     <!-- Solo para saber cuándo vuelve la red y reintentar la sincronización. -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
+    <!-- Para saber si hay una app de autenticación que abra otpauth:// (2 pasos, Paso 1). -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <category android:name="android.intent.category.BROWSABLE" />
+            <data android:scheme="otpauth" />
+        </intent>
+    </queries>
+
     <application
         android:name=".EndSecurityApp"
         android:allowBackup="false"

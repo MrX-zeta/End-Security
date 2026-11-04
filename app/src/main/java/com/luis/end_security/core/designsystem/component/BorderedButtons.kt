@@ -13,6 +13,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -41,8 +42,10 @@ fun DangerButton(
     text: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    /** Mientras trabaja no se vuelve a tocar y se atenúa. */
+    loading: Boolean = false,
 ) {
-    BorderedButton(text = text, color = MaterialTheme.colorScheme.error, onClick = onClick, modifier = modifier)
+    BorderedButton(text = text, color = MaterialTheme.colorScheme.error, onClick = onClick, modifier = modifier, enabled = !loading)
 }
 
 @Composable
@@ -51,10 +54,12 @@ private fun BorderedButton(
     color: Color,
     onClick: () -> Unit,
     modifier: Modifier,
+    enabled: Boolean = true,
 ) {
     Surface(
         onClick = onClick,
-        modifier = modifier,
+        enabled = enabled,
+        modifier = modifier.alpha(if (enabled) 1f else 0.6f),
         shape = MaterialTheme.shapes.medium,
         color = Color.Transparent,
         contentColor = color,

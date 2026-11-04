@@ -1,6 +1,7 @@
 package com.luis.end_security.feature.settings.ui
 
 import com.luis.end_security.core.crypto.FakeBiometricAvailability
+import com.luis.end_security.core.designsystem.component.SignOutSheet
 import com.luis.end_security.feature.auth.domain.FakeAuthRepository
 import com.luis.end_security.feature.settings.domain.AccountProfile
 import com.luis.end_security.feature.settings.domain.SettingsRepository
@@ -116,9 +117,12 @@ class SettingsViewModelTest {
     @Test
     fun `las filas de tareas futuras solo avisan Disponible pronto`() = scope.runTest {
         create()
-        val before = state.comingSoonCount
-        for (row in FutureRow.entries) viewModel.onAction(SettingsAction.FutureRowClicked(row))
-        assertEquals(before + FutureRow.entries.size, state.comingSoonCount)
+        for (row in FutureRow.entries) {
+            val before = state.notice
+            viewModel.onAction(SettingsAction.FutureRowClicked(row))
+            assertEquals(NoticeKind.ComingSoon, state.notice?.kind)
+            assertTrue(before != state.notice)
+        }
         assertNull(state.signOutSheet)
         assertFalse(state.showAutoLockSheet)
     }
@@ -312,5 +316,67 @@ class SettingsViewModelTest {
         runCurrent()
         assertTrue(auth.signedOut)
         assertEquals(SettingsEffect.NavigateToLogin, viewModel.effects.first())
+    }
+
+    // ---- Tarea 17: entrada a la verificación en dos pasos
+
+    @Test
+    fun `con 2 pasos inactiva abre el flujo de activacion`() = scope.runTest {
+        repo.twoFactor = false
+        create()
+        viewModel.onAction(SettingsAction.TwoFactorClicked)
+        runCurrent()
+        assertEquals(SettingsEffect.OpenTwoFactorSetup, viewModel.effects.first())
+    }
+
+    @Test
+    fun `con 2 pasos activa abre su pantalla`() = scope.runTest {
+        repo.twoFactor = true
+        create()
+        viewModel.onAction(SettingsAction.TwoFactorClicked)
+        runCurrent()
+        assertEquals(SettingsEffect.OpenTwoFactorActive, viewModel.effects.first())
+    }
+
+    @Test
+    fun `sin red avisa que necesita conexion y no navega`() = scope.runTest {
+        create()
+        repo.twoFactor = null
+        viewModel.onAction(SettingsAction.TwoFactorClicked)
+        runCurrent()
+        assertEquals(NoticeKind.NeedsConnection, state.notice?.kind)
+        assertNull(kotlinx.coroutines.withTimeoutOrNull(1_000) { viewModel.effects.first() })
+    }
+
+    @Test
+    fun `al volver se recarga Activa o Inactiva`() = scope.runTest {
+        repo.twoFactor = false
+        create()
+        assertEquals(false, state.twoFactorEnabled)
+        repo.twoFactor = true
+        viewModel.onAction(SettingsAction.Resumed)
+        runCurrent()
+        assertEquals(true, state.twoFactorEnabled)
+    }
+
+    @Test
+    fun `una falla de red al volver no borra el ultimo valor`() = scope.runTest {
+        repo.twoFactor = true
+        create()
+        repo.twoFactor = null
+        viewModel.onAction(SettingsAction.Resumed)
+        runCurrent()
+        assertEquals(true, state.twoFactorEnabled)
+    }
+
+    @Test
+    fun `volver de desactivar avisa y recarga`() = scope.runTest {
+        repo.twoFactor = true
+        create()
+        repo.twoFactor = false
+        viewModel.onAction(SettingsAction.TwoFactorDisabled)
+        runCurrent()
+        assertEquals(NoticeKind.TwoFactorDisabled, state.notice?.kind)
+        assertEquals(false, state.twoFactorEnabled)
     }
 }

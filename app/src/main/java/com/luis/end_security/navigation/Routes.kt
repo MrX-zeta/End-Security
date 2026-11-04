@@ -65,6 +65,15 @@ object Routes {
     /** SCR-29: Ajustes (pestaña). */
     const val SETTINGS = "settings"
 
+    /** SCR-43, SCR-30…32: activar la verificación en dos pasos (un destino con los tres pasos). */
+    const val TWO_FACTOR_SETUP = "settings_two_factor_setup"
+
+    /** Verificación en dos pasos activa (Figma 218:4304). */
+    const val TWO_FACTOR_ACTIVE = "settings_two_factor_active"
+
+    /** Resultado que «Desactivar» deja en la entrada de Ajustes: la pantalla muestra el aviso y lo consume. */
+    const val RESULT_TWO_FACTOR_DISABLED = "two_factor_disabled"
+
     const val RANKING_TAB_ARG = "tab"
 
     /** SCR-24 y SCR-25: ranking de fuerza («Más fuertes» o «Más débiles», según `tab`). */
