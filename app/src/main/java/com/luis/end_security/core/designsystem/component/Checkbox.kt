@@ -36,6 +36,8 @@ fun Checkbox(
     onCheckedChange: (Boolean) -> Unit,
     label: String,
     modifier: Modifier = Modifier,
+    /** Sin marcar y con error (p. ej. términos sin aceptar): borde `danger` de 2 dp (Figma 210:3738). */
+    isError: Boolean = false,
 ) {
     Box(
         modifier = modifier
@@ -49,7 +51,11 @@ fun Checkbox(
                 .size(24.dp)
                 .background(if (checked) MaterialTheme.colorScheme.primary else Color.Transparent, CheckboxShape)
                 .then(
-                    if (checked) Modifier else Modifier.border(1.dp, MaterialTheme.colorScheme.outline, CheckboxShape),
+                    when {
+                        checked -> Modifier
+                        isError -> Modifier.border(2.dp, MaterialTheme.colorScheme.error, CheckboxShape)
+                        else -> Modifier.border(1.dp, MaterialTheme.colorScheme.outline, CheckboxShape)
+                    },
                 ),
             contentAlignment = Alignment.Center,
         ) {

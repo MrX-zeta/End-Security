@@ -442,4 +442,17 @@
     <string name="health_detail_old_body">Más de un año sin cambio</string>
     <string name="health_detail_fair_title">Regular</string>
     <string name="health_detail_fair_body">Podría ser más fuerte</string>
+
+    <!-- Mensajes de error en los formularios (tarea 15) -->
+    <string name="auth_error_email_invalid">Escribe un correo válido, por ejemplo nombre@correo.com</string>
+    <string name="auth_error_password_required">Escribe tu contraseña maestra.</string>
+    <string name="signup_req_length">12 caracteres o más</string>
+    <string name="signup_req_strength">Fuerza buena o mejor</string>
+    <string name="signup_req_match">Las contraseñas coinciden</string>
+    <string name="signup_terms_error">Acepta los Términos y el Aviso de privacidad para continuar.</string>
+    <string name="requirement_met">cumplido</string>
+    <string name="requirement_unmet">falta</string>
+    <string name="requirement_pending">pendiente</string>
+    <string name="code_error_incomplete">Escribe los 6 dígitos del código.</string>
+    <string name="backup_code_error_incomplete">Escribe el código completo (XXXX-XXXX).</string>
 </resources>

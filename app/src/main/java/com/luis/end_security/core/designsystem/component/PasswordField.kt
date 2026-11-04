@@ -62,13 +62,17 @@ fun PasswordField(
     modifier: Modifier = Modifier,
     supportingText: String? = null,
     isError: Boolean = false,
+    /** Si no es `null`, el campo se marca como erróneo (borde, ícono y mensaje en `danger`) y se anuncia como error. */
+    errorText: String? = null,
     imeAction: ImeAction = ImeAction.Done,
     onKeyboardAction: KeyboardActionHandler? = null,
     maxLength: Int? = null,
     /** Un botón más antes del ojo, p. ej. «Generar contraseña» (SCR-14). Solo con `onVisibleChange`. */
     extraAction: (@Composable () -> Unit)? = null,
 ) {
-    FieldLayout(label = label, supportingText = supportingText, isError = isError, modifier = modifier) {
+    val shownText = errorText ?: supportingText
+    val shownError = isError || errorText != null
+    FieldLayout(label = label, supportingText = shownText, isError = shownError, modifier = modifier) {
         // Sin botón del ojo no hay forma de ocultarla otra vez: siempre va oculta.
         val shown = visible && onVisibleChange != null
         val baseStyle = fieldTextStyle()
@@ -89,10 +93,11 @@ fun PasswordField(
             onKeyboardAction = onKeyboardAction,
             modifier = Modifier
                 .fillMaxWidth()
-                .fieldSemantics(label, supportingText, isError, contentType = null)
+                .fieldSemantics(label, shownText, shownError, contentType = null)
                 .maskedEditableText(state, hidden = !shown),
             decorator = TextFieldDecorator { innerTextField ->
                 FieldContainer(
+                    isError = shownError,
                     leadingIcon = R.drawable.ic_lock_20,
                     endPadding = if (onVisibleChange != null) PasswordFieldEndPadding else FieldStartPadding,
                     trailing = onVisibleChange?.let { onChange ->

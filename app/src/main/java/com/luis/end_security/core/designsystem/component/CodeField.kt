@@ -28,6 +28,7 @@ import androidx.compose.ui.graphics.shadow.Shadow
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.error
 import androidx.compose.ui.semantics.contentType
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
@@ -60,10 +61,14 @@ fun CodeField(
     onValueChange: (String) -> Unit,
     modifier: Modifier = Modifier,
     isError: Boolean = false,
+    /** Si no es `null`, las casillas se marcan y el mensaje va debajo (ícono + texto, anunciado como error). */
+    errorText: String? = null,
     onDone: () -> Unit = {},
 ) {
     var focused by remember { mutableStateOf(false) }
     val description = stringResource(R.string.code_field_description, value.length, CodeFieldFilter.LENGTH)
+    val shownError = isError || errorText != null
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
     BasicTextField(
         value = value,
         onValueChange = { onValueChange(CodeFieldFilter.filter(it)) },
@@ -76,6 +81,7 @@ fun CodeField(
             .semantics {
                 contentDescription = description
                 contentType = ContentType.SmsOtpCode
+                if (errorText != null) error(errorText)
             },
         // El texto real no se dibuja: cada dígito va en su casilla.
         decorationBox = {
@@ -90,12 +96,14 @@ fun CodeField(
                         digit = value.getOrNull(index),
                         active = focused && index == value.length.coerceAtMost(CodeFieldFilter.LENGTH - 1) &&
                             value.length < CodeFieldFilter.LENGTH,
-                        isError = isError,
+                        isError = shownError,
                     )
                 }
             }
         },
     )
+    if (errorText != null) FieldErrorText(errorText)
+    }
 }
 
 @Composable

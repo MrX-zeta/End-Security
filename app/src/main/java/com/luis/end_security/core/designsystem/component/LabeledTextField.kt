@@ -68,11 +68,15 @@ fun LabeledTextField(
     modifier: Modifier = Modifier,
     supportingText: String? = null,
     isError: Boolean = false,
+    /** Si no es `null`, el campo se marca como erróneo (borde, ícono y mensaje en `danger`) y se anuncia como error. */
+    errorText: String? = null,
     contentType: ContentType? = null,
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
     keyboardActions: KeyboardActions = KeyboardActions.Default,
 ) {
-    FieldLayout(label = label, supportingText = supportingText, isError = isError, modifier = modifier) {
+    val shownText = errorText ?: supportingText
+    val shownError = isError || errorText != null
+    FieldLayout(label = label, supportingText = shownText, isError = shownError, modifier = modifier) {
         BasicTextField(
             value = value,
             onValueChange = onValueChange,
@@ -83,9 +87,9 @@ fun LabeledTextField(
             keyboardActions = keyboardActions,
             modifier = Modifier
                 .fillMaxWidth()
-                .fieldSemantics(label, supportingText, isError, contentType),
+                .fieldSemantics(label, shownText, shownError, contentType),
             decorationBox = { innerTextField ->
-                FieldContainer(leadingIcon = leadingIcon, endPadding = FieldStartPadding) {
+                FieldContainer(leadingIcon = leadingIcon, endPadding = FieldStartPadding, isError = shownError) {
                     innerTextField()
                 }
             },
@@ -107,13 +111,16 @@ fun LabeledTextField(
     modifier: Modifier = Modifier,
     supportingText: String? = null,
     isError: Boolean = false,
+    errorText: String? = null,
     inputTransformation: InputTransformation? = null,
     outputTransformation: OutputTransformation? = null,
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
     onKeyboardAction: KeyboardActionHandler? = null,
     placeholder: String? = null,
 ) {
-    FieldLayout(label = label, supportingText = supportingText, isError = isError, modifier = modifier) {
+    val shownText = errorText ?: supportingText
+    val shownError = isError || errorText != null
+    FieldLayout(label = label, supportingText = shownText, isError = shownError, modifier = modifier) {
         BasicTextField(
             state = state,
             inputTransformation = inputTransformation,
@@ -125,9 +132,9 @@ fun LabeledTextField(
             onKeyboardAction = onKeyboardAction,
             modifier = Modifier
                 .fillMaxWidth()
-                .fieldSemantics(label, supportingText, isError, contentType = null),
+                .fieldSemantics(label, shownText, shownError, contentType = null),
             decorator = TextFieldDecorator { innerTextField ->
-                FieldContainer(leadingIcon = leadingIcon, endPadding = FieldStartPadding) {
+                FieldContainer(leadingIcon = leadingIcon, endPadding = FieldStartPadding, isError = shownError) {
                     if (placeholder != null && state.text.isEmpty()) {
                         Text(
                             text = placeholder,
@@ -194,6 +201,7 @@ internal fun FieldContainer(
     endPadding: Dp,
     trailing: (@Composable () -> Unit)? = null,
     minHeight: Dp = FieldHeight,
+    isError: Boolean = false,
     input: @Composable () -> Unit,
 ) {
     val shape = MaterialTheme.shapes.medium
@@ -210,7 +218,8 @@ internal fun FieldContainer(
                 ),
             )
             .background(MaterialTheme.colorScheme.surface, shape)
-            .border(1.dp, MaterialTheme.colorScheme.outline, shape)
+            // Con error: borde `danger` de 2 dp (Figma 210:3720); el error nunca es solo color (ícono + texto abajo).
+            .border(if (isError) 2.dp else 1.dp, if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.outline, shape)
             .padding(start = FieldStartPadding, end = endPadding),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -244,7 +253,7 @@ private fun SupportingText(text: String, isError: Boolean) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
-            painter = painterResource(R.drawable.ic_info_16),
+            painter = painterResource(if (isError) R.drawable.ic_alert_20 else R.drawable.ic_info_16),
             contentDescription = null,
             tint = color,
             modifier = Modifier.size(16.dp),
