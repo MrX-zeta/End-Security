@@ -12,10 +12,10 @@
 | B3 | Los 26 endpoints del contrato (`EP-01…EP-26`) | `docs/api/openapi.yaml` | ☐ |
 | B4 | **Validación de cada petición** contra el contrato (§2) | DEC-61 | ☐ |
 | B5 | **Limpieza de entradas de texto** (§3) | — | ☐ |
-| B6 | **Límite de intentos** en Redis (§4) | DEC-32 | ☐ |
+| B6 | **Límite de intentos** en Redis (§4), incluidos los del cambio de correo: 3 por hora, 5 por día y 24 h entre cambios (contrato 1.3.0) | DEC-32, DEC-63 | ☐ |
 | B7 | Autenticación: Argon2id de la `authKey`, JWT de acceso, refresh rotativo con `app.session_rotate()` | DEC-05, DEC-16 | ☐ |
 | B8 | 2FA TOTP (secreto cifrado con llave del servidor, anti-replay) y códigos de respaldo con HMAC + pepper | DEC-11, DEC-12, DEC-43 | ☐ |
-| B9 | Correos con Resend: verificación, alertas y aviso de registro duplicado | DEC-13 | ☐ |
+| B9 | Correos con Resend: verificación, **cambio de correo (EP-15/16, decidido en PEND-13)**, alertas y aviso de registro duplicado | DEC-13, DEC-63 | ☐ |
 | B10 | Bitácora encadenada `audit_log` (eventos de negocio que ve el usuario) | DEC-19 | ☐ |
 | B11 | **Registro de operaciones con syslog (RFC 5424)** (§5) | DEC-62 | ☐ |
 | B12 | **Proxy inverso HTTPS** (§6) | DEC-22, DEC-23 | ☐ |

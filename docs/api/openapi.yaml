@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: End Security API
-  version: 1.2.0
+  version: 1.3.0
   description: |
     Contrato entre la app Android y el backend de End Security. Las reglas que este archivo no expresa
     (anti-enumeración, límites, bitácora, piso de KDF) están en `docs/api/README.md` y son parte del contrato.
@@ -435,7 +435,11 @@ paths:
       tags: [account]
       operationId: requestEmailChange
       summary: Pedir cambio de correo (EP-15, OP-26)
-      description: Manda un código al correo nuevo y una alerta al actual. Responde 202 aunque el correo nuevo ya esté en uso.
+      description: |
+        Manda un código al correo nuevo y una alerta al actual. Responde 202 aunque el correo nuevo ya esté en uso.
+        Límites (DEC-63): 3 solicitudes por hora y 5 por día por cuenta, y 24 h de espera después de un cambio completado;
+        al pasarse responde 429 `rate_limited` con `retryAfterSeconds`.
+        Si `newEmail`, normalizado (recortar, minúsculas, NFC), es igual al actual responde 400 `validation_failed`.
       requestBody:
         required: true
         content:

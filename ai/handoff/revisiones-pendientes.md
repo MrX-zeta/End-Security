@@ -20,6 +20,8 @@
 | M12 | Ajustes en el Redmi: cambiar el bloqueo a «Al salir» y comprobar que bloquea; cerrar sesión con y sin cambios pendientes (modo avión) | Tarea 16 | ☐ |
 | M13 | Desbloquear en el Redmi (candado, autobloqueo y al abrir la app): se ve la pantalla completa y la huella solo se pide al tocar su botón | Tarea 18 | ☐ |
 | M14 | Cambiar la contraseña maestra con la huella activa: pide la huella para seguir usándola; desbloquear con la nueva contraseña | Tarea 18 | ☐ |
+| M15 | Dispositivos y Actividad en el Redmi: cerrar otra sesión (con la cuenta abierta en el emulador) y verla en Actividad | Tarea 19 | ☐ |
+| M16 | Eliminar una cuenta de prueba en el Redmi: vuelve al inicio y ya no se puede entrar con ella | Tarea 20 | ☐ |
 
 ## Lectura del código marcado «REQUIERE REVISIÓN HUMANA»
 Hay que leerlo y entenderlo para poder explicarlo en la presentación.
@@ -38,6 +40,7 @@ Hay que leerlo y entenderlo para poder explicarlo en la presentación.
 | R11 | Reautenticación y 2FA: `ReauthRunnerImpl`, `TwoFactorSetupViewModel`, `TwoFactorManageViewModel`, `SessionLifecycleLock` | 17 | ☐ |
 | R12 | Cambio de contraseña maestra: nueva sal, re-envoltura de la `vault_key` y de la huella | 18 | ☐ |
 | R13 | Recuperación de cuenta con sal nueva en `login()` (tres condiciones) | 19 | ☐ |
+| R14 | Eliminar cuenta: EP-18 con `NonCancellable` y limpieza local completa | 20 | ☐ |
 
 ## Antes de unir el backend real o de entregar
 | # | Qué | Hecho |

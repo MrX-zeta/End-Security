@@ -1,6 +1,6 @@
 # Contrato de la API — End Security
 
-> Versión **1.2.0** · 2026-10-22 · Fuente de verdad del límite entre la app y el backend.
+> Versión **1.3.0** · 2026-11-04 · Fuente de verdad del límite entre la app y el backend.
 > La especificación máquina-legible es [`openapi.yaml`](openapi.yaml) (OpenAPI 3.1). Este documento explica las reglas
 > que el YAML no alcanza a expresar. Las decisiones vienen del grafo (`ai/context/knowledge-graph.json`): cada endpoint
 > es un nodo `EP-*` conectado a su operación `OP-*`.
@@ -91,6 +91,8 @@ Cuerpo: `{ "type": "about:blank", "title": "…", "status": 401, "code": "invali
    | `2fa/verify` y `2fa/recovery` por reto y por cuenta | 5 fallos → 15 min (el quinto ya responde 429) |
    | `email/resend` por cuenta | 1 cada 60 s y 5 por hora |
    | Código de verificación de correo | Vale **15 min** y admite 5 intentos (`email_verifications.attempts`) |
+   | `POST /account/email` (pedir cambio de correo, EP-15) por cuenta | **3 por hora y 5 por día** (cuentan las solicitudes aceptadas, cada una manda un código al correo nuevo). Evita usar la app para llenar buzones ajenos (DEC-63) |
+   | Cambio de correo **completado** (EP-16) | **24 h de espera** antes de poder pedir otro cambio: `POST /account/email` responde `429 rate_limited` con los segundos que faltan en `retryAfterSeconds`. Se cuenta desde `email_changed` (DEC-63) |
 8. **Bitácora (DEC-19).** Cada endpoint que cambia algo inserta su evento al final de la transacción. La tabla de abajo dice cuál.
 9. **Nunca** se registran en logs los cuerpos, `authKey`, tokens, códigos, sal ni bloques.
 
@@ -159,6 +161,7 @@ de la app a la API de Have I Been Pwned (DEC-21) y nunca pasa por el backend.
 | 1.0.0 | 2026-10-19 | Primera versión |
 | 1.1.0 | 2026-10-22 | El quinto fallo de `login`/2FA responde 429 directamente; el código de correo dura 15 min |
 | 1.2.0 | 2026-10-22 | `GET /vault/items/{id}` (EP-26) para resolver conflictos; subida de un elemento por petición |
+| 1.3.0 | 2026-11-04 | Límites del cambio de correo: 3 solicitudes por hora y 5 por día, y 24 h entre cambios completados; el correo nuevo debe ser distinto del actual tras normalizar, si no `400 validation_failed` (DEC-63). Sin cambios de formato |
 
 ## Cómo cambiar el contrato
 1. Se propone el cambio en `openapi.yaml` y en este archivo, y se sube la versión: menor si se agrega algo compatible, mayor si se rompe algo.
