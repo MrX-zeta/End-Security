@@ -6,4 +6,7 @@ import kotlinx.coroutines.flow.Flow
 interface UnlockSettingsRepository {
     /** `biometric_enabled` de DataStore (DEC-09): si se muestra el botón de huella. */
     val biometricEnabled: Flow<Boolean>
+
+    /** Elementos `pending` o `conflict` (columna `sync_state`, sin descifrar): lo que cerrar sesión perdería. */
+    suspend fun unsyncedCount(): Int
 }

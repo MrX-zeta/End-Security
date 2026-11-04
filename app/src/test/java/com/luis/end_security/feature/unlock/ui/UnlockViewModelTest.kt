@@ -20,9 +20,11 @@ import kotlinx.coroutines.test.setMain
 import com.luis.end_security.feature.unlock.FakeBiometricUnlock
 import com.luis.end_security.feature.unlock.domain.BiometricPreparation
 import com.luis.end_security.feature.unlock.domain.BiometricResult
+import com.luis.end_security.core.designsystem.component.SignOutSheet
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -190,18 +192,20 @@ class UnlockViewModelTest {
     }
 
     @Test
-    fun `cerrar sesion abre la confirmacion y cancelar la cierra`() {
+    fun `cerrar sesion abre la confirmacion y cancelar la cierra`() = scope.runTest {
         viewModel.onAction(UnlockAction.SignOutClicked)
-        assertTrue(state.showSignOutConfirmation)
+        runCurrent()
+        assertEquals(SignOutSheet.Confirm, state.signOutSheet)
         viewModel.onAction(UnlockAction.SignOutDismissed)
-        assertFalse(state.showSignOutConfirmation)
+        assertNull(state.signOutSheet)
     }
 
     @Test
     fun `confirmar cerrar sesion va a iniciar sesion`() = scope.runTest {
         viewModel.onAction(UnlockAction.SignOutClicked)
+        runCurrent()
         viewModel.onAction(UnlockAction.SignOutConfirmed)
-        assertFalse(state.showSignOutConfirmation)
+        assertNull(state.signOutSheet)
         assertEquals(UnlockEffect.NavigateToLogin, viewModel.effects.first())
         assertTrue(auth.signedOut)
     }
@@ -216,8 +220,63 @@ class UnlockViewModelTest {
         const val CORRECT = "correcta"
     }
 
+    // ---- Tarea 17: diálogo una vez por bloqueo y a la vista; cerrar sesión con cambios sin subir
+
+    @Test
+    fun `el dialogo no sale mientras la pantalla no esta a la vista`() = scope.runTest {
+        biometric.unlockPreparation = BiometricPreparation.Ready(cipher())
+        settings.biometricEnabled.value = true
+        runCurrent()
+        assertEquals(0, biometric.prepareUnlockCalls)
+    }
+
+    @Test
+    fun `con el autobloqueo en segundo plano el dialogo sale al volver`() = scope.runTest {
+        biometric.unlockPreparation = BiometricPreparation.Ready(cipher())
+        settings.biometricEnabled.value = true
+        viewModel.onAction(UnlockAction.ScreenPaused)
+        runCurrent()
+        assertEquals(0, biometric.prepareUnlockCalls)
+        viewModel.onAction(UnlockAction.ScreenResumed)
+        runCurrent()
+        assertEquals(1, biometric.prepareUnlockCalls)
+    }
+
+    @Test
+    fun `si se cancela no se repite al volver a primer plano`() = scope.runTest {
+        biometric.unlockPreparation = BiometricPreparation.Ready(cipher())
+        settings.biometricEnabled.value = true
+        viewModel.onAction(UnlockAction.ScreenResumed)
+        runCurrent()
+        viewModel.onAction(UnlockAction.BiometricCancelled)
+        viewModel.onAction(UnlockAction.ScreenPaused)
+        viewModel.onAction(UnlockAction.ScreenResumed)
+        runCurrent()
+        assertEquals(1, biometric.prepareUnlockCalls)
+    }
+
+    @Test
+    fun `cerrar sesion con cambios sin subir muestra la hoja con el conteo`() = scope.runTest {
+        settings.unsynced = 3
+        viewModel.onAction(UnlockAction.SignOutClicked)
+        runCurrent()
+        assertEquals(SignOutSheet.Unsynced(3), state.signOutSheet)
+        assertFalse(auth.signedOut)
+    }
+
+    @Test
+    fun `cerrar sesion sin cambios pendientes muestra la hoja normal`() = scope.runTest {
+        settings.unsynced = 0
+        viewModel.onAction(UnlockAction.SignOutClicked)
+        runCurrent()
+        assertEquals(SignOutSheet.Confirm, state.signOutSheet)
+    }
+
     private class FakeUnlockSettings : UnlockSettingsRepository {
         override val biometricEnabled = MutableStateFlow(false)
+        var unsynced = 0
+
+        override suspend fun unsyncedCount() = unsynced
     }
 
     /** Lleva la cuenta en memoria con las reglas reales de [UnlockLockout]. */
@@ -247,6 +306,7 @@ class UnlockViewModelTest {
     fun `con la huella activada el dialogo sale una sola vez al entrar`() = scope.runTest {
         biometric.unlockPreparation = BiometricPreparation.Ready(cipher())
         settings.biometricEnabled.value = true
+        viewModel.onAction(UnlockAction.ScreenResumed)
         runCurrent()
         assertEquals(1, biometric.prepareUnlockCalls)
         assertTrue(viewModel.effects.first() is UnlockEffect.ShowBiometricPrompt)
@@ -262,6 +322,7 @@ class UnlockViewModelTest {
     fun `el boton de huella vuelve a abrir el dialogo tras cancelar`() = scope.runTest {
         biometric.unlockPreparation = BiometricPreparation.Ready(cipher())
         settings.biometricEnabled.value = true
+        viewModel.onAction(UnlockAction.ScreenResumed)
         runCurrent()
         viewModel.onAction(UnlockAction.BiometricCancelled)
         viewModel.onAction(UnlockAction.BiometricClicked)
@@ -273,6 +334,7 @@ class UnlockViewModelTest {
     fun `un segundo toque con el dialogo abierto no abre otro`() = scope.runTest {
         biometric.unlockPreparation = BiometricPreparation.Ready(cipher())
         settings.biometricEnabled.value = true
+        viewModel.onAction(UnlockAction.ScreenResumed)
         runCurrent()
         viewModel.onAction(UnlockAction.BiometricClicked)
         runCurrent()
@@ -294,6 +356,7 @@ class UnlockViewModelTest {
     fun `huella cambiada desactiva y muestra el mensaje para entrar con la contrasena`() = scope.runTest {
         biometric.unlockPreparation = BiometricPreparation.Invalidated
         settings.biometricEnabled.value = true
+        viewModel.onAction(UnlockAction.ScreenResumed)
         runCurrent()
         assertTrue(state.biometricInvalidated)
     }

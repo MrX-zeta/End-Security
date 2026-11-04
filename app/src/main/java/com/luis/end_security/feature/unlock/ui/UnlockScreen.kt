@@ -63,7 +63,9 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.luis.end_security.R
 import com.luis.end_security.core.designsystem.component.BlobShape
-import com.luis.end_security.core.designsystem.component.DangerButton
+import com.luis.end_security.core.designsystem.component.SignOutBottomSheet
+import com.luis.end_security.core.designsystem.component.SignOutSheet
+import com.luis.end_security.core.designsystem.component.SignOutSheetContent
 import com.luis.end_security.core.designsystem.component.FieldErrorText
 import com.luis.end_security.core.designsystem.component.OrganicBlob
 import com.luis.end_security.core.designsystem.component.OutlinedIconButton
@@ -133,6 +135,9 @@ fun UnlockRoute(
 
     SecureScreen()
     ExcludeFromAutofill()
+    // El diálogo de la huella espera a que Desbloquear esté a la vista (una vez por bloqueo).
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { currentOnAction(UnlockAction.ScreenResumed) }
+    LifecycleEventEffect(Lifecycle.Event.ON_PAUSE) { currentOnAction(UnlockAction.ScreenPaused) }
     LaunchedEffect(passwordState) {
         snapshotFlow { passwordState.text.isEmpty() }.collect { isEmpty ->
             currentOnAction(UnlockAction.PasswordEmptinessChanged(isEmpty))
@@ -286,8 +291,10 @@ fun UnlockScreen(
         }
     }
 
-    if (state.showSignOutConfirmation) {
-        SignOutConfirmationSheet(
+    state.signOutSheet?.let { sheet ->
+        SignOutBottomSheet(
+            sheet = sheet,
+            locked = true,
             onConfirm = { onAction(UnlockAction.SignOutConfirmed) },
             onDismiss = { onAction(UnlockAction.SignOutDismissed) },
         )
@@ -323,62 +330,6 @@ private fun UnlockHeader() {
             style = MaterialTheme.typography.titleLarge,
             color = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.padding(start = 28.dp, top = 22.dp),
-        )
-    }
-}
-
-/** Confirmación de «Cerrar sesión» en hoja inferior (no está en Figma; mismos botones que DEC-56). */
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun SignOutConfirmationSheet(
-    onConfirm: () -> Unit,
-    onDismiss: () -> Unit,
-) {
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        // Explícito para no depender de que la ventana de la hoja herede FLAG_SECURE.
-        properties = ModalBottomSheetProperties(securePolicy = SecureFlagPolicy.SecureOn),
-        containerColor = MaterialTheme.colorScheme.background,
-        contentColor = MaterialTheme.colorScheme.onSurface,
-    ) {
-        SignOutConfirmationContent(
-            onConfirm = onConfirm,
-            onDismiss = onDismiss,
-            modifier = Modifier.navigationBarsPadding(),
-        )
-    }
-}
-
-@Composable
-private fun SignOutConfirmationContent(
-    onConfirm: () -> Unit,
-    onDismiss: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Column(modifier = modifier.padding(start = 32.dp, end = 32.dp, top = 8.dp, bottom = 16.dp)) {
-        Text(
-            text = stringResource(R.string.unlock_sign_out_title),
-            style = MaterialTheme.typography.titleLarge,
-            modifier = Modifier.semantics { heading() },
-        )
-        Spacer(Modifier.height(8.dp))
-        Text(
-            text = stringResource(R.string.unlock_sign_out_body),
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Spacer(Modifier.height(24.dp))
-        DangerButton(
-            text = stringResource(R.string.unlock_sign_out_confirm),
-            onClick = onConfirm,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        Spacer(Modifier.height(12.dp))
-        SecondaryButton(
-            text = stringResource(R.string.unlock_sign_out_cancel),
-            onClick = onDismiss,
-            modifier = Modifier.fillMaxWidth(),
         )
     }
 }
@@ -427,6 +378,6 @@ private fun UnlockSmallScreenPreview() =
 @Composable
 private fun SignOutConfirmationPreview() {
     PreviewSurface {
-        SignOutConfirmationContent(onConfirm = {}, onDismiss = {})
+        SignOutSheetContent(sheet = SignOutSheet.Confirm, onConfirm = {}, onCancel = {}, locked = true)
     }
 }

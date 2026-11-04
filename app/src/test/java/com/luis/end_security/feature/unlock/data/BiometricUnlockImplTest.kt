@@ -36,7 +36,7 @@ class BiometricUnlockImplTest {
     private val accounts = FakeAccountDao(
         AccountEntity(userId.toString(), "ana@correo.com", null, ByteArray(16), 65_536, 3, 1, ByteArray(12), ByteArray(48), 1, 0, null, null, null),
     )
-    private val biometric = BiometricUnlockImpl(keyStore, accounts, settings, session, availability)
+    private val biometric = BiometricUnlockImpl(keyStore, accounts, settings, session, availability, com.luis.end_security.core.session.SessionLifecycleLock())
 
     private fun openVault() = session.unlock(userId, SecureBytes.copyOf(vaultKeyBytes))
 

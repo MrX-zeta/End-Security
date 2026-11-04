@@ -20,6 +20,7 @@ import com.luis.end_security.core.database.dao.AccountDao
 import com.luis.end_security.core.database.entity.AccountEntity
 import com.luis.end_security.core.datastore.UnlockAttemptStore
 import com.luis.end_security.core.network.TokenManager
+import com.luis.end_security.core.session.SessionLifecycleLock
 import com.luis.end_security.core.session.VaultSession
 import com.luis.end_security.core.sync.SyncShutdown
 import com.luis.end_security.core.session.VaultState
@@ -41,6 +42,7 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.nio.charset.CharacterCodingException
 import java.util.UUID
@@ -65,6 +67,7 @@ class AuthRepositoryImpl @Inject constructor(
     private val sync: SyncShutdown,
     private val biometricKeys: BiometricKeyStore,
     private val settings: SettingsStore,
+    private val sessionLock: SessionLifecycleLock,
     @param:DefaultDispatcher private val defaultDispatcher: CoroutineDispatcher,
     @ApplicationScope scope: CoroutineScope,
 ) : AuthRepository {
@@ -78,7 +81,19 @@ class AuthRepositoryImpl @Inject constructor(
 
     init {
         // `session_revoked` (refresh reusado, sesión cerrada desde otro teléfono): cierre local.
-        scope.launch { tokens.sessionRevoked.collect { signOutLocally() } }
+        scope.launch {
+            tokens.sessionRevoked.collect {
+                // Un fallo del borrado (disco, Room) no debe matar el colector: la sesión en memoria ya se bloqueó y las
+                // siguientes revocaciones tienen que seguir cerrando la sesión local (M2).
+                try {
+                    signOutLocally()
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (_: Exception) {
+                    // Sin registro: el error podría traer datos de la cuenta.
+                }
+            }
+        }
     }
 
     /** `enc_key` y `auth_key` (DEC-05). Se cierran juntas. */
@@ -255,6 +270,7 @@ class AuthRepositoryImpl @Inject constructor(
         var opened = false
         try {
             withContext(NonCancellable) {
+              sessionLock.mutex.withLock {
                 tokens.save(authenticated.tokens)
                 accountDao.replace(account)
                 // La fila nueva no tiene huella: ni llave del Keystore ni opción encendida de una cuenta anterior.
@@ -264,6 +280,7 @@ class AuthRepositoryImpl @Inject constructor(
                 if (session.state.value is VaultState.Unlocked) session.lock()
                 session.unlock(authenticated.account.userId, vaultKey)
                 opened = true
+              }
             }
         } finally {
             if (!opened) vaultKey.close()
@@ -304,11 +321,20 @@ class AuthRepositoryImpl @Inject constructor(
             }
         } ?: return UnlockOutcome.WrongPassword(lockoutIfWrong)
         // Juntos y sin cancelarse: si se cancela al salir de withContext, la llave ya está en la sesión.
-        withContext(NonCancellable) {
-            attempts.recordSuccess()
-            session.unlock(userId, vaultKey)
+        val opened = withContext(NonCancellable) {
+            sessionLock.mutex.withLock {
+                // Si mientras se derivaba se cerró la sesión (cuenta borrada de Room), no se abre nada.
+                if (accountDao.get()?.userId != account.userId) {
+                    vaultKey.close()
+                    false
+                } else {
+                    attempts.recordSuccess()
+                    session.unlock(userId, vaultKey)
+                    true
+                }
+            }
         }
-        return UnlockOutcome.Unlocked
+        return if (opened) UnlockOutcome.Unlocked else UnlockOutcome.NoAccount
     }
 
     override suspend fun signOut() {
@@ -319,6 +345,7 @@ class AuthRepositoryImpl @Inject constructor(
 
     /** Borra tokens, Room y llaves en memoria. También tras `session_revoked`. */
     suspend fun signOutLocally() = withContext(NonCancellable) {
+      sessionLock.mutex.withLock {
         try {
             // La llave de la huella se borra lo primero (DEC-09): nada que abra la bóveda de esta cuenta queda.
             runCatching { biometricKeys.deleteAll() }
@@ -332,6 +359,7 @@ class AuthRepositoryImpl @Inject constructor(
             // Pase lo que pase en los pasos anteriores, la vault_key en memoria se borra (INV-07).
             session.lock()
         }
+      }
     }
 
     override suspend fun localAccountName(): String? = accountDao.get()?.let { it.displayName ?: it.email }
@@ -345,18 +373,22 @@ class AuthRepositoryImpl @Inject constructor(
      * borrarse); si quien llama se canceló mientras tanto, las llaves se borran aquí.
      */
     private suspend fun derive(normalizedPassword: String, salt: ByteArray, params: KdfParams): DerivedKeys {
-        val keys = withContext(defaultDispatcher + NonCancellable) {
-            KeyDerivation.deriveMasterKey(normalizedPassword, salt, params).use { master ->
-                DerivedKeys(KeyDerivation.encKey(master), KeyDerivation.authKey(master))
-            }
-        }
+        // El resultado se deja en [produced] desde dentro del bloque: si `withContext` lanza `CancellationException` al volver
+        // (el que llama se canceló mientras corría Argon2), el valor ya no llega a nadie y aquí se borra (INV-07, M1).
+        var produced: DerivedKeys? = null
+        var handedOver = false
         try {
+            withContext(defaultDispatcher + NonCancellable) {
+                KeyDerivation.deriveMasterKey(normalizedPassword, salt, params).use { master ->
+                    produced = DerivedKeys(KeyDerivation.encKey(master), KeyDerivation.authKey(master))
+                }
+            }
             currentCoroutineContext().ensureActive()
-        } catch (e: CancellationException) {
-            keys.close()
-            throw e
+            handedOver = true
+            return checkNotNull(produced)
+        } finally {
+            if (!handedOver) produced?.close()
         }
-        return keys
     }
 
     /** Hallazgo 1 de la tarea 07: con una cuenta de este correo en el teléfono, otra sal o parámetros más bajos se rechazan. */

@@ -6,6 +6,7 @@ import com.luis.end_security.core.crypto.keystore.BiometricKeyInvalidatedExcepti
 import com.luis.end_security.core.crypto.keystore.BiometricKeyStore
 import com.luis.end_security.core.database.dao.AccountDao
 import com.luis.end_security.core.datastore.SettingsStore
+import com.luis.end_security.core.session.SessionLifecycleLock
 import com.luis.end_security.core.session.VaultLockedException
 import com.luis.end_security.core.session.VaultSession
 import com.luis.end_security.core.session.VaultState
@@ -21,6 +22,7 @@ import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.security.GeneralSecurityException
 import java.util.UUID
@@ -35,6 +37,7 @@ class BiometricUnlockImpl @Inject constructor(
     private val settings: SettingsStore,
     private val session: VaultSession,
     private val availability: BiometricAvailability,
+    private val sessionLock: SessionLifecycleLock,
 ) : BiometricUnlock {
 
     override val enabled: Flow<Boolean> = settings.biometricEnabled
@@ -120,18 +123,21 @@ class BiometricUnlockImpl @Inject constructor(
         }
         // Ni cuenta ni reinicia los intentos de la contraseña.
         withContext(NonCancellable) {
-            try {
-                // Si mientras tanto se cerró la sesión (cuenta borrada de Room), no se abre nada.
-                val still = accounts.get()
-                if (still == null || still.userId != account.userId || still.bioWrappedVaultKey == null) {
+            // Mismo candado que `signOutLocally`: comprobar la cuenta y abrir son un solo paso (INV-07).
+            sessionLock.mutex.withLock {
+                try {
+                    val still = accounts.get()
+                    if (still == null || still.userId != account.userId || still.bioWrappedVaultKey == null) {
+                        vaultKey.close()
+                        BiometricResult.Failed
+                    } else {
+                        session.unlock(userId, vaultKey)
+                        BiometricResult.Done
+                    }
+                } catch (_: RuntimeException) {
                     vaultKey.close()
-                    return@withContext BiometricResult.Failed
+                    BiometricResult.Failed
                 }
-                session.unlock(userId, vaultKey)
-                BiometricResult.Done
-            } catch (_: RuntimeException) {
-                vaultKey.close()
-                BiometricResult.Failed
             }
         }
     }

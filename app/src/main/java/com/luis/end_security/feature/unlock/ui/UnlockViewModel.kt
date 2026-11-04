@@ -1,6 +1,7 @@
 package com.luis.end_security.feature.unlock.ui
 
 import androidx.lifecycle.ViewModel
+import com.luis.end_security.core.designsystem.component.SignOutSheet
 import com.luis.end_security.feature.unlock.domain.BiometricPreparation
 import com.luis.end_security.feature.unlock.domain.BiometricResult
 import com.luis.end_security.feature.unlock.domain.BiometricUnlock
@@ -43,8 +44,8 @@ data class UnlockUiState(
     val focusRequest: Int = 0,
     /** Segundos de bloqueo por demasiados intentos (DEC-08); 0 sin bloqueo. */
     val lockoutSecondsLeft: Int = 0,
-    /** Hoja «¿Cerrar sesión?» abierta. */
-    val showSignOutConfirmation: Boolean = false,
+    /** Hoja de «Cerrar sesión» abierta: la normal o la de cambios sin subir (la bóveda está bloqueada, no se sincroniza). */
+    val signOutSheet: SignOutSheet? = null,
     /** «Tu huella cambió. Entra con tu contraseña…»: la llave se invalidó y ya se desactivó todo (DEC-09). */
     val biometricInvalidated: Boolean = false,
 ) {
@@ -83,6 +84,12 @@ sealed interface UnlockAction {
 
     /** «Cerrar sesión» en la hoja. */
     data object SignOutConfirmed : UnlockAction
+
+    /** Desbloquear pasó a `RESUMED` (a la vista y en primer plano). */
+    data object ScreenResumed : UnlockAction
+
+    /** Desbloquear dejó de estar a la vista. */
+    data object ScreenPaused : UnlockAction
 }
 
 sealed interface UnlockEffect {
@@ -98,7 +105,7 @@ sealed interface UnlockEffect {
 
 @HiltViewModel
 class UnlockViewModel @Inject constructor(
-    settings: UnlockSettingsRepository,
+    private val settings: UnlockSettingsRepository,
     attempts: UnlockAttemptRepository,
     private val auth: AuthRepository,
     private val biometric: BiometricUnlock,
@@ -119,8 +126,17 @@ class UnlockViewModel @Inject constructor(
     private var passwordIsEmpty = true
     private val lockoutCountdown = Countdown(timeSource)
 
-    /** El diálogo de la huella sale **una sola vez** por entrada a la pantalla (no en bucle si se cancela). */
+    /** El diálogo de la huella sale **una sola vez por cada bloqueo** (cada bloqueo crea esta pantalla de nuevo). */
     private var autoPrompted = false
+
+    /** Desbloquear está a la vista (`RESUMED`): con el autobloqueo en segundo plano, el diálogo espera a volver. */
+    private var resumed = false
+
+    private fun maybeAutoPrompt() {
+        if (!resumed || autoPrompted || !_state.value.biometricAvailable) return
+        autoPrompted = true
+        startBiometric()
+    }
 
     /** Hay un diálogo de huella abierto o descifrando: un toque más no abre otro. */
     private var biometricBusy = false
@@ -129,10 +145,7 @@ class UnlockViewModel @Inject constructor(
         viewModelScope.launch {
             settings.biometricEnabled.collect { enabled ->
                 _state.update { it.copy(biometricAvailable = enabled) }
-                if (enabled && !autoPrompted) {
-                    autoPrompted = true
-                    startBiometric()
-                }
+                maybeAutoPrompt()
             }
         }
         viewModelScope.launch {
@@ -163,8 +176,13 @@ class UnlockViewModel @Inject constructor(
             UnlockAction.BiometricClicked -> startBiometric()
             is UnlockAction.BiometricAuthenticated -> completeBiometric(action.cipher)
             UnlockAction.BiometricCancelled -> biometricBusy = false
-            UnlockAction.SignOutClicked -> _state.update { it.copy(showSignOutConfirmation = true) }
-            UnlockAction.SignOutDismissed -> _state.update { it.copy(showSignOutConfirmation = false) }
+            UnlockAction.SignOutClicked -> openSignOutSheet()
+            UnlockAction.SignOutDismissed -> _state.update { it.copy(signOutSheet = null) }
+            UnlockAction.ScreenResumed -> {
+                resumed = true
+                maybeAutoPrompt()
+            }
+            UnlockAction.ScreenPaused -> resumed = false
             UnlockAction.SignOutConfirmed -> signOut()
         }
     }
@@ -239,8 +257,16 @@ class UnlockViewModel @Inject constructor(
         }
     }
 
+    /** El conteo sale de la columna `sync_state`; sin intento de sincronizar (la bóveda está bloqueada). */
+    private fun openSignOutSheet() {
+        viewModelScope.launch {
+            val count = settings.unsyncedCount()
+            _state.update { it.copy(signOutSheet = if (count > 0) SignOutSheet.Unsynced(count) else SignOutSheet.Confirm) }
+        }
+    }
+
     private fun signOut() {
-        _state.update { it.copy(showSignOutConfirmation = false, isLoading = true).withCanSubmit() }
+        _state.update { it.copy(signOutSheet = null, isLoading = true).withCanSubmit() }
         viewModelScope.launch {
             // OP-18: revoca en el servidor (aunque falle la red), borra tokens y datos locales y bloquea.
             auth.signOut()
