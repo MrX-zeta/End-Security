@@ -2,6 +2,8 @@ package com.luis.end_security.feature.auth.ui.signup
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -36,7 +38,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.autofill.ContentType
 import androidx.compose.ui.focus.FocusDirection
-import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
@@ -60,6 +63,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.luis.end_security.R
 import com.luis.end_security.core.designsystem.component.BackTopBar
 import com.luis.end_security.core.designsystem.component.Checkbox
+import com.luis.end_security.core.designsystem.component.FieldErrorText
+import com.luis.end_security.core.designsystem.component.RequirementLine
+import com.luis.end_security.core.designsystem.component.RequirementState
+import com.luis.end_security.core.designsystem.component.onFocusLost
 import com.luis.end_security.core.designsystem.component.LabeledTextField
 import com.luis.end_security.core.designsystem.component.NoticeCard
 import com.luis.end_security.core.designsystem.component.PasswordField
@@ -172,6 +179,26 @@ fun SignUpScreen(
     modifier: Modifier = Modifier,
 ) {
     val focusManager = LocalFocusManager.current
+    // Al tocar «Crear cuenta» con errores, la pantalla se desplaza al primero y le da el foco (tarea 15).
+    val emailFocus = remember { FocusRequester() }
+    val passwordFocus = remember { FocusRequester() }
+    val confirmationFocus = remember { FocusRequester() }
+    val termsFocus = remember { FocusRequester() }
+    val emailBring = remember { BringIntoViewRequester() }
+    val passwordBring = remember { BringIntoViewRequester() }
+    val confirmationBring = remember { BringIntoViewRequester() }
+    val termsBring = remember { BringIntoViewRequester() }
+    LaunchedEffect(state.focusRequest) {
+        val request = state.focusRequest ?: return@LaunchedEffect
+        val (focus, bring) = when (request.field) {
+            SignUpField.Email -> emailFocus to emailBring
+            SignUpField.Password -> passwordFocus to passwordBring
+            SignUpField.Confirmation -> confirmationFocus to confirmationBring
+            SignUpField.Terms -> termsFocus to termsBring
+        }
+        bring.bringIntoView()
+        focus.requestFocus()
+    }
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -207,6 +234,12 @@ fun SignUpScreen(
                         onValueChange = { onAction(SignUpAction.EmailChanged(it)) },
                         label = stringResource(R.string.signup_email_label),
                         leadingIcon = R.drawable.ic_mail_20,
+                        // «Escribe un correo válido…»: al salir del campo con texto o al tocar el botón; nunca al escribir.
+                        errorText = if (state.showEmailError) stringResource(R.string.auth_error_email_invalid) else null,
+                        modifier = Modifier
+                            .bringIntoViewRequester(emailBring)
+                            .focusRequester(emailFocus)
+                            .onFocusLost { onAction(SignUpAction.EmailFocusLost) },
                         contentType = ContentType.EmailAddress,
                         keyboardOptions = KeyboardOptions(
                             keyboardType = KeyboardType.Email,
@@ -222,16 +255,20 @@ fun SignUpScreen(
                         label = stringResource(R.string.signup_password_label),
                         visible = passwordVisible,
                         onVisibleChange = onPasswordVisibleChange,
+                        errorText = if (state.showPasswordRequired) stringResource(R.string.auth_error_password_required) else null,
+                        modifier = Modifier.bringIntoViewRequester(passwordBring).focusRequester(passwordFocus),
                         imeAction = ImeAction.Next,
                         onKeyboardAction = { focusManager.moveFocus(FocusDirection.Down) },
                         maxLength = MasterPasswordPolicy.MAX_FIELD_LENGTH,
                     )
                     Spacer(Modifier.height(10.dp))
                     PasswordStrength(state)
+                    PasswordRequirements(state)
                     Spacer(Modifier.height(14.dp))
                     ConfirmationField(
                         state = confirmationState,
                         showMismatchError = state.showMismatchError,
+                        modifier = Modifier.bringIntoViewRequester(confirmationBring).focusRequester(confirmationFocus),
                         onFocusLost = onConfirmationFocusLost,
                         onDone = {
                             focusManager.clearFocus()
@@ -243,8 +280,10 @@ fun SignUpScreen(
                     Spacer(Modifier.height(12.dp))
                     TermsRow(
                         accepted = state.termsAccepted,
+                        showError = state.showTermsError,
                         onAcceptedChange = { onAction(SignUpAction.TermsAcceptedChanged(it)) },
                         onOpenLegalDocument = onOpenLegalDocument,
+                        modifier = Modifier.bringIntoViewRequester(termsBring).focusRequester(termsFocus),
                     )
                     Spacer(Modifier.weight(1f).heightIn(min = 24.dp))
                     state.submitError?.let { error ->
@@ -262,7 +301,7 @@ fun SignUpScreen(
                             focusManager.clearFocus()
                             onSubmit()
                         },
-                        enabled = state.canSubmit,
+                        // Siempre activo (salvo cargando): lo que falta se explica al tocarlo.
                         loading = state.isLoading,
                         modifier = Modifier.fillMaxWidth(),
                     )
@@ -286,11 +325,10 @@ private fun PasswordStrength(state: SignUpUiState) {
         state.hasForbiddenCharacters -> stringResource(R.string.signup_forbidden_characters)
         state.exceedsMaxLength -> stringResource(R.string.signup_max_length)
         level == null -> null
-        !state.meetsLength -> stringResource(R.string.signup_min_length)
         else -> stringResource(level.label)
     }
-    // Los avisos de longitud son información neutra; las barras siguen mostrando el puntaje.
-    val lengthNotice = state.exceedsMaxLength || (level != null && !state.meetsLength)
+    // El aviso de «máximo» es información neutra; las barras siguen mostrando el puntaje.
+    val lengthNotice = state.exceedsMaxLength
     // Los caracteres invisibles impiden crear la cuenta: va en error, no como aviso neutro.
     val labelColor = when {
         state.hasForbiddenCharacters -> MaterialTheme.colorScheme.error
@@ -303,6 +341,40 @@ private fun PasswordStrength(state: SignUpUiState) {
         label = label,
         labelColor = labelColor,
     )
+}
+
+/**
+ * Lista de requisitos bajo el medidor (Figma 210:3843), visible en cuanto se empieza a escribir la contraseña. Cada línea
+ * con palomita `success` o tache `danger` (ícono + texto). Con caracteres prohibidos se queda su mensaje en lugar de la lista.
+ */
+@Composable
+private fun PasswordRequirements(state: SignUpUiState) {
+    if (!state.passwordTyped || state.hasForbiddenCharacters) return
+    val score = state.strengthScore
+    // La confirmación se evalúa en cuanto tiene el mismo largo o más; antes, la línea va en gris neutro.
+    val confirmationReady = state.confirmationLength >= state.passwordLength && state.confirmationLength > 0
+    Column(modifier = Modifier.padding(top = 10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        RequirementLine(
+            text = stringResource(R.string.signup_req_length),
+            state = if (state.meetsLength) RequirementState.Met else RequirementState.Unmet,
+        )
+        RequirementLine(
+            text = stringResource(R.string.signup_req_strength),
+            state = when {
+                score == null -> RequirementState.Neutral
+                score >= MasterPasswordPolicy.MIN_SCORE -> RequirementState.Met
+                else -> RequirementState.Unmet
+            },
+        )
+        RequirementLine(
+            text = stringResource(R.string.signup_req_match),
+            state = when {
+                !confirmationReady -> RequirementState.Neutral
+                state.confirmationMatches -> RequirementState.Met
+                else -> RequirementState.Unmet
+            },
+        )
+    }
 }
 
 @Composable
@@ -318,22 +390,18 @@ private fun ConfirmationField(
     showMismatchError: Boolean,
     onFocusLost: () -> Unit,
     onDone: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
-    var hadFocus by remember { mutableStateOf(false) }
     PasswordField(
         state = state,
         label = stringResource(R.string.signup_confirm_label),
         visible = false,
         onVisibleChange = null,
-        supportingText = if (showMismatchError) stringResource(R.string.signup_mismatch) else null,
-        isError = showMismatchError,
+        errorText = if (showMismatchError) stringResource(R.string.signup_mismatch) else null,
         imeAction = ImeAction.Done,
         onKeyboardAction = { onDone() },
         maxLength = MasterPasswordPolicy.MAX_FIELD_LENGTH,
-        modifier = Modifier.onFocusChanged { focus ->
-            if (hadFocus && !focus.hasFocus) onFocusLost()
-            hadFocus = focus.hasFocus
-        },
+        modifier = modifier.onFocusLost(onFocusLost),
     )
 }
 
@@ -344,8 +412,10 @@ private fun ConfirmationField(
 @Composable
 private fun TermsRow(
     accepted: Boolean,
+    showError: Boolean,
     onAcceptedChange: (Boolean) -> Unit,
     onOpenLegalDocument: (LegalDocument) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val termsLabel = stringResource(R.string.legal_terms_title)
     val privacyLabel = stringResource(R.string.legal_privacy_title)
@@ -365,22 +435,27 @@ private fun TermsRow(
     }
     // La casilla mide 48 de área pero se dibuja de 24: se corre 12 para alinear su borde
     // visible con el contenido, como en Figma.
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .offset(x = (-12).dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Checkbox(
-            checked = accepted,
-            onCheckedChange = onAcceptedChange,
-            label = sentence,
-        )
-        Text(
-            text = text,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+    Column(modifier = modifier) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .offset(x = (-12).dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Checkbox(
+                checked = accepted,
+                onCheckedChange = onAcceptedChange,
+                label = sentence,
+                isError = showError,
+            )
+            Text(
+                text = text,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        // Figma 210:3868: ícono de alerta + mensaje en `danger` bajo la casilla.
+        if (showError) FieldErrorText(stringResource(R.string.signup_terms_error))
     }
 }
 

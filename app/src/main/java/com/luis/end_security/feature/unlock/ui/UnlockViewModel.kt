@@ -33,6 +33,10 @@ data class UnlockUiState(
     val isLoading: Boolean = false,
     /** «Contraseña incorrecta.» */
     val wrongPassword: Boolean = false,
+    /** «Escribe tu contraseña maestra.»: al tocar «Desbloquear» con el campo vacío. */
+    val showPasswordRequired: Boolean = false,
+    /** Cambia cada vez que la pantalla debe dar el foco al campo (con error al tocar el botón). */
+    val focusRequest: Int = 0,
     /** Segundos de bloqueo por demasiados intentos (DEC-08); 0 sin bloqueo. */
     val lockoutSecondsLeft: Int = 0,
     /** Hoja «¿Cerrar sesión?» abierta. */
@@ -119,7 +123,13 @@ class UnlockViewModel @Inject constructor(
             is UnlockAction.PasswordEmptinessChanged -> {
                 passwordIsEmpty = action.isEmpty
                 // Al escribir otra vez se quita el error; vaciar el campo no lo quita.
-                _state.update { it.copy(wrongPassword = it.wrongPassword && action.isEmpty).withCanSubmit() }
+                _state.update {
+                    it.copy(
+                        wrongPassword = it.wrongPassword && action.isEmpty,
+                        // En cuanto escribe, el error de «falta la contraseña» se quita.
+                        showPasswordRequired = it.showPasswordRequired && action.isEmpty,
+                    ).withCanSubmit()
+                }
             }
             is UnlockAction.Submit -> submit(action.password)
             // TODO(OP-20): BiometricPrompt con CryptoObject (DEC-09): la llave del Keystore abre la
@@ -132,8 +142,14 @@ class UnlockViewModel @Inject constructor(
     }
 
     private fun submit(password: CharSequence) {
-        if (!_state.value.canSubmit) return
-        _state.update { it.copy(isLoading = true, wrongPassword = false).withCanSubmit() }
+        val current = _state.value
+        if (current.isLoading || current.isLockedOut) return
+        if (password.isEmpty()) {
+            // Con el campo vacío no se intenta nada (ni se cuenta un intento): se marca el campo y se le da el foco.
+            _state.update { it.copy(showPasswordRequired = true, wrongPassword = false, focusRequest = it.focusRequest + 1) }
+            return
+        }
+        _state.update { it.copy(isLoading = true, wrongPassword = false, showPasswordRequired = false).withCanSubmit() }
         viewModelScope.launch {
             // OP-19, sin red: el repositorio cuenta el intento antes de derivar (DEC-08).
             val outcome = auth.unlock(password)

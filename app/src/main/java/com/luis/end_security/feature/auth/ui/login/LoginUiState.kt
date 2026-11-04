@@ -7,6 +7,13 @@ package com.luis.end_security.feature.auth.ui.login
 data class LoginUiState(
     val email: String = "",
     val isEmailValid: Boolean = false,
+    /** «Escribe un correo válido…»: al salir del campo con texto o al tocar «Entrar»; nunca al escribir. */
+    val showEmailError: Boolean = false,
+    /** «Escribe tu contraseña maestra.»: solo al tocar «Entrar» con el campo vacío. */
+    val showPasswordRequired: Boolean = false,
+    /** A qué campo con error se desplaza la pantalla y se le da el foco. */
+    val focusRequest: LoginFocusRequest? = null,
+    /** Lo que se revisa al tocar «Entrar»; el botón ya no depende de esto para estar activo. */
     val canSubmit: Boolean = false,
     val isLoading: Boolean = false,
     val error: LoginError? = null,
@@ -19,6 +26,11 @@ data class LoginUiState(
         "LoginUiState(canSubmit=$canSubmit, error=$error, lockoutSecondsLeft=$lockoutSecondsLeft, ***)"
 }
 
+enum class LoginField { Email, Password }
+
+/** [id] cambia en cada intento, para que dos toques seguidos con el mismo error vuelvan a desplazar la pantalla. */
+data class LoginFocusRequest(val field: LoginField, val id: Int)
+
 /**
  * Un solo error para correo y contraseña, para no revelar si el correo tiene cuenta; y el genérico
  * («No pudimos conectar») para la red y lo que no debe dar pistas.
@@ -29,6 +41,9 @@ sealed interface LoginAction {
     data class EmailChanged(val value: String) : LoginAction {
         override fun toString(): String = "EmailChanged(***)"
     }
+
+    /** El foco salió del correo: si tiene texto y está mal, se muestra su error. */
+    data object EmailFocusLost : LoginAction
 
     /** La pantalla avisa si el campo de contraseña quedó vacío o no; nunca manda su contenido. */
     data class PasswordEmptinessChanged(val isEmpty: Boolean) : LoginAction

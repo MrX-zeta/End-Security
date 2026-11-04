@@ -46,6 +46,8 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
@@ -160,6 +162,14 @@ fun UnlockScreen(
         focusManager.clearFocus()
         onSubmit()
     }
+    // Con el campo vacío al tocar «Desbloquear» se marca y se le da el foco (tarea 15).
+    val passwordFocus = remember { FocusRequester() }
+    LaunchedEffect(state.focusRequest) {
+        if (state.focusRequest > 0) {
+            formRequester.bringIntoView()
+            passwordFocus.requestFocus()
+        }
+    }
 
     BoxWithConstraints(
         modifier = modifier
@@ -199,15 +209,16 @@ fun UnlockScreen(
                         label = stringResource(R.string.unlock_password_label),
                         visible = passwordVisible,
                         onVisibleChange = onPasswordVisibleChange,
-                        // Figma no tiene línea de ayuda; solo aparece con error. Bloqueo > incorrecta.
-                        supportingText = when {
+                        // Figma no tiene línea de ayuda; solo aparece con error. Bloqueo > incorrecta > falta.
+                        errorText = when {
                             state.isLockedOut -> lockoutMessage(state.lockoutSecondsLeft)
                             state.wrongPassword -> stringResource(R.string.unlock_error_wrong_password)
+                            state.showPasswordRequired -> stringResource(R.string.auth_error_password_required)
                             else -> null
                         },
-                        isError = state.isLockedOut || state.wrongPassword,
+                        modifier = Modifier.focusRequester(passwordFocus),
                         imeAction = ImeAction.Done,
-                        onKeyboardAction = { if (state.canSubmit) submit() else focusManager.clearFocus() },
+                        onKeyboardAction = { submit() },
                         maxLength = MasterPasswordPolicy.MAX_FIELD_LENGTH,
                     )
                     Spacer(Modifier.height(28.dp))
@@ -223,7 +234,8 @@ fun UnlockScreen(
                         PrimaryButton(
                             text = stringResource(R.string.unlock_submit),
                             onClick = submit,
-                            enabled = state.canSubmit,
+                            // Siempre activo (salvo cargando o bloqueado por intentos, que muestra su cuenta regresiva).
+                            enabled = !state.isLockedOut,
                             loading = state.isLoading,
                             modifier = Modifier.weight(1f),
                         )

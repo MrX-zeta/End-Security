@@ -39,20 +39,41 @@ class LoginViewModel @Inject constructor(
     fun onAction(action: LoginAction) {
         when (action) {
             is LoginAction.EmailChanged -> _state.update {
-                it.copy(email = action.value, isEmailValid = EmailFormat.isValid(action.value), error = null)
+                val valid = EmailFormat.isValid(action.value)
+                // En cuanto queda bien, el error se quita; si no, no aparece mientras se escribe.
+                it.copy(email = action.value, isEmailValid = valid, showEmailError = it.showEmailError && !valid, error = null)
                     .withCanSubmit()
+            }
+            LoginAction.EmailFocusLost -> _state.update {
+                if (it.email.isNotBlank() && !it.isEmailValid) it.copy(showEmailError = true) else it
             }
             is LoginAction.PasswordEmptinessChanged -> {
                 passwordIsEmpty = action.isEmpty
-                _state.update { it.copy(error = null).withCanSubmit() }
+                _state.update { it.copy(showPasswordRequired = it.showPasswordRequired && action.isEmpty, error = null).withCanSubmit() }
             }
             is LoginAction.Submit -> submit(action.password)
         }
     }
 
+    private var focusSequence = 0
+
     private fun submit(password: CharSequence) {
         val current = _state.value
-        if (!current.canSubmit) return
+        if (current.isLoading || current.isLockedOut) return
+        // «Al tocar el botón» se marcan todos los campos con problema y el foco va al primero; no se manda nada.
+        val emailBad = !current.isEmailValid
+        val passwordEmpty = password.isEmpty()
+        if (emailBad || passwordEmpty) {
+            _state.update {
+                it.copy(
+                    showEmailError = emailBad,
+                    showPasswordRequired = passwordEmpty,
+                    error = null,
+                    focusRequest = LoginFocusRequest(if (emailBad) LoginField.Email else LoginField.Password, ++focusSequence),
+                ).withCanSubmit()
+            }
+            return
+        }
         _state.update { it.copy(isLoading = true, error = null).withCanSubmit() }
         viewModelScope.launch {
             // OP-13/OP-14: prelogin, derivación (fuera del hilo principal) y login.

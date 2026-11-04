@@ -20,6 +20,21 @@ data class SignUpUiState(
     /** «Las contraseñas no coinciden.» Solo al perder el foco o al intentar crear la cuenta. */
     val showMismatchError: Boolean = false,
     val termsAccepted: Boolean = false,
+    /** La contraseña tiene texto: se muestra la lista de requisitos. */
+    val passwordTyped: Boolean = false,
+    /** Largo de la confirmación, para saber cuándo empezar a evaluar «Las contraseñas coinciden». */
+    val confirmationLength: Int = 0,
+    /** Largo (en caracteres) de la contraseña, para lo mismo. */
+    val passwordLength: Int = 0,
+    /** «Escribe un correo válido…»: al salir del campo con texto o al tocar «Crear cuenta». */
+    val showEmailError: Boolean = false,
+    /** «Escribe tu contraseña maestra.»: solo al tocar «Crear cuenta» con el campo vacío. */
+    val showPasswordRequired: Boolean = false,
+    /** «Acepta los Términos…»: solo al tocar «Crear cuenta» sin la casilla. */
+    val showTermsError: Boolean = false,
+    /** A qué campo con error se desplaza la pantalla y se le da el foco (el primero, en orden). */
+    val focusRequest: SignUpFocusRequest? = null,
+    /** Lo que se revisa al tocar «Crear cuenta»; el botón ya no depende de esto para estar activo. */
     val canSubmit: Boolean = false,
     /** Verificando la política, derivando las llaves y registrando. */
     val isLoading: Boolean = false,
@@ -29,6 +44,12 @@ data class SignUpUiState(
     // Ni el correo ni el puntaje junto con la longitud deben terminar en un log (INV-06).
     override fun toString(): String = "SignUpUiState(canSubmit=$canSubmit, isLoading=$isLoading, ***)"
 }
+
+/** Los campos que pueden tener error, en el orden en que se desplaza el foco. */
+enum class SignUpField { Email, Password, Confirmation, Terms }
+
+/** [id] cambia en cada intento, para que dos toques seguidos con el mismo error vuelvan a desplazar la pantalla. */
+data class SignUpFocusRequest(val field: SignUpField, val id: Int)
 
 /** Por qué no se pudo registrar. */
 sealed interface SignUpSubmitError {
@@ -63,6 +84,9 @@ sealed interface SignUpAction {
     data object PasswordsCleared : SignUpAction
 
     data object ConfirmationFocusLost : SignUpAction
+
+    /** El foco salió del correo: si tiene texto y está mal, se muestra su error. */
+    data object EmailFocusLost : SignUpAction
 
     data class TermsAcceptedChanged(val accepted: Boolean) : SignUpAction
 

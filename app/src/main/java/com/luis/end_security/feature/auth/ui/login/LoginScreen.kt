@@ -39,6 +39,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.autofill.ContentType
 import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
@@ -58,6 +60,7 @@ import com.luis.end_security.core.designsystem.component.LabeledTextField
 import com.luis.end_security.core.designsystem.component.OrganicBlob
 import com.luis.end_security.core.designsystem.component.PasswordField
 import com.luis.end_security.core.designsystem.component.PrimaryButton
+import com.luis.end_security.core.designsystem.component.onFocusLost
 import com.luis.end_security.core.designsystem.component.PromptLink
 import com.luis.end_security.core.designsystem.component.TwoWeightTitle
 import com.luis.end_security.core.designsystem.theme.PreviewSurface
@@ -153,6 +156,18 @@ fun LoginScreen(
         focusManager.clearFocus()
         onSubmit()
     }
+    // Con errores al tocar «Entrar», se desplaza al primer campo con error y se le da el foco (tarea 15).
+    val emailFocus = remember { FocusRequester() }
+    val passwordFocus = remember { FocusRequester() }
+    val emailBring = remember { BringIntoViewRequester() }
+    val passwordBring = remember { BringIntoViewRequester() }
+    LaunchedEffect(state.focusRequest) {
+        val request = state.focusRequest ?: return@LaunchedEffect
+        val (focus, bring) = if (request.field == LoginField.Email) emailFocus to emailBring else passwordFocus to passwordBring
+        bring.bringIntoView()
+        focus.requestFocus()
+    }
+    val credentialsWrong = state.error == LoginError.InvalidCredentials
 
     Column(
         modifier = modifier
@@ -183,6 +198,14 @@ fun LoginScreen(
                     onValueChange = { onAction(LoginAction.EmailChanged(it)) },
                     label = stringResource(R.string.login_email_label),
                     leadingIcon = R.drawable.ic_mail_20,
+                    // Correo con formato inválido, o credenciales incorrectas: el campo se marca; el mensaje de las
+                    // credenciales va una sola vez, bajo la contraseña (no revela si el correo tiene cuenta).
+                    errorText = if (state.showEmailError) stringResource(R.string.auth_error_email_invalid) else null,
+                    isError = credentialsWrong,
+                    modifier = Modifier
+                        .bringIntoViewRequester(emailBring)
+                        .focusRequester(emailFocus)
+                        .onFocusLost { onAction(LoginAction.EmailFocusLost) },
                     contentType = ContentType.EmailAddress,
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Email,
@@ -198,23 +221,27 @@ fun LoginScreen(
                     label = stringResource(R.string.login_password_label),
                     visible = passwordVisible,
                     onVisibleChange = onPasswordVisibleChange,
-                    // Prioridad: bloqueo por intentos (DEC-32) > credenciales incorrectas > ayuda.
-                    supportingText = when {
+                    // Prioridad: bloqueo por intentos (DEC-32) > credenciales incorrectas > falta la contraseña > ayuda.
+                    // El texto de ayuda «Si la olvidas…» se oculta mientras se ve un error.
+                    errorText = when {
                         state.isLockedOut -> lockoutMessage(state.lockoutSecondsLeft)
-                        state.error == LoginError.InvalidCredentials -> stringResource(R.string.login_error_invalid_credentials)
+                        credentialsWrong -> stringResource(R.string.login_error_invalid_credentials)
                         state.error == LoginError.Generic -> stringResource(R.string.auth_error_generic)
-                        else -> stringResource(R.string.login_password_help)
+                        state.showPasswordRequired -> stringResource(R.string.auth_error_password_required)
+                        else -> null
                     },
-                    isError = state.isLockedOut || state.error != null,
+                    supportingText = stringResource(R.string.login_password_help),
+                    modifier = Modifier.bringIntoViewRequester(passwordBring).focusRequester(passwordFocus),
                     imeAction = ImeAction.Done,
-                    onKeyboardAction = { if (state.canSubmit) submit() else focusManager.clearFocus() },
+                    onKeyboardAction = { submit() },
                     maxLength = MasterPasswordPolicy.MAX_FIELD_LENGTH,
                 )
                 Spacer(Modifier.height(32.dp))
                 PrimaryButton(
                     text = stringResource(R.string.login_submit),
                     onClick = submit,
-                    enabled = state.canSubmit,
+                    // Siempre activo (salvo cargando o bloqueado por intentos, que muestra su cuenta regresiva).
+                    enabled = !state.isLockedOut,
                     loading = state.isLoading,
                     modifier = Modifier.fillMaxWidth(),
                 )

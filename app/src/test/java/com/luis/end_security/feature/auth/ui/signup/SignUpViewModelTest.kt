@@ -371,4 +371,45 @@ class SignUpViewModelTest {
     private companion object {
         const val STRONG = "tortuga-violeta-salta-29-nubes"
     }
+
+    // ---- Tarea 15: mensajes de error en el formulario
+
+    @Test
+    fun `el error de correo no aparece al escribir, si al salir del campo, y se quita al corregir`() {
+        viewModel.onAction(SignUpAction.EmailChanged("ana@"))
+        assertFalse(state.showEmailError)
+        viewModel.onAction(SignUpAction.EmailFocusLost)
+        assertTrue(state.showEmailError)
+        viewModel.onAction(SignUpAction.EmailChanged("ana.lopez@correo.com"))
+        assertFalse(state.showEmailError)
+    }
+
+    @Test
+    fun `crear cuenta con todo vacio marca los errores, enfoca el correo y no llama al servidor`() = kotlinx.coroutines.test.runTest(dispatcher) {
+        viewModel.onAction(SignUpAction.Submit(StringBuilder(""), StringBuilder("")))
+        assertTrue(state.showEmailError)
+        assertTrue(state.showPasswordRequired)
+        assertTrue(state.showTermsError)
+        assertEquals(SignUpField.Email, state.focusRequest?.field)
+        assertTrue(auth.calls.isEmpty())
+    }
+
+    @Test
+    fun `con el correo bien pero sin casilla el foco va a los terminos`() = kotlinx.coroutines.test.runTest(dispatcher) {
+        fillValidForm()
+        viewModel.onAction(SignUpAction.TermsAcceptedChanged(false))
+        viewModel.onAction(SignUpAction.Submit(StringBuilder(STRONG), StringBuilder(STRONG)))
+        assertTrue(state.showTermsError)
+        assertEquals(SignUpField.Terms, state.focusRequest?.field)
+        assertTrue(auth.calls.isEmpty())
+        viewModel.onAction(SignUpAction.TermsAcceptedChanged(true))
+        assertFalse(state.showTermsError)
+    }
+
+    @Test
+    fun `la lista de requisitos aparece en cuanto se escribe la contrasena`() {
+        assertFalse(state.passwordTyped)
+        passwords("abc")
+        assertTrue(state.passwordTyped)
+    }
 }

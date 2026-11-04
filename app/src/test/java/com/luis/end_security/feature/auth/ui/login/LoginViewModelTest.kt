@@ -215,4 +215,64 @@ class LoginViewModelTest {
         viewModel.onAction(LoginAction.EmailChanged("ana"))
         assertFalse(state.canSubmit)
     }
+
+    // ---- Tarea 15: mensajes de error en el formulario
+
+    @Test
+    fun `el error de correo no aparece al escribir`() = scope.runTest {
+        viewModel.onAction(LoginAction.EmailChanged("ana"))
+        assertFalse(state.showEmailError)
+    }
+
+    @Test
+    fun `el error de correo aparece al salir del campo con texto y se quita al corregir`() = scope.runTest {
+        viewModel.onAction(LoginAction.EmailChanged("ana"))
+        viewModel.onAction(LoginAction.EmailFocusLost)
+        assertTrue(state.showEmailError)
+        viewModel.onAction(LoginAction.EmailChanged("ana.lopez@correo.com"))
+        assertFalse(state.showEmailError)
+    }
+
+    @Test
+    fun `salir del correo vacio no marca error`() = scope.runTest {
+        viewModel.onAction(LoginAction.EmailFocusLost)
+        assertFalse(state.showEmailError)
+    }
+
+    @Test
+    fun `entrar con todo vacio marca los campos, enfoca el correo y no llama al servidor`() = scope.runTest {
+        viewModel.onAction(LoginAction.Submit(""))
+        runCurrent()
+        assertTrue(state.showEmailError)
+        assertTrue(state.showPasswordRequired)
+        assertEquals(LoginField.Email, state.focusRequest?.field)
+        assertTrue(auth.calls.isEmpty())
+    }
+
+    @Test
+    fun `con el correo bien y la contrasena vacia se enfoca la contrasena`() = scope.runTest {
+        viewModel.onAction(LoginAction.EmailChanged("ana.lopez@correo.com"))
+        viewModel.onAction(LoginAction.Submit(""))
+        runCurrent()
+        assertFalse(state.showEmailError)
+        assertTrue(state.showPasswordRequired)
+        assertEquals(LoginField.Password, state.focusRequest?.field)
+        assertTrue(auth.calls.isEmpty())
+    }
+
+    @Test
+    fun `dos toques seguidos con el mismo error cambian el id del foco`() = scope.runTest {
+        viewModel.onAction(LoginAction.Submit(""))
+        val first = state.focusRequest
+        viewModel.onAction(LoginAction.Submit(""))
+        assertTrue(first != state.focusRequest)
+    }
+
+    @Test
+    fun `escribir la contrasena quita el aviso de que falta`() = scope.runTest {
+        viewModel.onAction(LoginAction.EmailChanged("ana.lopez@correo.com"))
+        viewModel.onAction(LoginAction.Submit(""))
+        viewModel.onAction(LoginAction.PasswordEmptinessChanged(isEmpty = false))
+        assertFalse(state.showPasswordRequired)
+    }
 }

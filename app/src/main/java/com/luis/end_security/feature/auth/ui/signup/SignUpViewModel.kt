@@ -56,13 +56,18 @@ class SignUpViewModel @Inject constructor(
     fun onAction(action: SignUpAction) {
         when (action) {
             is SignUpAction.EmailChanged -> _state.update {
-                it.copy(email = action.value, isEmailValid = EmailFormat.isValid(action.value)).withCanSubmit()
+                val valid = EmailFormat.isValid(action.value)
+                // En cuanto queda bien, el error se quita; si no, no aparece mientras se escribe.
+                it.copy(email = action.value, isEmailValid = valid, showEmailError = it.showEmailError && !valid).withCanSubmit()
+            }
+            SignUpAction.EmailFocusLost -> _state.update {
+                if (it.email.isNotBlank() && !it.isEmailValid) it.copy(showEmailError = true) else it
             }
             is SignUpAction.PasswordsChanged -> onPasswordsChanged(action.password, action.confirmation)
             SignUpAction.PasswordsCleared -> clearPasswordDerivedState()
             SignUpAction.ConfirmationFocusLost -> revealMismatchIfAny()
             is SignUpAction.TermsAcceptedChanged -> _state.update {
-                it.copy(termsAccepted = action.accepted).withCanSubmit()
+                it.copy(termsAccepted = action.accepted, showTermsError = it.showTermsError && !action.accepted).withCanSubmit()
             }
             is SignUpAction.Submit -> submit(action.password, action.confirmation)
         }
@@ -90,6 +95,10 @@ class SignUpViewModel @Inject constructor(
         _state.update {
             it.copy(
                 strengthScore = if (needsScore) it.strengthScore else null,
+                passwordTyped = password.isNotEmpty(),
+                passwordLength = passwordLength,
+                confirmationLength = MasterPasswordNormalizer.codePointLength(normalizedConfirmation),
+                showPasswordRequired = it.showPasswordRequired && password.isEmpty(),
                 meetsLength = MasterPasswordPolicy.meetsLength(passwordLength),
                 exceedsMaxLength = exceedsMax,
                 hasForbiddenCharacters = forbidden,
@@ -115,6 +124,9 @@ class SignUpViewModel @Inject constructor(
         _state.update {
             it.copy(
                 strengthScore = null,
+                passwordTyped = false,
+                passwordLength = 0,
+                confirmationLength = 0,
                 meetsLength = false,
                 exceedsMaxLength = false,
                 hasForbiddenCharacters = false,
@@ -130,23 +142,54 @@ class SignUpViewModel @Inject constructor(
         }
     }
 
+    private var focusSequence = 0
+
+    private fun focusOn(field: SignUpField) = SignUpFocusRequest(field, ++focusSequence)
+
     private fun submit(password: CharSequence, confirmation: CharSequence) {
-        // Se normaliza una sola vez por envío; las copias viven solo hasta revisar la política.
+        if (_state.value.isLoading || submitJob?.isActive == true) return
+        // Lo derivado se recalcula con el texto que se va a registrar (no con el último cálculo, que va atrasado por el
+        // debounce). La contraseña y la confirmación solo viven en esta llamada.
+        onPasswordsChanged(password, confirmation)
         val normalizedPassword = MasterPasswordNormalizer.normalize(password)
         val normalizedConfirmation = MasterPasswordNormalizer.normalize(confirmation)
-        // «No coinciden» se evalúa con el texto que se intenta registrar.
-        if (confirmation.isNotEmpty() && !matches(normalizedPassword, normalizedConfirmation)) {
-            _state.update { it.copy(confirmationMatches = false, showMismatchError = true).withCanSubmit() }
-        }
+        val codePoints = MasterPasswordNormalizer.codePointLength(normalizedPassword)
         val current = _state.value
-        if (!current.isEmailValid || !current.termsAccepted || current.isLoading) return
-        if (submitJob?.isActive == true) return
+
+        // Errores que se ven sin esperar a nada; «al tocar el botón» se muestran todos a la vez.
+        val emailBad = !current.isEmailValid
+        val passwordEmpty = password.isEmpty()
+        val passwordBad = passwordEmpty || !MasterPasswordPolicy.meetsLength(codePoints) ||
+            MasterPasswordPolicy.exceedsMaxLength(codePoints) || current.hasForbiddenCharacters
+        val mismatch = !passwordEmpty && !matches(normalizedPassword, normalizedConfirmation)
+        val termsBad = !current.termsAccepted
+        _state.update {
+            it.copy(
+                showEmailError = emailBad,
+                showPasswordRequired = passwordEmpty,
+                showMismatchError = mismatch,
+                showTermsError = termsBad,
+                submitError = null,
+            ).withCanSubmit()
+        }
+        val firstBad = when {
+            emailBad -> SignUpField.Email
+            passwordBad -> SignUpField.Password
+            mismatch -> SignUpField.Confirmation
+            termsBad -> SignUpField.Terms
+            else -> null
+        }
+        if (firstBad != null) {
+            // Con errores no se manda nada: ni al servidor ni a la derivación de llaves.
+            _state.update { it.copy(focusRequest = focusOn(firstBad)) }
+            return
+        }
         _state.update { it.copy(isLoading = true).withCanSubmit() }
-        _state.update { it.copy(submitError = null) }
         submitJob = viewModelScope.launch {
             val accepted = passesNormalizedPolicy(password, normalizedPassword, normalizedConfirmation)
             if (!accepted) {
-                _state.update { it.copy(isLoading = false).withCanSubmit() }
+                // Lo único que falta es la fuerza: la lista lo muestra y el foco va a la contraseña.
+                _state.update { it.copy(isLoading = false, focusRequest = focusOn(SignUpField.Password)).withCanSubmit() }
                 return@launch
             }
             // OP-11: el repositorio genera la cuenta, deriva las llaves (Argon2 fuera del hilo
