@@ -35,6 +35,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
@@ -210,6 +212,8 @@ private fun ItemEditScreen(
     onGenerate: () -> Unit = {},
 ) {
     val focusManager = LocalFocusManager.current
+    // Con el nombre vacío al tocar «Guardar», el campo se marca y recibe el foco (tarea 15).
+    val nameFocus = remember { FocusRequester() }
     // Con el teclado abierto, la barra de abajo estorba: se oculta.
     val imeVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
     Column(
@@ -252,8 +256,8 @@ private fun ItemEditScreen(
                     state = fields.name,
                     label = stringResource(R.string.item_form_name),
                     leadingIcon = R.drawable.ic_file_text_20,
-                    supportingText = if (state.nameError) stringResource(R.string.item_form_name_required) else null,
-                    isError = state.nameError,
+                    errorText = if (state.nameError) stringResource(R.string.item_form_name_required) else null,
+                    modifier = Modifier.focusRequester(nameFocus),
                     keyboardOptions = KeyboardOptions(
                         capitalization = KeyboardCapitalization.Words,
                         autoCorrectEnabled = false,
@@ -329,6 +333,7 @@ private fun ItemEditScreen(
                     onClick = {
                         focusManager.clearFocus()
                         onSave()
+                        if (fields.name.text.isBlank()) nameFocus.requestFocus()
                     },
                     showArrow = false,
                     enabled = formReady,

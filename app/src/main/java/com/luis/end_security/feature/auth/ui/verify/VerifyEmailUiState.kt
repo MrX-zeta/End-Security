@@ -7,6 +7,10 @@ data class VerifyEmailUiState(
     val email: String = "",
     val code: String = "",
     val canSubmit: Boolean = false,
+    /** «Escribe los 6 dígitos del código.»: solo al tocar «Verificar» con el código incompleto. */
+    val showIncomplete: Boolean = false,
+    /** Cambia cada vez que la pantalla debe dar el foco al campo. */
+    val focusRequest: Int = 0,
     /** Segundos para poder pedir otro código; 0 cuando ya se puede. */
     val resendSecondsLeft: Int = RESEND_WAIT_SECONDS,
     val error: VerifyEmailError? = null,

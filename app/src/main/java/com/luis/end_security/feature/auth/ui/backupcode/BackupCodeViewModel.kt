@@ -27,6 +27,10 @@ import kotlin.time.TimeSource
  */
 data class BackupCodeUiState(
     val canSubmit: Boolean = false,
+    /** «Escribe el código completo (XXXX-XXXX).»: solo al tocar «Entrar» con el código incompleto. */
+    val showIncomplete: Boolean = false,
+    /** Cambia cada vez que la pantalla debe dar el foco al campo. */
+    val focusRequest: Int = 0,
     /** «Ese código no es válido o ya se usó.» */
     val invalidCode: Boolean = false,
     /** Segundos de bloqueo por demasiados intentos (DEC-32); 0 sin bloqueo. */
@@ -85,8 +89,11 @@ class BackupCodeViewModel @Inject constructor(
                 codeLength = action.length
                 // Al escribir otra vez se quita el error; vaciar el campo no lo quita.
                 _state.update {
-                    it.copy(invalidCode = it.invalidCode && action.length == 0, genericError = it.genericError && action.length == 0)
-                        .withCanSubmit()
+                    it.copy(
+                        invalidCode = it.invalidCode && action.length == 0,
+                        genericError = it.genericError && action.length == 0,
+                        showIncomplete = it.showIncomplete && action.length < BackupCodeFormat.LENGTH,
+                    ).withCanSubmit()
                 }
             }
             is BackupCodeAction.Submit -> submit(action.code)
@@ -95,7 +102,14 @@ class BackupCodeViewModel @Inject constructor(
 
     private fun submit(code: CharSequence) {
         // Se vuelve a validar aquí: un cambio programático del campo se saltaría el filtro.
-        if (!_state.value.canSubmit || !BackupCodeFormat.isValid(code)) return
+        val current = _state.value
+        if (current.isLoading || current.isLockedOut) return
+        if (!BackupCodeFormat.isValid(code)) {
+            // Incompleto: no se manda nada; se marca el campo y se le da el foco.
+            _state.update { it.copy(showIncomplete = true, focusRequest = it.focusRequest + 1) }
+            return
+        }
+        if (!current.canSubmit) return
         // Un envío a la vez: un doble toque contaría como intento fallido hacia el bloqueo (DEC-32).
         val normalized = code.toString()
         _state.update { it.copy(isLoading = true, genericError = false).withCanSubmit() }

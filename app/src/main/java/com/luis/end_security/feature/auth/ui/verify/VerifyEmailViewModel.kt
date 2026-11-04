@@ -54,7 +54,8 @@ class VerifyEmailViewModel @Inject constructor(
                 val code = CodeFieldFilter.filter(action.value)
                 // Al escribir otra vez se quita «Código incorrecto»; «ya no sirve» se queda hasta reenviar.
                 val error = if (it.error == VerifyEmailError.Expired) it.error else null
-                it.copy(code = code, error = error).withCanSubmit()
+                it.copy(code = code, error = error, showIncomplete = it.showIncomplete && code.length < CodeFieldFilter.LENGTH)
+                    .withCanSubmit()
             }
             VerifyEmailAction.Submit -> submit()
             VerifyEmailAction.Resend -> resend()
@@ -63,7 +64,12 @@ class VerifyEmailViewModel @Inject constructor(
 
     private fun submit() {
         val current = _state.value
-        if (!current.canSubmit) return
+        if (current.isLoading || current.error == VerifyEmailError.Expired) return
+        if (current.code.length != CodeFieldFilter.LENGTH) {
+            // Incompleto: no se manda nada; se marca el campo y se le da el foco.
+            _state.update { it.copy(showIncomplete = true, focusRequest = it.focusRequest + 1) }
+            return
+        }
         _state.update { it.copy(isLoading = true).withCanSubmit() }
         viewModelScope.launch {
             // OP-12: verifica, guarda la sesión y abre la bóveda con la llave que espera en memoria.
@@ -85,7 +91,7 @@ class VerifyEmailViewModel @Inject constructor(
 
     private fun resend() {
         if (!_state.value.canResend) return
-        _state.update { it.copy(code = "", error = null).withCanSubmit() }
+        _state.update { it.copy(code = "", error = null, showIncomplete = false).withCanSubmit() }
         startResendCountdown()
         viewModelScope.launch {
             val result = auth.resendVerification(_state.value.email)

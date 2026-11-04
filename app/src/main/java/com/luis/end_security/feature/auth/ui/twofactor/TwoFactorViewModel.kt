@@ -25,6 +25,10 @@ import kotlin.time.TimeSource
 data class TwoFactorUiState(
     val code: String = "",
     val canSubmit: Boolean = false,
+    /** «Escribe los 6 dígitos del código.»: solo al tocar «Verificar» con el código incompleto. */
+    val showIncomplete: Boolean = false,
+    /** Cambia cada vez que la pantalla debe dar el foco al campo. */
+    val focusRequest: Int = 0,
     /** «Código incorrecto. Revisa que la hora de tu teléfono sea automática.» */
     val wrongCode: Boolean = false,
     /** Segundos de bloqueo por demasiados intentos (DEC-32); 0 sin bloqueo. */
@@ -75,7 +79,13 @@ class TwoFactorViewModel @Inject constructor(
         when (action) {
             // Al escribir otra vez se quita «Código incorrecto».
             is TwoFactorAction.CodeChanged -> _state.update {
-                it.copy(code = CodeFieldFilter.filter(action.value), wrongCode = false, genericError = false).withCanSubmit()
+                val code = CodeFieldFilter.filter(action.value)
+                it.copy(
+                    code = code,
+                    wrongCode = false,
+                    genericError = false,
+                    showIncomplete = it.showIncomplete && code.length < CodeFieldFilter.LENGTH,
+                ).withCanSubmit()
             }
             TwoFactorAction.Submit -> submit()
         }
@@ -83,7 +93,12 @@ class TwoFactorViewModel @Inject constructor(
 
     private fun submit() {
         val current = _state.value
-        if (!current.canSubmit) return
+        if (current.isLoading || current.isLockedOut) return
+        if (current.code.length != CodeFieldFilter.LENGTH) {
+            // Incompleto: no se manda nada; se marca el campo y se le da el foco.
+            _state.update { it.copy(showIncomplete = true, focusRequest = it.focusRequest + 1) }
+            return
+        }
         _state.update { it.copy(isLoading = true, genericError = false).withCanSubmit() }
         viewModelScope.launch {
             // OP-15: el código TOTP con el reto del login; si pasa, se abre la bóveda.

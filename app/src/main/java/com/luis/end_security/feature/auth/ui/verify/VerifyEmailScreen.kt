@@ -22,6 +22,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -86,6 +89,11 @@ fun VerifyEmailScreen(
         focusManager.clearFocus()
         onAction(VerifyEmailAction.Submit)
     }
+    // Con el código incompleto al tocar el botón, el campo se marca y recibe el foco (tarea 15).
+    val codeFocus = remember { FocusRequester() }
+    LaunchedEffect(state.focusRequest) {
+        if (state.focusRequest > 0) codeFocus.requestFocus()
+    }
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -130,13 +138,11 @@ fun VerifyEmailScreen(
                     CodeField(
                         value = state.code,
                         onValueChange = { onAction(VerifyEmailAction.CodeChanged(it)) },
-                        isError = state.error != null,
-                        onDone = { if (state.canSubmit) submit() else focusManager.clearFocus() },
+                        errorText = state.error?.let { errorMessage(it) }
+                            ?: if (state.showIncomplete) stringResource(R.string.code_error_incomplete) else null,
+                        modifier = Modifier.focusRequester(codeFocus),
+                        onDone = { submit() },
                     )
-                    state.error?.let { error ->
-                        Spacer(Modifier.height(12.dp))
-                        ErrorLine(error)
-                    }
                     Spacer(Modifier.height(18.dp))
                     ResendLine(state = state, onResend = { onAction(VerifyEmailAction.Resend) })
                     // Solo en depuración con el backend falso (tarea 10): nunca va a logcat.
@@ -152,7 +158,8 @@ fun VerifyEmailScreen(
                     PrimaryButton(
                         text = stringResource(R.string.verify_submit),
                         onClick = submit,
-                        enabled = state.canSubmit,
+                        // Activo salvo cargando o con el código vencido (entonces se reenvía).
+                        enabled = state.error != VerifyEmailError.Expired,
                         loading = state.isLoading,
                         modifier = Modifier.fillMaxWidth(),
                     )
@@ -163,17 +170,16 @@ fun VerifyEmailScreen(
     }
 }
 
-/** Error bajo las casillas (no está en Figma). */
+/** Texto del error bajo las casillas (no está en Figma). */
 @Composable
-private fun ErrorLine(error: VerifyEmailError) {
-    val text = when (error) {
+private fun errorMessage(error: VerifyEmailError): String {
+    return when (error) {
         is VerifyEmailError.WrongCode ->
             pluralStringResource(R.plurals.verify_error_wrong_code, error.attemptsLeft, error.attemptsLeft)
         VerifyEmailError.Expired -> stringResource(R.string.verify_error_expired)
         VerifyEmailError.Generic -> stringResource(R.string.auth_error_generic)
         is VerifyEmailError.RateLimited -> stringResource(R.string.auth_lockout, error.minutes)
     }
-    InlineErrorMessage(text = text)
 }
 
 /** «Puedes pedir otro código en m:ss» durante la espera; después, «Reenviar código». */

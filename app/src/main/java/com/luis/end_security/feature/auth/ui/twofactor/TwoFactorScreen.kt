@@ -18,6 +18,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberUpdatedState
@@ -82,6 +85,11 @@ fun TwoFactorScreen(
         focusManager.clearFocus()
         onAction(TwoFactorAction.Submit)
     }
+    // Con el código incompleto al tocar el botón, el campo se marca y recibe el foco (tarea 15).
+    val codeFocus = remember { FocusRequester() }
+    LaunchedEffect(state.focusRequest) {
+        if (state.focusRequest > 0) codeFocus.requestFocus()
+    }
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -125,25 +133,22 @@ fun TwoFactorScreen(
                     CodeField(
                         value = state.code,
                         onValueChange = { onAction(TwoFactorAction.CodeChanged(it)) },
-                        isError = state.wrongCode || state.isLockedOut || state.genericError,
-                        onDone = { if (state.canSubmit) submit() else focusManager.clearFocus() },
+                        // Errores que no están en Figma, bajo las casillas.
+                        errorText = when {
+                            state.isLockedOut -> lockoutMessage(state.lockoutSecondsLeft)
+                            state.wrongCode -> stringResource(R.string.two_factor_error_wrong_code)
+                            state.genericError -> stringResource(R.string.auth_error_generic)
+                            state.showIncomplete -> stringResource(R.string.code_error_incomplete)
+                            else -> null
+                        },
+                        modifier = Modifier.focusRequester(codeFocus),
+                        onDone = { submit() },
                     )
-                    // Errores que no están en Figma, bajo las casillas.
-                    val error = when {
-                        state.isLockedOut -> lockoutMessage(state.lockoutSecondsLeft)
-                        state.wrongCode -> stringResource(R.string.two_factor_error_wrong_code)
-                        state.genericError -> stringResource(R.string.auth_error_generic)
-                        else -> null
-                    }
-                    if (error != null) {
-                        Spacer(Modifier.height(12.dp))
-                        InlineErrorMessage(text = error)
-                    }
                     Spacer(Modifier.weight(1f).heightIn(min = 24.dp))
                     PrimaryButton(
                         text = stringResource(R.string.two_factor_submit),
                         onClick = submit,
-                        enabled = state.canSubmit,
+                        enabled = !state.isLockedOut,
                         loading = state.isLoading,
                         modifier = Modifier.fillMaxWidth(),
                     )

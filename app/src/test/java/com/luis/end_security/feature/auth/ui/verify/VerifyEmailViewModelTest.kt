@@ -246,4 +246,28 @@ class VerifyEmailViewModelTest {
         assertEquals("0:09", formatCountdown(9))
         assertEquals("0:00", formatCountdown(0))
     }
+
+    // ---- Tarea 15: mensajes de error en el formulario
+
+    @Test
+    fun `verificar con el codigo incompleto marca el campo, enfoca y no llama al servidor`() = scope.runTest {
+        viewModel.onAction(VerifyEmailAction.CodeChanged("123"))
+        assertFalse(state.showIncomplete)
+        val before = state.focusRequest
+        viewModel.onAction(VerifyEmailAction.Submit)
+        runCurrent()
+        assertTrue(state.showIncomplete)
+        assertTrue(state.focusRequest > before)
+        assertFalse(auth.calls.any { it.startsWith("verifyEmail") })
+    }
+
+    @Test
+    fun `el aviso de incompleto se quita al completar los 6 digitos`() = scope.runTest {
+        viewModel.onAction(VerifyEmailAction.CodeChanged("123"))
+        viewModel.onAction(VerifyEmailAction.Submit)
+        viewModel.onAction(VerifyEmailAction.CodeChanged("1234"))
+        assertTrue(state.showIncomplete)
+        viewModel.onAction(VerifyEmailAction.CodeChanged("123456"))
+        assertFalse(state.showIncomplete)
+    }
 }

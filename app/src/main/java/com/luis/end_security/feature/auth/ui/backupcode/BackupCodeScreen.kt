@@ -21,6 +21,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -119,6 +121,11 @@ fun BackupCodeScreen(
         focusManager.clearFocus()
         onSubmit()
     }
+    // Con el código incompleto al tocar el botón, el campo se marca y recibe el foco (tarea 15).
+    val codeFocus = remember { FocusRequester() }
+    LaunchedEffect(state.focusRequest) {
+        if (state.focusRequest > 0) codeFocus.requestFocus()
+    }
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -164,6 +171,7 @@ fun BackupCodeScreen(
                         state.isLockedOut -> lockoutMessage(state.lockoutSecondsLeft)
                         state.invalidCode -> stringResource(R.string.backup_code_error_invalid)
                         state.genericError -> stringResource(R.string.auth_error_generic)
+                        state.showIncomplete -> stringResource(R.string.backup_code_error_incomplete)
                         else -> null
                     }
                     // Solo Pegar en el menú: el código no debe ir al portapapeles.
@@ -172,8 +180,8 @@ fun BackupCodeScreen(
                             state = codeState,
                             label = stringResource(R.string.backup_code_label),
                             leadingIcon = R.drawable.ic_key_20,
-                            supportingText = error,
-                            isError = error != null,
+                            errorText = error,
+                            modifier = Modifier.focusRequester(codeFocus),
                             inputTransformation = BackupCodeInputTransformation,
                             outputTransformation = BackupCodeOutputTransformation,
                             // Teclado de contraseña: los teclados no sugieren ni aprenden lo que se escribe
@@ -184,14 +192,14 @@ fun BackupCodeScreen(
                                 autoCorrectEnabled = false,
                                 imeAction = ImeAction.Done,
                             ),
-                            onKeyboardAction = { if (state.canSubmit) submit() else focusManager.clearFocus() },
+                            onKeyboardAction = { submit() },
                         )
                     }
                     Spacer(Modifier.weight(1f).heightIn(min = 24.dp))
                     PrimaryButton(
                         text = stringResource(R.string.backup_code_submit),
                         onClick = submit,
-                        enabled = state.canSubmit,
+                        enabled = !state.isLockedOut,
                         loading = state.isLoading,
                         modifier = Modifier.fillMaxWidth(),
                     )
