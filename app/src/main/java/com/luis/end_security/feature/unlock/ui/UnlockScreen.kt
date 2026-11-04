@@ -135,9 +135,6 @@ fun UnlockRoute(
 
     SecureScreen()
     ExcludeFromAutofill()
-    // El diálogo de la huella espera a que Desbloquear esté a la vista (una vez por bloqueo).
-    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { currentOnAction(UnlockAction.ScreenResumed) }
-    LifecycleEventEffect(Lifecycle.Event.ON_PAUSE) { currentOnAction(UnlockAction.ScreenPaused) }
     LaunchedEffect(passwordState) {
         snapshotFlow { passwordState.text.isEmpty() }.collect { isEmpty ->
             currentOnAction(UnlockAction.PasswordEmptinessChanged(isEmpty))
@@ -295,6 +292,7 @@ fun UnlockScreen(
         SignOutBottomSheet(
             sheet = sheet,
             locked = true,
+            loading = state.isSigningOut,
             onConfirm = { onAction(UnlockAction.SignOutConfirmed) },
             onDismiss = { onAction(UnlockAction.SignOutDismissed) },
         )

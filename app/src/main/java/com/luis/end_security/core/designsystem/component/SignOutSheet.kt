@@ -48,11 +48,14 @@ fun SignOutBottomSheet(
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
     locked: Boolean = false,
+    /** Cerrando sesión: el botón queda cargando y la hoja no se puede cerrar hasta cambiar de pantalla. */
+    loading: Boolean = false,
 ) {
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        properties = ModalBottomSheetProperties(securePolicy = SecureFlagPolicy.SecureOn),
+        sheetGesturesEnabled = !loading,
+        properties = ModalBottomSheetProperties(securePolicy = SecureFlagPolicy.SecureOn, shouldDismissOnBackPress = !loading),
         containerColor = MaterialTheme.colorScheme.surface,
         contentColor = MaterialTheme.colorScheme.onSurface,
     ) {
@@ -61,6 +64,7 @@ fun SignOutBottomSheet(
             onConfirm = onConfirm,
             onCancel = onDismiss,
             locked = locked,
+            loading = loading,
             modifier = Modifier.navigationBarsPadding(),
         )
     }
@@ -77,6 +81,7 @@ fun SignOutSheetContent(
     onCancel: () -> Unit,
     modifier: Modifier = Modifier,
     locked: Boolean = false,
+    loading: Boolean = false,
 ) {
     Column(
         modifier = modifier.fillMaxWidth().padding(start = 32.dp, end = 32.dp, top = 8.dp, bottom = 24.dp),
@@ -111,9 +116,13 @@ fun SignOutSheetContent(
             textAlign = TextAlign.Center,
         )
         Spacer(Modifier.height(20.dp))
-        DangerButton(text = confirm, onClick = onConfirm, modifier = Modifier.fillMaxWidth())
+        DangerButton(text = confirm, onClick = onConfirm, loading = loading, modifier = Modifier.fillMaxWidth())
         Spacer(Modifier.height(12.dp))
-        SecondaryButton(text = stringResource(R.string.settings_sign_out_cancel), onClick = onCancel, modifier = Modifier.fillMaxWidth())
+        SecondaryButton(
+            text = stringResource(R.string.settings_sign_out_cancel),
+            onClick = { if (!loading) onCancel() },
+            modifier = Modifier.fillMaxWidth(),
+        )
     }
 }
 

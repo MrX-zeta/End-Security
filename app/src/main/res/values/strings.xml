@@ -74,6 +74,7 @@
 
     <!-- Bloqueo por intentos (DEC-32): Iniciar sesión, 2FA y código de respaldo. No está en Figma. -->
     <string name="auth_lockout">Demasiados intentos. Vuelve a intentarlo en %1$d min.</string>
+    <string name="auth_lockout_seconds">Demasiados intentos. Vuelve a intentarlo en %1$d s.</string>
 
     <!-- Verificación en dos pasos al entrar (SCR-07). Textos de Figma (nodo 36:341). -->
     <string name="two_factor_title_bold">Confirma</string>
@@ -527,6 +528,10 @@
     <string name="tf_codes_notice">Cada código funciona una sola vez. Te servirán para entrar si pierdes tu teléfono.</string>
     <string name="tf_copy_codes">Copiar códigos</string>
     <string name="tf_codes_saved">Ya los guardé</string>
+    <string name="tf_exit_title">¿Ya guardaste tus códigos?</string>
+    <string name="tf_exit_body">No podrás volver a verlos. Si los pierdes, genera unos nuevos en Ajustes.</string>
+    <string name="tf_exit_confirm">Salir</string>
+    <string name="tf_exit_back">Volver a los códigos</string>
     <string name="tf_copied">Copiado · se borra del portapapeles en %1$d s</string>
     <string name="tf_active_title_bold">Verificación en dos pasos</string>
     <string name="tf_active_title_regular">está activa</string>
@@ -549,4 +554,22 @@
     <string name="tf_reauth_wrong">Contraseña o código incorrectos.</string>
     <string name="settings_two_factor_needs_connection">Necesitas conexión para cambiar la verificación en dos pasos.</string>
     <string name="settings_two_factor_disabled">Verificación en dos pasos desactivada</string>
+
+    <!-- Cambiar la contraseña maestra (tarea 18) -->
+    <string name="cp_title">Contraseña maestra</string>
+    <string name="cp_notice">Te la pediremos en todos tus dispositivos. Si la olvidas, nadie podrá recuperar tu bóveda.</string>
+    <string name="cp_current_label">Contraseña actual</string>
+    <string name="cp_new_label">Nueva contraseña</string>
+    <string name="cp_confirm_label">Confírmala</string>
+    <string name="cp_submit">Cambiar contraseña</string>
+    <string name="cp_req_breach">No aparece en filtraciones</string>
+    <string name="cp_req_breach_offline">No se pudo revisar (sin conexión)</string>
+    <string name="cp_breach_found">Esta contraseña apareció en filtraciones. Elige otra.</string>
+    <string name="cp_same">Debe ser distinta de la actual.</string>
+    <string name="cp_wrong">Contraseña o código incorrectos.</string>
+    <string name="cp_conflict">Tu contraseña maestra cambió en otro dispositivo. Cierra sesión y entra con la nueva.</string>
+    <string name="cp_biometric_prompt_title">Confirma tu huella para seguir usándola</string>
+    <string name="cp_biometric_off">Desbloqueo con huella desactivado. Actívalo de nuevo en Ajustes.</string>
+    <string name="cp_changed">Contraseña cambiada. Cerramos la sesión en tus otros dispositivos.</string>
+    <string name="login_password_changed_notice">Tu contraseña cambió. Entra con la nueva.</string>
 </resources>

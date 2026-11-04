@@ -20,7 +20,7 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
-import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.seconds
 import kotlin.time.TimeSource
 
 /** Qué operación sensible pide la hoja «Confirma que eres tú». */
@@ -189,18 +189,21 @@ class TwoFactorManageViewModel @Inject constructor(
     private inline fun <T> handle(result: ApiResult<T>, onSuccess: (T) -> Unit) {
         when (result) {
             is ApiResult.Success -> onSuccess(result.value)
-            is ApiResult.Failure -> _state.update {
+            is ApiResult.Failure -> {
                 val error = result.error
-                when {
-                    error == ApiError.ReauthRequired || error is ApiError.InvalidCode || error == ApiError.InvalidCredentials ->
-                        it.copy(isLoading = false, credentialsWrong = true, code = "")
-                    error is ApiError.RateLimited -> {
-                        lockoutCountdown.start(viewModelScope, ((error.retryAfterSeconds + 59) / 60).minutes) { left ->
-                            _state.update { s -> s.copy(lockoutSecondsLeft = left) }
-                        }
-                        it.copy(isLoading = false, code = "")
+                // Fuera de `update`: el bloque del CAS puede repetirse y no debe tener efectos.
+                if (error is ApiError.RateLimited) {
+                    lockoutCountdown.start(viewModelScope, error.retryAfterSeconds.seconds) { left ->
+                        _state.update { s -> s.copy(lockoutSecondsLeft = left) }
                     }
-                    else -> it.copy(isLoading = false, genericError = true)
+                }
+                _state.update {
+                    when {
+                        error == ApiError.ReauthRequired || error is ApiError.InvalidCode || error == ApiError.InvalidCredentials ->
+                            it.copy(isLoading = false, credentialsWrong = true, code = "")
+                        error is ApiError.RateLimited -> it.copy(isLoading = false, code = "")
+                        else -> it.copy(isLoading = false, genericError = true)
+                    }
                 }
             }
         }

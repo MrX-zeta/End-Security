@@ -24,7 +24,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import javax.inject.Inject
-import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.seconds
 import kotlin.time.TimeSource
 
 /** Los tres pasos de activar la verificación en dos pasos (SCR-30, SCR-31, SCR-32). */
@@ -214,7 +214,7 @@ class TwoFactorSetupViewModel @Inject constructor(
     private fun onConfirmError(error: ApiError) {
         when (error) {
             is ApiError.InvalidCode -> _state.update { it.copy(wrongCode = true) }
-            is ApiError.RateLimited -> lockoutCountdown.start(viewModelScope, ((error.retryAfterSeconds + 59) / 60).minutes) { left ->
+            is ApiError.RateLimited -> lockoutCountdown.start(viewModelScope, error.retryAfterSeconds.seconds) { left ->
                 _state.update { it.copy(lockoutSecondsLeft = left) }
             }
             else -> _state.update { it.copy(genericError = true) }

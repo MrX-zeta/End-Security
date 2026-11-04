@@ -12,7 +12,11 @@ import com.luis.end_security.R
 /** Minutos que se muestran, hacia arriba: con 59 s todavía dice «1 min». */
 fun lockoutMinutesLeft(secondsLeft: Int): Int = (secondsLeft + 59) / 60
 
-/** «Demasiados intentos. Vuelve a intentarlo en N min.» */
+/** «Demasiados intentos. Vuelve a intentarlo en N min.»; con menos de un minuto, «…en N s.» */
 @Composable
 fun lockoutMessage(secondsLeft: Int): String =
-    stringResource(R.string.auth_lockout, lockoutMinutesLeft(secondsLeft))
+    if (secondsLeft in 1..59) {
+        stringResource(R.string.auth_lockout_seconds, secondsLeft)
+    } else {
+        stringResource(R.string.auth_lockout, lockoutMinutesLeft(secondsLeft))
+    }

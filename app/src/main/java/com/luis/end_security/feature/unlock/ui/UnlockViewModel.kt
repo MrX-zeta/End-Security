@@ -46,6 +46,8 @@ data class UnlockUiState(
     val lockoutSecondsLeft: Int = 0,
     /** Hoja de «Cerrar sesión» abierta: la normal o la de cambios sin subir (la bóveda está bloqueada, no se sincroniza). */
     val signOutSheet: SignOutSheet? = null,
+    /** Cerrando sesión: lo que se ve queda congelado (la bandera de la huella se borra antes de cambiar de pantalla). */
+    val isSigningOut: Boolean = false,
     /** «Tu huella cambió. Entra con tu contraseña…»: la llave se invalidó y ya se desactivó todo (DEC-09). */
     val biometricInvalidated: Boolean = false,
 ) {
@@ -85,11 +87,6 @@ sealed interface UnlockAction {
     /** «Cerrar sesión» en la hoja. */
     data object SignOutConfirmed : UnlockAction
 
-    /** Desbloquear pasó a `RESUMED` (a la vista y en primer plano). */
-    data object ScreenResumed : UnlockAction
-
-    /** Desbloquear dejó de estar a la vista. */
-    data object ScreenPaused : UnlockAction
 }
 
 sealed interface UnlockEffect {
@@ -126,26 +123,14 @@ class UnlockViewModel @Inject constructor(
     private var passwordIsEmpty = true
     private val lockoutCountdown = Countdown(timeSource)
 
-    /** El diálogo de la huella sale **una sola vez por cada bloqueo** (cada bloqueo crea esta pantalla de nuevo). */
-    private var autoPrompted = false
-
-    /** Desbloquear está a la vista (`RESUMED`): con el autobloqueo en segundo plano, el diálogo espera a volver. */
-    private var resumed = false
-
-    private fun maybeAutoPrompt() {
-        if (!resumed || autoPrompted || !_state.value.biometricAvailable) return
-        autoPrompted = true
-        startBiometric()
-    }
-
     /** Hay un diálogo de huella abierto o descifrando: un toque más no abre otro. */
     private var biometricBusy = false
 
     init {
         viewModelScope.launch {
             settings.biometricEnabled.collect { enabled ->
-                _state.update { it.copy(biometricAvailable = enabled) }
-                maybeAutoPrompt()
+                // Solo se muestra el botón: el diálogo del sistema se abre únicamente al tocarlo (DEC-09).
+                _state.update { if (it.isSigningOut) it else it.copy(biometricAvailable = enabled) }
             }
         }
         viewModelScope.launch {
@@ -177,12 +162,7 @@ class UnlockViewModel @Inject constructor(
             is UnlockAction.BiometricAuthenticated -> completeBiometric(action.cipher)
             UnlockAction.BiometricCancelled -> biometricBusy = false
             UnlockAction.SignOutClicked -> openSignOutSheet()
-            UnlockAction.SignOutDismissed -> _state.update { it.copy(signOutSheet = null) }
-            UnlockAction.ScreenResumed -> {
-                resumed = true
-                maybeAutoPrompt()
-            }
-            UnlockAction.ScreenPaused -> resumed = false
+            UnlockAction.SignOutDismissed -> _state.update { if (it.isSigningOut) it else it.copy(signOutSheet = null) }
             UnlockAction.SignOutConfirmed -> signOut()
         }
     }
@@ -266,10 +246,17 @@ class UnlockViewModel @Inject constructor(
     }
 
     private fun signOut() {
-        _state.update { it.copy(signOutSheet = null, isLoading = true).withCanSubmit() }
+        // La hoja sigue abierta con su botón cargando hasta navegar; lo que se ve queda congelado.
+        _state.update { it.copy(isSigningOut = true, isLoading = true).withCanSubmit() }
         viewModelScope.launch {
             // OP-18: revoca en el servidor (aunque falle la red), borra tokens y datos locales y bloquea.
-            auth.signOut()
+            try {
+                auth.signOut()
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                // `signOutLocally` ya bloqueó la sesión en su `finally`: igual se va a Iniciar sesión (M4).
+            }
             _effects.send(UnlockEffect.NavigateToLogin)
         }
     }

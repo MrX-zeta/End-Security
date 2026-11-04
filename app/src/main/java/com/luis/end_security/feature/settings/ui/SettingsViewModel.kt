@@ -24,10 +24,10 @@ import javax.crypto.Cipher
 import javax.inject.Inject
 
 /** Las filas que llevan a pantallas de las tareas 17–20; por ahora solo avisan «Disponible pronto». */
-enum class FutureRow { MasterPassword, Devices, Activity, DeleteAccount }
+enum class FutureRow { Devices, Activity, DeleteAccount }
 
 /** Avisos breves al pie de Ajustes. */
-enum class NoticeKind { ComingSoon, NeedsConnection, TwoFactorDisabled }
+enum class NoticeKind { ComingSoon, NeedsConnection, TwoFactorDisabled, PasswordChanged, BiometricOff }
 
 /** [id] cambia en cada aviso, para que dos iguales seguidos vuelvan a mostrarse. */
 data class SettingsNotice(val kind: NoticeKind, val id: Int)
@@ -61,6 +61,9 @@ sealed interface SettingsAction {
 
     /** Volvió de «Desactivar» con éxito: «Verificación en dos pasos desactivada». */
     data object TwoFactorDisabled : SettingsAction
+
+    /** Volvió de cambiar la contraseña (T18); [biometricOff]: la huella quedó desactivada. */
+    data class PasswordChanged(val biometricOff: Boolean) : SettingsAction
     data object AutoLockClicked : SettingsAction
     data class AutoLockSelected(val minutes: Int) : SettingsAction
     data object AutoLockDismissed : SettingsAction
@@ -110,17 +113,27 @@ class SettingsViewModel @Inject constructor(
     val effects: Flow<SettingsEffect> = _effects.receiveAsFlow()
 
     init {
-        viewModelScope.launch { settings.profile.collect { profile -> _state.update { it.copy(profile = profile) } } }
+        // Mientras se cierra la sesión, lo que se ve queda congelado: `signOutLocally` borra la bandera de la huella y Room, y
+        // Ajustes no debe parpadear antes de cambiar de pantalla.
         viewModelScope.launch {
-            settings.autolockMinutes.collect { minutes -> _state.update { it.copy(autolockMinutes = minutes) } }
+            settings.profile.collect { profile -> _state.update { if (it.isSigningOut) it else it.copy(profile = profile) } }
         }
         viewModelScope.launch {
-            biometric.enabled.collect { enabled -> _state.update { it.copy(biometricEnabled = enabled) } }
+            settings.autolockMinutes.collect { minutes ->
+                _state.update { if (it.isSigningOut) it else it.copy(autolockMinutes = minutes) }
+            }
+        }
+        viewModelScope.launch {
+            biometric.enabled.collect { enabled ->
+                _state.update { if (it.isSigningOut) it else it.copy(biometricEnabled = enabled) }
+            }
         }
         refreshBiometricRow()
         // Con red: los dos valores de la cuenta. Sin ella se quedan sin valor.
         refreshTwoFactor()
-        viewModelScope.launch { settings.deviceCount().let { value -> _state.update { it.copy(deviceCount = value) } } }
+        viewModelScope.launch {
+            settings.deviceCount().let { value -> _state.update { if (it.isSigningOut) it else it.copy(deviceCount = value) } }
+        }
     }
 
     private var noticeSequence = 0
@@ -133,7 +146,7 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             val value = settings.twoFactorEnabled()
             // Con error se conserva el último valor conocido: no se borra «Activa» por una falla de red pasajera.
-            if (value != null) _state.update { it.copy(twoFactorEnabled = value) }
+            if (value != null) _state.update { if (it.isSigningOut) it else it.copy(twoFactorEnabled = value) }
         }
     }
 
@@ -151,6 +164,7 @@ class SettingsViewModel @Inject constructor(
     private fun refreshBiometricRow() {
         val status = availability.status()
         _state.update {
+            if (it.isSigningOut) return@update it
             it.copy(
                 biometricRowVisible = status != BiometricStatus.NoHardware,
                 // El aviso se quita solo en cuanto ya hay una huella registrada.
@@ -162,9 +176,17 @@ class SettingsViewModel @Inject constructor(
     fun onAction(action: SettingsAction) {
         when (action) {
             is SettingsAction.FutureRowClicked ->
-                // TODO(T18…T20): Contraseña maestra (T18), Dispositivos y Actividad (T19), Eliminar cuenta (T20).
+                // TODO(T19…T20): Dispositivos y Actividad (T19), Eliminar cuenta (T20).
                 notify(NoticeKind.ComingSoon)
             SettingsAction.TwoFactorClicked -> openTwoFactor()
+            is SettingsAction.PasswordChanged -> viewModelScope.launch {
+                notify(NoticeKind.PasswordChanged)
+                if (action.biometricOff) {
+                    // Un aviso a la vez: el segundo sale cuando el primero ya se leyó.
+                    kotlinx.coroutines.delay(BIOMETRIC_NOTICE_DELAY_MILLIS)
+                    notify(NoticeKind.BiometricOff)
+                }
+            }
             SettingsAction.TwoFactorDisabled -> {
                 notify(NoticeKind.TwoFactorDisabled)
                 refreshTwoFactor()
@@ -184,7 +206,8 @@ class SettingsViewModel @Inject constructor(
             }
             SettingsAction.SignOutClicked -> startSignOut()
             SettingsAction.SignOutConfirmed -> signOut()
-            SettingsAction.SignOutDismissed -> _state.update { it.copy(signOutSheet = null) }
+            // Con el cierre en curso la hoja no se cierra: sigue cargando hasta navegar.
+            SettingsAction.SignOutDismissed -> _state.update { if (it.isSigningOut) it else it.copy(signOutSheet = null) }
             SettingsAction.Resumed -> {
                 refreshBiometricRow()
                 // Al volver de activar o desactivar, «Activa» / «Inactiva» se recarga.
@@ -249,10 +272,16 @@ class SettingsViewModel @Inject constructor(
 
     private fun signOut() {
         if (_state.value.isSigningOut) return
-        _state.update { it.copy(isSigningOut = true, signOutSheet = null) }
+        // Se congela lo que se ve; la hoja sigue abierta con su botón cargando hasta que se navega.
+        _state.update { it.copy(isSigningOut = true) }
         viewModelScope.launch {
-            auth.signOut()
-            _state.update { it.copy(isSigningOut = false) }
+            try {
+                auth.signOut()
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                // `signOutLocally` ya bloqueó la sesión en su `finally`: igual se va a Iniciar sesión (M4).
+            }
             _effects.send(SettingsEffect.NavigateToLogin)
         }
     }
@@ -260,5 +289,8 @@ class SettingsViewModel @Inject constructor(
     companion object {
         /** Espera máxima de la sincronización antes de decidir qué hoja mostrar. */
         const val SYNC_WAIT_MILLIS = 5_000L
+
+        /** Lo que dura el primer aviso antes de mostrar el de la huella. */
+        const val BIOMETRIC_NOTICE_DELAY_MILLIS = 4_200L
     }
 }

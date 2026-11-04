@@ -82,13 +82,24 @@ fun SettingsRoute(
     onNavigateToLogin: () -> Unit,
     onOpenTwoFactorSetup: () -> Unit,
     onOpenTwoFactorActive: () -> Unit,
+    onOpenChangePassword: () -> Unit = {},
     twoFactorDisabled: Boolean = false,
     onTwoFactorDisabledShown: () -> Unit = {},
+    /** 0 nada; [com.luis.end_security.navigation.Routes.PASSWORD_CHANGED] o `…_BIOMETRIC_OFF` al volver de cambiar la contraseña. */
+    passwordChanged: Int = 0,
+    onPasswordChangedShown: () -> Unit = {},
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val currentOpenSetup by rememberUpdatedState(onOpenTwoFactorSetup)
     val currentOpenActive by rememberUpdatedState(onOpenTwoFactorActive)
     // Al volver de «Desactivar» con éxito (resultado de la pantalla anterior): aviso y recarga.
+    LaunchedEffect(passwordChanged) {
+        if (passwordChanged != 0) {
+            // 1 = cambiada; 2 = cambiada y la huella quedó desactivada.
+            viewModel.onAction(SettingsAction.PasswordChanged(biometricOff = passwordChanged == 2))
+            onPasswordChangedShown()
+        }
+    }
     LaunchedEffect(twoFactorDisabled) {
         if (twoFactorDisabled) {
             viewModel.onAction(SettingsAction.TwoFactorDisabled)
@@ -128,7 +139,12 @@ fun SettingsRoute(
     }
     // Tras registrar una huella en los ajustes del teléfono, el aviso se quita solo.
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.onAction(SettingsAction.Resumed) }
-    SettingsScreen(state = state, onAction = viewModel::onAction, onTabSelected = onTabSelected)
+    SettingsScreen(
+        state = state,
+        onAction = viewModel::onAction,
+        onTabSelected = onTabSelected,
+        onOpenChangePassword = onOpenChangePassword,
+    )
 }
 
 @Composable
@@ -137,6 +153,7 @@ fun SettingsScreen(
     onAction: (SettingsAction) -> Unit,
     onTabSelected: (BottomNavTab) -> Unit,
     modifier: Modifier = Modifier,
+    onOpenChangePassword: () -> Unit = {},
 ) {
     Column(modifier = modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         Box(modifier = Modifier.weight(1f)) {
@@ -217,7 +234,7 @@ fun SettingsScreen(
                         icon = R.drawable.ic_key_20,
                         label = stringResource(R.string.settings_master_password),
                         value = null,
-                        onClick = { onAction(SettingsAction.FutureRowClicked(FutureRow.MasterPassword)) },
+                        onClick = onOpenChangePassword,
                     )
                 }
                 SectionLabel(stringResource(R.string.settings_section_account))
@@ -266,6 +283,7 @@ fun SettingsScreen(
     state.signOutSheet?.let { sheet ->
         SignOutBottomSheet(
             sheet = sheet,
+            loading = state.isSigningOut,
             onConfirm = { onAction(SettingsAction.SignOutConfirmed) },
             onDismiss = { onAction(SettingsAction.SignOutDismissed) },
         )
@@ -290,6 +308,8 @@ private fun NoticeBar(notice: SettingsNotice?, modifier: Modifier = Modifier) {
                     NoticeKind.ComingSoon -> R.string.settings_coming_soon
                     NoticeKind.NeedsConnection -> R.string.settings_two_factor_needs_connection
                     NoticeKind.TwoFactorDisabled -> R.string.settings_two_factor_disabled
+                    NoticeKind.PasswordChanged -> R.string.cp_changed
+                    NoticeKind.BiometricOff -> R.string.cp_biometric_off
                 },
             ),
             icon = R.drawable.ic_info_20,

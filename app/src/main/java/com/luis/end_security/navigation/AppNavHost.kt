@@ -43,6 +43,7 @@ import com.luis.end_security.feature.health.ui.HealthOldRoute
 import com.luis.end_security.feature.health.ui.HealthRankingRoute
 import com.luis.end_security.feature.health.ui.HealthRepeatedRoute
 import com.luis.end_security.feature.health.ui.HealthRoute
+import com.luis.end_security.feature.account.ui.ChangePasswordRoute
 import com.luis.end_security.feature.account.ui.TwoFactorActiveRoute
 import com.luis.end_security.feature.account.ui.TwoFactorSetupRoute
 import com.luis.end_security.feature.settings.ui.SettingsRoute
@@ -166,13 +167,33 @@ private fun AppNavigation(route: String, modifier: Modifier = Modifier) {
             RequireUnlocked(onLocked = lockGuardViewModel::onProtectedScreenLocked) {
                 val handle = backStackEntry.savedStateHandle
                 val disabled by handle.getStateFlow(Routes.RESULT_TWO_FACTOR_DISABLED, false).collectAsStateWithLifecycle()
+                val passwordResult by handle.getStateFlow(Routes.RESULT_PASSWORD_CHANGED, 0).collectAsStateWithLifecycle()
                 SettingsRoute(
                     onTabSelected = onTabSelected,
                     onNavigateToLogin = { navController.navigateClearingStack(Routes.LOGIN) },
                     onOpenTwoFactorSetup = { navController.navigate(Routes.TWO_FACTOR_SETUP) { launchSingleTop = true } },
                     onOpenTwoFactorActive = { navController.navigate(Routes.TWO_FACTOR_ACTIVE) { launchSingleTop = true } },
+                    onOpenChangePassword = { navController.navigate(Routes.CHANGE_PASSWORD) { launchSingleTop = true } },
                     twoFactorDisabled = disabled,
                     onTwoFactorDisabledShown = { handle[Routes.RESULT_TWO_FACTOR_DISABLED] = false },
+                    passwordChanged = passwordResult,
+                    onPasswordChangedShown = { handle[Routes.RESULT_PASSWORD_CHANGED] = 0 },
+                )
+            }
+        }
+        composable(Routes.CHANGE_PASSWORD) {
+            RequireUnlocked(onLocked = lockGuardViewModel::onProtectedScreenLocked) {
+                ChangePasswordRoute(
+                    onBack = { navController.popBackStack() },
+                    onFinish = { biometricOff ->
+                        navController.previousBackStackEntry?.savedStateHandle?.set(
+                            Routes.RESULT_PASSWORD_CHANGED,
+                            if (biometricOff) Routes.PASSWORD_CHANGED_BIOMETRIC_OFF else Routes.PASSWORD_CHANGED,
+                        )
+                        navController.popBackStack()
+                    },
+                    onNavigateToLogin = { navController.navigateClearingStack(Routes.LOGIN) },
+                    onTabSelected = onTabSelected,
                 )
             }
         }

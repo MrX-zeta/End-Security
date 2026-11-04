@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -28,6 +29,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
@@ -89,7 +92,8 @@ fun TwoFactorSetupRoute(
             when (effect) {
                 SetupEffect.Exit -> currentOnExit()
                 is SetupEffect.OpenUri -> try {
-                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(effect.uri)))
+                    // Siempre con selector: el sistema no entrega la clave a una app por su cuenta.
+                    context.startActivity(Intent.createChooser(Intent(Intent.ACTION_VIEW, Uri.parse(effect.uri)), null))
                 } catch (_: ActivityNotFoundException) {
                     // Ya no hay app que lo abra: el botón se oculta.
                     viewModel.onAction(SetupAction.AuthenticatorAvailable(false))
@@ -118,9 +122,11 @@ fun TwoFactorSetupScreen(
     LaunchedEffect(state.focusRequest) {
         if (state.focusRequest > 0) codeFocus.requestFocus()
     }
+    // En el Paso 3, salir por una pestaña pide confirmar: los códigos no se podrán volver a ver.
+    var pendingTab by remember { mutableStateOf<BottomNavTab?>(null) }
     FlowScaffold(
         onBack = { onAction(SetupAction.Back) },
-        onTabSelected = onTabSelected,
+        onTabSelected = { tab -> if (step == SetupStep.Codes) pendingTab = tab else onTabSelected(tab) },
         modifier = modifier,
         toast = state.copiedSeconds?.let { stringResource(R.string.tf_copied, it) },
         bottom = {
@@ -188,6 +194,63 @@ fun TwoFactorSetupScreen(
             }
         }
     }
+    pendingTab?.let { tab ->
+        ExitCodesSheet(
+            onExit = {
+                pendingTab = null
+                onTabSelected(tab)
+            },
+            onStay = { pendingTab = null },
+        )
+    }
+}
+
+/** «¿Ya guardaste tus códigos?» al salir del Paso 3 por una pestaña. */
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@Composable
+private fun ExitCodesSheet(onExit: () -> Unit, onStay: () -> Unit) {
+    androidx.compose.material3.ModalBottomSheet(
+        onDismissRequest = onStay,
+        sheetState = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        properties = androidx.compose.material3.ModalBottomSheetProperties(
+            securePolicy = androidx.compose.ui.window.SecureFlagPolicy.SecureOn,
+        ),
+        containerColor = MaterialTheme.colorScheme.surface,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+    ) {
+        ExitCodesSheetContent(onExit = onExit, onStay = onStay, modifier = Modifier.navigationBarsPadding())
+    }
+}
+
+@Composable
+fun ExitCodesSheetContent(onExit: () -> Unit, onStay: () -> Unit, modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier.fillMaxWidth().padding(start = 32.dp, end = 32.dp, top = 8.dp, bottom = 24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        com.luis.end_security.core.designsystem.component.SheetIconDisc(R.drawable.ic_shield_alert_20, danger = true)
+        Spacer(Modifier.height(12.dp))
+        Text(
+            text = stringResource(R.string.tf_exit_title),
+            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+            modifier = Modifier.semantics { heading() },
+        )
+        Spacer(Modifier.height(8.dp))
+        Text(
+            text = stringResource(R.string.tf_exit_body),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+        )
+        Spacer(Modifier.height(20.dp))
+        com.luis.end_security.core.designsystem.component.DangerButton(
+            text = stringResource(R.string.tf_exit_confirm),
+            onClick = onExit,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Spacer(Modifier.height(12.dp))
+        SecondaryButton(text = stringResource(R.string.tf_exit_back), onClick = onStay, modifier = Modifier.fillMaxWidth())
+    }
 }
 
 @Composable
@@ -203,6 +266,7 @@ fun FlowScaffold(
     onTabSelected: (BottomNavTab) -> Unit,
     modifier: Modifier = Modifier,
     toast: String? = null,
+    title: String = stringResource(R.string.tf_title),
     bottom: @Composable () -> Unit,
     content: @Composable () -> Unit,
 ) {
@@ -215,7 +279,7 @@ fun FlowScaffold(
                 ) {
                     BackButton(onClick = onBack)
                     Text(
-                        text = stringResource(R.string.tf_title),
+                        text = title,
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                         color = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.padding(start = 14.dp).semantics { heading() },

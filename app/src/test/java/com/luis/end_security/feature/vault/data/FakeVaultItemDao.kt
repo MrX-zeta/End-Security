@@ -45,6 +45,30 @@ class FakeAccountDao(initial: AccountEntity? = null) : AccountDao() {
         )
     }
 
+    var failNextUpdateKeys = 0
+
+    override suspend fun updateKeys(
+        userId: String,
+        salt: ByteArray,
+        memoryKiB: Int,
+        iterations: Int,
+        parallelism: Int,
+        pvkNonce: ByteArray,
+        pvkCiphertext: ByteArray,
+        keyVersion: Int,
+    ): Int {
+        if (failNextUpdateKeys > 0) {
+            failNextUpdateKeys--
+            throw IllegalStateException("Room falló")
+        }
+        val old = row.value?.takeIf { it.userId == userId } ?: return 0
+        row.value = AccountEntity(
+            old.userId, old.email, old.displayName, salt, memoryKiB, iterations, parallelism,
+            pvkNonce, pvkCiphertext, keyVersion, old.syncCursor, old.lastSyncAt, null, null,
+        )
+        return 1
+    }
+
     override suspend fun clearBiometric() {
         val old = row.value ?: return
         row.value = AccountEntity(

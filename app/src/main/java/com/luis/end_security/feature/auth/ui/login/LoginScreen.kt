@@ -49,6 +49,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
@@ -191,6 +192,15 @@ fun LoginScreen(
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            if (state.passwordChangedNotice) {
+                Spacer(Modifier.height(12.dp))
+                Text(
+                    text = stringResource(R.string.login_password_changed_notice),
+                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold),
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.semantics { liveRegion = androidx.compose.ui.semantics.LiveRegionMode.Polite },
+                )
+            }
             Spacer(Modifier.height(28.dp))
             Column(modifier = Modifier.bringIntoViewRequester(formRequester)) {
                 LabeledTextField(

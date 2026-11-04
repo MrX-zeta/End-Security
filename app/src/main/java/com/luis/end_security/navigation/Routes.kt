@@ -71,6 +71,14 @@ object Routes {
     /** Verificación en dos pasos activa (Figma 218:4304). */
     const val TWO_FACTOR_ACTIVE = "settings_two_factor_active"
 
+    /** SCR-35: Contraseña maestra (cambiarla, OP-27). */
+    const val CHANGE_PASSWORD = "settings_change_password"
+
+    /** Resultado que el cambio de contraseña deja en Ajustes: [PASSWORD_CHANGED] o [PASSWORD_CHANGED_BIOMETRIC_OFF]. */
+    const val RESULT_PASSWORD_CHANGED = "password_changed"
+    const val PASSWORD_CHANGED = 1
+    const val PASSWORD_CHANGED_BIOMETRIC_OFF = 2
+
     /** Resultado que «Desactivar» deja en la entrada de Ajustes: la pantalla muestra el aviso y lo consume. */
     const val RESULT_TWO_FACTOR_DISABLED = "two_factor_disabled"
 

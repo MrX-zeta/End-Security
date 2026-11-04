@@ -27,6 +27,9 @@ class FakeAuthRepository : AuthRepository {
     var pendingLoginCancelled = false
     var signedOut = false
 
+    /** Si no es `null`, `signOut()` lanza esto después de marcar `signedOut` (falla del borrado local). */
+    var signOutError: RuntimeException? = null
+
     private suspend fun waitGate() {
         gate?.await()
     }
@@ -80,7 +83,9 @@ class FakeAuthRepository : AuthRepository {
     }
 
     override suspend fun signOut() {
+        waitGate()
         signedOut = true
+        signOutError?.let { throw it }
     }
 
     override suspend fun localAccountName(): String? = accountName

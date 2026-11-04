@@ -275,4 +275,21 @@ class LoginViewModelTest {
         viewModel.onAction(LoginAction.PasswordEmptinessChanged(isEmpty = false))
         assertFalse(state.showPasswordRequired)
     }
+
+    // ---- Tarea 18: aviso tras un cambio de contraseña que no se pudo guardar en este teléfono
+
+    @Test
+    fun `sin aviso pendiente no muestra el mensaje`() {
+        assertFalse(state.passwordChangedNotice)
+    }
+
+    @Test
+    fun `con el aviso pendiente lo muestra una sola vez`() {
+        val notices = com.luis.end_security.core.session.AuthNotices().apply { postPasswordChanged() }
+        val first = LoginViewModel(dispatcher.scheduler.timeSource, auth, notices)
+        assertTrue(first.state.value.passwordChangedNotice)
+        val second = LoginViewModel(dispatcher.scheduler.timeSource, auth, notices)
+        assertFalse(second.state.value.passwordChangedNotice)
+    }
 }
+

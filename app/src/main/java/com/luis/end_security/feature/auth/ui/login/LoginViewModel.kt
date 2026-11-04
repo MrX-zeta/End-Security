@@ -3,6 +3,7 @@ package com.luis.end_security.feature.auth.ui.login
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.luis.end_security.core.common.Countdown
+import com.luis.end_security.core.session.AuthNotices
 import com.luis.end_security.core.common.ApiError
 import com.luis.end_security.core.common.ApiResult
 import com.luis.end_security.feature.auth.domain.AuthRepository
@@ -25,6 +26,7 @@ import kotlin.time.TimeSource
 class LoginViewModel @Inject constructor(
     timeSource: TimeSource,
     private val auth: AuthRepository,
+    private val notices: AuthNotices = AuthNotices(),
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(LoginUiState())
@@ -35,6 +37,11 @@ class LoginViewModel @Inject constructor(
 
     private var passwordIsEmpty = true
     private val lockoutCountdown = Countdown(timeSource)
+
+    init {
+        // Tras un cambio de contraseña que no se pudo guardar aquí, la sesión local se cerró: se explica al llegar.
+        if (notices.consumePasswordChanged()) _state.update { it.copy(passwordChangedNotice = true) }
+    }
 
     fun onAction(action: LoginAction) {
         when (action) {

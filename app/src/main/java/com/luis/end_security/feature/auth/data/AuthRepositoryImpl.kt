@@ -272,7 +272,13 @@ class AuthRepositoryImpl @Inject constructor(
             withContext(NonCancellable) {
               sessionLock.mutex.withLock {
                 tokens.save(authenticated.tokens)
-                accountDao.replace(account)
+                try {
+                    accountDao.replace(account)
+                } catch (e: Exception) {
+                    // Sin cuenta local no debe quedar una sesión a medias: los tokens se borran antes de propagar el error.
+                    runCatching { tokens.clear() }
+                    throw e
+                }
                 // La fila nueva no tiene huella: ni llave del Keystore ni opción encendida de una cuenta anterior.
                 runCatching { biometricKeys.deleteAll() }
                 runCatching { settings.setBiometricEnabled(false) }
@@ -380,7 +386,13 @@ class AuthRepositoryImpl @Inject constructor(
         try {
             withContext(defaultDispatcher + NonCancellable) {
                 KeyDerivation.deriveMasterKey(normalizedPassword, salt, params).use { master ->
-                    produced = DerivedKeys(KeyDerivation.encKey(master), KeyDerivation.authKey(master))
+                    val enc = KeyDerivation.encKey(master)
+                    produced = try {
+                        DerivedKeys(enc, KeyDerivation.authKey(master))
+                    } catch (e: Throwable) {
+                        enc.close()
+                        throw e
+                    }
                 }
             }
             currentCoroutineContext().ensureActive()

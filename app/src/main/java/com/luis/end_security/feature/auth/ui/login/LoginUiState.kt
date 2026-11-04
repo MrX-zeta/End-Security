@@ -5,6 +5,8 @@ package com.luis.end_security.feature.auth.ui.login
  * vive en un TextFieldState de la pantalla y el ViewModel solo sabe si está vacía.
  */
 data class LoginUiState(
+    /** «Tu contraseña cambió. Entra con la nueva.»: tras un cambio que no se pudo guardar en este teléfono. */
+    val passwordChangedNotice: Boolean = false,
     val email: String = "",
     val isEmailValid: Boolean = false,
     /** «Escribe un correo válido…»: al salir del campo con texto o al tocar «Entrar»; nunca al escribir. */

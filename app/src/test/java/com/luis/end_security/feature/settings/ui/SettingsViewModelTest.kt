@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -378,5 +379,97 @@ class SettingsViewModelTest {
         runCurrent()
         assertEquals(NoticeKind.TwoFactorDisabled, state.notice?.kind)
         assertEquals(false, state.twoFactorEnabled)
+    }
+
+    // ---- Tarea 18: Ajustes no parpadea al cerrar sesión
+
+    @Test
+    fun `durante el cierre lo que se ve no cambia aunque cambien la bandera o Room`() = scope.runTest {
+        biometric.enabledFlow.value = true
+        auth.gate = kotlinx.coroutines.CompletableDeferred()
+        create()
+        val before = state
+        viewModel.onAction(SettingsAction.SignOutClicked)
+        runCurrent()
+        viewModel.onAction(SettingsAction.SignOutConfirmed)
+        runCurrent()
+        assertTrue(state.isSigningOut)
+        // `signOutLocally` borra la bandera de la huella, la cuenta y los ajustes: nada de eso se refleja.
+        biometric.enabledFlow.value = false
+        repo.profileFlow.value = null
+        repo.minutes.value = 30
+        runCurrent()
+        assertEquals(before.biometricEnabled, state.biometricEnabled)
+        assertEquals(before.profile, state.profile)
+        assertEquals(before.autolockMinutes, state.autolockMinutes)
+        assertEquals(before.twoFactorEnabled, state.twoFactorEnabled)
+        assertEquals(before.deviceCount, state.deviceCount)
+        auth.gate!!.complete(Unit)
+        runCurrent()
+    }
+
+    @Test
+    fun `durante el cierre la hoja sigue abierta y no se puede cerrar`() = scope.runTest {
+        auth.gate = kotlinx.coroutines.CompletableDeferred()
+        create()
+        viewModel.onAction(SettingsAction.SignOutClicked)
+        runCurrent()
+        viewModel.onAction(SettingsAction.SignOutConfirmed)
+        runCurrent()
+        assertTrue(state.signOutSheet != null)
+        viewModel.onAction(SettingsAction.SignOutDismissed)
+        assertTrue(state.signOutSheet != null)
+        auth.gate!!.complete(Unit)
+        runCurrent()
+        assertEquals(SettingsEffect.NavigateToLogin, viewModel.effects.first())
+    }
+
+    @Test
+    fun `al volver de Resumed durante el cierre no se recarga nada`() = scope.runTest {
+        repo.twoFactor = true
+        auth.gate = kotlinx.coroutines.CompletableDeferred()
+        create()
+        viewModel.onAction(SettingsAction.SignOutClicked)
+        runCurrent()
+        viewModel.onAction(SettingsAction.SignOutConfirmed)
+        runCurrent()
+        repo.twoFactor = false
+        viewModel.onAction(SettingsAction.Resumed)
+        runCurrent()
+        assertEquals(true, state.twoFactorEnabled)
+        auth.gate!!.complete(Unit)
+        runCurrent()
+    }
+
+    // ---- Tarea 18: volver de cambiar la contraseña
+
+    @Test
+    fun `volver de cambiar la contrasena avisa que cerramos las otras sesiones`() = scope.runTest {
+        create()
+        viewModel.onAction(SettingsAction.PasswordChanged(biometricOff = false))
+        runCurrent()
+        assertEquals(NoticeKind.PasswordChanged, state.notice?.kind)
+    }
+
+    @Test
+    fun `si la huella quedo desactivada sale un segundo aviso despues del primero`() = scope.runTest {
+        create()
+        viewModel.onAction(SettingsAction.PasswordChanged(biometricOff = true))
+        runCurrent()
+        assertEquals(NoticeKind.PasswordChanged, state.notice?.kind)
+        advanceTimeBy(SettingsViewModel.BIOMETRIC_NOTICE_DELAY_MILLIS + 100)
+        runCurrent()
+        assertEquals(NoticeKind.BiometricOff, state.notice?.kind)
+    }
+
+    @Test
+    fun `si el borrado local falla igual va a iniciar sesion y no se queda congelada`() = scope.runTest {
+        auth.signOutError = IllegalStateException("Room falló")
+        create()
+        viewModel.onAction(SettingsAction.SignOutClicked)
+        runCurrent()
+        viewModel.onAction(SettingsAction.SignOutConfirmed)
+        runCurrent()
+        assertEquals(SettingsEffect.NavigateToLogin, viewModel.effects.first())
     }
 }

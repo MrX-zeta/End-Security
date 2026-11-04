@@ -21,7 +21,7 @@ object VaultKey {
 object ProtectedVaultKey {
     private const val AAD_PREFIX = "end-security/vault-key|"
 
-    fun wrap(encKey: SecureBytes, vaultKey: SecureBytes, userId: UUID, keyVersion: Int): Sealed {
+    fun wrap(encKey: SecureBytes, vaultKey: SecretReader, userId: UUID, keyVersion: Int): Sealed {
         require(vaultKey.size == VaultKey.LENGTH) { "La vault_key debe tener ${VaultKey.LENGTH} bytes" }
         val aad = aad(userId, keyVersion)
         return encKey.withBytes { key ->

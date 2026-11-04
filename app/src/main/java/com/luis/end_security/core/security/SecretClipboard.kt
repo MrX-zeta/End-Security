@@ -7,6 +7,8 @@ import android.os.PersistableBundle
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import com.luis.end_security.core.common.ApplicationScope
+import com.luis.end_security.core.session.VaultState
+import kotlinx.coroutines.flow.StateFlow
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -79,20 +81,45 @@ class SecretClipboardController @Inject constructor(
     private val lock = Any()
     private var clearJob: Job? = null
 
+    /** La etiqueta de lo último que copió la app, mientras siga pendiente de borrar. */
+    private var lastLabel: String? = null
+
     override suspend fun copy(text: String): Int {
         val seconds = ClipboardSettings.sanitize(settings.clipboardClearSeconds.first())
         val label = LABEL_PREFIX + UUID.randomUUID()
         synchronized(lock) {
             port.set(label, text)
+            lastLabel = label
             clearJob?.cancel()
             clearJob = scope.launch {
                 delay(seconds * 1_000L)
                 // `null`: vacío, o no se puede leer desde segundo plano (ver ClipboardPort.currentLabel).
                 val current = port.currentLabel()
                 if (current == null || current == label) port.clear()
+                // Ya se limpió por tiempo: al bloquear no hay nada más que borrar (no tocar algo ajeno).
+                synchronized(lock) { if (lastLabel == label) lastLabel = null }
             }
         }
         return seconds
+    }
+
+    /**
+     * Al bloquear la bóveda (DEC-25): si lo que copió la app sigue ahí, se borra ya, con la misma regla que el borrado por
+     * tiempo (si se ve que hay otra cosa copiada, no se toca).
+     */
+    fun clearIfOurs() {
+        synchronized(lock) {
+            val label = lastLabel ?: return
+            val current = port.currentLabel()
+            if (current == null || current == label) port.clear()
+            clearJob?.cancel()
+            lastLabel = null
+        }
+    }
+
+    /** La registra `EndSecurityApp`: cada paso a [VaultState.Locked] borra lo copiado. */
+    fun clearOnLock(state: StateFlow<VaultState>) {
+        scope.launch { state.collect { if (it is VaultState.Locked) clearIfOurs() } }
     }
 
     /**

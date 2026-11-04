@@ -33,6 +33,10 @@ class EndSecurityApp : Application() {
     @Inject
     lateinit var secretClipboard: SecretClipboardController
 
+    /** El portapapeles se borra al bloquear la bóveda (DEC-25). */
+    @Inject
+    lateinit var vaultSession: com.luis.end_security.core.session.VaultSession
+
     /** Sincroniza al desbloquear, al guardar, al volver a primer plano y al volver la red (tarea 12). */
     @Inject
     lateinit var syncScheduler: SyncScheduler
@@ -43,6 +47,7 @@ class EndSecurityApp : Application() {
         ProcessLifecycleOwner.get().lifecycle.addObserver(autoLocker)
         ProcessLifecycleOwner.get().lifecycle.addObserver(deletionUndo)
         ProcessLifecycleOwner.get().lifecycle.addObserver(secretClipboard)
+        secretClipboard.clearOnLock(vaultSession.state)
         ProcessLifecycleOwner.get().lifecycle.addObserver(syncScheduler)
         // Cada 15 min con red, aunque la app esté cerrada; sin la `vault_key` (DEC-47).
         SyncWorker.schedule(this)

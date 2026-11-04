@@ -30,6 +30,30 @@ abstract class AccountDao {
     @Query("UPDATE account SET bio_iv = :iv, bio_wrapped_vault_key = :wrapped")
     abstract suspend fun setBiometric(iv: ByteArray, wrapped: ByteArray)
 
+    /**
+     * Cambio de contraseña maestra (OP-27): una sola sentencia, así que o se guarda todo o nada. La `vault_key` es la misma;
+     * cambian la sal, los parámetros de Argon2, la pvk y la `key_version`. El envoltorio biométrico viejo ya no abre
+     * (su AAD lleva la versión anterior) y se quita aquí; si la huella estaba activa, se vuelve a envolver después.
+     */
+    @Query(
+        """
+        UPDATE account SET kdf_salt = :salt, kdf_memory_kib = :memoryKiB, kdf_iterations = :iterations,
+            kdf_parallelism = :parallelism, pvk_nonce = :pvkNonce, pvk_ciphertext = :pvkCiphertext,
+            key_version = :keyVersion, bio_iv = NULL, bio_wrapped_vault_key = NULL
+        WHERE user_id = :userId
+        """,
+    )
+    abstract suspend fun updateKeys(
+        userId: String,
+        salt: ByteArray,
+        memoryKiB: Int,
+        iterations: Int,
+        parallelism: Int,
+        pvkNonce: ByteArray,
+        pvkCiphertext: ByteArray,
+        keyVersion: Int,
+    ): Int
+
     /** Quita el envoltorio biométrico (desactivar, huella invalidada, cerrar sesión). */
     @Query("UPDATE account SET bio_iv = NULL, bio_wrapped_vault_key = NULL")
     abstract suspend fun clearBiometric()
