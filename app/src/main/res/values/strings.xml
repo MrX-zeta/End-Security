@@ -447,7 +447,10 @@
     <string name="auth_error_email_invalid">Escribe un correo válido, por ejemplo nombre@correo.com</string>
     <string name="auth_error_password_required">Escribe tu contraseña maestra.</string>
     <string name="signup_req_length">12 caracteres o más</string>
-    <string name="signup_req_strength">Fuerza buena o mejor</string>
+    <string name="signup_req_upper">Una mayúscula</string>
+    <string name="signup_req_lower">Una minúscula</string>
+    <string name="signup_req_digit">Un número</string>
+    <string name="signup_weak_password">Elige una contraseña más difícil de adivinar.</string>
     <string name="signup_req_match">Las contraseñas coinciden</string>
     <string name="signup_terms_error">Acepta los Términos y el Aviso de privacidad para continuar.</string>
     <string name="requirement_met">cumplido</string>
@@ -455,4 +458,50 @@
     <string name="requirement_pending">pendiente</string>
     <string name="code_error_incomplete">Escribe los 6 dígitos del código.</string>
     <string name="backup_code_error_incomplete">Escribe el código completo (XXXX-XXXX).</string>
+
+    <!-- Ajustes (tarea 16) -->
+    <string name="settings_title_bold">Ajustes</string>
+    <string name="settings_title_regular">y seguridad</string>
+    <string name="settings_section_security">Seguridad</string>
+    <string name="settings_section_account">Cuenta</string>
+    <string name="settings_two_factor">Verificación en 2 pasos</string>
+    <string name="settings_two_factor_active">Activa</string>
+    <string name="settings_two_factor_inactive">Inactiva</string>
+    <string name="settings_biometric">Desbloquear con huella</string>
+    <string name="settings_biometric_needs_enrollment">Agrega una huella en los ajustes del teléfono para usar esta opción.</string>
+    <string name="settings_autolock">Bloqueo automático</string>
+    <string name="settings_master_password">Contraseña maestra</string>
+    <string name="settings_devices">Dispositivos</string>
+    <string name="settings_activity">Actividad reciente</string>
+    <string name="settings_sign_out">Cerrar sesión</string>
+    <string name="settings_delete_account">Eliminar cuenta</string>
+    <string name="settings_coming_soon">Disponible pronto</string>
+    <string name="settings_autolock_title">Bloqueo automático</string>
+    <string name="settings_autolock_body">Tu bóveda se bloquea cuando la app pasa este tiempo en segundo plano.</string>
+    <string name="settings_autolock_option_0">Al salir de la app</string>
+    <string name="settings_autolock_option_1">1 minuto</string>
+    <string name="settings_autolock_option_5">5 minutos (recomendado)</string>
+    <string name="settings_autolock_option_15">15 minutos</string>
+    <string name="settings_autolock_option_30">30 minutos</string>
+    <string name="settings_autolock_value_0">Al salir</string>
+    <string name="settings_autolock_value_1">1 min</string>
+    <string name="settings_autolock_value_5">5 min</string>
+    <string name="settings_autolock_value_15">15 min</string>
+    <string name="settings_autolock_value_30">30 min</string>
+    <string name="settings_sign_out_title">¿Cerrar sesión?</string>
+    <string name="settings_sign_out_body">Para volver necesitarás tu correo y tu contraseña maestra. Tu bóveda sigue guardada en tu cuenta.</string>
+    <string name="settings_sign_out_confirm">Cerrar sesión</string>
+    <string name="settings_sign_out_cancel">Cancelar</string>
+    <plurals name="settings_sign_out_unsynced_title">
+        <item quantity="one">Tienes %d cambio sin subir</item>
+        <item quantity="other">Tienes %d cambios sin subir</item>
+    </plurals>
+    <string name="settings_sign_out_unsynced_body">Si cierras sesión ahora se perderán. Conéctate a internet y espera a que se suban, o ciérrala de todos modos.</string>
+    <string name="settings_sign_out_anyway">Cerrar sesión de todos modos</string>
+    <string name="biometric_enable_title">Activar desbloqueo con huella</string>
+    <string name="biometric_enable_subtitle">Confirma que eres tú</string>
+    <string name="biometric_cancel">Cancelar</string>
+    <string name="biometric_unlock_title">Desbloquear End Security</string>
+    <string name="biometric_use_password">Usar contraseña</string>
+    <string name="unlock_biometric_invalidated">Tu huella cambió. Entra con tu contraseña maestra y vuelve a activarla en Ajustes.</string>
 </resources>

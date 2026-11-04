@@ -84,6 +84,17 @@ class AutoLockerTest {
     }
 
     @Test
+    fun `cambiar el ajuste con la app abierta se aplica sin reiniciar`() = runTest {
+        val locker = newLocker()
+        minutes.value = 1
+        runCurrent()
+        locker.onBackground()
+        advanceTimeBy(60_001L)
+        runCurrent()
+        assertEquals(VaultState.Locked, session.state.value)
+    }
+
+    @Test
     fun `el ajuste se lee del DataStore, con 1 minuto bloquea al minuto`() = runTest {
         minutes.value = 1
         val locker = newLocker()

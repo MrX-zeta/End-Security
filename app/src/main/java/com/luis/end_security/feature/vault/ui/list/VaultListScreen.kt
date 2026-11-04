@@ -172,7 +172,6 @@ fun VaultListScreen(
                 }
             }
         }
-        // TODO(DEC-56): Salud, Generador y Ajustes llevan a su raíz cuando existan.
         BottomNavBar(selected = BottomNavTab.Vault, onTabSelected = onTabSelected)
     }
 }

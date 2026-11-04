@@ -62,6 +62,9 @@ object Routes {
     /** SCR-22, SCR-23 y SCR-40: Salud (Resumen | Progreso). */
     const val HEALTH = "health"
 
+    /** SCR-29: Ajustes (pestaña). */
+    const val SETTINGS = "settings"
+
     const val RANKING_TAB_ARG = "tab"
 
     /** SCR-24 y SCR-25: ranking de fuerza («Más fuertes» o «Más débiles», según `tab`). */

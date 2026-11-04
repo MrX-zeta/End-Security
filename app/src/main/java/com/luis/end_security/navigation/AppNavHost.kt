@@ -43,6 +43,7 @@ import com.luis.end_security.feature.health.ui.HealthOldRoute
 import com.luis.end_security.feature.health.ui.HealthRankingRoute
 import com.luis.end_security.feature.health.ui.HealthRepeatedRoute
 import com.luis.end_security.feature.health.ui.HealthRoute
+import com.luis.end_security.feature.settings.ui.SettingsRoute
 import com.luis.end_security.feature.vault.ui.conflict.ConflictDetailRoute
 import com.luis.end_security.feature.vault.ui.conflict.ConflictListRoute
 import com.luis.end_security.feature.vault.ui.list.VaultListRoute
@@ -75,7 +76,7 @@ private fun AppNavigation(route: String, modifier: Modifier = Modifier) {
     SystemBarsAppearance(darkBackground = false)
     val navController = rememberNavController()
     val lockGuardViewModel: LockGuardViewModel = hiltViewModel()
-    // Barra inferior (DEC-56): Bóveda y Generador ya navegan; Salud y Ajustes siguen como marcadores hasta que existan.
+    // Barra inferior (DEC-56): las cuatro pestañas navegan sin sumar historial.
     val onTabSelected: (BottomNavTab) -> Unit = { tab ->
         when (tab) {
             BottomNavTab.Vault -> navController.navigate(Routes.VAULT) {
@@ -87,8 +88,10 @@ private fun AppNavigation(route: String, modifier: Modifier = Modifier) {
                 popUpTo(Routes.HEALTH) { inclusive = false }
                 launchSingleTop = true
             }
-            // TODO(DEC-56): Ajustes lleva a su raíz cuando exista.
-            BottomNavTab.Settings -> Unit
+            BottomNavTab.Settings -> navController.navigate(Routes.SETTINGS) {
+                popUpTo(Routes.SETTINGS) { inclusive = false }
+                launchSingleTop = true
+            }
         }
     }
     // Si la bóveda se bloquea: a Desbloquear (o a Iniciar sesión sin cuenta), sin nada debajo.
@@ -150,6 +153,14 @@ private fun AppNavigation(route: String, modifier: Modifier = Modifier) {
                 onNavigateToVault = { navController.navigateClearingStack(Routes.VAULT) },
                 onNavigateToLogin = { navController.navigateClearingStack(Routes.LOGIN) },
             )
+        }
+        composable(Routes.SETTINGS, exitTransition = { ExitTransition.None }, popExitTransition = { ExitTransition.None }) {
+            RequireUnlocked(onLocked = lockGuardViewModel::onProtectedScreenLocked) {
+                SettingsRoute(
+                    onTabSelected = onTabSelected,
+                    onNavigateToLogin = { navController.navigateClearingStack(Routes.LOGIN) },
+                )
+            }
         }
         composable(Routes.HEALTH, exitTransition = { ExitTransition.None }, popExitTransition = { ExitTransition.None }) {
             RequireUnlocked(onLocked = lockGuardViewModel::onProtectedScreenLocked) {
@@ -216,7 +227,6 @@ private fun AppNavigation(route: String, modifier: Modifier = Modifier) {
         composable(Routes.VAULT_LOADING, exitTransition = { ExitTransition.None }, popExitTransition = { ExitTransition.None }) {
             RequireUnlocked(onLocked = lockGuardViewModel::onProtectedScreenLocked) {
                 // OP-32: descarga inicial real y después a la Bóveda.
-                // TODO(DEC-56): cada pestaña lleva a su raíz cuando existan Salud, Generador y Ajustes.
                 VaultLoadingRoute(
                     onTabSelected = onTabSelected,
                     onDone = {
@@ -229,7 +239,6 @@ private fun AppNavigation(route: String, modifier: Modifier = Modifier) {
         }
         composable(Routes.VAULT, exitTransition = { ExitTransition.None }, popExitTransition = { ExitTransition.None }) {
             RequireUnlocked(onLocked = lockGuardViewModel::onProtectedScreenLocked) {
-                // TODO(DEC-56): Salud, Generador y Ajustes llevan a su raíz cuando existan.
                 VaultListRoute(
                     onTabSelected = onTabSelected,
                     onOpenItem = { id -> navController.navigate(Routes.vaultItem(id)) { launchSingleTop = true } },
