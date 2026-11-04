@@ -103,8 +103,8 @@ class FakeServer(
             path == "/account" && request.method == "PATCH" -> withSession(request) { _, user ->
                 updateAccount(user, parse(body, UpdateAccountRequestDto.serializer()))
             }
-            request.method == "POST" && path == "/account/email" -> withSession(request) { _, user ->
-                requestEmailChange(user, parse(body, EmailChangeRequestDto.serializer()))
+            request.method == "POST" && path == "/account/email" -> withSession(request) { session, user ->
+                requestEmailChange(session, user, parse(body, EmailChangeRequestDto.serializer()))
             }
             request.method == "POST" && path == "/account/email/verify" -> withSession(request) { _, user ->
                 confirmEmailChange(user, parse(body, CodeRequestDto.serializer()))
@@ -424,11 +424,11 @@ class FakeServer(
         return ok(AccountDto.serializer(), user.toDto())
     }
 
-    private fun requestEmailChange(user: FakeUser, dto: EmailChangeRequestDto): HttpResponse {
+    private fun requestEmailChange(session: FakeSession, user: FakeUser, dto: EmailChangeRequestDto): HttpResponse {
         normalizeEmail(dto.newEmail)
         checkReauth(user, dto.reauth)
         // El cambio de correo con su código queda fuera del backend falso por ahora: 202 genérico.
-        event(user, "email_change_requested", true, null)
+        event(user, "email_change_requested", true, session.deviceName)
         return accepted()
     }
 

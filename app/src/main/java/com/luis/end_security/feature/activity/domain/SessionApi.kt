@@ -21,7 +21,10 @@ data class ActivityEvent(
     val eventType: String,
     val success: Boolean,
     val deviceName: String?,
-)
+) {
+    /** El tipo conocido del evento; [ActivityKind.Unknown] si es uno que esta versión no conoce. */
+    val kind: ActivityKind get() = ActivityKind.fromWire(eventType)
+}
 
 class ActivityPage(
     val events: List<ActivityEvent>,

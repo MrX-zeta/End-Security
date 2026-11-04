@@ -74,6 +74,12 @@ object Routes {
     /** SCR-35: Contraseña maestra (cambiarla, OP-27). */
     const val CHANGE_PASSWORD = "settings_change_password"
 
+    /** SCR-33: Dispositivos con sesión abierta (OP-29, OP-30). */
+    const val DEVICES = "settings_devices"
+
+    /** SCR-34: Actividad reciente (OP-31). */
+    const val ACTIVITY = "settings_activity"
+
     /** Resultado que el cambio de contraseña deja en Ajustes: [PASSWORD_CHANGED] o [PASSWORD_CHANGED_BIOMETRIC_OFF]. */
     const val RESULT_PASSWORD_CHANGED = "password_changed"
     const val PASSWORD_CHANGED = 1

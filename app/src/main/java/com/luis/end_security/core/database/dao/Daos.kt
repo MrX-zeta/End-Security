@@ -108,6 +108,10 @@ abstract class VaultItemDao {
     @Query("SELECT * FROM vault_items WHERE id = :id")
     abstract suspend fun get(id: String): VaultItemEntity?
 
+    /** Un elemento cualquiera con bloque (no lápida): sirve para comprobar que una `vault_key` abre lo que hay en el teléfono. */
+    @Query("SELECT * FROM vault_items WHERE ciphertext IS NOT NULL AND nonce IS NOT NULL LIMIT 1")
+    abstract suspend fun anySealed(): VaultItemEntity?
+
     /** Un solo elemento y sus cambios: el detalle no necesita descifrar toda la bóveda. */
     @Query("SELECT * FROM vault_items WHERE id = :id AND deleted_at IS NULL")
     abstract fun observe(id: String): Flow<VaultItemEntity?>

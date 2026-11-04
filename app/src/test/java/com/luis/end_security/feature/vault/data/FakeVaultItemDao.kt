@@ -108,6 +108,8 @@ class FakeVaultItemDao(private val account: FakeAccountDao? = null) : VaultItemD
 
     override suspend fun get(id: String): VaultItemEntity? = rows.value[id]
 
+    override suspend fun anySealed(): VaultItemEntity? = rows.value.values.firstOrNull { it.nonce != null && it.ciphertext != null }
+
     override fun observe(id: String): Flow<VaultItemEntity?> = rows.map { map -> map[id]?.takeIf { it.deletedAt == null } }
 
     override suspend fun syncStateOf(id: String): SyncState? = rows.value[id]?.syncState

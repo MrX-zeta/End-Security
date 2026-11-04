@@ -572,4 +572,100 @@
     <string name="cp_biometric_off">Desbloqueo con huella desactivado. Actívalo de nuevo en Ajustes.</string>
     <string name="cp_changed">Contraseña cambiada. Cerramos la sesión en tus otros dispositivos.</string>
     <string name="login_password_changed_notice">Tu contraseña cambió. Entra con la nueva.</string>
+
+    <!-- Dispositivos (SCR-33, SCR-41; Figma 47:1817) -->
+    <string name="devices_title">Dispositivos</string>
+    <plurals name="devices_heading_bold">
+        <item quantity="one">%d dispositivo</item>
+        <item quantity="many">%d dispositivos</item>
+        <item quantity="other">%d dispositivos</item>
+    </plurals>
+    <string name="devices_heading_regular">con tu sesión abierta</string>
+    <string name="devices_this">Este</string>
+    <string name="devices_this_description">Este dispositivo</string>
+    <string name="devices_active_now">Activo ahora</string>
+    <plurals name="devices_ago_minutes">
+        <item quantity="one">Hace %d min</item>
+        <item quantity="many">Hace %d min</item>
+        <item quantity="other">Hace %d min</item>
+    </plurals>
+    <plurals name="devices_ago_hours">
+        <item quantity="one">Hace %d h</item>
+        <item quantity="many">Hace %d h</item>
+        <item quantity="other">Hace %d h</item>
+    </plurals>
+    <plurals name="devices_ago_days">
+        <item quantity="one">Hace %d día</item>
+        <item quantity="many">Hace %d días</item>
+        <item quantity="other">Hace %d días</item>
+    </plurals>
+    <plurals name="devices_ago_weeks">
+        <item quantity="one">Hace %d semana</item>
+        <item quantity="many">Hace %d semanas</item>
+        <item quantity="other">Hace %d semanas</item>
+    </plurals>
+    <string name="devices_row_close_label">Cerrar sesión en este dispositivo</string>
+    <string name="devices_hint_before">"Toca un dispositivo para cerrar su sesión. Si no reconoces alguno, "</string>
+    <string name="devices_hint_link">cambia tu contraseña maestra</string>
+    <string name="devices_hint_after">.</string>
+    <string name="devices_close_others">Cerrar sesión en los demás</string>
+    <string name="devices_loading_description">Cargando tus dispositivos…</string>
+    <string name="devices_offline_title">No pudimos cargar tus dispositivos</string>
+    <string name="devices_offline_body">Revisa tu conexión a internet. Esta información está en nuestros servidores, así que necesita conexión para mostrarse.</string>
+    <string name="devices_retry">Reintentar</string>
+
+    <!-- Hojas de confirmación (diseño de Cerrar sesión, Figma 215:3811) -->
+    <string name="devices_close_one_title">¿Cerrar sesión en %1$s?</string>
+    <string name="devices_close_one_body">Tendrá que volver a entrar con tu correo y tu contraseña maestra.</string>
+    <string name="devices_close_confirm">Cerrar sesión</string>
+    <string name="devices_close_others_title">¿Cerrar sesión en los demás dispositivos?</string>
+    <string name="devices_close_others_body">Solo este teléfono seguirá con tu sesión abierta.</string>
+
+    <!-- Avisos -->
+    <string name="devices_closed">Cerraste la sesión en %1$s</string>
+    <string name="devices_others_closed">Cerraste la sesión en los demás dispositivos</string>
+    <string name="devices_close_one_failed">No pudimos cerrar la sesión en %1$s. Intenta de nuevo.</string>
+    <plurals name="devices_close_failed">
+        <item quantity="one">No pudimos cerrar la sesión en %d dispositivo. Intenta de nuevo.</item>
+        <item quantity="many">No pudimos cerrar la sesión en %d dispositivos. Intenta de nuevo.</item>
+        <item quantity="other">No pudimos cerrar la sesión en %d dispositivos. Intenta de nuevo.</item>
+    </plurals>
+
+    <!-- Actividad reciente (SCR-34, SCR-42; Figma 47:1938) -->
+    <string name="activity_title">Actividad reciente</string>
+    <string name="activity_today">Hoy</string>
+    <string name="activity_yesterday">Ayer</string>
+    <string name="activity_unknown_device">Dispositivo desconocido</string>
+    <string name="activity_footer_before">¿No reconoces algo?</string>
+    <string name="activity_footer_link">Cambia tu contraseña</string>
+    <string name="activity_loading_description">Cargando tu actividad…</string>
+    <string name="activity_loading_more_description">Cargando más actividad</string>
+    <string name="activity_load_more_failed">No pudimos cargar más.</string>
+    <string name="activity_load_more_retry">Reintentar</string>
+    <string name="activity_offline_title">No pudimos cargar tu actividad</string>
+    <string name="activity_offline_body">Revisa tu conexión a internet. Esta información está en nuestros servidores, así que necesita conexión para mostrarse.</string>
+    <string name="activity_failed_suffix">, fallido</string>
+    <string name="activity_time_description">a las %1$s</string>
+
+    <!-- Un título por `eventType` del contrato -->
+    <string name="activity_kind_account_registered">Cuenta creada</string>
+    <string name="activity_kind_email_verification_sent">Código de verificación enviado</string>
+    <string name="activity_kind_email_verified">Correo verificado</string>
+    <string name="activity_kind_login">Inicio de sesión</string>
+    <string name="activity_kind_login_failed">Acceso fallido</string>
+    <string name="activity_kind_totp_verification">Código de verificación usado</string>
+    <string name="activity_kind_recovery_code_login">Entrada con código de respaldo</string>
+    <string name="activity_kind_account_locked">Cuenta bloqueada por intentos</string>
+    <string name="activity_kind_token_reuse_detected">Sesión cerrada por seguridad</string>
+    <string name="activity_kind_logout">Cierre de sesión</string>
+    <string name="activity_kind_session_revoked">Sesión cerrada en un dispositivo</string>
+    <string name="activity_kind_master_password_changed">Contraseña maestra cambiada</string>
+    <string name="activity_kind_email_change_requested">Cambio de correo solicitado</string>
+    <string name="activity_kind_email_changed">Correo cambiado</string>
+    <string name="activity_kind_two_factor_enabled">Verificación activada</string>
+    <string name="activity_kind_two_factor_disabled">Verificación desactivada</string>
+    <string name="activity_kind_recovery_codes_regenerated">Códigos de respaldo nuevos</string>
+    <string name="activity_kind_account_deleted">Eliminación de cuenta solicitada</string>
+    <string name="activity_kind_account_anonymized">Cuenta anonimizada</string>
+    <string name="activity_kind_unknown">Actividad en tu cuenta</string>
 </resources>

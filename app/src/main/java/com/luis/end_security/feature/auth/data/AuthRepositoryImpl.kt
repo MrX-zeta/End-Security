@@ -68,6 +68,7 @@ class AuthRepositoryImpl @Inject constructor(
     private val biometricKeys: BiometricKeyStore,
     private val settings: SettingsStore,
     private val sessionLock: SessionLifecycleLock,
+    private val serverCheck: ServerAccountCheck,
     @param:DefaultDispatcher private val defaultDispatcher: CoroutineDispatcher,
     @ApplicationScope scope: CoroutineScope,
 ) : AuthRepository {
@@ -161,7 +162,7 @@ class AuthRepositoryImpl @Inject constructor(
                 establish(authenticated, registration.vaultKey, entity)
                 ApiResult.Success(AuthStep.VaultUnlocked)
             }
-            login != null -> completeWithEncKey(authenticated, login.encKey).also { pending.clear() }
+            login != null -> completeWithEncKey(authenticated, login.encKey, normalizedEmail).also { pending.clear() }
             else -> {
                 // Sin la llave en memoria no se puede abrir la bóveda: se cierra esta sesión y se entra de nuevo.
                 api.logoutWith(authenticated)
@@ -185,7 +186,16 @@ class AuthRepositoryImpl @Inject constructor(
         }
         // Piso del cliente (DEC-05): por debajo, el error genérico, sin mandar nada derivado.
         val params = serverKdf.toParams() ?: return ApiResult.Failure(ApiError.ServerError)
-        if (serverKdf.salt.size != SALT_BYTES || downgradesKnownAccount(normalizedEmail, serverKdf)) {
+        // Con la cuenta de este correo en el teléfono, parámetros más baratos se rechazan. Una sal distinta no se rechaza aquí: se
+        // acepta solo como recuperación de un cambio de contraseña a medias y se decide al abrir la pvk (ServerAccountCheck).
+        if (serverKdf.salt.size != SALT_BYTES || serverCheck.lowersCost(accountDao.get(), normalizedEmail, serverKdf)) {
+            return ApiResult.Failure(ApiError.ServerError)
+        }
+        // Otra sal que la local para esta cuenta: solo puede ser legítima si la persona cambió su contraseña y el teléfono no llegó a
+        // guardarlo. Si la contraseña tecleada abre la pvk LOCAL, es la vigente en este teléfono y esa sal no es legítima: se
+        // rechaza sin mandar nada derivado con una sal que eligió el servidor (revisión de la tarea 19, M2).
+        val local = accountDao.get()
+        if (serverCheck.saltDiffers(local, normalizedEmail, serverKdf) && opensLocalPvk(checkNotNull(local), normalized)) {
             return ApiResult.Failure(ApiError.ServerError)
         }
         val keys = try {
@@ -201,7 +211,7 @@ class AuthRepositoryImpl @Inject constructor(
             val result = keys.authKey.use { authKey -> api.login(normalizedEmail, authKey, deviceName()) }
             return when (result) {
                 is ApiResult.Success -> when (val login = result.value) {
-                    is LoginResult.Success -> completeWithEncKey(login.authenticated, keys.encKey)
+                    is LoginResult.Success -> completeWithEncKey(login.authenticated, keys.encKey, normalizedEmail)
                     is LoginResult.TwoFactorRequired -> {
                         pending.setLogin(normalizedEmail, keys.encKey, login.challengeToken)
                         handedOver = true
@@ -238,7 +248,7 @@ class AuthRepositoryImpl @Inject constructor(
         val login = pending.loginFor() ?: return ApiResult.Failure(ApiError.ChallengeExpired)
         val challenge = login.challengeToken ?: return ApiResult.Failure(ApiError.ChallengeExpired)
         return when (val result = call(challenge)) {
-            is ApiResult.Success -> completeWithEncKey(result.value, login.encKey).also { pending.clear() }
+            is ApiResult.Success -> completeWithEncKey(result.value, login.encKey, login.email).also { pending.clear() }
             is ApiResult.Failure -> {
                 if (result.error == ApiError.ChallengeExpired) pending.clear()
                 result
@@ -250,7 +260,7 @@ class AuthRepositoryImpl @Inject constructor(
     override fun cancelPendingLogin() = pending.clear()
 
     /** Abre la pvk con la `enc_key` y deja la sesión lista. Si no abre, el error genérico. */
-    private suspend fun completeWithEncKey(authenticated: Authenticated, encKey: SecureBytes): ApiResult<AuthStep> {
+    private suspend fun completeWithEncKey(authenticated: Authenticated, encKey: SecureBytes, typedEmail: String): ApiResult<AuthStep> {
         val account = authenticated.account
         val vaultKey = try {
             ProtectedVaultKey.unwrap(encKey, account.protectedVaultKey, account.userId, account.keyVersion)
@@ -258,19 +268,81 @@ class AuthRepositoryImpl @Inject constructor(
             api.logoutWith(authenticated)
             return ApiResult.Failure(ApiError.ServerError)
         }
-        establish(authenticated, vaultKey, account.toEntity())
-        return ApiResult.Success(AuthStep.VaultUnlocked)
+        // Desde aquí la `vault_key` existe: se borra en todos los caminos salvo cuando pasa a la sesión (`establish`).
+        var handedOver = false
+        try {
+            // Con otra sal que la local solo se acepta la recuperación completa (a, b y c); si no, igual que una pvk que no abre.
+            val local = accountDao.get()
+            if (!serverCheck.accept(local, typedEmail, account, vaultKey)) {
+                api.logoutWith(authenticated)
+                return ApiResult.Failure(ApiError.ServerError)
+            }
+            val recoveryFrom = local?.takeIf { serverCheck.isRecovery(it, typedEmail, account) }
+            val entity = account.toEntity().let { fresh ->
+                // En una recuperación los elementos se conservan: el cursor de sincronización sigue valiendo.
+                if (recoveryFrom != null) fresh.withCursorOf(recoveryFrom) else fresh
+            }
+            handedOver = establish(authenticated, vaultKey, entity, recoveryFrom)
+            if (!handedOver) {
+                // La cuenta local cambió mientras se decidía (cierre de sesión, otra pasada): no se acepta lo decidido.
+                api.logoutWith(authenticated)
+                return ApiResult.Failure(ApiError.ServerError)
+            }
+            return ApiResult.Success(AuthStep.VaultUnlocked)
+        } finally {
+            if (!handedOver) vaultKey.close()
+        }
+    }
+
+    /** ¿La contraseña tecleada abre la pvk guardada en este teléfono? (Un Argon2 extra, solo con una sal distinta del servidor.) */
+    private suspend fun opensLocalPvk(local: AccountEntity, normalizedPassword: String): Boolean {
+        val params = try {
+            KdfParams(local.kdfMemoryKiB, local.kdfIterations, local.kdfParallelism)
+        } catch (_: IllegalArgumentException) {
+            return false
+        }
+        val keys = try {
+            derive(normalizedPassword, local.kdfSalt, params)
+        } catch (_: CharacterCodingException) {
+            return false
+        }
+        return keys.use {
+            try {
+                ProtectedVaultKey.unwrap(it.encKey, Sealed(local.pvkNonce, local.pvkCiphertext), UUID.fromString(local.userId), local.keyVersion)
+                    .close()
+                true
+            } catch (_: AuthenticationFailed) {
+                false
+            } catch (_: IllegalArgumentException) {
+                false
+            }
+        }
     }
 
     /**
      * Guarda los tokens y la fila `account`, y abre la bóveda con [vaultKey] (que pasa a la sesión).
      * Sin cancelarse a la mitad; si algo falla antes de abrir, la llave se borra.
      */
-    private suspend fun establish(authenticated: Authenticated, vaultKey: SecureBytes, account: AccountEntity) {
+    private suspend fun establish(
+        authenticated: Authenticated,
+        vaultKey: SecureBytes,
+        account: AccountEntity,
+        recoveryFrom: AccountEntity? = null,
+    ): Boolean {
         var opened = false
         try {
             withContext(NonCancellable) {
               sessionLock.mutex.withLock {
+                // Una recuperación se decidió sobre la fila local de antes: si cambió (otro cierre de sesión o una pasada de
+                // sincronización) mientras tanto, no se acepta lo decidido (B2 de la revisión).
+                if (recoveryFrom != null) {
+                    val current = accountDao.get()
+                    if (current == null || current.userId != recoveryFrom.userId || current.keyVersion != recoveryFrom.keyVersion ||
+                        !current.kdfSalt.contentEquals(recoveryFrom.kdfSalt)
+                    ) {
+                        return@withLock
+                    }
+                }
                 tokens.save(authenticated.tokens)
                 try {
                     accountDao.replace(account)
@@ -291,6 +363,7 @@ class AuthRepositoryImpl @Inject constructor(
         } finally {
             if (!opened) vaultKey.close()
         }
+        return opened
     }
 
     // --- Desbloquear (OP-19) y cerrar sesión (OP-18) ---
@@ -403,13 +476,22 @@ class AuthRepositoryImpl @Inject constructor(
         }
     }
 
-    /** Hallazgo 1 de la tarea 07: con una cuenta de este correo en el teléfono, otra sal o parámetros más bajos se rechazan. */
-    private suspend fun downgradesKnownAccount(email: String, kdf: ServerKdf): Boolean {
-        val known = accountDao.get()?.takeIf { it.email == email } ?: return false
-        return !known.kdfSalt.contentEquals(kdf.salt) ||
-            kdf.memoryKiB < known.kdfMemoryKiB ||
-            kdf.iterations < known.kdfIterations
-    }
+    private fun AccountEntity.withCursorOf(local: AccountEntity) = AccountEntity(
+        userId = userId,
+        email = email,
+        displayName = displayName,
+        kdfSalt = kdfSalt,
+        kdfMemoryKiB = kdfMemoryKiB,
+        kdfIterations = kdfIterations,
+        kdfParallelism = kdfParallelism,
+        pvkNonce = pvkNonce,
+        pvkCiphertext = pvkCiphertext,
+        keyVersion = keyVersion,
+        syncCursor = local.syncCursor,
+        lastSyncAt = local.lastSyncAt,
+        bioIv = bioIv,
+        bioWrappedVaultKey = bioWrappedVaultKey,
+    )
 
     /** Si la pvk no abrió o falta la llave, la sesión recién creada se cierra en el servidor. */
     private suspend fun AuthApi.logoutWith(authenticated: Authenticated) {

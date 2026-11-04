@@ -63,6 +63,9 @@ import com.luis.end_security.core.designsystem.component.BottomNavBar
 import com.luis.end_security.core.designsystem.component.BottomNavTab
 import com.luis.end_security.core.designsystem.component.FieldErrorText
 import com.luis.end_security.core.designsystem.component.LetterTile
+import com.luis.end_security.core.designsystem.component.ListCard
+import com.luis.end_security.core.designsystem.component.ListRowDivider
+import com.luis.end_security.core.designsystem.component.ListRowIcon
 import com.luis.end_security.core.designsystem.component.MessageBar
 import com.luis.end_security.core.designsystem.component.SheetIconDisc
 import com.luis.end_security.core.designsystem.component.SignOutBottomSheet
@@ -83,6 +86,8 @@ fun SettingsRoute(
     onOpenTwoFactorSetup: () -> Unit,
     onOpenTwoFactorActive: () -> Unit,
     onOpenChangePassword: () -> Unit = {},
+    onOpenDevices: () -> Unit = {},
+    onOpenActivity: () -> Unit = {},
     twoFactorDisabled: Boolean = false,
     onTwoFactorDisabledShown: () -> Unit = {},
     /** 0 nada; [com.luis.end_security.navigation.Routes.PASSWORD_CHANGED] o `…_BIOMETRIC_OFF` al volver de cambiar la contraseña. */
@@ -144,6 +149,8 @@ fun SettingsRoute(
         onAction = viewModel::onAction,
         onTabSelected = onTabSelected,
         onOpenChangePassword = onOpenChangePassword,
+        onOpenDevices = onOpenDevices,
+        onOpenActivity = onOpenActivity,
     )
 }
 
@@ -154,6 +161,8 @@ fun SettingsScreen(
     onTabSelected: (BottomNavTab) -> Unit,
     modifier: Modifier = Modifier,
     onOpenChangePassword: () -> Unit = {},
+    onOpenDevices: () -> Unit = {},
+    onOpenActivity: () -> Unit = {},
 ) {
     Column(modifier = modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         Box(modifier = Modifier.weight(1f)) {
@@ -203,7 +212,7 @@ fun SettingsScreen(
                     }
                 }
                 SectionLabel(stringResource(R.string.settings_section_security))
-                SettingsCard {
+                ListCard {
                     SettingsRow(
                         icon = R.drawable.ic_shield_check_22,
                         label = stringResource(R.string.settings_two_factor),
@@ -213,7 +222,7 @@ fun SettingsScreen(
                         onClick = { onAction(SettingsAction.TwoFactorClicked) },
                     )
                     if (state.biometricRowVisible) {
-                        RowDivider()
+                        ListRowDivider()
                         BiometricRow(state = state, onToggle = { onAction(SettingsAction.BiometricToggled(it)) })
                         if (state.biometricNeedsEnrollment) {
                             FieldErrorText(
@@ -222,14 +231,14 @@ fun SettingsScreen(
                             )
                         }
                     }
-                    RowDivider()
+                    ListRowDivider()
                     SettingsRow(
                         icon = R.drawable.ic_clock_20,
                         label = stringResource(R.string.settings_autolock),
                         value = autoLockValue(state.autolockMinutes),
                         onClick = { onAction(SettingsAction.AutoLockClicked) },
                     )
-                    RowDivider()
+                    ListRowDivider()
                     SettingsRow(
                         icon = R.drawable.ic_key_20,
                         label = stringResource(R.string.settings_master_password),
@@ -238,28 +247,28 @@ fun SettingsScreen(
                     )
                 }
                 SectionLabel(stringResource(R.string.settings_section_account))
-                SettingsCard {
+                ListCard {
                     SettingsRow(
                         icon = R.drawable.ic_smartphone_20,
                         label = stringResource(R.string.settings_devices),
                         value = state.deviceCount?.toString(),
-                        onClick = { onAction(SettingsAction.FutureRowClicked(FutureRow.Devices)) },
+                        onClick = onOpenDevices,
                     )
-                    RowDivider()
+                    ListRowDivider()
                     SettingsRow(
                         icon = R.drawable.ic_history_20,
                         label = stringResource(R.string.settings_activity),
                         value = null,
-                        onClick = { onAction(SettingsAction.FutureRowClicked(FutureRow.Activity)) },
+                        onClick = onOpenActivity,
                     )
-                    RowDivider()
+                    ListRowDivider()
                     SettingsRow(
                         icon = R.drawable.ic_log_out_20,
                         label = stringResource(R.string.settings_sign_out),
                         value = null,
                         onClick = { onAction(SettingsAction.SignOutClicked) },
                     )
-                    RowDivider()
+                    ListRowDivider()
                     SettingsRow(
                         icon = R.drawable.ic_trash_20,
                         label = stringResource(R.string.settings_delete_account),
@@ -328,36 +337,6 @@ private fun SectionLabel(text: String) {
     )
 }
 
-@Composable
-private fun SettingsCard(content: @Composable () -> Unit) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(20.dp))
-            .padding(horizontal = 12.dp, vertical = 4.dp),
-    ) { content() }
-}
-
-@Composable
-private fun RowDivider() {
-    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.25f), modifier = Modifier.padding(start = 56.dp))
-}
-
-@Composable
-private fun RowIcon(@DrawableRes icon: Int, danger: Boolean) {
-    Box(
-        modifier = Modifier.size(40.dp).background(MaterialTheme.colorScheme.background, RoundedCornerShape(12.dp)),
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(
-            painter = painterResource(icon),
-            contentDescription = null,
-            tint = if (danger) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.size(20.dp),
-        )
-    }
-}
-
 /** Una fila de Figma 47:1303: ícono, etiqueta, valor opcional y flecha; mide al menos 56 dp al tacto. */
 @Composable
 private fun SettingsRow(
@@ -376,7 +355,7 @@ private fun SettingsRow(
         horizontalArrangement = Arrangement.spacedBy(14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        RowIcon(icon, danger)
+        ListRowIcon(icon, danger)
         Text(
             text = label,
             style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
@@ -413,7 +392,7 @@ private fun BiometricRow(state: SettingsUiState, onToggle: (Boolean) -> Unit) {
         horizontalArrangement = Arrangement.spacedBy(14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        RowIcon(R.drawable.ic_fingerprint_22, danger = false)
+        ListRowIcon(R.drawable.ic_fingerprint_22, danger = false)
         Text(
             text = label,
             style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),

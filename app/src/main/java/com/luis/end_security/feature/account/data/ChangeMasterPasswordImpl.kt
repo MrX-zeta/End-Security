@@ -135,10 +135,25 @@ class ChangeMasterPasswordImpl @Inject constructor(
             }
         }
         return when (result) {
-            is ApiResult.Failure -> if (invalidNew) ChangePasswordResult.InvalidNewPassword else map(result.error)
+            is ApiResult.Failure -> when {
+                invalidNew -> ChangePasswordResult.InvalidNewPassword
+                result.error == ApiError.ReauthRequired && serverKeyVersionIsNewer(account.keyVersion) ->
+                    ChangePasswordResult.KeyVersionConflict
+                else -> map(result.error)
+            }
             is ApiResult.Success -> checkNotNull(finished)
         }
     }
+
+    /**
+     * Si la reautenticación falló pero el servidor ya tiene una `key_version` mayor que la de este teléfono, la contraseña no está
+     * «incorrecta»: cambió en otro dispositivo y la fila local está desactualizada. Sin red o sin respuesta: se queda «incorrectos».
+     */
+    private suspend fun serverKeyVersionIsNewer(localKeyVersion: Int): Boolean =
+        when (val response = api.getAccount()) {
+            is ApiResult.Success -> response.value.keyVersion > localKeyVersion
+            is ApiResult.Failure -> false
+        }
 
     /**
      * Argon2 con al menos los parámetros por defecto y nunca menos que los de la cuenta: un servidor que había subido el costo

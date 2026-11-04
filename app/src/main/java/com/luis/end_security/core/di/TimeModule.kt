@@ -21,4 +21,8 @@ object TimeModule {
 
     @Provides
     fun provideDeviceClock(): DeviceClock = AndroidDeviceClock
+
+    @Provides
+    fun provideTimeZone(): com.luis.end_security.core.common.TimeZoneProvider =
+        com.luis.end_security.core.common.AndroidTimeZoneProvider
 }

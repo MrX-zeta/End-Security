@@ -44,6 +44,8 @@ import com.luis.end_security.feature.health.ui.HealthRankingRoute
 import com.luis.end_security.feature.health.ui.HealthRepeatedRoute
 import com.luis.end_security.feature.health.ui.HealthRoute
 import com.luis.end_security.feature.account.ui.ChangePasswordRoute
+import com.luis.end_security.feature.activity.ui.ActivityRoute
+import com.luis.end_security.feature.activity.ui.DevicesRoute
 import com.luis.end_security.feature.account.ui.TwoFactorActiveRoute
 import com.luis.end_security.feature.account.ui.TwoFactorSetupRoute
 import com.luis.end_security.feature.settings.ui.SettingsRoute
@@ -174,10 +176,30 @@ private fun AppNavigation(route: String, modifier: Modifier = Modifier) {
                     onOpenTwoFactorSetup = { navController.navigate(Routes.TWO_FACTOR_SETUP) { launchSingleTop = true } },
                     onOpenTwoFactorActive = { navController.navigate(Routes.TWO_FACTOR_ACTIVE) { launchSingleTop = true } },
                     onOpenChangePassword = { navController.navigate(Routes.CHANGE_PASSWORD) { launchSingleTop = true } },
+                    onOpenDevices = { navController.navigate(Routes.DEVICES) { launchSingleTop = true } },
+                    onOpenActivity = { navController.navigate(Routes.ACTIVITY) { launchSingleTop = true } },
                     twoFactorDisabled = disabled,
                     onTwoFactorDisabledShown = { handle[Routes.RESULT_TWO_FACTOR_DISABLED] = false },
                     passwordChanged = passwordResult,
                     onPasswordChangedShown = { handle[Routes.RESULT_PASSWORD_CHANGED] = 0 },
+                )
+            }
+        }
+        composable(Routes.DEVICES) {
+            RequireUnlocked(onLocked = lockGuardViewModel::onProtectedScreenLocked) {
+                DevicesRoute(
+                    onBack = { navController.popBackStack() },
+                    onChangePassword = { navController.navigate(Routes.CHANGE_PASSWORD) { launchSingleTop = true } },
+                    onTabSelected = onTabSelected,
+                )
+            }
+        }
+        composable(Routes.ACTIVITY) {
+            RequireUnlocked(onLocked = lockGuardViewModel::onProtectedScreenLocked) {
+                ActivityRoute(
+                    onBack = { navController.popBackStack() },
+                    onChangePassword = { navController.navigate(Routes.CHANGE_PASSWORD) { launchSingleTop = true } },
+                    onTabSelected = onTabSelected,
                 )
             }
         }

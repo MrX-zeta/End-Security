@@ -23,8 +23,8 @@ import kotlinx.coroutines.launch
 import javax.crypto.Cipher
 import javax.inject.Inject
 
-/** Las filas que llevan a pantallas de las tareas 17–20; por ahora solo avisan «Disponible pronto». */
-enum class FutureRow { Devices, Activity, DeleteAccount }
+/** Las filas que llevan a pantallas de tareas futuras (Eliminar cuenta, T20); por ahora solo avisan «Disponible pronto». */
+enum class FutureRow { DeleteAccount }
 
 /** Avisos breves al pie de Ajustes. */
 enum class NoticeKind { ComingSoon, NeedsConnection, TwoFactorDisabled, PasswordChanged, BiometricOff }
@@ -131,8 +131,14 @@ class SettingsViewModel @Inject constructor(
         refreshBiometricRow()
         // Con red: los dos valores de la cuenta. Sin ella se quedan sin valor.
         refreshTwoFactor()
+        refreshDeviceCount()
+    }
+
+    /** El número de dispositivos; sin red conserva el último conocido (al volver de «Dispositivos» se recarga). */
+    private fun refreshDeviceCount() {
         viewModelScope.launch {
-            settings.deviceCount().let { value -> _state.update { if (it.isSigningOut) it else it.copy(deviceCount = value) } }
+            val value = settings.deviceCount() ?: return@launch
+            _state.update { if (it.isSigningOut) it else it.copy(deviceCount = value) }
         }
     }
 
@@ -176,7 +182,7 @@ class SettingsViewModel @Inject constructor(
     fun onAction(action: SettingsAction) {
         when (action) {
             is SettingsAction.FutureRowClicked ->
-                // TODO(T19…T20): Dispositivos y Actividad (T19), Eliminar cuenta (T20).
+                // TODO(T20): Eliminar cuenta.
                 notify(NoticeKind.ComingSoon)
             SettingsAction.TwoFactorClicked -> openTwoFactor()
             is SettingsAction.PasswordChanged -> viewModelScope.launch {
@@ -212,6 +218,8 @@ class SettingsViewModel @Inject constructor(
                 refreshBiometricRow()
                 // Al volver de activar o desactivar, «Activa» / «Inactiva» se recarga.
                 refreshTwoFactor()
+                // Al volver de «Dispositivos» (cerró sesiones) el número se recarga.
+                refreshDeviceCount()
             }
         }
     }

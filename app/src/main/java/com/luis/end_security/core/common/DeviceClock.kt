@@ -14,6 +14,15 @@ interface DeviceClock {
     fun elapsedRealtimeMillis(): Long
 }
 
+/** La zona horaria del teléfono, inyectada para probar lo que agrupa por día local (actividad). */
+interface TimeZoneProvider {
+    fun zone(): java.time.ZoneId
+}
+
+object AndroidTimeZoneProvider : TimeZoneProvider {
+    override fun zone(): java.time.ZoneId = java.time.ZoneId.systemDefault()
+}
+
 object AndroidDeviceClock : DeviceClock {
     override fun wallMillis(): Long = System.currentTimeMillis()
 

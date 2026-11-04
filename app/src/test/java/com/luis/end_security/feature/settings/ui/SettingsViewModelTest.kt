@@ -472,4 +472,25 @@ class SettingsViewModelTest {
         runCurrent()
         assertEquals(SettingsEffect.NavigateToLogin, viewModel.effects.first())
     }
+
+    @Test
+    fun `al volver a Ajustes el numero de dispositivos se recarga`() = scope.runTest {
+        create()
+        assertEquals(3, state.deviceCount)
+        // Se cerró la sesión de otros dos dispositivos desde «Dispositivos».
+        repo.devices = 1
+        viewModel.onAction(SettingsAction.Resumed)
+        runCurrent()
+        assertEquals(1, state.deviceCount)
+    }
+
+    @Test
+    fun `sin red el numero de dispositivos conserva el ultimo conocido`() = scope.runTest {
+        create()
+        assertEquals(3, state.deviceCount)
+        repo.devices = null
+        viewModel.onAction(SettingsAction.Resumed)
+        runCurrent()
+        assertEquals(3, state.deviceCount)
+    }
 }

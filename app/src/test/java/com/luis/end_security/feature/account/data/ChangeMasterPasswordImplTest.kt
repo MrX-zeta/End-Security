@@ -231,6 +231,41 @@ class ChangeMasterPasswordImplTest {
         assertTrue(serverLogin(oldPassword, salt))
     }
 
+    /** Deja la fila local con otra sal (como si otro dispositivo hubiera cambiado la contraseña) y la `key_version` indicada. */
+    private fun makeLocalRowStale(keyVersion: Int) = runBlocking {
+        val old = accounts.current!!
+        accounts.replace(
+            AccountEntity(
+                old.userId, old.email, null, ByteArray(16) { 9 }, old.kdfMemoryKiB, old.kdfIterations, old.kdfParallelism,
+                old.pvkNonce, old.pvkCiphertext, keyVersion, 0, null, null, null,
+            ),
+        )
+    }
+
+    @Test
+    fun `reautenticacion rechazada con key_version del servidor mayor muestra el conflicto y no credenciales incorrectas`() {
+        // El servidor está en la 1 y la fila local, desactualizada, en la 0 y con otra sal: la auth_key no coincide.
+        setUp()
+        makeLocalRowStale(keyVersion = 0)
+        assertEquals(ChangePasswordResult.KeyVersionConflict, change())
+        assertEquals(0, accounts.current!!.keyVersion)
+        assertTrue(serverLogin(oldPassword, salt))
+    }
+
+    @Test
+    fun `reautenticacion rechazada con la misma key_version sigue siendo credenciales incorrectas`() {
+        setUp()
+        makeLocalRowStale(keyVersion = 1)
+        assertEquals(ChangePasswordResult.WrongCredentials, change())
+    }
+
+    @Test
+    fun `reautenticacion rechazada con key_version local mayor tampoco es conflicto`() {
+        setUp()
+        makeLocalRowStale(keyVersion = 7)
+        assertEquals(ChangePasswordResult.WrongCredentials, change())
+    }
+
     @Test
     fun `sin red no cambia nada`() {
         setUp()
