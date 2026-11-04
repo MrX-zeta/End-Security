@@ -1,74 +1,96 @@
-# Tarea 15 · Mensajes de error en los formularios
+# Tarea 16 · Ajuste de Crear cuenta y Ajustes (SCR-29): bloqueo automático, huella y cerrar sesión (OP-18, OP-20, OP-21, OP-35)
 
 **Estado:** hecha
 **Escrita:** 2026-11-03 · sesión de diseño
 
-## Revisión de la tarea 14
-Aprobada. Revisé `HibpClient`, `HealthStores`, `HealthRepositoryImpl`, el manifiesto y `network_security_config.xml`:
-- HIBP solo recibe el prefijo de 5 caracteres; sin redirecciones; cuerpo con tope de 2 MB; los bytes del hash se sobrescriben;
-- la caché y las fotos van cifradas con su propia AAD (`breach|…`, `health|…`);
-- el bloqueo corta el análisis y la revisión (época por sesión);
-- sin tráfico en claro y nada a logs.
+## Revisión de la tarea 15
+Aprobada. Revisé el sistema de diseño (`errorText` en `LabeledTextField`, `PasswordField` y `CodeField` con semántica `error` y `liveRegion`), Crear cuenta, Login, Desbloquear y los códigos. Aprobadas tus desviaciones:
+- la contraseña no se pinta en rojo por requisitos incumplidos (la lista ya lo dice); sí cuando está vacía;
+- el medidor ya no repite «Usa al menos 12 caracteres»;
+- `canSubmit` como «listo para enviar».
 
-Aprobadas tus desviaciones (eje de 50 a 100, «Revisado hoy» desde la caché, análisis en segundo plano para la Bóveda, «Débiles» abre el ranking). Los cuatro puntos abiertos se aceptan como están.
+**Pendiente de la tarea 14 que no se hizo:** `epoch` en `HealthRepositoryImpl` sigue sin `@Volatile`. Hazlo en esta tarea.
 
-**Un ajuste para esta tarea:** `epoch` en `HealthRepositoryImpl` se lee y se escribe desde varios hilos (el colector del estado de sesión y el trabajo en `Dispatchers.Default`). Márcalo `@Volatile` (o usa `AtomicInteger`).
+El foco, el desplazamiento y el teclado con errores quedan como prueba a mano en el Redmi (M10 en `revisiones-pendientes.md`).
 
-Las pruebas a mano que no pudiste hacer quedaron como M8 y M9 en `revisiones-pendientes.md`.
+## Paso 0 · Ajuste de Crear cuenta (DEC-31, grafo v1.5.8)
+Lo pidió el equipo después de probar la tarea 15:
+- **Quita la línea «Fuerza buena o mejor»** de la lista de requisitos: la fuerza la dice solo el medidor de barras (zxcvbn, sin cambios).
+- **Nuevas reglas obligatorias** en `MasterPasswordPolicy` (además de 12 caracteres y puntaje ≥ 3): al menos **una mayúscula**, **una minúscula** y **un número**. Los símbolos **no** se exigen. Se evalúan sobre el texto ya normalizado (NFKC) con las categorías Unicode (`Character.isUpperCase`/`isLowerCase`/`isDigit` por punto de código), así «Ñ» cuenta como mayúscula.
+- **La lista queda así**, en este orden: «12 caracteres o más», «Una mayúscula», «Una minúscula», «Un número», «Las contraseñas coinciden».
+- Si solo falla la fuerza (cumple todo lo de la lista pero el puntaje es menor que 3), al tocar el botón la contraseña se marca con «Elige una contraseña más difícil de adivinar.» y el foco va a ella; el medidor sigue diciendo «Débil» o «Regular».
+- Las reglas valen **solo al fijar** una contraseña (registro y, después, el cambio de contraseña maestra). **Nunca** al entrar ni al desbloquear: las cuentas que ya existen siguen funcionando.
+- Pruebas: cada regla por separado, «Ñ» y dígitos de otros alfabetos tras NFKC, el caso «solo falla la fuerza», y que Login y Desbloquear no aplican las reglas.
+- Figma `210:3711` ya tiene la lista nueva.
 
-## Por qué esta tarea
-En la demostración con el profesor, **«Crear cuenta» e «Iniciar sesión» se quedaban con el botón apagado sin decir por qué**. El profesor pensó que solo aceptaba @gmail.com: en realidad la contraseña no llegaba a la fuerza mínima o faltaba aceptar los términos, y nada lo indicaba. Ningún formulario debe dejar a la persona sin saber qué corregir.
+## Objetivo
+La pestaña **Ajustes** con lo que funciona solo en el teléfono: datos de la cuenta, **bloqueo automático**, **desbloqueo con huella** (DEC-09) y **cerrar sesión**. Las filas que llevan a pantallas de las tareas 17–20 se ven pero todavía no navegan.
 
-## Regla general (todos los formularios)
-1. **El botón principal está siempre activo** (salvo mientras carga o durante el bloqueo por intentos). Al tocarlo con algo mal:
-   - cada campo con problema se marca: borde `danger` de 2 dp e ícono de alerta + mensaje en `danger` debajo;
-   - la pantalla se desplaza al **primer** campo con error y le da el foco;
-   - no se manda nada al servidor.
-2. **Cuándo aparece cada error:** al **salir del campo** (si tiene texto) o al **tocar el botón**. Nunca mientras se escribe por primera vez. En cuanto el campo queda bien, el error se quita en ese momento (mientras escribe).
-3. **Accesibilidad:** el campo usa `isError` y `Modifier.semantics { error(mensaje) }`, y el mensaje se anuncia con `liveRegion = Polite`. Con TalkBack se debe oír el error al tocar el botón. No uses solo el color: siempre ícono + texto.
-4. Los mensajes **no** repiten lo que se escribió (ni el correo ni nada de la contraseña) y nada termina en logs.
-5. Un componente común para no repetir: el campo de texto del sistema de diseño acepta `errorText: String?` y pinta borde, ícono y mensaje; `InlineErrorMessage` se reutiliza para los errores que no son de un campo.
+**Figma** (página Minimalista):
+- Ajustes `47:1303`;
+- fila «Tarea 16»: Bloqueo automático `215:4229`, Cerrar sesión `215:3811`, Cerrar sesión con cambios sin subir `215:4020`.
 
-**Figma** (página Minimalista, fila «Tarea 15 · Mensajes de error en formularios»):
-- `210:3711` Crear cuenta · errores al enviar;
-- `210:3875` Login · correo inválido;
-- `210:3949` Login · credenciales incorrectas.
+## Paso 1 · Pantalla Ajustes (SCR-29)
+- Título en dos pesos «**Ajustes** y seguridad»; tarjeta de la cuenta (inicial, nombre y correo de la tabla `account`).
+- **Seguridad:**
+  - «Verificación en 2 pasos» con «Activa» / «Inactiva» de `AccountApi.getAccount().twoFactorEnabled`. Sin red o con error, sin valor (solo la flecha). Agrega `getAccount()` a `AccountRepository` si hace falta.
+  - «Desbloquear con huella» con interruptor (Paso 3). Si el teléfono no tiene sensor (`BiometricManager` dice que no hay hardware), la fila no se muestra.
+  - «Bloqueo automático» con el valor actual: «Al salir», «1 min», «5 min», «15 min», «30 min» (Paso 2).
+  - «Contraseña maestra».
+- **Cuenta:** «Dispositivos» (con el número de `SessionApi.listSessions()`, sin valor si falla), «Actividad reciente», «Cerrar sesión» (Paso 4) y «Eliminar cuenta» en `danger`.
+- **Filas de tareas futuras** (2 pasos, Contraseña maestra, Dispositivos, Actividad, Eliminar cuenta): se ven igual que en Figma; al tocarlas, `MessageBar` neutro «Disponible pronto». Deja un `TODO(T17…T20)` en cada una.
+- La barra inferior con **Ajustes** activa navega a esta pantalla (quita los `TODO(DEC-56)` que quedan) y vuelve a las otras pestañas sin sumar historial.
+- Dentro de `RequireUnlocked`. No necesita `SecureScreen` (no muestra secretos), pero sí se vacía el ViewModel al bloquear.
 
-## Paso 1 · Crear cuenta (SCR-05)
-- **Correo:** «Escribe un correo válido, por ejemplo nombre@correo.com». Usa el mismo `EmailFormat` (no se limita a ningún dominio).
-- **Lista de requisitos** debajo del medidor de fuerza, visible en cuanto se empieza a escribir la contraseña. Cada línea con palomita `success` o tache `danger` (ícono + texto, nunca solo color):
-  - «12 caracteres o más»;
-  - «Fuerza buena o mejor» (puntaje 3 o más);
-  - «Las contraseñas coinciden» (se evalúa en cuanto la confirmación tiene el mismo largo o más; antes, la línea va en gris neutro).
-  - Si hay caracteres prohibidos, se mantiene el mensaje que ya existe en lugar de la lista.
-- **Confirmación:** «Las contraseñas no coinciden.» con las reglas de arriba.
-- **Términos:** la casilla sin marcar se pinta con borde `danger` y debajo: «Acepta los Términos y el Aviso de privacidad para continuar.»
-- El botón ya no depende de `canSubmit` para estar activo; `canSubmit` se queda como la validación que se revisa al tocarlo (renómbralo si conviene, p. ej. `isFormValid`).
+## Paso 2 · Bloqueo automático (OP-21, DEC-26)
+- Hoja inferior `215:4229`: ícono de reloj, «Bloqueo automático», «Tu bóveda se bloquea cuando la app pasa este tiempo en segundo plano.» y las cinco opciones (`AutoLockSettings.ALLOWED_MINUTES`). La actual lleva la marca amarilla; «5 minutos (recomendado)».
+- Tocar una opción la guarda en `SettingsStore` (agrega el `set`, pasando por `sanitize`) y cierra la hoja. `AutoLocker` ya escucha el `Flow`; comprueba que el cambio se aplica sin reiniciar la app.
+- Cada opción es un `RadioButton` para TalkBack (`selectableGroup` + `Role.RadioButton`).
 
-## Paso 2 · Iniciar sesión y Desbloquear
-- **Correo** con el mismo mensaje que el registro.
-- **Contraseña vacía:** «Escribe tu contraseña maestra.»
-- **Credenciales incorrectas:** se marcan **los dos campos** y el mensaje va debajo de la contraseña: «Correo o contraseña incorrectos.» (un solo mensaje para no revelar si el correo tiene cuenta, como ya está). El texto de ayuda «Si la olvidas…» se oculta mientras se ve el error.
-- **Desbloquear:** vacía → «Escribe tu contraseña maestra.»; incorrecta → se mantiene «Contraseña incorrecta.» con el campo marcado.
-- El bloqueo por intentos se queda como está (botón apagado con su cuenta regresiva, que **sí** explica por qué).
+## Paso 3 · Desbloqueo con huella (OP-35 activar/desactivar, OP-20 desbloquear; DEC-09) — **REQUIERE REVISIÓN HUMANA**
+Agrega `androidx.biometric:biometric` (la última estable) al catálogo de versiones.
 
-## Paso 3 · Códigos (Verificar correo SCR-06, 2FA, código de respaldo)
-- Botón activo; con menos de los dígitos necesarios: «Escribe los 6 dígitos del código.» / «Escribe el código completo (XXXX-XXXX).»
-- Los errores del servidor que ya existen (`verify_error_wrong_code`, `verify_error_expired`, `two_factor_error_wrong_code`, `backup_code_error_invalid`) se muestran con el mismo estilo de campo marcado.
+**Llave del Keystore** (`core/security` o `core/crypto`, p. ej. `BiometricKeyStore`):
+- AES-256-GCM, alias fijo por usuario (`end-security/bio|<userId>`);
+- `setUserAuthenticationRequired(true)`, autenticación **por uso** (`setUserAuthenticationParameters(0, AUTH_BIOMETRIC_STRONG)` en API 30+; `setUserAuthenticationValidityDurationSeconds(-1)` antes);
+- `setInvalidatedByBiometricEnrollment(true)`;
+- StrongBox si está disponible, sin fallar si no;
+- **solo `BIOMETRIC_STRONG`**, nunca `DEVICE_CREDENTIAL` (el PIN del teléfono no debe abrir la bóveda).
 
-## Paso 4 · Nueva / Editar contraseña
-- Ya existe `nameError`: comprueba que use el mismo estilo (borde, ícono y mensaje «Escribe un nombre.» o el que ya tenga), que el botón «Guardar» esté activo desde el principio en Editar (hoy `formReady` lo apaga hasta cargar; mientras carga sí puede ir apagado) y que salte al campo.
+**Activar** (interruptor a encendido, con la bóveda abierta):
+1. Si `BiometricManager.canAuthenticate(BIOMETRIC_STRONG)` dice que no hay huellas registradas: no se enciende y aparece debajo de la fila «Agrega una huella en los ajustes del teléfono para usar esta opción.» (estilo de error de la tarea 15, sin rojo en el borde: es un aviso).
+2. Crea la llave, inicia un `Cipher` en modo cifrado y abre `BiometricPrompt` con `CryptoObject`: título «Activar desbloqueo con huella», subtítulo «Confirma que eres tú», botón negativo «Cancelar».
+3. Al aceptar: cifra los bytes de la `vault_key` con ese `Cipher` (dentro de `withBytes`), guarda `bio_iv` y `bio_wrapped_vault_key` en `account` y `biometric_enabled = true`. AAD: `end-security/bio|userId|keyVersion`.
+4. Cancelar o fallar: el interruptor vuelve a apagado, sin mensaje (salvo error real del sistema).
+
+**Desactivar:** borra la llave del Keystore, pone `bio_iv` y `bio_wrapped_vault_key` en `null` y `biometric_enabled = false`. Sin confirmación.
+
+**Desbloquear** (el botón de huella que ya existe en Desbloquear; quita el `TODO(OP-20)`):
+1. Inicia el `Cipher` en modo descifrado con `bio_iv` y abre `BiometricPrompt`: «Desbloquear End Security», botón negativo «Usar contraseña».
+2. Al aceptar: descifra con AAD, `session.unlock(userId, vaultKey)`. **No** cuenta ni reinicia los intentos fallidos de la contraseña.
+3. Al abrir Desbloquear con la huella activa, el diálogo se muestra **solo** una vez por entrada a la pantalla (no en bucle si se cancela).
+4. **Huella cambiada** (`KeyPermanentlyInvalidatedException` al iniciar el `Cipher`) o datos que no descifran: desactiva todo como en «Desactivar» y muestra en Desbloquear «Tu huella cambió. Entra con tu contraseña maestra y vuelve a activarla en Ajustes.»
+
+**Limpieza:** `signOutLocally` también borra la llave del Keystore. Los bytes de la `vault_key` en claro se sobrescriben al terminar. Nada de esto va a logs.
+
+## Paso 4 · Cerrar sesión (OP-18)
+- Hoja `215:3811`: «¿Cerrar sesión?», «Para volver necesitarás tu correo y tu contraseña maestra. Tu bóveda sigue guardada en tu cuenta.», «Cerrar sesión» (peligro) y «Cancelar».
+- **Con cambios sin subir** (elementos `pending` o `conflict`): hoja `215:4020`, «Tienes N cambios sin subir» (plural) y «Si cierras sesión ahora se perderán. Conéctate a internet y espera a que se suban, o ciérrala de todos modos.», botón «Cerrar sesión de todos modos».
+- Antes de mostrar la hoja, si hay red, pide una sincronización y espera hasta 5 s: si se suben, se muestra la hoja normal.
+- Al confirmar: `AuthRepository.signOut()` (ya existe) y se va a Iniciar sesión con la pila de navegación limpia.
 
 ## Terminado cuando
-- **Pruebas de ViewModel** por pantalla: el error no aparece mientras se escribe, aparece al salir del campo y al tocar el botón; se quita al corregir; con errores no se llama al repositorio.
-- **Pruebas de Compose:** en Crear cuenta, tocar el botón con todo vacío o mal muestra los mensajes de correo, requisitos, confirmación y términos, y el foco queda en el correo; los requisitos cambian de tache a palomita; en Iniciar sesión, credenciales incorrectas marca los dos campos. Comprueba la semántica `error` en cada campo.
-- **En el emulador:** recorre a mano Crear cuenta con `x@mail.com` y una contraseña corta (debe quedar claro qué falta) y un inicio de sesión con contraseña equivocada. Toma capturas y compáralas con los tres marcos de Figma.
+- **Pruebas unitarias:**
+  - Ajustes: valores de 2 pasos y dispositivos con éxito, con error y sin red; filas futuras muestran «Disponible pronto».
+  - Bloqueo automático: guardar cada opción; un valor inválido se sanea; `AutoLocker` aplica el nuevo tiempo.
+  - Huella con un `BiometricKeyStore` falso: activar guarda `bio_iv`/`bio_wrapped_vault_key` y la bandera; desactivar los borra; desbloquear abre la sesión y no toca los intentos; huella invalidada desactiva y muestra el mensaje; AAD distinta no descifra.
+  - Cerrar sesión: cuenta de pendientes y conflictos; sincronización que sube todo muestra la hoja normal.
+- **Pruebas del Paso 0** (arriba) y la prueba de Compose de Crear cuenta actualizada con la lista nueva.
+- **Pruebas de Compose:** Ajustes con los textos de Figma; hoja de bloqueo automático con la opción marcada y semántica de radio; las dos hojas de cerrar sesión.
+- **En el emulador** (con huella simulada: Extended controls → Fingerprint): activar la huella, bloquear con el candado, desbloquear con la huella; cambiar el bloqueo a «Al salir» y comprobar que bloquea al salir; cerrar sesión. Si `BiometricPrompt` no se puede automatizar, déjalo como prueba a mano y dilo en el reporte.
 - `@Volatile` en `epoch` (tarea 14).
+- `security-reviewer` revisa el Paso 3 y la limpieza. **REQUIERE REVISIÓN HUMANA.**
 - `testDebugUnitTest`, `connectedDebugAndroidTest` (salvo E3), lint y `assembleRelease` pasan. Commits hechos y subidos.
-- No hace falta `security-reviewer` salvo que toques `AuthRepositoryImpl` o la política de contraseña (no deberías).
 
 ## Al terminar
 Llena `ai/handoff/reporte.md`, cambia el estado de arriba a `hecha` y detente.
-
-## Después (tarea 16, ya acordada)
-Ajustes (SCR-29): bloqueo automático, desbloqueo con huella y cerrar sesión, como entrada a 2FA, dispositivos y cuenta.
