@@ -1,97 +1,94 @@
-# Tarea 18 · Cambiar la contraseña maestra (SCR-35; OP-27; EP-17)
+# Tarea 19 · Dispositivos y actividad (SCR-33, 34, 41, 42, 45; OP-29, OP-30; EP-23…25)
 
 **Estado:** hecha
 **Escrita:** 2026-11-04 · sesión de diseño
 
-## Revisión de la tarea 17
-Aprobada. Revisé el flujo de 3 pasos, `ReauthSheet`/`ReauthRunnerImpl` (la `auth_key` se deriva en el teléfono y se borra, también al cancelar), `SessionLifecycleLock` y las correcciones M1–M3 de `security-reviewer`. Aprobadas tus desviaciones:
-- `SignOutSheet` en `core/designsystem`;
-- `loading` en `DangerButton` y `placeholder` en `LabeledTextField`;
-- en la hoja, borde en los dos campos y mensaje solo en el código;
-- el resultado de «Desactivar» como booleano en el `SavedStateHandle`.
+## Revisión de la tarea 18
+Aprobada. El cambio de contraseña está bien hecho:
+- la misma `vault_key` se vuelve a envolver con sal, nonce y AAD nuevos, sin volver a cifrar los elementos;
+- `NonCancellable` desde que se manda EP-17 hasta que se guarda en Room (A1);
+- `updateKeys` con `WHERE user_id` y exigiendo una fila;
+- la huella se desactiva antes de volver a envolverla;
+- las llaves se borran en `finally`.
 
-El recorrido con app autenticadora y código de respaldo queda como prueba a mano (M4 ya existía en `revisiones-pendientes.md`).
+También queda aprobado el Paso 0: sin diálogo automático de huella, Ajustes congelado al cerrar sesión, portapapeles al bloquear y lo demás. Aprobadas tus desviaciones (resultado por `SavedStateHandle` con 1 o 2, `ProtectedVaultKey.wrap` con `SecretReader`, `AuthNotices`).
 
-## Paso 0 · Ajustes que salieron de la prueba en el teléfono y de la tarea 17 (grafo v1.5.10)
-1. **Sin diálogo automático de huella (DEC-09).** Lo probó el equipo en el Redmi: al tocar el candado de la Bóveda aparece de inmediato la hoja del sistema con la huella, y se siente forzado. Desbloquear debe mostrarse **completa**: título, campo de contraseña y el **botón de huella**. `BiometricPrompt` se abre **solo al tocar ese botón**, en todos los casos (candado, autobloqueo, abrir la app). Quita la lógica de «una vez por bloqueo» y sus pruebas, y agrega una que compruebe que entrar a Desbloquear **no** abre el diálogo.
-2. **«Abrir app de autenticación»:** usa `Intent.createChooser` para que el sistema no entregue la clave a una app por su cuenta.
-3. **Salir del Paso 3 de la activación por una pestaña:** antes de salir, una hoja «¿Ya guardaste tus códigos?» / «No podrás volver a verlos. Si los pierdes, genera unos nuevos en Ajustes.» con «Salir» y «Volver a los códigos». «Ya los guardé» y Atrás siguen como están.
-4. **Portapapeles al bloquear (DEC-25):** al bloquear la bóveda, `SecretClipboard` borra lo que copió si sigue ahí (misma regla que el borrado por tiempo).
-5. **`lockoutCountdown.start`** fuera de `_state.update`. El `Retry-After` se redondea hacia arriba en minutos (ya es así), pero con menos de 60 s muestra segundos: «Vuelve a intentarlo en N s».
-6. **`establish`:** si `accountDao.replace` falla después de guardar los tokens, borra los tokens antes de propagar el error.
-7. **Ajustes «parpadea» al cerrar sesión.** Lo vio el equipo: con la huella activa, al confirmar «Cerrar sesión» el interruptor pasa de encendido a apagado antes de cambiar de pantalla, porque `signOutLocally` borra la bandera y Ajustes sigue escuchando. Arreglo:
-   - en cuanto se confirma, el ViewModel pasa a un estado `signingOut` que **congela** lo que se ve (deja de aplicar cambios de la huella, la 2FA, los dispositivos y la cuenta);
-   - el botón de la hoja queda cargando hasta navegar;
-   - lo mismo aplica a «¿No eres …? → Cerrar sesión» en Desbloquear.
-   - Prueba: durante el cierre, el estado que se muestra no cambia aunque cambien la bandera o Room.
+## Paso 0 · Lo que quedó abierto en la tarea 18 (decidido)
+1. **Recuperación si el proceso muere entre el 200 y `updateKeys`.** Se acepta la propuesta de `security-reviewer`, con estas condiciones. En `login()`, si la sal del servidor es distinta de la local, **no** se rechaza de entrada (`downgradesKnownAccount`). Se acepta la cuenta nueva **solo si se cumplen las tres**:
+   - (a) los parámetros KDF del servidor no son menores que los locales ni que el piso de DEC-05;
+   - (b) la `key_version` del servidor es **mayor** que la local;
+   - (c) la pvk del servidor **abre** con la `enc_key` derivada y la AAD de esa `key_version`, y la `vault_key` resultante es **la misma** que abre los elementos locales (comprueba descifrando un elemento local, si hay alguno).
+
+   Si se cumplen, se reemplaza `account` y **se conservan** los elementos y los cambios sin subir (la `vault_key` no cambió). Si falla cualquiera, se mantiene el rechazo actual. Pruebas para cada condición. **REQUIERE REVISIÓN HUMANA.**
+2. **Reautenticación «incorrecta» con la fila local vieja.** Cuando una reautenticación responde `reauth_required`, consulta `getAccount()` (o el `keyVersion` que ya venga en la respuesta). Si la `key_version` del servidor es mayor que la local, muestra el mensaje del 409 («Tu contraseña maestra cambió en otro dispositivo…») en lugar de «incorrectos».
+3. Las contraseñas como `String`: se mantiene (DEC-27).
 
 ## Objetivo
-Cambiar la contraseña maestra desde Ajustes. Por DEC-05, la **misma `vault_key`** se vuelve a envolver con una sal nueva: los elementos **no** se vuelven a cifrar. El servidor sube `key_version` (DEC-41) y cierra las demás sesiones (TX-10).
+Ver los dispositivos con sesión abierta, cerrar sesión en uno o en todos los demás, y ver la actividad reciente de la cuenta. Todo viene del servidor (el falso por ahora).
 
-**Figma:** Contraseña maestra `47:2098`, con la lista de requisitos ya actualizada.
+**Figma:**
+- Dispositivos `47:1817`, cargando `69:3411`, sin conexión `69:3850`;
+- Actividad `47:1938`, cargando `69:3513`;
+- hoja de confirmación: usa el diseño de cerrar sesión (`215:3811`) con los textos de abajo.
 
-## Paso 1 · Pantalla (SCR-35)
-- Aviso oscuro «Te la pediremos en todos tus dispositivos. Si la olvidas, nadie podrá recuperar tu bóveda.»
-- **Campos:**
-  - «Contraseña actual»;
-  - **«Código de tu app» (6 dígitos), solo si la 2FA está activa** (no está en Figma: mismo estilo que la hoja de reautenticación, debajo de la contraseña actual);
-  - «Nueva contraseña» con el medidor;
-  - «Confírmala».
-- **Requisitos** con el mismo componente de Crear cuenta (`RequirementLine`) y la misma `MasterPasswordPolicy`: «12 caracteres o más», «Una mayúscula», «Una minúscula», «Un número», «Las contraseñas coinciden» y **«No aparece en filtraciones»**.
-- **«No aparece en filtraciones»:**
-  - se revisa con `HibpClient`, que ya existe: solo el prefijo y con relleno;
-  - se consulta **al tocar el botón**, no mientras se escribe;
-  - antes de revisar, la línea va en gris;
-  - si la contraseña aparece en filtraciones, tache y el campo se marca con «Esta contraseña apareció en filtraciones. Elige otra.»: **bloquea** el cambio;
-  - sin red, la línea dice «No se pudo revisar (sin conexión)» en gris y **no** bloquea. De todos modos, el cambio necesita red.
-- **Más reglas:**
-  - la nueva no puede ser igual a la actual (comparando el texto normalizado): «Debe ser distinta de la actual.»;
-  - errores y botón siempre activo como en la tarea 15;
-  - `SecureScreen()` y `ExcludeFromAutofill`;
-  - las contraseñas viven solo en los `TextFieldState` de la pantalla, como en Crear cuenta.
-- En Ajustes, «Contraseña maestra» deja de decir «Disponible pronto».
+## Paso 1 · Dispositivos (SCR-33, OP-30; EP-23, EP-24)
+- Título en dos pesos «**N dispositivos** con tu sesión abierta» (singular «1 dispositivo»).
+- **Filas:**
+  - ícono de teléfono, `deviceName` y, debajo, el tiempo: «Activo ahora» (la actual o usada hace menos de 5 min), «Hace N min/h/días/semanas» desde `lastUsedAt`;
+  - la actual primero, con «Este» y **sin flecha ni acción**;
+  - el «Android 14» de Figma solo aparece si viene dentro de `deviceName`: no lo inventes.
+- **Tocar otra fila:** hoja «¿Cerrar sesión en {nombre}?», «Tendrá que volver a entrar con tu correo y tu contraseña maestra.», «Cerrar sesión» (peligro) y «Cancelar». Al confirmar, EP-24, se quita de la lista y sale `MessageBar` «Cerraste la sesión en {nombre}».
+- **«Cerrar sesión en los demás»** (solo si hay más de uno): hoja «¿Cerrar sesión en los demás dispositivos?», «Solo este teléfono seguirá con tu sesión abierta.» El contrato no tiene un endpoint para todos: llama EP-24 por cada uno, en serie. Si alguno falla, deja en la lista los que no se cerraron y avisa «No pudimos cerrar la sesión en N dispositivos. Intenta de nuevo.».
+- Texto de pie de Figma: «Toca un dispositivo para cerrar su sesión. Si no reconoces alguno, cambia tu contraseña maestra.» Haz «cambia tu contraseña maestra» un enlace a SCR-35.
+- **Cargando** (`69:3411`) con esqueleto. **Sin conexión** (`69:3850`) con «Reintentar».
+- En Ajustes, «Dispositivos» deja de decir «Disponible pronto» y al volver se recarga el número.
 
-## Paso 2 · El cambio (OP-27) — **REQUIERE REVISIÓN HUMANA**
-En un caso de uso del dominio (`ChangeMasterPasswordUseCase` o dentro de `AccountRepository`), en este orden:
-1. **Reautenticación:** deriva la `auth_key` **actual** con los parámetros de `account` (el mismo código que `ReauthRunner`), junto con el TOTP si hay 2FA.
-2. **Nuevas llaves:** sal nueva de 16 bytes con `SecureRandom` y los parámetros KDF por defecto (DEC-05). De ahí `master_key` nueva → `enc_key` y `auth_key` nuevas (HKDF).
-3. **Volver a envolver la `vault_key`** (la que está en `VaultSession`) con la `enc_key` nueva, un nonce nuevo y la AAD `end-security/vault-key|userId|keyVersion+1`.
-4. **EP-17** con `expectedKeyVersion` = la local, `newAuthKey`, `newKdf` y `newProtectedVaultKey`.
-5. **Si responde 200:** en **una sola transacción de Room**, reemplaza en `account` la sal, los parámetros, `pvk_nonce`, `pvk_ciphertext` y `key_version` (el que devolvió el servidor). La sesión sigue abierta con la misma `vault_key`.
-6. **Huella:** si estaba activa, al terminar abre `BiometricPrompt` («Confirma tu huella para seguir usándola») y vuelve a envolver con la AAD de la nueva `key_version`. Si se cancela o falla, desactívala y muestra «Desbloqueo con huella desactivado. Actívalo de nuevo en Ajustes.»
-7. Vuelve a Ajustes con `MessageBar` «Contraseña cambiada. Cerramos la sesión en tus otros dispositivos.»
+## Paso 2 · Actividad reciente (SCR-34; EP-25)
+- **Agrupada por día local:** «Hoy», «Ayer» y luego la fecha («lunes 2 de noviembre»). La hora va a la derecha en formato del teléfono.
+- **Título e ícono por `eventType`** (los 18 del contrato). Usa esta tabla y para un tipo desconocido muestra «Actividad en tu cuenta»:
 
-**Errores:**
-- `reauth_required` → «Contraseña o código incorrectos.» en «Contraseña actual» (y en el código, si se ve);
-- `key_version_conflict` (409) → «Tu contraseña maestra cambió en otro dispositivo. Cierra sesión y entra con la nueva.» No se toca nada local;
-- sin red o 5xx → el genérico, sin cambios locales.
-- Si el servidor respondió 200 pero falla guardar en Room, reintenta una vez. Si vuelve a fallar, `signOutLocally()` y a Iniciar sesión con «Tu contraseña cambió. Entra con la nueva.»: es preferible a dejar parámetros viejos.
+| `eventType` | Título | Ícono |
+|---|---|---|
+| `account_registered` | Cuenta creada | user |
+| `email_verification_sent` | Código de verificación enviado | mail |
+| `email_verified` | Correo verificado | mail |
+| `login` | Inicio de sesión | log-out (girado) / el de Figma |
+| `totp_verification` | Código de verificación usado | shield-check |
+| `recovery_code_login` | Entrada con código de respaldo | key |
+| `account_locked` | Cuenta bloqueada por intentos | alert |
+| `token_reuse_detected` | Sesión cerrada por seguridad | shield-alert |
+| `logout` | Cierre de sesión | log-out |
+| `session_revoked` | Sesión cerrada en un dispositivo | smartphone |
+| `master_password_changed` | Contraseña maestra cambiada | key |
+| `email_change_requested` | Cambio de correo solicitado | mail |
+| `email_changed` | Correo cambiado | mail |
+| `two_factor_enabled` | Verificación activada | shield-check |
+| `two_factor_disabled` | Verificación desactivada | shield-alert |
+| `recovery_codes_regenerated` | Códigos de respaldo nuevos | key |
+| `account_deleted` | Eliminación de cuenta solicitada | trash |
+| `account_anonymized` | Cuenta anonimizada | trash |
 
-**Memoria:** `master_key`, `enc_key`, las dos `auth_key` y la sal se borran en `finally` (también al cancelar, como en M1 de la tarea 17). Derivar dos veces tarda: el botón queda cargando y Atrás está deshabilitado mientras dura el paso 4.
+- **Fallidos** (`success = false`): ícono de alerta y título en `danger`. Para `login` fallido el título es «Acceso fallido».
+- Subtítulo: `deviceName` o «Dispositivo desconocido».
+- **Las filas no se tocan:** quita las flechas de Figma, porque no hay pantalla de detalle. Los títulos largos se cortan en una línea con «…» y la hora no se mueve.
+- **Paginación:** al llegar al final, si `hasMore`, pide la siguiente página con `before` = id del último (50 por página). Muestra un indicador pequeño mientras carga.
+- Pie: «¿No reconoces algo? **Cambia tu contraseña**» → SCR-35.
+- Cargando (`69:3513`) con esqueleto. Sin conexión: el mismo patrón de Dispositivos.
+- En Ajustes, «Actividad reciente» deja de decir «Disponible pronto».
 
-## Backend falso
-Comprueba EP-17 en `FakeServer`:
-- valida la reautenticación;
-- con `expectedKeyVersion` distinto → 409;
-- reemplaza parámetros, `auth_hash` y pvk;
-- sube `key_version`;
-- revoca las demás sesiones.
-
-Completa **solo el backend falso** si falta algo.
+## Reglas
+- Dentro de `RequireUnlocked`; los ViewModel se vacían al bloquear. No muestran secretos, así que no necesitan `SecureScreen`.
+- Si al cerrar una sesión el servidor responde que la sesión **propia** ya no es válida (`session_revoked`), el flujo de siempre cierra sesión local.
+- Comprueba que `FakeServer` registra en la actividad los eventos de las tareas 10–18 (login, 2FA, cambio de contraseña, cierre remoto) con su `deviceName`. Si falta alguno, complétalo **solo en el backend falso**.
 
 ## Terminado cuando
-- **Pruebas unitarias del cambio** (Argon2 real, con parámetros bajos solo en la prueba):
-  - tras cambiar, la contraseña **nueva** desbloquea y la vieja no, contra la `account` local;
-  - los elementos ya guardados se siguen descifrando sin volver a cifrarse;
-  - la AAD de la pvk usa la nueva `key_version`;
-  - 409, `reauth_required` y sin red no cambian nada local;
-  - falla de Room tras el 200 → reintento y luego cierre de sesión;
-  - las llaves se borran también al cancelar.
-- **Pruebas de la pantalla:** cada requisito; HIBP con filtración, sin filtración y sin red; igual a la actual; campo de código solo con 2FA.
-- **Backend falso:** el flujo con 2FA y sin 2FA; 409; las otras sesiones quedan revocadas.
-- **Paso 0:** sin diálogo automático; `createChooser`; la hoja al salir del Paso 3; portapapeles al bloquear; segundos del bloqueo; `establish`; Ajustes congelado al cerrar sesión.
-- **En el emulador:** cambia la contraseña de una cuenta de prueba, bloquea y desbloquea con la nueva, cierra sesión y entra con la nueva. La parte de la huella va al reporte como prueba a mano.
-- `security-reviewer` revisa el Paso 2 completo. **REQUIERE REVISIÓN HUMANA.**
+- **Paso 0:** pruebas de las tres condiciones de la recuperación (cada una falla por separado y la combinación válida conserva los elementos y los pendientes), y del mensaje con `key_version` mayor.
+- **Pruebas de ViewModel:**
+  - Dispositivos: lista ordenada, «Este», tiempos relativos, cerrar uno, cerrar los demás con éxito parcial, sin red y cargando;
+  - Actividad: agrupación por día (incluido el cambio de día en medianoche local), los 18 tipos y el desconocido, fallidos, paginación sin duplicados, sin red.
+- **Pruebas de Compose:** textos de Figma; la hoja de cerrar uno y la de cerrar los demás; plural de «dispositivo(s)»; filas de actividad sin acción de clic.
+- **En el emulador:** con dos sesiones del backend falso (`adb` o una cuenta abierta en dos emuladores, lo que sea más simple), cierra la otra y comprueba la actividad. Lo que no se pueda, al reporte como prueba a mano.
+- `security-reviewer` revisa el Paso 0. **REQUIERE REVISIÓN HUMANA.**
 - `testDebugUnitTest`, `connectedDebugAndroidTest` (salvo E3), lint y `assembleRelease` pasan. Commits hechos y subidos.
 
 ## Al terminar
