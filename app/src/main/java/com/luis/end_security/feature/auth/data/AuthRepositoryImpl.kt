@@ -601,7 +601,7 @@ class AuthRepositoryImpl @Inject constructor(
         const val FIRST_KEY_VERSION = 1
         const val RECOVERY_NOTICE_THRESHOLD = 3
 
-        fun normalizeEmail(email: String) = email.trim().lowercase()
+        fun normalizeEmail(email: String) = com.luis.end_security.core.common.EmailNormalizer.normalize(email)
 
         /** «Xiaomi 23090RA98G», recortado a los 100 caracteres del contrato. */
         fun deviceName(): String = "${Build.MANUFACTURER} ${Build.MODEL}".trim().ifEmpty { "Android" }.take(100)

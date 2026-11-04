@@ -24,10 +24,12 @@ import javax.crypto.Cipher
 import javax.inject.Inject
 
 /** Avisos breves al pie de Ajustes. */
-enum class NoticeKind { NeedsConnection, NeedsConnectionToDelete, TwoFactorDisabled, PasswordChanged, BiometricOff }
+enum class NoticeKind {
+    NeedsConnection, NeedsConnectionToDelete, NeedsConnectionToChangeEmail, TwoFactorDisabled, PasswordChanged, BiometricOff, EmailChanged,
+}
 
 /** [id] cambia en cada aviso, para que dos iguales seguidos vuelvan a mostrarse. */
-data class SettingsNotice(val kind: NoticeKind, val id: Int)
+data class SettingsNotice(val kind: NoticeKind, val id: Int, val argument: String? = null)
 
 /** Estado de Ajustes (SCR-29). Nada secreto vive aquí. */
 data class SettingsUiState(
@@ -51,6 +53,12 @@ data class SettingsUiState(
 )
 
 sealed interface SettingsAction {
+    /** La tarjeta de la cuenta: sin red avisa y no navega; con red abre «Correo» (OP-26). */
+    data object ProfileClicked : SettingsAction
+
+    /** Volvió de cambiar el correo: «Tu correo ahora es {correo}». */
+    data class EmailChanged(val email: String) : SettingsAction
+
     /** «Eliminar cuenta»: sin red avisa y no navega; con red abre SCR-36. */
     data object DeleteAccountClicked : SettingsAction
 
@@ -94,6 +102,9 @@ sealed interface SettingsEffect {
 
     /** 2 pasos activa: a su pantalla de administración. */
     data object OpenTwoFactorActive : SettingsEffect
+
+    /** Con red: a «Correo». */
+    data object OpenChangeEmail : SettingsEffect
 
     /** Con red: a Eliminar cuenta. */
     data object OpenDeleteAccount : SettingsEffect
@@ -145,8 +156,8 @@ class SettingsViewModel @Inject constructor(
 
     private var noticeSequence = 0
 
-    private fun notify(kind: NoticeKind) {
-        _state.update { it.copy(notice = SettingsNotice(kind, ++noticeSequence)) }
+    private fun notify(kind: NoticeKind, argument: String? = null) {
+        _state.update { it.copy(notice = SettingsNotice(kind, ++noticeSequence, argument)) }
     }
 
     private fun refreshTwoFactor() {
@@ -165,6 +176,13 @@ class SettingsViewModel @Inject constructor(
                 true -> _effects.send(SettingsEffect.OpenTwoFactorActive)
                 false -> _effects.send(SettingsEffect.OpenTwoFactorSetup)
             }
+        }
+    }
+
+    /** Cambiar el correo necesita red: se pregunta al servidor; sin respuesta, avisa y no navega. */
+    private fun openChangeEmail() {
+        viewModelScope.launch {
+            if (settings.twoFactorEnabled() == null) notify(NoticeKind.NeedsConnectionToChangeEmail) else _effects.send(SettingsEffect.OpenChangeEmail)
         }
     }
 
@@ -190,6 +208,8 @@ class SettingsViewModel @Inject constructor(
     fun onAction(action: SettingsAction) {
         when (action) {
             SettingsAction.DeleteAccountClicked -> openDeleteAccount()
+            SettingsAction.ProfileClicked -> openChangeEmail()
+            is SettingsAction.EmailChanged -> notify(NoticeKind.EmailChanged, action.email)
             SettingsAction.TwoFactorClicked -> openTwoFactor()
             is SettingsAction.PasswordChanged -> viewModelScope.launch {
                 notify(NoticeKind.PasswordChanged)

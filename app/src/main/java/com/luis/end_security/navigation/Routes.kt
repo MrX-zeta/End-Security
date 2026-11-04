@@ -80,6 +80,12 @@ object Routes {
     /** SCR-38: Cuenta eliminada. Fuera de `RequireUnlocked`; se llega con la pila limpia. */
     const val ACCOUNT_DELETED = "account_deleted"
 
+    /** Cambiar el correo (OP-26; Figma 227:4534…): el correo nuevo y el código en un solo destino. */
+    const val CHANGE_EMAIL = "settings_change_email"
+
+    /** Resultado que el cambio de correo deja en Ajustes: el correo nuevo, para «Tu correo ahora es …». */
+    const val RESULT_EMAIL_CHANGED = "email_changed"
+
     /** SCR-33: Dispositivos con sesión abierta (OP-29, OP-30). */
     const val DEVICES = "settings_devices"
 

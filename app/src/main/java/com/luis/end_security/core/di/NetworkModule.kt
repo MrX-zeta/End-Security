@@ -36,7 +36,7 @@ abstract class NetworkModule {
     abstract fun bindVaultApi(impl: VaultApiImpl): VaultApi
 
     @Binds
-    abstract fun bindAccountApi(impl: AccountApiImpl): AccountApi
+    abstract fun bindAccountApi(impl: com.luis.end_security.feature.account.data.EmailSyncingAccountApi): AccountApi
 
     @Binds
     abstract fun bindSessionApi(impl: SessionApiImpl): SessionApi

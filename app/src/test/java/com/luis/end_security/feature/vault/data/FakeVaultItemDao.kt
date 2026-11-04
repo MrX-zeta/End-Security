@@ -69,6 +69,15 @@ class FakeAccountDao(initial: AccountEntity? = null) : AccountDao() {
         return 1
     }
 
+    override suspend fun updateEmail(userId: String, email: String): Int {
+        val old = row.value?.takeIf { it.userId == userId } ?: return 0
+        row.value = AccountEntity(
+            old.userId, email, old.displayName, old.kdfSalt, old.kdfMemoryKiB, old.kdfIterations, old.kdfParallelism,
+            old.pvkNonce, old.pvkCiphertext, old.keyVersion, old.syncCursor, old.lastSyncAt, old.bioIv, old.bioWrappedVaultKey,
+        )
+        return 1
+    }
+
     override suspend fun clearBiometric() {
         val old = row.value ?: return
         row.value = AccountEntity(

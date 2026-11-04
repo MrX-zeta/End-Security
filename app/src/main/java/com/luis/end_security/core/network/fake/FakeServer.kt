@@ -106,8 +106,8 @@ class FakeServer(
             request.method == "POST" && path == "/account/email" -> withSession(request) { session, user ->
                 requestEmailChange(session, user, parse(body, EmailChangeRequestDto.serializer()))
             }
-            request.method == "POST" && path == "/account/email/verify" -> withSession(request) { _, user ->
-                confirmEmailChange(user, parse(body, CodeRequestDto.serializer()))
+            request.method == "POST" && path == "/account/email/verify" -> withSession(request) { session, user ->
+                confirmEmailChange(session, user, parse(body, CodeRequestDto.serializer()))
             }
             request.method == "POST" && path == "/account/master-password" -> withSession(request) { session, user ->
                 changeMasterPassword(session, user, parse(body, MasterPasswordRequestDto.serializer()))
@@ -424,17 +424,55 @@ class FakeServer(
         return ok(AccountDto.serializer(), user.toDto())
     }
 
+    /**
+     * EP-15 (DEC-63): reautentica; el correo nuevo se normaliza y, si es igual al actual, `400 validation_failed`; límites de 3
+     * solicitudes por hora, 5 por día y 24 h tras un cambio completado (`429` con el `Retry-After` exacto). Responde 202 aunque el
+     * correo ya esté en uso (anti-enumeración): en ese caso no queda ningún código efectivo.
+     */
     private fun requestEmailChange(session: FakeSession, user: FakeUser, dto: EmailChangeRequestDto): HttpResponse {
-        normalizeEmail(dto.newEmail)
+        val newEmail = normalizeEmail(dto.newEmail)
         checkReauth(user, dto.reauth)
-        // El cambio de correo con su código queda fuera del backend falso por ahora: 202 genérico.
+        if (newEmail == user.email) return problem(400, "validation_failed")
+        val time = now()
+        user.emailChangeRequests.removeAll { it <= time - DAY }
+        val waits = mutableListOf<Long>()
+        if (user.lastEmailChangedAt > 0 && time < user.lastEmailChangedAt + DAY) waits += user.lastEmailChangedAt + DAY - time
+        val lastHour = user.emailChangeRequests.filter { it > time - HOUR }
+        if (lastHour.size >= MAX_EMAIL_CHANGES_PER_HOUR) waits += lastHour.min() + HOUR - time
+        if (user.emailChangeRequests.size >= MAX_EMAIL_CHANGES_PER_DAY) waits += user.emailChangeRequests.min() + DAY - time
+        if (waits.isNotEmpty()) return rateLimited(waits.max())
+        user.emailChangeRequests += time
         event(user, "email_change_requested", true, session.deviceName)
+        if (activeUserByEmail(newEmail) != null) {
+            // Correo en uso: 202 igual y un cambio pendiente simulado (código al azar que nadie recibe, mismos intentos y vigencia),
+            // para que EP-16 responda igual que con un correo libre (anti-enumeración). `confirmEmailChange` lo trata como inválido.
+            val unseen = RandomBytes.nextInt(0, 1_000_000).toString().padStart(6, '0')
+            user.pendingEmail = FakePendingEmail(newEmail, Base64Url.encode(hashCodeBytes(unseen)), 0, time + VERIFICATION_TTL)
+        } else {
+            val code = RandomBytes.nextInt(0, 1_000_000).toString().padStart(6, '0')
+            user.pendingEmail = FakePendingEmail(newEmail, Base64Url.encode(hashCodeBytes(code)), 0, time + VERIFICATION_TTL)
+            onCodeIssued(newEmail, code)
+        }
         return accepted()
     }
 
-    private fun confirmEmailChange(user: FakeUser, dto: CodeRequestDto): HttpResponse {
-        sixDigits(dto.code)
-        return problem(401, "challenge_expired")
+    /** EP-16: consume el código, cambia el correo (si ya lo usa otra cuenta, responde como código inválido) y registra `email_changed`. */
+    private fun confirmEmailChange(session: FakeSession, user: FakeUser, dto: CodeRequestDto): HttpResponse {
+        val code = sixDigits(dto.code)
+        val pending = user.pendingEmail
+        if (pending == null || pending.expiresAt <= now() || pending.attempts >= MAX_CODE_ATTEMPTS) {
+            return problem(401, "challenge_expired")
+        }
+        val takenNow = activeUserByEmail(pending.newEmail)?.let { it.id != user.id } == true
+        if (takenNow || !Hashes.constantTimeEquals(b64(pending.codeHash), hashCodeBytes(code))) {
+            pending.attempts++
+            return problem(401, "invalid_code", attemptsRemaining = MAX_CODE_ATTEMPTS - pending.attempts)
+        }
+        user.email = pending.newEmail
+        user.pendingEmail = null
+        user.lastEmailChangedAt = now()
+        event(user, "email_changed", true, session.deviceName)
+        return ok(AccountDto.serializer(), user.toDto())
     }
 
     private fun changeMasterPassword(session: FakeSession, user: FakeUser, dto: MasterPasswordRequestDto): HttpResponse {
@@ -690,6 +728,11 @@ class FakeServer(
         const val MAX_RESENDS_PER_HOUR = 5
         const val MINUTE = 60_000L
         const val HOUR = 60 * MINUTE
+        const val DAY = 24 * HOUR
+
+        /** Límites del cambio de correo (DEC-63, contrato 1.3.0). */
+        const val MAX_EMAIL_CHANGES_PER_HOUR = 3
+        const val MAX_EMAIL_CHANGES_PER_DAY = 5
         const val LOCKOUT = 15 * MINUTE
         const val RESEND_GAP = MINUTE
         const val VERIFICATION_TTL = 15 * MINUTE
@@ -700,7 +743,7 @@ class FakeServer(
         val EMAIL = Regex("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$")
 
         fun normalizeEmail(raw: String): String {
-            val email = raw.trim().lowercase()
+            val email = com.luis.end_security.core.common.EmailNormalizer.normalize(raw)
             require(email.length <= 254 && EMAIL.matches(email))
             return email
         }

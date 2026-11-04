@@ -79,6 +79,8 @@ fun ReauthSheet(
     onPasswordEmptinessChanged: (Boolean) -> Unit,
     onConfirm: (CharSequence) -> Unit,
     onDismiss: () -> Unit,
+    /** `false` si la cuenta no tiene 2FA (Cambiar correo): no hay código de la app que pedir. */
+    showCode: Boolean = true,
 ) {
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -101,6 +103,7 @@ fun ReauthSheet(
             state = state,
             passwordState = passwordState,
             onCodeChange = onCodeChange,
+            showCode = showCode,
             onConfirm = { onConfirm(passwordState.text) },
             onCancel = onDismiss,
             modifier = Modifier.navigationBarsPadding().imePadding(),
@@ -119,6 +122,7 @@ fun ReauthSheetContent(
     onConfirm: () -> Unit,
     onCancel: () -> Unit,
     modifier: Modifier = Modifier,
+    showCode: Boolean = true,
 ) {
     var passwordVisible by remember { mutableStateOf(false) }
     val passwordFocus = remember { FocusRequester() }
@@ -158,13 +162,19 @@ fun ReauthSheetContent(
                 label = stringResource(R.string.tf_reauth_password_label),
                 visible = passwordVisible,
                 onVisibleChange = { passwordVisible = it },
-                errorText = if (state.showPasswordRequired) stringResource(R.string.auth_error_password_required) else null,
+                errorText = when {
+                    state.showPasswordRequired -> stringResource(R.string.auth_error_password_required)
+                    // Sin campo de código, los mensajes que irían bajo él van bajo la contraseña.
+                    !showCode && state.credentialsWrong -> stringResource(R.string.tf_reauth_wrong)
+                    !showCode -> state.otherError
+                    else -> null
+                },
                 isError = state.credentialsWrong,
                 modifier = Modifier.focusRequester(passwordFocus),
                 imeAction = ImeAction.Next,
                 maxLength = MasterPasswordPolicy.MAX_FIELD_LENGTH,
             )
-            LabeledTextField(
+            if (showCode) LabeledTextField(
                 value = state.code,
                 onValueChange = onCodeChange,
                 label = stringResource(R.string.tf_reauth_code_label),

@@ -44,6 +44,7 @@ import com.luis.end_security.feature.health.ui.HealthRankingRoute
 import com.luis.end_security.feature.health.ui.HealthRepeatedRoute
 import com.luis.end_security.feature.health.ui.HealthRoute
 import com.luis.end_security.feature.account.ui.AccountDeletedRoute
+import com.luis.end_security.feature.account.ui.ChangeEmailRoute
 import com.luis.end_security.feature.account.ui.ChangePasswordRoute
 import com.luis.end_security.feature.account.ui.DeleteAccountRoute
 import com.luis.end_security.feature.activity.ui.ActivityRoute
@@ -174,6 +175,7 @@ private fun AppNavigation(route: String, modifier: Modifier = Modifier) {
                 val handle = backStackEntry.savedStateHandle
                 val disabled by handle.getStateFlow(Routes.RESULT_TWO_FACTOR_DISABLED, false).collectAsStateWithLifecycle()
                 val passwordResult by handle.getStateFlow(Routes.RESULT_PASSWORD_CHANGED, 0).collectAsStateWithLifecycle()
+                val emailResult by handle.getStateFlow(Routes.RESULT_EMAIL_CHANGED, "").collectAsStateWithLifecycle()
                 SettingsRoute(
                     onTabSelected = onTabSelected,
                     onNavigateToLogin = { navController.navigateClearingStack(Routes.LOGIN) },
@@ -183,10 +185,25 @@ private fun AppNavigation(route: String, modifier: Modifier = Modifier) {
                     onOpenDevices = { navController.navigate(Routes.DEVICES) { launchSingleTop = true } },
                     onOpenActivity = { navController.navigate(Routes.ACTIVITY) { launchSingleTop = true } },
                     onOpenDeleteAccount = { navController.navigate(Routes.DELETE_ACCOUNT) { launchSingleTop = true } },
+                    onOpenChangeEmail = { navController.navigate(Routes.CHANGE_EMAIL) { launchSingleTop = true } },
+                    emailChanged = emailResult,
+                    onEmailChangedShown = { handle[Routes.RESULT_EMAIL_CHANGED] = "" },
                     twoFactorDisabled = disabled,
                     onTwoFactorDisabledShown = { handle[Routes.RESULT_TWO_FACTOR_DISABLED] = false },
                     passwordChanged = passwordResult,
                     onPasswordChangedShown = { handle[Routes.RESULT_PASSWORD_CHANGED] = 0 },
+                )
+            }
+        }
+        composable(Routes.CHANGE_EMAIL) {
+            RequireUnlocked(onLocked = lockGuardViewModel::onProtectedScreenLocked) {
+                ChangeEmailRoute(
+                    onBack = { navController.popBackStack() },
+                    onChanged = { email ->
+                        navController.previousBackStackEntry?.savedStateHandle?.set(Routes.RESULT_EMAIL_CHANGED, email)
+                        navController.popBackStack()
+                    },
+                    onTabSelected = onTabSelected,
                 )
             }
         }

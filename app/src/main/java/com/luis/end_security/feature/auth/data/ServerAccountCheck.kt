@@ -33,9 +33,13 @@ class ServerAccountCheck @Inject constructor(
     private val items: VaultItemDao,
 ) {
 
+    /** Compara con ambos lados normalizados: una fila local con otra forma del mismo correo (NFD, mayúsculas) sigue siendo la misma. */
+    private fun sameEmail(local: String, typed: String) =
+        com.luis.end_security.core.common.EmailNormalizer.normalize(local) == com.luis.end_security.core.common.EmailNormalizer.normalize(typed)
+
     /** Antes de derivar: ¿los parámetros que manda el servidor son más baratos que los de la cuenta local de ese correo? */
     fun lowersCost(local: AccountEntity?, email: String, kdf: ServerKdf): Boolean {
-        val known = local?.takeIf { it.email == email } ?: return false
+        val known = local?.takeIf { sameEmail(it.email, email) } ?: return false
         return kdf.memoryKiB < known.kdfMemoryKiB || kdf.iterations < known.kdfIterations || kdf.parallelism < known.kdfParallelism
     }
 
@@ -44,7 +48,7 @@ class ServerAccountCheck @Inject constructor(
      * nada, se comprueba que la contraseña tecleada no sea la vigente aquí (ver `AuthRepositoryImpl.login`).
      */
     fun saltDiffers(local: AccountEntity?, email: String, kdf: ServerKdf): Boolean {
-        val known = local?.takeIf { it.email == email } ?: return false
+        val known = local?.takeIf { sameEmail(it.email, email) } ?: return false
         return !known.kdfSalt.contentEquals(kdf.salt)
     }
 
@@ -54,7 +58,7 @@ class ServerAccountCheck @Inject constructor(
      * no esquiva las comprobaciones.
      */
     fun isRecovery(local: AccountEntity?, typedEmail: String, server: AccountInfo): Boolean =
-        local != null && local.email == typedEmail && !local.kdfSalt.contentEquals(server.kdf.salt)
+        local != null && sameEmail(local.email, typedEmail) && !local.kdfSalt.contentEquals(server.kdf.salt)
 
     /**
      * Después del acceso y de abrir la pvk con [vaultKey]: ¿se acepta la cuenta del servidor? Sin cuenta local, con otro correo o

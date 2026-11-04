@@ -503,4 +503,39 @@ class SettingsViewModelTest {
         runCurrent()
         assertEquals(3, state.deviceCount)
     }
+
+    @Test
+    fun `la tarjeta de la cuenta con red abre Correo`() = scope.runTest {
+        create()
+        viewModel.onAction(SettingsAction.ProfileClicked)
+        runCurrent()
+        assertEquals(SettingsEffect.OpenChangeEmail, viewModel.effects.first())
+    }
+
+    @Test
+    fun `la tarjeta de la cuenta sin red avisa y no navega`() = scope.runTest {
+        create()
+        repo.twoFactor = null
+        viewModel.onAction(SettingsAction.ProfileClicked)
+        runCurrent()
+        assertEquals(NoticeKind.NeedsConnectionToChangeEmail, state.notice?.kind)
+        assertNull(kotlinx.coroutines.withTimeoutOrNull(1) { viewModel.effects.first() })
+    }
+
+    @Test
+    fun `al volver de cambiar el correo avisa con el correo nuevo`() = scope.runTest {
+        create()
+        viewModel.onAction(SettingsAction.EmailChanged("luis.ruiz@gmail.com"))
+        assertEquals(NoticeKind.EmailChanged, state.notice?.kind)
+        assertEquals("luis.ruiz@gmail.com", state.notice?.argument)
+    }
+
+    @Test
+    fun `dos cambios de correo seguidos vuelven a mostrar el aviso`() = scope.runTest {
+        create()
+        viewModel.onAction(SettingsAction.EmailChanged("a@correo.com"))
+        val first = state.notice
+        viewModel.onAction(SettingsAction.EmailChanged("a@correo.com"))
+        assertTrue(first != state.notice)
+    }
 }

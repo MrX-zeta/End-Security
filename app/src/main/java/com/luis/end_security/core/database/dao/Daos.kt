@@ -54,6 +54,13 @@ abstract class AccountDao {
         keyVersion: Int,
     ): Int
 
+    /**
+     * El correo de la cuenta cambió (OP-26): solo la fila de [userId]; devuelve las filas afectadas (0 si la cuenta local es
+     * otra). La sal, los parámetros y la pvk no cambian con el correo.
+     */
+    @Query("UPDATE account SET email = :email WHERE user_id = :userId")
+    abstract suspend fun updateEmail(userId: String, email: String): Int
+
     /** Quita el envoltorio biométrico (desactivar, huella invalidada, cerrar sesión). */
     @Query("UPDATE account SET bio_iv = NULL, bio_wrapped_vault_key = NULL")
     abstract suspend fun clearBiometric()

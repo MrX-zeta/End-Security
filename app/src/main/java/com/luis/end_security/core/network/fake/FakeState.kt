@@ -44,6 +44,20 @@ class FakeUser(
     var twoFactorLockedUntil: Long = 0,
     /** Envíos de correo de verificación (epoch ms) de la última hora. */
     val resends: MutableList<Long> = mutableListOf(),
+    /** Cambio de correo en curso (EP-15/EP-16). */
+    var pendingEmail: FakePendingEmail? = null,
+    /** Solicitudes de cambio de correo aceptadas (epoch ms) del último día, para los límites de DEC-63. */
+    val emailChangeRequests: MutableList<Long> = mutableListOf(),
+    /** Cuándo se completó el último cambio de correo (epoch ms); 0 = nunca. */
+    var lastEmailChangedAt: Long = 0,
+)
+
+@Serializable
+class FakePendingEmail(
+    val newEmail: String,
+    val codeHash: String,
+    var attempts: Int,
+    val expiresAt: Long,
 )
 
 @Serializable

@@ -689,4 +689,37 @@
     <string name="deleted_title">Tu cuenta fue eliminada</string>
     <string name="deleted_body">Borramos tus contraseñas de nuestros servidores. Gracias por haber usado End Security.</string>
     <string name="deleted_go_home">Ir al inicio</string>
+
+    <!-- Cambiar el correo (OP-26; Figma 227:4534, 227:4726, 227:4802, 229:4852) -->
+    <string name="email_title">Correo</string>
+    <string name="email_notice">Te enviaremos un código al correo nuevo para confirmarlo. También avisaremos a tu correo actual.</string>
+    <string name="email_current_label">Correo actual</string>
+    <string name="email_new_label">Correo nuevo</string>
+    <string name="email_continue">Continuar</string>
+    <string name="email_same">Es tu correo actual. Escribe uno distinto.</string>
+    <plurals name="email_wait_hours">
+        <item quantity="one">Podrás cambiar tu correo de nuevo en %d h.</item>
+        <item quantity="many">Podrás cambiar tu correo de nuevo en %d h.</item>
+        <item quantity="other">Podrás cambiar tu correo de nuevo en %d h.</item>
+    </plurals>
+    <plurals name="email_wait_minutes">
+        <item quantity="one">Podrás cambiar tu correo de nuevo en %d min.</item>
+        <item quantity="many">Podrás cambiar tu correo de nuevo en %d min.</item>
+        <item quantity="other">Podrás cambiar tu correo de nuevo en %d min.</item>
+    </plurals>
+    <plurals name="email_wait_seconds">
+        <item quantity="one">Podrás cambiar tu correo de nuevo en %d s.</item>
+        <item quantity="many">Podrás cambiar tu correo de nuevo en %d s.</item>
+        <item quantity="other">Podrás cambiar tu correo de nuevo en %d s.</item>
+    </plurals>
+    <string name="email_reauth_body">Para cambiar tu correo escribe tu contraseña maestra y el código de tu app.</string>
+    <string name="email_reauth_body_no_totp">Para cambiar tu correo escribe tu contraseña maestra.</string>
+    <string name="email_reauth_send">Enviar código</string>
+    <string name="email_code_body">Te enviamos un código de 6 dígitos a %1$s. Tu correo cambia cuando lo confirmes.</string>
+    <string name="email_code_submit">Confirmar correo</string>
+    <string name="email_code_resend_before">¿No te llegó?</string>
+    <string name="email_code_resend_link">Pide otro código</string>
+    <string name="settings_email_needs_connection">Necesitas conexión para cambiar tu correo.</string>
+    <string name="settings_email_changed">Tu correo ahora es %1$s</string>
+    <string name="settings_profile_change_email">Cambiar correo</string>
 </resources>

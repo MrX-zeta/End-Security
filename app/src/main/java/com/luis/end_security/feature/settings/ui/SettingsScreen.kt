@@ -89,6 +89,10 @@ fun SettingsRoute(
     onOpenDevices: () -> Unit = {},
     onOpenActivity: () -> Unit = {},
     onOpenDeleteAccount: () -> Unit = {},
+    onOpenChangeEmail: () -> Unit = {},
+    /** El correo nuevo al volver de cambiarlo (vacío = nada). */
+    emailChanged: String = "",
+    onEmailChangedShown: () -> Unit = {},
     twoFactorDisabled: Boolean = false,
     onTwoFactorDisabledShown: () -> Unit = {},
     /** 0 nada; [com.luis.end_security.navigation.Routes.PASSWORD_CHANGED] o `…_BIOMETRIC_OFF` al volver de cambiar la contraseña. */
@@ -99,6 +103,13 @@ fun SettingsRoute(
     val currentOpenSetup by rememberUpdatedState(onOpenTwoFactorSetup)
     val currentOpenActive by rememberUpdatedState(onOpenTwoFactorActive)
     val currentOpenDelete by rememberUpdatedState(onOpenDeleteAccount)
+    val currentOpenEmail by rememberUpdatedState(onOpenChangeEmail)
+    LaunchedEffect(emailChanged) {
+        if (emailChanged.isNotEmpty()) {
+            viewModel.onAction(SettingsAction.EmailChanged(emailChanged))
+            onEmailChangedShown()
+        }
+    }
     // Al volver de «Desactivar» con éxito (resultado de la pantalla anterior): aviso y recarga.
     LaunchedEffect(passwordChanged) {
         if (passwordChanged != 0) {
@@ -142,6 +153,7 @@ fun SettingsRoute(
                 SettingsEffect.OpenTwoFactorSetup -> currentOpenSetup()
                 SettingsEffect.OpenTwoFactorActive -> currentOpenActive()
                 SettingsEffect.OpenDeleteAccount -> currentOpenDelete()
+                SettingsEffect.OpenChangeEmail -> currentOpenEmail()
             }
         }
     }
@@ -192,17 +204,19 @@ fun SettingsScreen(
                     modifier = Modifier.semantics { heading() },
                 )
                 Spacer(Modifier.height(4.dp))
+                val profileLabel = stringResource(R.string.settings_profile_change_email)
                 state.profile?.let { profile ->
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(20.dp))
+                            .clickable(onClickLabel = profileLabel, role = Role.Button) { onAction(SettingsAction.ProfileClicked) }
                             .padding(12.dp),
                         horizontalArrangement = Arrangement.spacedBy(14.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         LetterTile(letter = initialOf(profile.title), size = 48.dp, cornerRadius = 14.dp)
-                        Column {
+                        Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 text = profile.title,
                                 style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
@@ -212,6 +226,11 @@ fun SettingsScreen(
                                 Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
+                        Icon(
+                            painter = painterResource(R.drawable.ic_chevron_right_20),
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurface,
+                        )
                     }
                 }
                 SectionLabel(stringResource(R.string.settings_section_security))
@@ -315,13 +334,15 @@ private fun NoticeBar(notice: SettingsNotice?, modifier: Modifier = Modifier) {
     }
     shown?.let {
         MessageBar(
-            text = stringResource(
+            text = (if (it.kind == NoticeKind.EmailChanged) stringResource(R.string.settings_email_changed, it.argument.orEmpty()) else null) ?: stringResource(
                 when (it.kind) {
                     NoticeKind.NeedsConnection -> R.string.settings_two_factor_needs_connection
                     NoticeKind.NeedsConnectionToDelete -> R.string.settings_delete_needs_connection
+                    NoticeKind.NeedsConnectionToChangeEmail -> R.string.settings_email_needs_connection
                     NoticeKind.TwoFactorDisabled -> R.string.settings_two_factor_disabled
                     NoticeKind.PasswordChanged -> R.string.cp_changed
                     NoticeKind.BiometricOff -> R.string.cp_biometric_off
+                    NoticeKind.EmailChanged -> R.string.settings_email_changed
                 },
             ),
             icon = R.drawable.ic_info_20,
