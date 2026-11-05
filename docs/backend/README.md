@@ -21,6 +21,8 @@
 | B12 | **Proxy inverso HTTPS** (§6) | DEC-22, DEC-23 | ☐ |
 | B13 | Tareas programadas: `app.run_maintenance()` diaria con el rol `endsec_jobs` | DEC-40, DEC-45 | ☐ |
 | B14 | Secretos solo en variables de entorno (pepper, secreto del prelogin, llave del TOTP, llave del JWT), nunca en el repositorio | DEC-38 | ☐ |
+| B16 | **Contrato 1.4.0:** columnas `users.marketing_opt_in` (boolean, falso) y `marketing_opt_in_at` (timestamptz) con su migración; `marketingOptIn` en `register`, `Account` y `PATCH /account`; nunca se usan para nada que no sean novedades y encuestas | DEC-64 | ☐ |
+| B17 | **Anti-enumeración del cambio de correo:** EP-16 responde igual (mismos intentos y mensajes) si el correo nuevo ya lo usa otra cuenta, y el envío se encola después del COMMIT con la misma latencia visible (hallazgo de la tarea 21) | DEC-63 | ☐ |
 | B15 | Pruebas: cada `code` de error del contrato, límites, anti-enumeración (mismo tiempo y cuerpo) y pruebas del esquema (`docs/bd/pruebas_esquema.sql`) | DEC-30 | ☐ |
 
 ## 2. Validación de las peticiones

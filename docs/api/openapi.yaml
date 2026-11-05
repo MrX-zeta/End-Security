@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: End Security API
-  version: 1.3.0
+  version: 1.4.0
   description: |
     Contrato entre la app Android y el backend de End Security. Las reglas que este archivo no expresa
     (anti-enumeración, límites, bitácora, piso de KDF) están en `docs/api/README.md` y son parte del contrato.
@@ -80,6 +80,10 @@ paths:
                 authKey: { $ref: '#/components/schemas/AuthKey' }
                 kdf: { $ref: '#/components/schemas/KdfParams' }
                 protectedVaultKey: { $ref: '#/components/schemas/ProtectedVaultKey' }
+                marketingOptIn:
+                  type: boolean
+                  default: false
+                  description: Finalidades secundarias del aviso de privacidad (novedades y encuestas). Opcional, falso si no se manda (DEC-64).
       responses:
         '202': { $ref: '#/components/responses/Accepted' }
         '400': { $ref: '#/components/responses/ValidationFailed' }
@@ -407,20 +411,23 @@ paths:
     patch:
       tags: [account]
       operationId: updateAccount
-      summary: Cambiar el nombre visible (EP-14, OP-42)
+      summary: Cambiar el nombre visible o el consentimiento de finalidades secundarias (EP-14, OP-42)
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [displayName]
+              minProperties: 1
               additionalProperties: false
               properties:
                 displayName:
                   oneOf:
                     - $ref: '#/components/schemas/DisplayName'
                     - type: 'null'
+                marketingOptIn:
+                  type: boolean
+                  description: Aceptar o retirar las finalidades secundarias (DEC-64).
       responses:
         '200':
           description: Cuenta actualizada
@@ -872,7 +879,7 @@ components:
         totpCode: { $ref: '#/components/schemas/SixDigitCode' }
     Account:
       type: object
-      required: [userId, email, emailVerified, displayName, keyVersion, kdf, protectedVaultKey, twoFactorEnabled]
+      required: [userId, email, emailVerified, displayName, keyVersion, kdf, protectedVaultKey, twoFactorEnabled, marketingOptIn]
       properties:
         userId: { $ref: '#/components/schemas/Uuid' }
         email: { $ref: '#/components/schemas/Email' }
@@ -885,6 +892,7 @@ components:
         kdf: { $ref: '#/components/schemas/KdfParams' }
         protectedVaultKey: { $ref: '#/components/schemas/ProtectedVaultKey' }
         twoFactorEnabled: { type: boolean }
+        marketingOptIn: { type: boolean }
     Tokens:
       type: object
       required: [accessToken, accessTokenExpiresIn, refreshToken, refreshTokenExpiresAt, sessionId]

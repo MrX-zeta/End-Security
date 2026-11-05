@@ -23,6 +23,7 @@
 | M15 | Dispositivos y Actividad en el Redmi: cerrar otra sesión (con la cuenta abierta en el emulador) y verla en Actividad | Tarea 19 | ☐ |
 | M16 | Eliminar una cuenta de prueba en el Redmi: vuelve al inicio y ya no se puede entrar con ella | Tarea 20 | ☐ |
 | M17 | Cambiar el correo en el Redmi con el código de demostración; entrar con el nuevo; ver la espera de 24 h | Tarea 21 | ☐ |
+| M18 | Leer el aviso y los términos en el Redmi: resumen, secciones plegables, enlaces desde Crear cuenta | Tarea 22 | ☐ |
 
 ## Lectura del código marcado «REQUIERE REVISIÓN HUMANA»
 Hay que leerlo y entenderlo para poder explicarlo en la presentación.
@@ -50,3 +51,4 @@ Hay que leerlo y entenderlo para poder explicarlo en la presentación.
 | E1 | `USE_FAKE_BACKEND = false` en release (el código de correo no debe verse) | ☐ |
 | E2 | Pines SPKI del servidor en `network_security_config.xml` (DEC-22) | ☐ |
 | E3 | Volver a correr `ClipboardDeviceTest` con «Enable clipboard sharing» desactivado en el emulador (Android Studio → emulador → ⋯ Extended controls → Settings → General) | ☐ |
+| E4 | Completar en `docs/legal/*.md` y `LegalInfo` los marcadores: nombres de los integrantes, correo de privacidad, proveedor de hosting; confirmar domicilio (UPChiapas) y respaldos de la BD | ☐ |

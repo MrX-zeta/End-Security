@@ -1,7 +1,7 @@
 {
   "meta": {
     "nombre": "Grafo de conocimiento — End Security",
-    "version": "1.6.2",
+    "version": "1.7.0",
     "actualizado": "2026-10-19",
     "fase": "Implementación de la app (acceso y núcleo criptográfico listos) y contrato de la API v1.0.0 para el backend.",
     "historial": [
@@ -144,6 +144,11 @@
         "version": "1.6.2",
         "fecha": "2026-11-04",
         "cambio": "RSG-14 (eliminación sin limpieza local si el proceso muere tras el 204)."
+      },
+      {
+        "version": "1.7.0",
+        "fecha": "2026-11-04",
+        "cambio": "DEC-64: aviso de privacidad y términos redactados, finalidades secundarias con marketingOptIn (contrato 1.4.0)."
       }
     ],
     "proposito": "Fuente de verdad del contexto, decisiones técnicas y huecos resueltos del proyecto, para personas y agentes de IA.",
@@ -227,15 +232,15 @@
       "implementa": "endpoint → operación"
     },
     "estadisticas": {
-      "nodos": 386,
-      "aristas": 1087,
+      "nodos": 387,
+      "aristas": 1090,
       "por_tipo": {
         "proyecto": 1,
         "objetivo": 6,
         "restriccion": 5,
         "actor": 3,
         "tecnologia": 28,
-        "decision": 63,
+        "decision": 64,
         "hueco": 37,
         "amenaza": 13,
         "riesgo_aceptado": 14,
@@ -3984,7 +3989,7 @@
           "docs/api/openapi.yaml",
           "docs/api/README.md"
         ],
-        "version_contrato": "1.3.0"
+        "version_contrato": "1.4.0"
       }
     },
     {
@@ -3999,6 +4004,19 @@
           "solicitudes_por_dia": 5,
           "espera_tras_cambio_h": 24
         }
+      }
+    },
+    {
+      "id": "DEC-64",
+      "tipo": "decision",
+      "nombre": "Aviso de privacidad, términos y finalidades secundarias",
+      "descripcion": "Redactados con la rúbrica de Ética y Legislación en TI (2026-11-04): docs/legal/aviso-de-privacidad.md (9 apartados: responsable, datos, finalidades primarias y secundarias, encargados, ARCO con 20 días hábiles, cookies, seguridad, menores, cambios) y docs/legal/terminos-y-condiciones.md (8 apartados). Diseño en la página «Legal» de Figma. Finalidades secundarias (novedades y encuestas) con casilla opcional desmarcada en Crear cuenta y un interruptor en Ajustes para retirarla: marketingOptIn en register, Account y PATCH /account (contrato 1.4.0). En la app se muestran con un resumen al inicio y secciones plegables. Faltan datos del equipo: nombres, correo de privacidad, proveedor de hosting y confirmar los respaldos.",
+      "estado": "decidido",
+      "detalles": {
+        "archivos": [
+          "docs/legal/aviso-de-privacidad.md",
+          "docs/legal/terminos-y-condiciones.md"
+        ]
       }
     },
     {
@@ -9556,6 +9574,21 @@
     {
       "de": "DEC-63",
       "a": "DEC-61",
+      "relacion": "depende_de"
+    },
+    {
+      "de": "DEC-64",
+      "a": "DEC-36",
+      "relacion": "depende_de"
+    },
+    {
+      "de": "DEC-64",
+      "a": "DEC-61",
+      "relacion": "depende_de"
+    },
+    {
+      "de": "DEC-64",
+      "a": "DEC-13",
       "relacion": "depende_de"
     },
     {

@@ -1,6 +1,6 @@
 # Contrato de la API — End Security
 
-> Versión **1.3.0** · 2026-11-04 · Fuente de verdad del límite entre la app y el backend.
+> Versión **1.4.0** · 2026-11-04 · Fuente de verdad del límite entre la app y el backend.
 > La especificación máquina-legible es [`openapi.yaml`](openapi.yaml) (OpenAPI 3.1). Este documento explica las reglas
 > que el YAML no alcanza a expresar. Las decisiones vienen del grafo (`ai/context/knowledge-graph.json`): cada endpoint
 > es un nodo `EP-*` conectado a su operación `OP-*`.
@@ -162,6 +162,7 @@ de la app a la API de Have I Been Pwned (DEC-21) y nunca pasa por el backend.
 | 1.1.0 | 2026-10-22 | El quinto fallo de `login`/2FA responde 429 directamente; el código de correo dura 15 min |
 | 1.2.0 | 2026-10-22 | `GET /vault/items/{id}` (EP-26) para resolver conflictos; subida de un elemento por petición |
 | 1.3.0 | 2026-11-04 | Límites del cambio de correo: 3 solicitudes por hora y 5 por día, y 24 h entre cambios completados; el correo nuevo debe ser distinto del actual tras normalizar, si no `400 validation_failed` (DEC-63). Sin cambios de formato |
+| 1.4.0 | 2026-11-04 | `marketingOptIn` (finalidades secundarias del aviso de privacidad, DEC-64): opcional en `register` (falso por defecto), en `Account` y en `PATCH /account`, que ahora acepta `displayName`, `marketingOptIn` o ambos. Compatible con clientes anteriores. Cambio de correo: EP-16 responde igual con el correo ocupado que con uno libre, y el correo se encola tras el COMMIT con la misma latencia visible |
 
 ## Cómo cambiar el contrato
 1. Se propone el cambio en `openapi.yaml` y en este archivo, y se sube la versión: menor si se agrega algo compatible, mayor si se rompe algo.
