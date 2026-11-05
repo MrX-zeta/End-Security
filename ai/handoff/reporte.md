@@ -1,69 +1,96 @@
-# Reporte · Tarea 22 · Legal y ayuda (PEND-12; DEC-64; contrato 1.4.0)
+# Reporte · Tarea 23 · Toques finales: legal, detalles de uso y brechas del backend
 
 **Estado:** hecha
-**Fecha:** 2026-11-04
+**Fecha:** 2026-11-05
 
-**REQUIERE REVISIÓN HUMANA:** el registro (`RegisterRequest`, `AuthRepository.register`, `AuthRepositoryImpl`, `AuthApiImpl`) ahora lleva `marketingOptIn` hasta el servidor, y `AccountApi` ganó `updateMarketingOptIn` (PATCH). No toca crypto, sesión ni SQL, pero es autenticación y consentimiento (DEC-64): conviene pasarlo por `security-reviewer`. El **Paso 0** (`SecureScreen` en el código de cambiar correo) también queda para revisión.
+**REQUIERE REVISIÓN HUMANA:** los pasos 1 y 3 tocan el registro (`marketingOptIn`), el consentimiento (`PATCH /account`), `SecureScreen` y la pila de navegación con secretos (`TabNavigation`). Pasaron por `security-reviewer` (ver abajo): **sin hallazgos altos**, 3 medios y 5 bajos; los tres medios y tres de los bajos quedaron corregidos.
 
-El `docs:` de esta tarea (textos legales, contrato 1.4.0, alcance del backend, grafo v1.7.0) ya se había subido antes (`07684af`).
+Antes de empezar se subió en un commit aparte (`docs:`, `5d8ac36`) lo que el equipo había completado en `docs/legal/*.md` y `revisiones-pendientes.md`.
 
 ## Qué se hizo
 
-### Paso 0 · `SecureScreen` en el código de cambiar correo
-`EmailCodeScreen` (paso del código de `ChangeEmailScreen.kt`) llama a `SecureScreen()`: el código de un solo uso y el correo nuevo ya no salen en capturas ni en recientes. El paso del correo no lo lleva (no hay secretos; la contraseña solo vive en la hoja de reautenticación, que ya oculta su contenido).
+### Paso 1 · Datos reales (E4)
+- `LegalInfo`: `PRIVACY_EMAIL = endsecurity.privacidad@gmail.com`; **nuevos** `SUPPORT_EMAIL = endsecurity.soporte@gmail.com` y `SUPPORT_SUBJECT = «Soporte End Security»`. «Reportar un problema de seguridad» sigue yendo a `PRIVACY_EMAIL`.
+- **Acerca de:** fila nueva **«Soporte»** (`ACTION_SENDTO`, destinatario y asunto fijos, sin cuerpo).
+- **Prueba (`LegalPlaceholdersTest`):** ni los dos documentos, ni `strings.xml`, ni los textos de licencias contienen `[privacidad@correo.com]` ni `[Nombre completo`; los documentos nombran a los dos responsables y el canal. El único marcador que queda es el del proveedor de hosting.
 
-### Paso 1 · Documentos legales (`feature/settings/ui/legal/`)
-- **Gradle `copyLegalDocs`** (en `app/build.gradle.kts`, ligada a `preBuild`) copia `docs/legal/*.md` a `assets/legal/`; la copia está en `.gitignore`, así que `docs/legal/` sigue siendo la única fuente.
-- **`LegalMarkdown`** (renderizador mínimo, solo lo que usan los dos documentos): `#` título, línea de fecha, `##` secciones, línea completa en `**negritas**` como subtítulo, negritas en línea, viñetas, listas numeradas y **tablas → una tarjeta por fila**. Lo que no reconoce queda como párrafo con su texto (nada se pierde). `## Resumen` va aparte.
-- **`LegalDocumentScreen` / `LegalDocumentSheet`** (mismo contenido): título, fecha, **tarjeta «Resumen» siempre abierta** (amarillo claro), «Abrir todo / Cerrar todo» y cada sección como **acordeón plegado**. Cada encabezado es un botón con `stateDescription` «Expandido / Contraído» para TalkBack. Las secciones abiertas sobreviven a girar la pantalla (son índices, nada sensible). Funciona **con y sin sesión** (la ruta no está tras `RequireUnlocked`).
+### Paso 2 · Comparado con Figma (`235:4976`, `236:5003`, `236:5063`)
+Descargué los tres frames a su tamaño real y los comparé con capturas del emulador. Diferencias corregidas:
+- **Barra superior con título** junto al botón de atrás («Aviso de privacidad», «Términos y condiciones»): `BackTopBar(title)`.
+- **Fecha:** «**End Security**» en negrita y el resto normal (el parser conserva las negritas: `metaSpans`).
+- **Resumen:** en Figma es el amarillo **sólido** `FFCB74` (= `primary`), no el amarillo claro del enunciado; se usó el de Figma.
+- **Títulos de sección:** planos sobre la página (sin tarjeta blanca), con el chevrón como único indicio del acordeón y una línea fina cuando están cerrados; el texto abierto queda como en Figma. Subtítulos en negrita, viñetas con el punto a 16 dp del texto y números en negrita, texto en `onSurfaceVariant` (`2F2F2F`).
+- **Tarjetas de encargados:** blancas, radio 16; la negrita solo donde la trae el texto (antes todo el título iba en negrita y los campos en gris pequeño).
+- **Crear cuenta con la casilla opcional:** coincide con Figma (casilla sin marcar, texto de dos líneas).
+- Se conservaron «Abrir todo / Cerrar todo» y el estado Expandido/Contraído (accesibilidad), que Figma no dibuja.
 
-### Paso 2 · Crear cuenta
-- Los enlaces de «Términos» y «Aviso de privacidad» abren el documento en una hoja sobre el formulario: lo escrito no se pierde.
-- Casilla nueva y **opcional**, sin marcar: «Quiero recibir novedades y encuestas de End Security (opcional)». No bloquea «Crear cuenta». `register` manda `marketingOptIn` (falso si no se marcó). Si el registro falla, la casilla conserva lo marcado.
+### Paso 3 · `security-reviewer`
+Revisó `marketingOptIn` en el registro, `updateMarketingOptIn`, el `SecureScreen` del código de correo y, por lo que se tocó hoy, la pila de pestañas y `VaultListViewModel`. **Verificó sin problema:** el consentimiento nace en falso y solo viaja `SignUpViewModel → register → DTO` (sin `SavedStateHandle`, Room ni logs); `ApiJson` no puede omitir un `true`; `EmailSyncingAccountApi` no filtra nada; todas las pantallas con códigos o secretos llevan `SecureScreen` o `SecureOn`; `SECRET_ROUTES` sale de la pila sin guardarse; `clearSavedTabStates` está en todos los caminos de bloqueo, cierre de sesión y cuenta eliminada.
 
-### Paso 3 · Ajustes
-- **Interruptor «Novedades y encuestas»** en la tarjeta Cuenta (después de «Actividad reciente»): toda la fila es un interruptor (`Role.Switch`). Valor: `getAccount().marketingOptIn`; al tocarlo, `PATCH /account { marketingOptIn }` con el cambio visible al instante. **Si falla (sin red o error), vuelve a su valor y avisa con el mensaje genérico** (`auth_error_generic`). Sin valor conocido se ve apagado y **deshabilitado**; mientras guarda no se puede volver a tocar. Se recarga al entrar y al volver a la pantalla.
-- **Grupo «Legal y ayuda»** con `ListCard` / `ListRowIcon` e íconos que ya existían: Términos y condiciones, Aviso de privacidad, Licencias, Acerca de.
-- **Licencias:** lista fija en `Licenses.kt` (AndroidX/Compose, Material 3, Hilt/Dagger, Kotlin/kotlinx, zxcvbn, Bouncy Castle, Montserrat y Pwned Passwords) y, al tocar una fila, hoja con el texto completo desde `assets/licenses/` (`apache-2.0.txt`, `mit.txt`, `cc-by-4.0.txt` nuevos; `montserrat/OFL.txt` ya estaba).
-- **Acerca de:** nombre, `BuildConfig.VERSION_NAME`, línea académica, crédito de HIBP (CC BY 4.0), **«Reportar un problema de seguridad»** (`ACTION_SENDTO`, destinatario `LegalInfo.PRIVACY_EMAIL`, asunto «Reporte de seguridad», sin cuerpo) y enlace al repositorio. Si no hay app que lo abra, `MessageBar` «No hay una app para abrirlo en este teléfono.».
-- Rutas nuevas `LICENSES` y `ABOUT` en `AppNavHost`.
-- **`LegalInfo`**: una sola constante `PRIVACY_EMAIL = "[privacidad@correo.com]"` (se dejó el marcador tal cual, igual que en los documentos).
+| Hallazgo | Severidad | Qué se hizo |
+|---|---|---|
+| M1 · el interruptor de «Novedades y encuestas» podía mostrar un valor distinto del servidor (una lectura atrasada pisaba el cambio; con la respuesta del PATCH perdida se revertía aunque el servidor lo hubiera aplicado) | Media | **Corregido:** contador de generación que descarta las lecturas anteriores a un cambio y relectura del servidor tras un fallo o una respuesta distinta de la pedida. 2 pruebas nuevas. |
+| M2 · `HealthViewModel` (ahora vivo con `saveState`) no se vaciaba al bloquear con la pantalla en segundo plano | Media | **Corregido:** `SharingStarted.Lazily` y `combine(session.state)` que lo vacía en `Locked`. Prueba nueva. |
+| M3 · el consentimiento enviado era el leído *dentro* del `launch`, no el de tocar «Crear cuenta»; la casilla seguía tocable mientras cargaba | Media | **Corregido:** se captura al tocar y la casilla no cambia mientras `isLoading`. Prueba nueva. |
+| B1 · el backend falso no era estricto en `PATCH /account` (`displayName:""` borraba, números y cadenas se aceptaban como valor) | Baja | **Corregido** y probado (7 casos). |
+| B2 · `AccountInfo.marketingOptIn = false` por defecto en el dominio | Baja | **Corregido:** sin valor por defecto. (La coordinación de versión del backend, que ya no decodifica `Account` sin `marketingOptIn`, queda en `brechas-backend.md` G-12/D-8.) |
+| B3 · sin red el interruptor se ve apagado y deshabilitado | Baja | **Se deja** como pide el enunciado de la tarea 22 («deshabilitado sin valor»); sí avisa cuando el servidor responde un valor distinto del pedido. |
+| B4 · `CodeField` sin `ExcludeFromAutofill` (Verificar correo, 2FA, código de correo) | Baja | **Se deja y se documenta:** son códigos de un solo uso con `SecureScreen` y teclado `NumberPassword`; `ContentType.SmsOtpCode` es deliberado (autocompletar desde el SMS/correo). |
+| B5 · la prueba de bloqueo copiaba el cuerpo de `navigateClearingStack` | Baja | **Corregido:** llama a la función real; casos nuevos de hijos no secretos y de estado guardado bajo la Bóveda. |
 
-### Contrato 1.4.0 (solo DTOs y backend falso)
-- `RegisterRequestDto.marketingOptIn` (no se escribe si es falso), `AccountDto.marketingOptIn` (obligatorio, como en el contrato) y `UpdateMarketingRequestDto`.
-- **Backend falso:** guarda `marketingOptIn` en el registro y lo devuelve en `Account`; `PATCH /account` acepta `displayName` y/o `marketingOptIn` (un cuerpo vacío o con campos desconocidos es 400; un campo ausente no se toca; `displayName: null` sí borra el nombre).
+### Paso 4 · Preparar la unión con el backend real (solo análisis)
+Clonado `develop` (`921cf2d`) en solo lectura fuera del repositorio. **`docs/api/brechas-backend.md`**: 13 brechas generales y la tabla de EP-01…EP-26 (contrato / backend hoy / falta) con 11 decisiones. En corto: el backend responde en `/api` (no `/v1`), con `{success,data}`, errores sin `code`, base64 estándar con relleno, `authHash`/`pvk`/`memoryKib`; el **registro responde 409** con un correo existente (rompe DEC-13) y no acepta `userId` (la AAD de la `protectedVaultKey` no puede incluirlo); la bóveda sube en **lote atómico** en vez de un elemento por petición; **no existen** 2FA, `PATCH /account`, sesiones (EP-23/24), `GET /vault/items/{id}`, cambio de contraseña ni eliminar cuenta. Solo `logout` (EP-09) es equivalente. **No se cambió el contrato ni `ApiTransport`.** Decisión que bloquea a la app: **D-4** (lote atómico vs. un elemento por petición).
+
+### Paso 5 · Detalles de uso (Redmi)
+1. **Aviso de la Bóveda** («N contraseñas necesitan atención · Ver»; el botón dice «Ver», no «Revisar»). Con la prueba de Compose a escala 1.3 y a 296 dp **no logré reproducir el texto debajo del botón** con el componente anterior, pero sí un defecto real: el botón quedaba **pegado arriba** de su caja de 48 dp, no centrado. `MessageBar` ahora es `Row` centrada con el texto en `weight(1f)` (máx. 2 líneas con acción) y el botón en su propia caja de ≥ 48 × 48 dp que se mide **antes** que el texto, así que no puede pasar por debajo. 3 pruebas (1×, 1.3×, 1.3× angosto).
+2. **Retraso al volver a la Bóveda.** *Qué era:* las pestañas usaban las transiciones por defecto del `NavHost`: un fundido de entrada de **700 ms** (la Bóveda ya no se recreaba: su ViewModel seguía vivo) y, además, la lista se volvía a descifrar entera si pasaban más de 5 s fuera (`WhileSubscribed(5 s)`). *Medición* (prueba `TabSwitchTimingTest`, reloj de animación de Compose, mediana de 5 vueltas Bóveda → Generador → Bóveda): **784 ms antes, 80 ms ahora**. *Qué se cambió:* las cuatro pestañas sin transición (`TabEnterNone/TabExitNone`), `saveState`/`restoreState` y `VaultListViewModel` con `Lazily` (la lista ya descifrada está en el primer cuadro; al bloquear se vacía sola). No medí con Layout Inspector ni trazas del sistema: la medición es de la animación, no del descifrado.
+3. **Pila de las pestañas** (`TabNavigation.kt`): `popUpTo(VAULT){saveState}`, `launchSingleTop`, `restoreState`. Atrás desde Salud, Generador o Ajustes vuelve a la Bóveda; desde la Bóveda sale de la app; dentro de una pestaña recorre su pila. Los destinos con secretos (`SECRET_ROUTES`: Generador, detalle y edición, conflictos, 2FA, contraseña maestra, correo, eliminar cuenta) **salen de la pila sin guardarse** antes de cambiar de pestaña, y `navigateClearingStack` olvida lo guardado (`clearSavedTabStates`) al bloquear o cerrar sesión. `TabNavigationTest`: 13 pruebas (cada caso del enunciado, estado conservado con los mismos ViewModels, secretos vaciados y bloqueo con la función real).
+4. **Barra inferior sin onda:** `selectable(indication = null)`, con `Role.Tab`, estado seleccionado y 76 × 54. Pruebas: la pestaña no cambia de píxeles al tocarla y mide ≥ 48 dp.
+5. **Teclado:** auditoría con **teclado real** (`KeyboardAuditTest`, captura de pantalla completa) a **412 × 891** y **360 × 640**. Tabla abajo.
+6. **Salud sin conexión:** la línea solo dice «Revisado hoy/ayer a las HH:MM» o «Sin revisar»; «Revisar ahora» va como botón de texto (≥ 48 dp) **en su propia línea**; al tocarlo sin red sale `MessageBar` «Sin conexión. Te mostramos la última revisión.» y lo no revisado sigue como «N contraseñas sin revisar todavía». Quitado «· sin conexión» de la línea. Pruebas: ViewModel (con y sin red, la bandera vieja no avisa) y Compose (escala 1.3: el botón queda debajo de la fecha y en una sola línea).
+
+#### Tabla del teclado (vista · ¿tenía problema? · qué se cambió)
+
+| Vista | ¿Problema? | Cambio |
+|---|---|---|
+| Iniciar sesión | No a 412; a 360 «Entrar» queda en el borde y se alcanza desplazando | Ninguno (ya acomodaba el formulario) |
+| Crear cuenta | No: cuatro campos, el botón se alcanza desplazando | Campos con `keepVisibleWhenFocusedWithKeyboard` |
+| Verificar correo | **Sí:** «Verificar» quedaba a medias bajo el teclado | Se oculta el disco decorativo con el teclado abierto; el botón se acomoda solo |
+| 2FA del acceso | **Sí:** «Continuar» a medias | Igual |
+| Código de respaldo | **Sí:** campo cortado y botón fuera | Igual |
+| Desbloquear | **Sí:** campo cortado y botón oculto; a 360 solo se veía la cabecera | Cabecera compacta con teclado; **huella debajo de «Desbloquear»** y oculta con el teclado; el acomodo espera la altura final del teclado |
+| Nueva contraseña | No (el botón «Guardar» es fijo y se ve; la burbuja «See more features» es de Gboard) | Ninguno |
+| Búsqueda de la Bóveda | No: el campo queda a la vista, la lista se desplaza | Ninguno |
+| Contraseña maestra | **Sí:** la barra inferior se quedaba encima del teclado | Barra oculta con teclado (`FlowScaffold`) |
+| Correo (nuevo) | **Sí:** idem | Idem |
+| Correo (código) | **Sí:** botón a medias; la captura sale negra por `SecureScreen` (Paso 0) | Disco oculto, botón acomodado |
+| 2FA, paso 2 (código) | **Sí:** barra inferior encima | Barra oculta |
+| Eliminar cuenta | **Sí:** barra inferior y campo a medias | Barra oculta |
+| Hoja de reautenticación | A 412 no; la prueba inicial no usaba el `imePadding` real | Se audita la hoja real (`ReauthSheet`) |
+| Generador | Sin campos de texto | — |
+
+Resultado: **14 de 14** pasan a 412 × 891 (campo y botón completos y a la vista, sin desplazar, salvo Crear cuenta) y **14 de 14** a 360 × 640. **Límite conocido a 360 × 640:** en Contraseña maestra, Código de respaldo y la hoja de reautenticación el campo enfocado queda **rozando ~16 dp contra el borde del área desplazable**; sigue visible y se alcanza desplazando, y la auditoría solo exige a 640 dp que se vea y se alcance. Con ~250 dp útiles tras el teclado no cabe todo sin desplazar.
 
 ## Pruebas (salida real)
-- **`testDebugUnitTest`: sin fallas.** Nuevas:
-  - `LegalMarkdownTest` (18): cada elemento, negritas en línea (incluida la sin pareja), tabla → tarjetas, `## Resumen` aparte, saltos `\r\n` y los dos documentos reales de `docs/legal`.
-  - `SettingsViewModelTest` (+7): valor del servidor, sin red (sin valor y tocarlo no hace nada), activar y desactivar, **fallo → vuelve a su valor y avisa**, segundo toque mientras guarda y recarga al volver.
-  - `SignUpViewModelTest` (+4): casilla sin marcar y opcional, registro con `marketingOptIn` falso / verdadero y la casilla se conserva si falla.
-  - `MarketingOptInAgainstFakeServerTest` (6, contra el backend falso): registro con y sin casilla, PATCH activa/retira, nombre y marketing independientes, los dos campos juntos y el 400 de cuerpo vacío o desconocido.
-  - `DtoContractTest`: el ejemplo de la cuenta ahora trae `marketingOptIn` (lo exige el contrato 1.4.0) y una prueba nueva de lo que se serializa.
-- **Compose** (en el emulador): `LegalScreensTest` (8: resumen abierto y secciones plegadas, abrir una sección, «Abrir todo / Cerrar todo», semántica Expandido/Contraído, los dos documentos reales sin sesión, Licencias con su hoja de texto, textos de licencia presentes en assets, Acerca de y el intent del correo), `SettingsScreenTest` (16; +6 del interruptor y de «Legal y ayuda»; la prueba del interruptor de huella ahora lo distingue del nuevo por su texto) y `FormErrorsScreenTest` (6; +2 de la casilla opcional). Las 30 de estos tres archivos pasaron en el emulador.
-- `lintDebug` sin errores y `assembleRelease` compila.
-- **`connectedDebugAndroidTest` completa, en dos tandas** (el emulador se cae en una sola corrida larga): **202 pruebas, 0 fallas** (5 omitidas, las de huella sin sensor), sin contar `ClipboardDeviceTest`.
-  - Tanda 1 (`feature.account`, `feature.activity`, `feature.auth`, `navigation`): 107. Una prueba de `TwoFactorScreensTest` falló por tiempo de espera de `PixelCopy` al capturar una hoja y luego el emulador se cayó («System has crashed»); tras reiniciarlo la clase pasó completa (15/15).
-  - Tanda 2 (`core`, `feature.health`, `feature.settings`, `feature.vault`): 95 sin `ClipboardDeviceTest`.
-  - **`ClipboardDeviceTest`: 2 de 4 fallan** («expected end-security:abc but was host clipboard»): es **E3** (el emulador comparte el portapapeles con el equipo); sigue pendiente de `revisiones-pendientes.md`, no es de esta tarea. No corrí `ExampleInstrumentedTest` por separado.
+- `testDebugUnitTest`: sin fallas. Nuevas: `LegalPlaceholdersTest` (3), `HealthViewModelTest` (+3), `SettingsViewModelTest` (+2), `SignUpViewModelTest` (+1), `MarketingOptInAgainstFakeServerTest` (+1), `LegalMarkdownTest` (+1, `metaSpans`).
+- Compose / dispositivo nuevas: `TabNavigationTest` (13), `TabSwitchTimingTest` (2), `KeyboardAuditTest` (14, a dos tamaños), `MessageBarTest` (3), `BottomNavBarTest` (+2), `HealthScreensTest` (+2), `LegalScreensTest` (9; Soporte y los documentos con barra y «Abrir todo»).
+- `lintDebug`: sin errores (había uno real: `TabNavigation` usaba `NavController.currentBackStack`, API restringida; ahora usa `getBackStackEntry`). `assembleRelease`: compila.
+- **`connectedDebugAndroidTest` completa, en cinco tandas** (el emulador se cae en corridas largas y hubo que reiniciarlo): **243 pruebas, 0 fallas**, 5 omitidas (huella sin sensor): `feature.account` 58, `feature.activity` 25, `feature.auth` + `navigation` 39, `core` 55, `feature.health` + `settings` + `vault` 52, y `KeyboardAuditTest` 14 (a 412 × 891 y a 360 × 640). No corrí `ExampleInstrumentedTest`. Una prueba mía nueva (`TabNavigationTest`, bloqueo con hijos de la Bóveda) falló en la primera tanda por un error de la propia prueba (comparaba contra una entrada que no se reabría); se corrigió y pasa (13 de 13).
+- **`ClipboardDeviceTest` pasó 4 de 4 esta vez**, pero **E3 sigue pendiente**: no se desactivó «Enable clipboard sharing» (la corrida anterior fallaba por eso). `KeyboardAuditTest` se corrió por última vez antes de las correcciones del revisor, que no tocan ninguna pantalla.
 
-## En el emulador
-Capturas de las pruebas de Compose (Aviso de privacidad real con acordeones, documento abierto con «Cerrar todo», Licencias, Acerca de, Ajustes con el interruptor y «Legal y ayuda», Crear cuenta con la casilla) revisadas a ojo; la viñeta quedaba demasiado separada del texto y se redujo su espacio.
-
-**Figma — pendiente:** la página **«Legal»** no se puede alcanzar desde el MCP (el archivo solo expone el lienzo «Minimalista» hasta los frames de la tarea 21). Las vistas se hicieron con el enunciado de la tarea y los componentes del sistema de diseño; **no están comparadas con Figma**. Necesito los ids de nodo de la página «Legal» para compararlas con los acordeones abiertos.
+## Cómo reproducir la auditoría del teclado
+El AVD `Pixel_7_Pro` se puso en `hw.keyboard = no` (si no, el emulador no muestra el teclado en pantalla). Tamaño pequeño: `adb shell wm size 1080x1920; adb shell wm density 480`; volver con `wm size reset; wm density reset`. Las capturas quedan en `cache/captures/teclado-<vista>-<ancho>x<alto>.png` de la app.
 
 ## Decisiones y desviaciones a revisar
-- Los nombres de los componentes de terceros en `Licenses.kt` son nombres propios y viven en el código (no en `strings.xml`); los textos de la pantalla, sí.
-- El texto de `cc-by-4.0.txt` es el aviso de atribución con un resumen de la licencia y el enlace al texto legal completo, no el texto legal íntegro.
-- El marcador `[privacidad@correo.com]` y los `[Nombre completo del integrante …]` de los documentos se dejaron como están hasta que el equipo ponga los datos reales (**E4 pendiente del equipo**).
-- «Novedades y encuestas» va en la tarjeta Cuenta, después de «Actividad reciente».
-- Un `PATCH /account` con `displayName` ausente no toca el nombre (distinto de `null`, que lo borra); el backend real debe hacer lo mismo.
-
-## Pruebas manuales que no hice
-Abrir «Reportar un problema de seguridad» y el repositorio con una app de correo / navegador reales; recorrer Crear cuenta → documento → volver con la app real (las pruebas de Compose cubren la pantalla, no el flujo completo, porque la prueba de la app real se cuelga, ver tarea 13).
+- El resumen es el amarillo sólido de Figma, no el «amarillo claro» del enunciado.
+- Las secciones de los documentos son títulos planos con chevrón (como Figma abierto), no tarjetas blancas.
+- «Ver» (no «Revisar») es el botón del aviso de la Bóveda.
+- `ItemEditScreen` y `FormFields` pasaron de `private` a `internal` para poder auditarlos.
+- Las capturas de pantalla completa de la auditoría de las vistas con `SecureScreen` salen negras (FLAG_SECURE); la comprobación numérica sí aplica.
+- Lo pendiente del equipo: **E3** (`ClipboardDeviceTest` con el portapapeles compartido desactivado), el proveedor de hosting en el aviso, y decidir **D-4** del backend.
 
 ## Vistas / cambios (cómo llegar)
-- **Documentos legales:** Crear cuenta → «Términos» o «Aviso de privacidad» (hoja); Ajustes → «Legal y ayuda» → «Términos y condiciones» / «Aviso de privacidad» (pantalla).
-- **Casilla de novedades:** Crear cuenta, debajo de la casilla de términos.
-- **Interruptor «Novedades y encuestas»:** Ajustes → tarjeta «Cuenta».
-- **Licencias y Acerca de:** Ajustes → «Legal y ayuda».
+- **Soporte:** Ajustes → «Legal y ayuda» → «Acerca de» → «Soporte».
+- **Documentos con barra y estilo de Figma:** Ajustes → «Legal y ayuda» → «Términos y condiciones» / «Aviso de privacidad».
+- **Salud sin conexión:** pestaña Salud, tocar «Revisar ahora» sin red.
+- **Teclado:** abrir cualquier vista con campos (Desbloquear, Verificar correo, Contraseña maestra…) y subir el teclado.
