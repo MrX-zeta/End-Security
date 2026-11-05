@@ -38,6 +38,8 @@ class FakeUser(
     var vaultRevision: Long = 0,
     var purgedThroughRevision: Long = 0,
     var deleted: Boolean = false,
+    /** Finalidades secundarias del aviso de privacidad (DEC-64). */
+    var marketingOptIn: Boolean = false,
     var verification: FakeVerification? = null,
     var twoFactor: FakeTwoFactor? = null,
     var twoFactorFailures: Int = 0,

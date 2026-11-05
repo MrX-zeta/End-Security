@@ -38,6 +38,12 @@ class SettingsRepositoryImpl @Inject constructor(
     override suspend fun twoFactorEnabled(): Boolean? =
         (accountApi.getAccount() as? ApiResult.Success)?.value?.twoFactorEnabled
 
+    override suspend fun marketingOptIn(): Boolean? =
+        (accountApi.getAccount() as? ApiResult.Success)?.value?.marketingOptIn
+
+    override suspend fun setMarketingOptIn(optIn: Boolean): Boolean? =
+        (accountApi.updateMarketingOptIn(optIn) as? ApiResult.Success)?.value?.marketingOptIn
+
     override suspend fun deviceCount(): Int? = (sessionApi.listSessions() as? ApiResult.Success)?.value?.size
 
     override suspend fun unsyncedCount(): Int = items.unsyncedCount()

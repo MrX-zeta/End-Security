@@ -30,7 +30,7 @@ class DtoContractTest {
          "displayName":null,"keyVersion":1,
          "kdf":{"algorithm":"argon2id","memoryKiB":65536,"iterations":3,"parallelism":1,"salt":"AAECAwQFBgcICQoLDA0ODw"},
          "protectedVaultKey":{"nonce":"AAAAAAAAAAAAAAAA","ciphertext":"${"A".repeat(64)}"},
-         "twoFactorEnabled":false}
+         "twoFactorEnabled":false,"marketingOptIn":true}
     """.trimIndent()
 
     @Test
@@ -49,7 +49,25 @@ class DtoContractTest {
         assertEquals(16, account.kdf.salt.size)
         assertEquals(48, account.protectedVaultKey.ciphertext.size)
         assertNull(account.displayName)
+        assertTrue(account.marketingOptIn)
         assertEquals(900, dto.tokens!!.toDomain().accessTokenExpiresInSeconds)
+    }
+
+    @Test
+    fun `el registro envia marketingOptIn solo cuando es verdadero y el PATCH lo lleva siempre`() {
+        // `ApiJson` no escribe los valores por defecto: sin marcar, el cuerpo del registro queda como en 1.3.0.
+        fun request(optIn: Boolean) = RegisterRequestDto(
+            userId = "0b9f3c2e-5d1a-4f7e-9a2b-6c8d1e4f7a90",
+            email = "ana@correo.com",
+            authKey = "A".repeat(43),
+            kdf = KdfDto("argon2id", 65_536, 3, 1, "AAECAwQFBgcICQoLDA0ODw"),
+            protectedVaultKey = ProtectedVaultKeyDto("AAAAAAAAAAAAAAAA", "A".repeat(64)),
+            marketingOptIn = optIn,
+        )
+        assertFalse(ApiJson.encodeToString(RegisterRequestDto.serializer(), request(false)).contains("marketingOptIn"))
+        assertTrue(ApiJson.encodeToString(RegisterRequestDto.serializer(), request(true)).contains("\"marketingOptIn\":true"))
+        // El PATCH sí debe llevar el campo aunque sea falso: lo contrario sería un cuerpo vacío (400).
+        assertEquals("{\"marketingOptIn\":false}", ApiJson.encodeToString(UpdateMarketingRequestDto.serializer(), UpdateMarketingRequestDto(false)))
     }
 
     @Test

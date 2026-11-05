@@ -24,6 +24,12 @@ interface SettingsRepository {
     /** `AccountApi.getAccount().twoFactorEnabled`; `null` sin red o con error. */
     suspend fun twoFactorEnabled(): Boolean?
 
+    /** `AccountApi.getAccount().marketingOptIn` («Novedades y encuestas»); `null` sin red o con error. */
+    suspend fun marketingOptIn(): Boolean?
+
+    /** `PATCH /account { marketingOptIn }`: devuelve el valor que quedó en el servidor o `null` si falló (no se guarda nada local). */
+    suspend fun setMarketingOptIn(optIn: Boolean): Boolean?
+
     /** Número de dispositivos con sesión (`SessionApi.listSessions()`); `null` si falla. */
     suspend fun deviceCount(): Int?
 

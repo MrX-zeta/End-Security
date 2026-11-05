@@ -76,6 +76,7 @@ import com.luis.end_security.core.security.BiometricPromptFailure
 import com.luis.end_security.core.security.BiometricPromptTexts
 import com.luis.end_security.core.security.authenticateWithCipher
 import com.luis.end_security.core.security.findFragmentActivity
+import com.luis.end_security.feature.settings.ui.legal.LegalDocument
 import kotlinx.coroutines.delay
 
 /** SCR-29 · Ajustes (pestaña). No muestra secretos: no lleva `SecureScreen`. */
@@ -90,6 +91,9 @@ fun SettingsRoute(
     onOpenActivity: () -> Unit = {},
     onOpenDeleteAccount: () -> Unit = {},
     onOpenChangeEmail: () -> Unit = {},
+    onOpenLegalDocument: (LegalDocument) -> Unit = {},
+    onOpenLicenses: () -> Unit = {},
+    onOpenAbout: () -> Unit = {},
     /** El correo nuevo al volver de cambiarlo (vacío = nada). */
     emailChanged: String = "",
     onEmailChangedShown: () -> Unit = {},
@@ -166,6 +170,9 @@ fun SettingsRoute(
         onOpenChangePassword = onOpenChangePassword,
         onOpenDevices = onOpenDevices,
         onOpenActivity = onOpenActivity,
+        onOpenLegalDocument = onOpenLegalDocument,
+        onOpenLicenses = onOpenLicenses,
+        onOpenAbout = onOpenAbout,
     )
 }
 
@@ -178,6 +185,9 @@ fun SettingsScreen(
     onOpenChangePassword: () -> Unit = {},
     onOpenDevices: () -> Unit = {},
     onOpenActivity: () -> Unit = {},
+    onOpenLegalDocument: (LegalDocument) -> Unit = {},
+    onOpenLicenses: () -> Unit = {},
+    onOpenAbout: () -> Unit = {},
 ) {
     Column(modifier = modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         Box(modifier = Modifier.weight(1f)) {
@@ -284,6 +294,8 @@ fun SettingsScreen(
                         onClick = onOpenActivity,
                     )
                     ListRowDivider()
+                    MarketingRow(state = state, onToggle = { onAction(SettingsAction.MarketingToggled(it)) })
+                    ListRowDivider()
                     SettingsRow(
                         icon = R.drawable.ic_log_out_20,
                         label = stringResource(R.string.settings_sign_out),
@@ -297,6 +309,36 @@ fun SettingsScreen(
                         value = null,
                         danger = true,
                         onClick = { onAction(SettingsAction.DeleteAccountClicked) },
+                    )
+                }
+                SectionLabel(stringResource(R.string.settings_section_legal))
+                ListCard {
+                    SettingsRow(
+                        icon = R.drawable.ic_file_text_20,
+                        label = stringResource(R.string.settings_legal_terms),
+                        value = null,
+                        onClick = { onOpenLegalDocument(LegalDocument.Terms) },
+                    )
+                    ListRowDivider()
+                    SettingsRow(
+                        icon = R.drawable.ic_shield_check_22,
+                        label = stringResource(R.string.settings_legal_privacy),
+                        value = null,
+                        onClick = { onOpenLegalDocument(LegalDocument.Privacy) },
+                    )
+                    ListRowDivider()
+                    SettingsRow(
+                        icon = R.drawable.ic_globe_20,
+                        label = stringResource(R.string.settings_legal_licenses),
+                        value = null,
+                        onClick = onOpenLicenses,
+                    )
+                    ListRowDivider()
+                    SettingsRow(
+                        icon = R.drawable.ic_info_20,
+                        label = stringResource(R.string.settings_legal_about),
+                        value = null,
+                        onClick = onOpenAbout,
                     )
                 }
             }
@@ -343,6 +385,7 @@ private fun NoticeBar(notice: SettingsNotice?, modifier: Modifier = Modifier) {
                     NoticeKind.PasswordChanged -> R.string.cp_changed
                     NoticeKind.BiometricOff -> R.string.cp_biometric_off
                     NoticeKind.EmailChanged -> R.string.settings_email_changed
+                    NoticeKind.MarketingFailed -> R.string.auth_error_generic
                 },
             ),
             icon = R.drawable.ic_info_20,
@@ -427,6 +470,46 @@ private fun BiometricRow(state: SettingsUiState, onToggle: (Boolean) -> Unit) {
         Switch(
             checked = state.biometricEnabled,
             onCheckedChange = null,
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = MaterialTheme.colorScheme.onSurface,
+                checkedTrackColor = MaterialTheme.colorScheme.primary,
+                checkedBorderColor = MaterialTheme.colorScheme.primary,
+                uncheckedThumbColor = MaterialTheme.colorScheme.onSurface,
+                uncheckedTrackColor = MaterialTheme.colorScheme.background,
+                uncheckedBorderColor = MaterialTheme.colorScheme.outline,
+            ),
+        )
+    }
+}
+
+/**
+ * «Novedades y encuestas» (DEC-64): interruptor del servidor. Sin valor (sin red) se ve apagado y deshabilitado; mientras se guarda,
+ * no se puede volver a tocar. Toda la fila se activa y TalkBack la anuncia como interruptor.
+ */
+@Composable
+private fun MarketingRow(state: SettingsUiState, onToggle: (Boolean) -> Unit) {
+    val checked = state.marketingOptIn == true
+    val enabled = state.marketingOptIn != null && !state.marketingBusy
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 56.dp)
+            .toggleable(value = checked, enabled = enabled, role = Role.Switch, onValueChange = onToggle)
+            .padding(vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        ListRowIcon(R.drawable.ic_mail_20, danger = false)
+        Text(
+            text = stringResource(R.string.settings_marketing),
+            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.weight(1f),
+        )
+        Switch(
+            checked = checked,
+            onCheckedChange = null,
+            enabled = enabled,
             colors = SwitchDefaults.colors(
                 checkedThumbColor = MaterialTheme.colorScheme.onSurface,
                 checkedTrackColor = MaterialTheme.colorScheme.primary,

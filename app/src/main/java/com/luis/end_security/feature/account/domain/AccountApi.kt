@@ -10,6 +10,9 @@ interface AccountApi {
     /** EP-14 `PATCH /account`. `null` borra el nombre visible. */
     suspend fun updateDisplayName(displayName: String?): ApiResult<AccountInfo>
 
+    /** EP-14 `PATCH /account { marketingOptIn }`: acepta o retira las finalidades secundarias (DEC-64). */
+    suspend fun updateMarketingOptIn(optIn: Boolean): ApiResult<AccountInfo>
+
     /** EP-15 `POST /account/email`: 202 aunque el correo nuevo ya exista. */
     suspend fun requestEmailChange(newEmail: String, reauth: Reauth): ApiResult<Unit>
 

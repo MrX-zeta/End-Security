@@ -10,6 +10,7 @@ import com.luis.end_security.core.network.dto.AccountDto
 import com.luis.end_security.core.network.dto.AcceptedDto
 import com.luis.end_security.core.network.dto.CodeRequestDto
 import com.luis.end_security.core.network.dto.EmailChangeRequestDto
+import com.luis.end_security.core.network.dto.UpdateMarketingRequestDto
 import com.luis.end_security.core.network.dto.KeyVersionDto
 import com.luis.end_security.core.network.dto.MasterPasswordRequestDto
 import com.luis.end_security.core.network.dto.ReauthDto
@@ -34,6 +35,11 @@ class AccountApiImpl @Inject constructor(
 
     override suspend fun updateDisplayName(displayName: String?): ApiResult<AccountInfo> = client.call(
         "PATCH", "/account", UpdateAccountRequestDto(displayName), UpdateAccountRequestDto.serializer(),
+        AccountDto.serializer(), true,
+    ) { it.toDomain() }
+
+    override suspend fun updateMarketingOptIn(optIn: Boolean): ApiResult<AccountInfo> = client.call(
+        "PATCH", "/account", UpdateMarketingRequestDto(optIn), UpdateMarketingRequestDto.serializer(),
         AccountDto.serializer(), true,
     ) { it.toDomain() }
 

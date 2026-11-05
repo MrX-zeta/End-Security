@@ -26,6 +26,9 @@ import javax.inject.Inject
 /** Avisos breves al pie de Ajustes. */
 enum class NoticeKind {
     NeedsConnection, NeedsConnectionToDelete, NeedsConnectionToChangeEmail, TwoFactorDisabled, PasswordChanged, BiometricOff, EmailChanged,
+
+    /** No se pudo guardar «Novedades y encuestas»: el interruptor volvió a su valor. */
+    MarketingFailed,
 }
 
 /** [id] cambia en cada aviso, para que dos iguales seguidos vuelvan a mostrarse. */
@@ -37,6 +40,10 @@ data class SettingsUiState(
     /** `null` sin red o con error: la fila solo muestra la flecha. */
     val twoFactorEnabled: Boolean? = null,
     val deviceCount: Int? = null,
+    /** «Novedades y encuestas» (DEC-64): `null` sin red o con error; entonces el interruptor se muestra apagado y deshabilitado. */
+    val marketingOptIn: Boolean? = null,
+    /** Se está guardando el cambio: el interruptor no se vuelve a tocar hasta que responda el servidor. */
+    val marketingBusy: Boolean = false,
     /** Hay sensor biométrico: sin él, la fila no se muestra. */
     val biometricRowVisible: Boolean = false,
     val biometricEnabled: Boolean = false,
@@ -74,6 +81,9 @@ sealed interface SettingsAction {
     data class AutoLockSelected(val minutes: Int) : SettingsAction
     data object AutoLockDismissed : SettingsAction
     data class BiometricToggled(val enable: Boolean) : SettingsAction
+
+    /** El interruptor «Novedades y encuestas»: se guarda en el servidor; si falla, vuelve a su valor y avisa. */
+    data class MarketingToggled(val enable: Boolean) : SettingsAction
 
     /** El `BiometricPrompt` aceptó la huella con este `Cipher` ya autenticado. */
     class BiometricAuthenticated(val cipher: Cipher) : SettingsAction {
@@ -144,6 +154,33 @@ class SettingsViewModel @Inject constructor(
         // Con red: los dos valores de la cuenta. Sin ella se quedan sin valor.
         refreshTwoFactor()
         refreshDeviceCount()
+        refreshMarketing()
+    }
+
+    /** El valor del servidor; sin red conserva el último conocido y mientras se guarda un cambio no pisa lo que se ve. */
+    private fun refreshMarketing() {
+        viewModelScope.launch {
+            val value = settings.marketingOptIn() ?: return@launch
+            _state.update { if (it.isSigningOut || it.marketingBusy) it else it.copy(marketingOptIn = value) }
+        }
+    }
+
+    /** PATCH del interruptor: se ve el cambio al instante y, si el servidor no lo confirma, se revierte con un aviso genérico. */
+    private fun toggleMarketing(enable: Boolean) {
+        val previous = _state.value.marketingOptIn ?: return
+        if (_state.value.marketingBusy || previous == enable) return
+        _state.update { it.copy(marketingOptIn = enable, marketingBusy = true) }
+        viewModelScope.launch {
+            val saved = try {
+                settings.setMarketingOptIn(enable)
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                null
+            }
+            _state.update { it.copy(marketingOptIn = saved ?: previous, marketingBusy = false) }
+            if (saved == null) notify(NoticeKind.MarketingFailed)
+        }
     }
 
     /** El número de dispositivos; sin red conserva el último conocido (al volver de «Dispositivos» se recarga). */
@@ -230,6 +267,7 @@ class SettingsViewModel @Inject constructor(
                 viewModelScope.launch { settings.setAutolockMinutes(action.minutes) }
             }
             is SettingsAction.BiometricToggled -> if (action.enable) enableBiometric() else disableBiometric()
+            is SettingsAction.MarketingToggled -> toggleMarketing(action.enable)
             is SettingsAction.BiometricAuthenticated -> completeEnable(action.cipher)
             SettingsAction.BiometricCancelled -> {
                 _state.update { it.copy(biometricBusy = false) }
@@ -246,6 +284,7 @@ class SettingsViewModel @Inject constructor(
                 refreshTwoFactor()
                 // Al volver de «Dispositivos» (cerró sesiones) el número se recarga.
                 refreshDeviceCount()
+                refreshMarketing()
             }
         }
     }

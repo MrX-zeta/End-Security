@@ -44,7 +44,7 @@ sealed interface UnlockOutcome {
  */
 interface AuthRepository {
     /** OP-11: genera `userId`, sal y `vault_key`, deriva las llaves y registra. */
-    suspend fun register(email: String, password: CharSequence): ApiResult<Unit>
+    suspend fun register(email: String, password: CharSequence, marketingOptIn: Boolean = false): ApiResult<Unit>
 
     /** OP-12: verifica el correo, guarda la sesión y abre la bóveda. */
     suspend fun verifyEmail(email: String, code: String): ApiResult<AuthStep>

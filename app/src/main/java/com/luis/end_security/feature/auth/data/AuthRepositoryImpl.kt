@@ -109,7 +109,7 @@ class AuthRepositoryImpl @Inject constructor(
 
     // --- Registro (OP-11, OP-12) ---
 
-    override suspend fun register(email: String, password: CharSequence): ApiResult<Unit> {
+    override suspend fun register(email: String, password: CharSequence, marketingOptIn: Boolean): ApiResult<Unit> {
         val normalizedEmail = normalizeEmail(email)
         // Se normaliza en el hilo que llama: el TextFieldState de la pantalla puede cambiar.
         val normalized = MasterPasswordNormalizer.normalize(password)
@@ -134,6 +134,7 @@ class AuthRepositoryImpl @Inject constructor(
                         authKey = it.authKey,
                         kdf = ServerKdf(params.memoryKiB, params.iterations, params.parallelism, salt),
                         protectedVaultKey = pvk,
+                        marketingOptIn = marketingOptIn,
                     ),
                 )
             }

@@ -23,8 +23,15 @@ import com.luis.end_security.core.designsystem.theme.EndSecurityTheme
 import com.luis.end_security.feature.auth.ui.login.LoginError
 import com.luis.end_security.feature.auth.ui.login.LoginScreen
 import com.luis.end_security.feature.auth.ui.login.LoginUiState
+import com.luis.end_security.feature.auth.ui.signup.SignUpAction
 import com.luis.end_security.feature.auth.ui.signup.SignUpScreen
 import com.luis.end_security.feature.auth.ui.signup.SignUpUiState
+import androidx.compose.ui.test.assertIsOff
+import androidx.compose.ui.test.assertIsOn
+import androidx.compose.ui.test.hasContentDescription
+import androidx.compose.ui.test.isToggleable
+import androidx.compose.ui.test.performClick
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -44,6 +51,8 @@ class FormErrorsScreenTest {
 
     private val context get() = InstrumentationRegistry.getInstrumentation().targetContext
 
+    private val signUpActions = mutableListOf<SignUpAction>()
+
     private fun renderSignUp(state: SignUpUiState) {
         composeRule.setContent {
             EndSecurityTheme {
@@ -56,7 +65,7 @@ class FormErrorsScreenTest {
                         onPasswordVisibleChange = {},
                         onConfirmationFocusLost = {},
                         onSubmit = {},
-                        onAction = {},
+                        onAction = { signUpActions += it },
                         onBack = {},
                         openedDocument = null,
                         onOpenLegalDocument = {},
@@ -99,6 +108,26 @@ class FormErrorsScreenTest {
         // Correo y contraseña quedan marcados como error para TalkBack.
         assertTrue(composeRule.onAllNodes(hasErrorSemantics()).fetchSemanticsNodes().size >= 2)
         capture("tarea15-crear-cuenta-errores")
+    }
+
+    @Test
+    fun crearCuentaTieneLaCasillaOpcionalDeNovedadesSinMarcarYSinError() {
+        renderSignUp(SignUpUiState())
+        val label = context.getString(R.string.signup_marketing)
+        composeRule.onNodeWithText(label).assertIsDisplayed()
+        val checkbox = composeRule.onNode(hasContentDescription(label) and isToggleable())
+        checkbox.assertIsOff()
+        // Opcional: sin marcar no hay ningún aviso de error por ella.
+        assertTrue(composeRule.onAllNodes(hasErrorSemantics()).fetchSemanticsNodes().isEmpty())
+        checkbox.performClick()
+        assertEquals(listOf<SignUpAction>(SignUpAction.MarketingOptInChanged(true)), signUpActions)
+        capture("tarea22-crear-cuenta-novedades")
+    }
+
+    @Test
+    fun crearCuentaMuestraLaCasillaDeNovedadesMarcadaCuandoElEstadoLoDice() {
+        renderSignUp(SignUpUiState(marketingOptIn = true))
+        composeRule.onNode(hasContentDescription(context.getString(R.string.signup_marketing)) and isToggleable()).assertIsOn()
     }
 
     @Test

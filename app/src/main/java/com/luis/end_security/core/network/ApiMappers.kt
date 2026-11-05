@@ -50,6 +50,7 @@ object ApiMappers {
         kdf = kdf.toDomain(),
         protectedVaultKey = protectedVaultKey.toDomain(),
         twoFactorEnabled = twoFactorEnabled,
+        marketingOptIn = marketingOptIn,
     )
 
     fun TokensDto.toDomain() = SessionTokens(

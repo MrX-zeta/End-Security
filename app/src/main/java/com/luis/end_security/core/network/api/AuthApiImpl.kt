@@ -45,6 +45,7 @@ class AuthApiImpl @Inject constructor(
             authKey = request.authKey.withBytes(Base64Url::encode),
             kdf = request.kdf.toDto(),
             protectedVaultKey = request.protectedVaultKey.toPvkDto(),
+            marketingOptIn = request.marketingOptIn,
         )
         return client.call("POST", "/auth/register", body, RegisterRequestDto.serializer(), AcceptedDto.serializer(), false) { }
     }

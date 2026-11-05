@@ -13,7 +13,13 @@ import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertIsOff
+import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.captureToImage
+import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
@@ -30,6 +36,7 @@ import com.luis.end_security.feature.settings.ui.AutoLockSheetContent
 import com.luis.end_security.feature.settings.ui.SettingsAction
 import com.luis.end_security.feature.settings.ui.SettingsScreen
 import com.luis.end_security.feature.settings.ui.SettingsUiState
+import com.luis.end_security.feature.settings.ui.legal.LegalDocument
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -63,12 +70,22 @@ class SettingsScreenTest {
         ),
     )
     private val actions = mutableListOf<SettingsAction>()
+    private val openedDocuments = mutableListOf<LegalDocument>()
+    private var licensesOpened = 0
+    private var aboutOpened = 0
 
     private fun render() {
         composeRule.setContent {
             EndSecurityTheme {
                 Box(Modifier.size(width = 412.dp, height = 917.dp)) {
-                    SettingsScreen(state = state, onAction = { actions += it }, onTabSelected = {})
+                    SettingsScreen(
+                        state = state,
+                        onAction = { actions += it },
+                        onTabSelected = {},
+                        onOpenLegalDocument = { openedDocuments += it },
+                        onOpenLicenses = { licensesOpened++ },
+                        onOpenAbout = { aboutOpened++ },
+                    )
                 }
             }
         }
@@ -124,10 +141,71 @@ class SettingsScreenTest {
     @Test
     fun elInterruptorEsUnaFilaConRolSwitchYAvisaAlTocar() {
         render()
-        val switchNode = SemanticsMatcher("rol Switch") { it.config.getOrNull(SemanticsProperties.Role) == Role.Switch }
+        val switchNode = SemanticsMatcher("rol Switch") { it.config.getOrNull(SemanticsProperties.Role) == Role.Switch } and
+            hasText(str(R.string.settings_biometric))
         composeRule.onNode(switchNode).assertIsDisplayed()
         composeRule.onNode(switchNode).performClick()
         assertTrue(actions.contains(SettingsAction.BiometricToggled(false)))
+    }
+
+    private fun marketingSwitch() =
+        composeRule.onNode(SemanticsMatcher("rol Switch") { it.config.getOrNull(SemanticsProperties.Role) == Role.Switch } and hasText(str(R.string.settings_marketing)))
+
+    @Test
+    fun novedadesYEncuestasEsUnInterruptorEnCuentaYEnviaSuAccion() {
+        state = state.copy(marketingOptIn = false)
+        render()
+        marketingSwitch().performScrollTo().assertIsDisplayed().assertIsEnabled().assertIsOff()
+        marketingSwitch().performClick()
+        assertTrue(actions.contains(SettingsAction.MarketingToggled(true)))
+    }
+
+    @Test
+    fun novedadesYEncuestasActivoSeAnunciaComoActivadoYAlTocarloPideApagarlo() {
+        state = state.copy(marketingOptIn = true)
+        render()
+        marketingSwitch().performScrollTo().assertIsOn()
+        marketingSwitch().performClick()
+        assertTrue(actions.contains(SettingsAction.MarketingToggled(false)))
+    }
+
+    @Test
+    fun novedadesYEncuestasSinValorSeVeApagadoYDeshabilitado() {
+        state = state.copy(marketingOptIn = null)
+        render()
+        marketingSwitch().performScrollTo().assertIsDisplayed().assertIsNotEnabled().assertIsOff()
+    }
+
+    @Test
+    fun novedadesYEncuestasMientrasSeGuardaNoSePuedeVolverATocar() {
+        state = state.copy(marketingOptIn = true, marketingBusy = true)
+        render()
+        marketingSwitch().performScrollTo().assertIsNotEnabled()
+    }
+
+    @Test
+    fun legalYAyudaMuestraSusCuatroFilasYCadaUnaAbreLoSuyo() {
+        render()
+        composeRule.onNodeWithText(str(R.string.settings_section_legal)).performScrollTo().assertIsDisplayed()
+        for (id in listOf(R.string.settings_legal_terms, R.string.settings_legal_privacy, R.string.settings_legal_licenses, R.string.settings_legal_about)) {
+            composeRule.onNodeWithText(str(id)).performScrollTo().assertIsDisplayed()
+        }
+        capture("tarea22-ajustes-legal-y-ayuda")
+        composeRule.onNodeWithText(str(R.string.settings_legal_terms)).performClick()
+        composeRule.onNodeWithText(str(R.string.settings_legal_privacy)).performClick()
+        composeRule.onNodeWithText(str(R.string.settings_legal_licenses)).performClick()
+        composeRule.onNodeWithText(str(R.string.settings_legal_about)).performClick()
+        assertEquals(listOf(LegalDocument.Terms, LegalDocument.Privacy), openedDocuments)
+        assertEquals(1, licensesOpened)
+        assertEquals(1, aboutOpened)
+    }
+
+    @Test
+    fun legalYAyudaSeVeConLaCuentaYSinElla() {
+        // Los documentos legales no dependen de la sesión: la sección está aunque falten todos los datos de la cuenta.
+        state = SettingsUiState()
+        render()
+        composeRule.onNodeWithText(str(R.string.settings_legal_terms)).performScrollTo().assertIsDisplayed()
     }
 
     @Test

@@ -66,6 +66,7 @@ class SignUpViewModel @Inject constructor(
             is SignUpAction.PasswordsChanged -> onPasswordsChanged(action.password, action.confirmation)
             SignUpAction.PasswordsCleared -> clearPasswordDerivedState()
             SignUpAction.ConfirmationFocusLost -> revealMismatchIfAny()
+            is SignUpAction.MarketingOptInChanged -> _state.update { it.copy(marketingOptIn = action.optIn) }
             is SignUpAction.TermsAcceptedChanged -> _state.update {
                 it.copy(termsAccepted = action.accepted, showTermsError = it.showTermsError && !action.accepted).withCanSubmit()
             }
@@ -208,7 +209,7 @@ class SignUpViewModel @Inject constructor(
             // OP-11: el repositorio genera la cuenta, deriva las llaves (Argon2 fuera del hilo
             // principal) y registra. La contraseña no se guarda en ningún lado.
             val email = _state.value.email.trim()
-            val result = auth.register(email, password)
+            val result = auth.register(email, password, _state.value.marketingOptIn)
             _state.update {
                 it.copy(
                     isLoading = false,

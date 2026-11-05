@@ -24,6 +24,9 @@ class FakeAuthRepository : AuthRepository {
 
     /** Las contraseñas recibidas, para comprobar que llega el texto del campo. */
     val passwords = mutableListOf<String>()
+
+    /** El `marketingOptIn` de cada `register` recibido. */
+    val marketingOptIns = mutableListOf<Boolean>()
     var pendingLoginCancelled = false
     var signedOut = false
 
@@ -34,7 +37,8 @@ class FakeAuthRepository : AuthRepository {
         gate?.await()
     }
 
-    override suspend fun register(email: String, password: CharSequence): ApiResult<Unit> {
+    override suspend fun register(email: String, password: CharSequence, marketingOptIn: Boolean): ApiResult<Unit> {
+        marketingOptIns += marketingOptIn
         calls += "register:$email"
         passwords += password.toString()
         waitGate()

@@ -55,6 +55,7 @@
     <string name="signup_mismatch">Las contraseñas no coinciden.</string>
     <string name="signup_notice">Es la única llave de tu bóveda. Si la olvidas, no podremos recuperarla.</string>
     <!-- %1$s = «Términos», %2$s = «Aviso de privacidad»; los dos son enlaces. -->
+    <string name="signup_marketing">Quiero recibir novedades y encuestas de End Security (opcional)</string>
     <string name="signup_terms_sentence">Acepto los %1$s y el %2$s</string>
     <string name="signup_submit">Crear cuenta</string>
 
@@ -102,7 +103,12 @@
     <!-- Documentos legales (PEND-12). Marcador hasta que exista el texto. -->
     <string name="legal_terms_title">Términos</string>
     <string name="legal_privacy_title">Aviso de privacidad</string>
-    <string name="legal_in_progress">Documento en redacción</string>
+    <string name="legal_load_error">No pudimos abrir el documento.</string>
+    <string name="legal_summary_title">Resumen</string>
+    <string name="legal_open_all">Abrir todo</string>
+    <string name="legal_close_all">Cerrar todo</string>
+    <string name="legal_expanded">Expandido</string>
+    <string name="legal_collapsed">Contraído</string>
 
     <!-- Desbloquear (SCR-09). Textos de Figma (nodo 36:491); la hoja de cerrar sesión no está en Figma. -->
     <string name="unlock_title_bold">Tu bóveda</string>
@@ -470,6 +476,23 @@
     <string name="settings_master_password">Contraseña maestra</string>
     <string name="settings_devices">Dispositivos</string>
     <string name="settings_activity">Actividad reciente</string>
+    <string name="settings_marketing">Novedades y encuestas</string>
+    <string name="settings_section_legal">Legal y ayuda</string>
+    <string name="settings_legal_terms">Términos y condiciones</string>
+    <string name="settings_legal_privacy">Aviso de privacidad</string>
+    <string name="settings_legal_licenses">Licencias</string>
+    <string name="settings_legal_about">Acerca de</string>
+    <string name="licenses_title">Licencias</string>
+    <string name="licenses_intro">End Security usa estos componentes de código abierto y recursos con licencia. Toca uno para leer el texto de su licencia.</string>
+    <string name="licenses_open_text">Ver el texto de la licencia</string>
+    <string name="licenses_load_error">No pudimos abrir el texto de la licencia.</string>
+    <string name="about_title">Acerca de</string>
+    <string name="about_version">Versión %1$s</string>
+    <string name="about_academic">Proyecto académico de Seguridad Informática, Universidad Politécnica de Chiapas.</string>
+    <string name="about_hibp">Las contraseñas filtradas se comprueban con Pwned Passwords, de Have I Been Pwned, bajo licencia CC BY 4.0.</string>
+    <string name="about_report_security">Reportar un problema de seguridad</string>
+    <string name="about_repository">Código fuente</string>
+    <string name="about_no_app">No hay una app para abrirlo en este teléfono.</string>
     <string name="settings_sign_out">Cerrar sesión</string>
     <string name="settings_delete_account">Eliminar cuenta</string>
     <string name="settings_autolock_title">Bloqueo automático</string>

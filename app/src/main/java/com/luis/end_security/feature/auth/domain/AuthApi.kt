@@ -16,6 +16,8 @@ class RegisterRequest(
     val authKey: SecretReader,
     val kdf: ServerKdf,
     val protectedVaultKey: Sealed,
+    /** Casilla opcional «Quiero recibir novedades y encuestas» (DEC-64); falso si no se marcó. */
+    val marketingOptIn: Boolean = false,
 ) {
     override fun toString(): String = "RegisterRequest(userId=$userId, ***)"
 }

@@ -130,4 +130,8 @@ object Routes {
     const val LEGAL_DOCUMENT = "legal_document/{$LEGAL_DOCUMENT_ARG}"
 
     fun legalDocument(document: LegalDocument): String = "legal_document/${document.routeArg}"
+
+    /** Licencias de terceros y Acerca de (PEND-12), desde Ajustes → «Legal y ayuda». Sin datos de la bóveda: no pasan por `RequireUnlocked`. */
+    const val LICENSES = "licenses"
+    const val ABOUT = "about"
 }

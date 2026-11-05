@@ -52,6 +52,22 @@ class SettingsViewModelTest {
 
         override suspend fun twoFactorEnabled() = twoFactor
 
+        /** El valor del servidor; `null` = sin red. */
+        var marketing: Boolean? = false
+
+        /** Si [setMarketingOptIn] falla (sin red o error del servidor). */
+        var marketingSaveFails = false
+        val marketingSaves = mutableListOf<Boolean>()
+
+        override suspend fun marketingOptIn() = marketing
+
+        override suspend fun setMarketingOptIn(optIn: Boolean): Boolean? {
+            marketingSaves += optIn
+            if (marketingSaveFails) return null
+            marketing = optIn
+            return optIn
+        }
+
         override suspend fun deviceCount() = devices
 
         override suspend fun unsyncedCount() = unsynced
@@ -106,6 +122,81 @@ class SettingsViewModelTest {
         create()
         assertNull(state.twoFactorEnabled)
         assertNull(state.deviceCount)
+    }
+
+    @Test
+    fun `Novedades y encuestas muestra el valor del servidor`() = scope.runTest {
+        repo.marketing = true
+        create()
+        assertEquals(true, state.marketingOptIn)
+        assertFalse(state.marketingBusy)
+    }
+
+    @Test
+    fun `Novedades y encuestas sin red no tiene valor y tocarlo no hace nada`() = scope.runTest {
+        repo.marketing = null
+        create()
+        assertNull(state.marketingOptIn)
+        viewModel.onAction(SettingsAction.MarketingToggled(true))
+        runCurrent()
+        assertNull(state.marketingOptIn)
+        assertTrue(repo.marketingSaves.isEmpty())
+        assertNull(state.notice)
+    }
+
+    @Test
+    fun `activar Novedades y encuestas lo guarda y lo deja activo`() = scope.runTest {
+        create()
+        viewModel.onAction(SettingsAction.MarketingToggled(true))
+        // Se ve el cambio al instante y el interruptor queda ocupado hasta que responde el servidor.
+        assertEquals(true, state.marketingOptIn)
+        assertTrue(state.marketingBusy)
+        runCurrent()
+        assertEquals(listOf(true), repo.marketingSaves)
+        assertEquals(true, state.marketingOptIn)
+        assertFalse(state.marketingBusy)
+        assertNull(state.notice)
+    }
+
+    @Test
+    fun `desactivar Novedades y encuestas lo guarda`() = scope.runTest {
+        repo.marketing = true
+        create()
+        viewModel.onAction(SettingsAction.MarketingToggled(false))
+        runCurrent()
+        assertEquals(listOf(false), repo.marketingSaves)
+        assertEquals(false, state.marketingOptIn)
+    }
+
+    @Test
+    fun `si Novedades y encuestas no se guarda vuelve a su valor y avisa con el mensaje generico`() = scope.runTest {
+        repo.marketingSaveFails = true
+        create()
+        viewModel.onAction(SettingsAction.MarketingToggled(true))
+        runCurrent()
+        assertEquals(false, state.marketingOptIn)
+        assertFalse(state.marketingBusy)
+        assertEquals(NoticeKind.MarketingFailed, state.notice?.kind)
+    }
+
+    @Test
+    fun `un segundo toque mientras se guarda se ignora`() = scope.runTest {
+        create()
+        viewModel.onAction(SettingsAction.MarketingToggled(true))
+        viewModel.onAction(SettingsAction.MarketingToggled(false))
+        runCurrent()
+        assertEquals(listOf(true), repo.marketingSaves)
+        assertEquals(true, state.marketingOptIn)
+    }
+
+    @Test
+    fun `al volver a la pantalla Novedades y encuestas se recarga`() = scope.runTest {
+        create()
+        assertEquals(false, state.marketingOptIn)
+        repo.marketing = true
+        viewModel.onAction(SettingsAction.Resumed)
+        runCurrent()
+        assertEquals(true, state.marketingOptIn)
     }
 
     @Test

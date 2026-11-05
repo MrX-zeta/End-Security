@@ -289,6 +289,11 @@ fun SignUpScreen(
                         onOpenLegalDocument = onOpenLegalDocument,
                         modifier = Modifier.bringIntoViewRequester(termsBring).focusRequester(termsFocus),
                     )
+                    // Opcional y desmarcada (DEC-64): no bloquea el registro y su valor viaja en `register`.
+                    MarketingRow(
+                        optedIn = state.marketingOptIn,
+                        onOptedInChange = { onAction(SignUpAction.MarketingOptInChanged(it)) },
+                    )
                     Spacer(Modifier.weight(1f).heightIn(min = 24.dp))
                     state.submitError?.let { error ->
                         InlineErrorMessage(
@@ -463,6 +468,21 @@ private fun TermsRow(
         }
         // Figma 210:3868: ícono de alerta + mensaje en `danger` bajo la casilla.
         if (showError) FieldErrorText(stringResource(R.string.signup_terms_error))
+    }
+}
+
+/** «Quiero recibir novedades y encuestas de End Security (opcional)»: finalidades secundarias del aviso de privacidad (DEC-64). */
+@Composable
+private fun MarketingRow(optedIn: Boolean, onOptedInChange: (Boolean) -> Unit, modifier: Modifier = Modifier) {
+    val label = stringResource(R.string.signup_marketing)
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .offset(x = (-12).dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Checkbox(checked = optedIn, onCheckedChange = onOptedInChange, label = label)
+        Text(text = label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 

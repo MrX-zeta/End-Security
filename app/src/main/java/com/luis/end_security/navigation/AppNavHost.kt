@@ -32,7 +32,9 @@ import com.luis.end_security.feature.auth.ui.splash.SplashRoute
 import com.luis.end_security.feature.auth.ui.verify.VerifyEmailRoute
 import com.luis.end_security.feature.auth.ui.verify.VerifyEmailViewModel
 import com.luis.end_security.feature.settings.ui.legal.LegalDocument
+import com.luis.end_security.feature.settings.ui.legal.AboutScreen
 import com.luis.end_security.feature.settings.ui.legal.LegalDocumentScreen
+import com.luis.end_security.feature.settings.ui.legal.LicensesScreen
 import com.luis.end_security.feature.unlock.ui.UnlockRoute
 import com.luis.end_security.feature.vault.ui.VaultLoadingRoute
 import com.luis.end_security.feature.vault.ui.detail.ItemDetailRoute
@@ -186,6 +188,9 @@ private fun AppNavigation(route: String, modifier: Modifier = Modifier) {
                     onOpenActivity = { navController.navigate(Routes.ACTIVITY) { launchSingleTop = true } },
                     onOpenDeleteAccount = { navController.navigate(Routes.DELETE_ACCOUNT) { launchSingleTop = true } },
                     onOpenChangeEmail = { navController.navigate(Routes.CHANGE_EMAIL) { launchSingleTop = true } },
+                    onOpenLegalDocument = { document -> navController.navigate(Routes.legalDocument(document)) { launchSingleTop = true } },
+                    onOpenLicenses = { navController.navigate(Routes.LICENSES) { launchSingleTop = true } },
+                    onOpenAbout = { navController.navigate(Routes.ABOUT) { launchSingleTop = true } },
                     emailChanged = emailResult,
                     onEmailChangedShown = { handle[Routes.RESULT_EMAIL_CHANGED] = "" },
                     twoFactorDisabled = disabled,
@@ -462,6 +467,8 @@ private fun AppNavigation(route: String, modifier: Modifier = Modifier) {
                 LegalDocumentScreen(document = document, onBack = { navController.popBackStack() })
             }
         }
+        composable(Routes.LICENSES) { LicensesScreen(onBack = { navController.popBackStack() }) }
+        composable(Routes.ABOUT) { AboutScreen(onBack = { navController.popBackStack() }) }
     }
 }
 

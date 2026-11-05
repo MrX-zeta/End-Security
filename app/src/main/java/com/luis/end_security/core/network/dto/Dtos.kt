@@ -33,6 +33,8 @@ class RegisterRequestDto(
     val authKey: String,
     val kdf: KdfDto,
     val protectedVaultKey: ProtectedVaultKeyDto,
+    /** Finalidades secundarias del aviso de privacidad (DEC-64). Falso por defecto: no se manda si no se marcó. */
+    val marketingOptIn: Boolean = false,
 )
 
 @Serializable
@@ -60,6 +62,8 @@ class AccountDto(
     val kdf: KdfDto,
     val protectedVaultKey: ProtectedVaultKeyDto,
     val twoFactorEnabled: Boolean,
+    /** Obligatorio en `Account` desde el contrato 1.4.0. */
+    val marketingOptIn: Boolean,
 )
 
 @Serializable
@@ -121,6 +125,10 @@ class WriteResultDto(val result: String, val version: Long, val revision: Long)
 
 @Serializable
 class UpdateAccountRequestDto(val displayName: String?)
+
+/** `PATCH /account` solo con el consentimiento de finalidades secundarias (DEC-64; `minProperties: 1`). */
+@Serializable
+class UpdateMarketingRequestDto(val marketingOptIn: Boolean)
 
 @Serializable
 class ReauthDto(val authKey: String, val totpCode: String? = null)

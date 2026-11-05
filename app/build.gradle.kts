@@ -104,3 +104,12 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.test.manifest)
     debugImplementation(libs.androidx.compose.ui.tooling)
 }
+
+// Tarea 22: los textos legales viven solo en `docs/legal/`; se copian a los assets antes de compilar para no mantener dos copias.
+// La copia no se versiona (`.gitignore`).
+val copyLegalDocs by tasks.registering(Copy::class) {
+    from(rootProject.file("docs/legal")) { include("aviso-de-privacidad.md", "terminos-y-condiciones.md") }
+    into(layout.projectDirectory.dir("src/main/assets/legal"))
+}
+
+tasks.named("preBuild") { dependsOn(copyLegalDocs) }

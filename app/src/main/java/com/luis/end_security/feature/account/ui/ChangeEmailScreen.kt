@@ -62,13 +62,14 @@ import com.luis.end_security.core.designsystem.component.ReadOnlyField
 import com.luis.end_security.core.designsystem.component.TwoWeightTitle
 import com.luis.end_security.core.designsystem.component.onFocusLost
 import com.luis.end_security.core.security.ExcludeFromAutofill
+import com.luis.end_security.core.security.SecureScreen
 import androidx.compose.foundation.clickable
 import androidx.compose.ui.semantics.Role
 
 /**
  * Cambiar el correo (OP-26; Figma 227:4534, 227:4726, 227:4802, 229:4852). Un solo destino con dos pasos: el correo nuevo y el
  * código. La contraseña maestra solo se escribe en la hoja de reautenticación (`TextFieldState`, regla 6); lo demás son correos y un
- * código de un solo uso, así que la pantalla no lleva `SecureScreen` (igual que Verificar correo), pero la hoja sí oculta su contenido.
+ * código de un solo uso. El paso del correo no lleva `SecureScreen`; el paso del código sí (tarea 22, paso 0), y la hoja oculta su contenido.
  */
 @Composable
 fun ChangeEmailRoute(
@@ -258,6 +259,8 @@ private fun EmailReauthSheet(state: ChangeEmailUiState, onAction: (ChangeEmailAc
 /** Mismo diseño que Verificar correo (Figma 227:4802), con los textos del cambio de correo. */
 @Composable
 private fun EmailCodeScreen(state: ChangeEmailUiState, onAction: (ChangeEmailAction) -> Unit, modifier: Modifier) {
+    // El código de un solo uso y el correo nuevo no se capturan ni salen en la vista de apps recientes (regla 7).
+    SecureScreen()
     val focusManager = LocalFocusManager.current
     val submit = {
         focusManager.clearFocus()

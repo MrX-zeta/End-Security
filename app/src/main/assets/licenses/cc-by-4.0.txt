@@ -1,0 +1,17 @@
+Pwned Passwords · Have I Been Pwned
+Creative Commons Attribution 4.0 International (CC BY 4.0)
+
+Los datos de contraseñas filtradas (Pwned Passwords) pertenecen a Have I Been Pwned (Troy Hunt) y se usan bajo la licencia
+Creative Commons Atribución 4.0 Internacional. End Security consulta el servicio directamente desde tu teléfono con el modelo de
+k-anonimato: solo envía los 5 primeros caracteres del hash SHA-1 de la contraseña, nunca la contraseña ni el hash completo.
+
+Atribución: «Pwned Passwords», Have I Been Pwned, https://haveibeenpwned.com/Passwords
+
+Resumen de la licencia (no sustituye al texto legal):
+Eres libre de compartir (copiar y redistribuir el material en cualquier medio o formato) y adaptar (remezclar, transformar y
+construir a partir del material) para cualquier propósito, incluso comercial, siempre que des el crédito apropiado, proporciones un
+enlace a la licencia e indiques si se hicieron cambios. No puedes aplicar términos legales ni medidas tecnológicas que restrinjan a
+otros hacer lo que la licencia permite. El licenciante no puede revocar estas libertades mientras cumplas los términos.
+
+El texto legal completo está en:
+https://creativecommons.org/licenses/by/4.0/legalcode

@@ -44,6 +44,11 @@ import com.luis.end_security.core.network.dto.VerifyEmailRequestDto
 import com.luis.end_security.core.network.dto.WriteResultDto
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerializationException
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonPrimitive
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 import java.util.UUID
@@ -101,7 +106,7 @@ class FakeServer(
             }
             path == "/account" && request.method == "GET" -> withSession(request) { _, user -> ok(AccountDto.serializer(), user.toDto()) }
             path == "/account" && request.method == "PATCH" -> withSession(request) { _, user ->
-                updateAccount(user, parse(body, UpdateAccountRequestDto.serializer()))
+                updateAccount(user, parse(body, JsonObject.serializer()))
             }
             request.method == "POST" && path == "/account/email" -> withSession(request) { session, user ->
                 requestEmailChange(session, user, parse(body, EmailChangeRequestDto.serializer()))
@@ -170,6 +175,7 @@ class FakeServer(
             kdf = FakeKdf(kdf.memoryKiB, kdf.iterations, kdf.parallelism, kdf.salt),
             pvkNonce = dto.protectedVaultKey.nonce,
             pvkCiphertext = dto.protectedVaultKey.ciphertext,
+            marketingOptIn = dto.marketingOptIn,
         )
         if (FakeBackendDebug.isTwoFactorDebugEmail(email)) {
             user.twoFactor = FakeTwoFactor(
@@ -418,9 +424,25 @@ class FakeServer(
 
     // --- EP-13…EP-22: cuenta y 2FA ---
 
-    private fun updateAccount(user: FakeUser, dto: UpdateAccountRequestDto): HttpResponse {
-        dto.displayName?.let { require(it.length in 1..50) }
-        user.displayName = dto.displayName
+    /**
+     * EP-14 (contrato 1.4.0): acepta `displayName`, `marketingOptIn` o ambos (`minProperties: 1`); una clave ausente no se toca y
+     * `displayName: null` borra el nombre.
+     */
+    private fun updateAccount(user: FakeUser, body: JsonObject): HttpResponse {
+        require(body.isNotEmpty() && body.keys.all { it == "displayName" || it == "marketingOptIn" })
+        val name = body["displayName"]
+        val optIn = body["marketingOptIn"]
+        val newName = when {
+            name == null -> null
+            name is JsonNull -> ""
+            else -> name.jsonPrimitive.contentOrNull ?: throw IllegalArgumentException()
+        }
+        val newOptIn = optIn?.jsonPrimitive?.let { it.booleanOrNull ?: throw IllegalArgumentException() }
+        if (name != null) {
+            if (newName!!.isNotEmpty()) require(newName.length in 1..50)
+            user.displayName = newName.ifEmpty { null }
+        }
+        if (newOptIn != null) user.marketingOptIn = newOptIn
         return ok(AccountDto.serializer(), user.toDto())
     }
 
@@ -656,6 +678,7 @@ class FakeServer(
         kdf = kdf.toDto(),
         protectedVaultKey = ProtectedVaultKeyDto(pvkNonce, pvkCiphertext),
         twoFactorEnabled = twoFactor?.enabled == true,
+        marketingOptIn = marketingOptIn,
     )
 
     private fun FakeKdf.toDto() = KdfDto("argon2id", memoryKiB, iterations, parallelism, salt)

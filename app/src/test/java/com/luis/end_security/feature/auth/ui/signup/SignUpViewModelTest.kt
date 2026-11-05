@@ -230,6 +230,40 @@ class SignUpViewModelTest {
     }
 
     @Test
+    fun `la casilla de novedades y encuestas empieza sin marcar y es opcional`() {
+        assertFalse(state.marketingOptIn)
+        fillValidForm()
+        // No marcarla no impide crear la cuenta.
+        assertFalse(state.marketingOptIn)
+        assertTrue(state.canSubmit)
+    }
+
+    @Test
+    fun `crear cuenta sin marcar la casilla registra con marketingOptIn en falso`() = kotlinx.coroutines.test.runTest(dispatcher) {
+        fillValidForm()
+        viewModel.onAction(SignUpAction.Submit(StringBuilder(STRONG), StringBuilder(STRONG)))
+        assertEquals(listOf(false), auth.marketingOptIns)
+    }
+
+    @Test
+    fun `crear cuenta con la casilla marcada registra con marketingOptIn en verdadero`() = kotlinx.coroutines.test.runTest(dispatcher) {
+        fillValidForm()
+        viewModel.onAction(SignUpAction.MarketingOptInChanged(true))
+        assertTrue(state.marketingOptIn)
+        viewModel.onAction(SignUpAction.Submit(StringBuilder(STRONG), StringBuilder(STRONG)))
+        assertEquals(listOf(true), auth.marketingOptIns)
+    }
+
+    @Test
+    fun `si el registro falla la casilla de novedades conserva lo que marcaste`() = kotlinx.coroutines.test.runTest(dispatcher) {
+        auth.registerResult = ApiResult.Failure(ApiError.NetworkUnavailable)
+        fillValidForm()
+        viewModel.onAction(SignUpAction.MarketingOptInChanged(true))
+        viewModel.onAction(SignUpAction.Submit(StringBuilder(STRONG), StringBuilder(STRONG)))
+        assertTrue(state.marketingOptIn)
+    }
+
+    @Test
     fun `si el registro falla muestra el error y no navega`() = kotlinx.coroutines.test.runTest(dispatcher) {
         auth.registerResult = ApiResult.Failure(ApiError.NetworkUnavailable)
         fillValidForm()

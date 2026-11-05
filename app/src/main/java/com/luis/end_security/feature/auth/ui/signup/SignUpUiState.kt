@@ -26,6 +26,8 @@ data class SignUpUiState(
     /** «Las contraseñas no coinciden.» Solo al perder el foco o al intentar crear la cuenta. */
     val showMismatchError: Boolean = false,
     val termsAccepted: Boolean = false,
+    /** Casilla opcional «Quiero recibir novedades y encuestas» (DEC-64): desmarcada por defecto y no bloquea el registro. */
+    val marketingOptIn: Boolean = false,
     /** La contraseña tiene texto: se muestra la lista de requisitos. */
     val passwordTyped: Boolean = false,
     /** Largo de la confirmación, para saber cuándo empezar a evaluar «Las contraseñas coinciden». */
@@ -95,6 +97,8 @@ sealed interface SignUpAction {
     data object EmailFocusLost : SignUpAction
 
     data class TermsAcceptedChanged(val accepted: Boolean) : SignUpAction
+
+    data class MarketingOptInChanged(val optIn: Boolean) : SignUpAction
 
     /**
      * «Crear cuenta» o «Listo» en el teclado de la confirmación. Lleva el texto que se va a
