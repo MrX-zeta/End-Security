@@ -77,4 +77,4 @@ Nos reservamos el derecho de modificar o actualizar estos términos en cualquier
 
 ## Contacto
 
-[privacidad@correo.com] · Carretera Tuxtla Gutiérrez – Portillo Zaragoza Km. 21+500, Colonia Las Brisas, Suchiapa, Chiapas, C.P. 29145, México.
+endsecurity.privacidad@gmail.com · Carretera Tuxtla Gutiérrez – Portillo Zaragoza Km. 21+500, Colonia Las Brisas, Suchiapa, Chiapas, C.P. 29145, México.

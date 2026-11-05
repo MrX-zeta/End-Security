@@ -51,4 +51,4 @@ Hay que leerlo y entenderlo para poder explicarlo en la presentación.
 | E1 | `USE_FAKE_BACKEND = false` en release (el código de correo no debe verse) | ☐ |
 | E2 | Pines SPKI del servidor en `network_security_config.xml` (DEC-22) | ☐ |
 | E3 | Volver a correr `ClipboardDeviceTest` con «Enable clipboard sharing» desactivado en el emulador (Android Studio → emulador → ⋯ Extended controls → Settings → General) | ☐ |
-| E4 | Completar en `docs/legal/*.md` y `LegalInfo` los marcadores: nombres de los integrantes, correo de privacidad, proveedor de hosting; confirmar domicilio (UPChiapas) y respaldos de la BD | ☐ |
+| E4 | Marcadores legales: nombres y correo ✔ (2026-11-04); falta el proveedor de hosting; confirmar domicilio (UPChiapas) y respaldos de la BD con Diego | ☐ |

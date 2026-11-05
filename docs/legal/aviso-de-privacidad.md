@@ -6,7 +6,7 @@ Este aviso explica qué datos personales trata End Security, para qué y cómo p
 
 ## Resumen
 
-- Somos [Nombre completo del integrante 1] y [Nombre completo del integrante 2], responsables de tus datos. Contacto: [privacidad@correo.com].
+- Somos Brian Luis Ruiz Pérez y Diego Alberto Zárate Vázquez, responsables de tus datos. Contacto: endsecurity.privacidad@gmail.com.
 - Tratamos tu correo, un nombre visible opcional y datos técnicos de seguridad (IP, dispositivo y bitácora). Tu bóveda se cifra en tu teléfono: no podemos leerla ni recuperar tu contraseña.
 - Usamos tus datos para darte el servicio y protegerlo y, solo si lo aceptas, para enviarte novedades y encuestas.
 - No vendemos tus datos ni usamos publicidad o analítica. Resend envía nuestros correos.
@@ -14,9 +14,9 @@ Este aviso explica qué datos personales trata End Security, para qué y cómo p
 
 ## 1. Identidad y contacto del responsable
 
-- **Responsables:** [Nombre completo del integrante 1] y [Nombre completo del integrante 2], personas físicas desarrolladoras de End Security, proyecto académico de la Universidad Politécnica de Chiapas.
+- **Responsables:** Brian Luis Ruiz Pérez y Diego Alberto Zárate Vázquez, personas físicas desarrolladoras de End Security, proyecto académico de la Universidad Politécnica de Chiapas.
 - **Domicilio de contacto:** Carretera Tuxtla Gutiérrez – Portillo Zaragoza Km. 21+500, Colonia Las Brisas, Suchiapa, Chiapas, C.P. 29145, México.
-- **Canal de privacidad:** [privacidad@correo.com]. Este correo se usa exclusivamente para dudas y solicitudes sobre el manejo de tus datos personales.
+- **Canal de privacidad:** endsecurity.privacidad@gmail.com. Este correo se usa exclusivamente para dudas y solicitudes sobre el manejo de tus datos personales.
 
 ## 2. Datos personales que recabamos
 
@@ -91,7 +91,7 @@ También puedes revocar tu consentimiento y limitar el uso de tus datos.
 **Desde la app** puedes hacerlo directamente: ver tu correo, dispositivos y actividad (Ajustes), cambiar tu correo (rectificación) y eliminar tu cuenta (Ajustes › Eliminar cuenta). Al eliminarla borramos de inmediato tu bóveda cifrada, tu verificación en dos pasos y tus sesiones; a los 30 días anonimizamos lo restante.
 
 **Procedimiento por correo:**
-1. Escribe a [privacidad@correo.com] **desde el correo de tu cuenta**, indicando tu nombre, el derecho que quieres ejercer y una descripción clara de lo que pides.
+1. Escribe a endsecurity.privacidad@gmail.com **desde el correo de tu cuenta**, indicando tu nombre, el derecho que quieres ejercer y una descripción clara de lo que pides.
 2. **Validación de identidad:** como no podemos conocer tu contraseña, comprobamos que la solicitud viene del correo de tu cuenta y te enviamos un código para confirmarla. Si actúas por medio de un representante, este deberá acreditarlo con identificación oficial y carta poder.
 3. **Plazos:** te responderemos en un máximo de **20 días hábiles** desde que recibamos tu solicitud y, si procede, la haremos efectiva dentro de los **15 días hábiles** siguientes. El trámite es gratuito.
 
