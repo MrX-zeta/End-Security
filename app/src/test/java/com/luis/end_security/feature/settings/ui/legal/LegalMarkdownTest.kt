@@ -137,6 +137,14 @@ class LegalMarkdownTest {
     }
 
     @Test
+    fun `la linea de fecha conserva la negrita de End Security`() {
+        val doc = parse("# T", "**End Security** · Última actualización: 4 de noviembre de 2026", "## S", "x")
+        assertEquals("End Security · Última actualización: 4 de noviembre de 2026", doc.meta)
+        assertEquals(Span("End Security", bold = true), doc.metaSpans.first())
+        assertEquals(Span(" · Última actualización: 4 de noviembre de 2026"), doc.metaSpans.last())
+    }
+
+    @Test
     fun `un documento vacio no falla`() {
         val doc = LegalMarkdown.parse("")
         assertEquals("", doc.title)

@@ -56,6 +56,12 @@ internal fun securityReportIntent(): Intent =
         .putExtra(Intent.EXTRA_EMAIL, arrayOf(LegalInfo.PRIVACY_EMAIL))
         .putExtra(Intent.EXTRA_SUBJECT, LegalInfo.SECURITY_REPORT_SUBJECT)
 
+/** El correo de «Soporte»: destinatario [LegalInfo.SUPPORT_EMAIL], asunto fijo y sin cuerpo. */
+internal fun supportIntent(): Intent =
+    Intent(Intent.ACTION_SENDTO, "mailto:".toUri())
+        .putExtra(Intent.EXTRA_EMAIL, arrayOf(LegalInfo.SUPPORT_EMAIL))
+        .putExtra(Intent.EXTRA_SUBJECT, LegalInfo.SUPPORT_SUBJECT)
+
 /** Abre [intent]; `false` si el teléfono no tiene una app que lo atienda. */
 private fun Context.tryStart(intent: Intent): Boolean = try {
     startActivity(intent)
@@ -84,6 +90,7 @@ fun AboutScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
             AboutBody(
                 versionName = BuildConfig.VERSION_NAME,
                 onReportSecurityIssue = { if (!context.tryStart(securityReportIntent())) unavailable++ },
+                onContactSupport = { if (!context.tryStart(supportIntent())) unavailable++ },
                 onOpenRepository = {
                     if (!context.tryStart(Intent(Intent.ACTION_VIEW, LegalInfo.REPOSITORY_URL.toUri()))) unavailable++
                 },
@@ -112,6 +119,7 @@ private fun UnavailableBar(token: Int, modifier: Modifier = Modifier) {
 fun AboutBody(
     versionName: String,
     onReportSecurityIssue: () -> Unit,
+    onContactSupport: () -> Unit,
     onOpenRepository: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -154,6 +162,8 @@ fun AboutBody(
         ListCard {
             AboutRow(icon = R.drawable.ic_shield_alert_20, label = stringResource(R.string.about_report_security), onClick = onReportSecurityIssue)
             ListRowDivider()
+            AboutRow(icon = R.drawable.ic_mail_20, label = stringResource(R.string.about_support), onClick = onContactSupport)
+            ListRowDivider()
             AboutRow(icon = R.drawable.ic_external_link_20, label = stringResource(R.string.about_repository), onClick = onOpenRepository)
         }
     }
@@ -189,5 +199,5 @@ private fun AboutRow(@androidx.annotation.DrawableRes icon: Int, label: String, 
 @Preview(name = "Acerca de")
 @Composable
 private fun AboutPreview() {
-    PreviewSurface { AboutBody(versionName = "1.0", onReportSecurityIssue = {}, onOpenRepository = {}) }
+    PreviewSurface { AboutBody(versionName = "1.0", onReportSecurityIssue = {}, onContactSupport = {}, onOpenRepository = {}) }
 }

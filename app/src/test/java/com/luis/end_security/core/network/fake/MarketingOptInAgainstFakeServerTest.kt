@@ -112,6 +112,28 @@ class MarketingOptInAgainstFakeServerTest {
     }
 
     @Test
+    fun `el PATCH valida los tipos como el contrato`() {
+        registerAndVerify(marketingOptIn = null)
+        // displayName: cadena de 1 a 50 o null; la cadena vacía, un número o un booleano no valen.
+        assertEquals(400, raw("""{"displayName":""}""").status)
+        assertEquals(400, raw("""{"displayName":5}""").status)
+        assertEquals(400, raw("""{"displayName":true}""").status)
+        assertEquals(400, raw("""{"displayName":"${"x".repeat(51)}"}""").status)
+        // marketingOptIn: booleano de verdad; la cadena "true" o un número no valen.
+        assertEquals(400, raw("""{"marketingOptIn":"true"}""").status)
+        assertEquals(400, raw("""{"marketingOptIn":1}""").status)
+        assertEquals(400, raw("""{"marketingOptIn":null}""").status)
+        // Nada cambió con tanto rechazo.
+        val unchanged = (runBlocking { account.getAccount() } as ApiResult.Success).value
+        assertNull(unchanged.displayName)
+        assertFalse(unchanged.marketingOptIn)
+        // Y lo válido sigue funcionando: un nombre de 50 y el null explícito que lo borra.
+        assertEquals(200, raw("""{"displayName":"${"x".repeat(50)}"}""").status)
+        assertEquals(200, raw("""{"displayName":null}""").status)
+        assertNull((runBlocking { account.getAccount() } as ApiResult.Success).value.displayName)
+    }
+
+    @Test
     fun `un PATCH sin campos o con campos desconocidos es una solicitud invalida`() {
         registerAndVerify(marketingOptIn = null)
         assertEquals(400, raw("{}").status)

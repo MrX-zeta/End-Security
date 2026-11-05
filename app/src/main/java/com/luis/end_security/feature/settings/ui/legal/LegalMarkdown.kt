@@ -37,6 +37,8 @@ data class LegalSection(val title: String, val blocks: List<Block>)
 data class LegalDocumentModel(
     val title: String,
     val meta: String,
+    /** La misma línea con sus negritas («**End Security** · Última actualización…»). */
+    val metaSpans: List<Span>,
     val intro: List<Block>,
     val summary: List<Block>,
     val sections: List<LegalSection>,
@@ -61,6 +63,7 @@ object LegalMarkdown {
         val lines = markdown.lines().map { it.trimEnd() }
         var title = ""
         var meta = ""
+        var metaSpans = emptyList<Span>()
         val intro = mutableListOf<Block>()
         var summary = emptyList<Block>()
         val sections = mutableListOf<LegalSection>()
@@ -87,6 +90,7 @@ object LegalMarkdown {
                 line.startsWith("# ") && title.isEmpty() -> title = line.removePrefix("# ").trim()
                 currentTitle == null && title.isNotEmpty() && !sawMeta -> {
                     meta = stripBold(line)
+                    metaSpans = spans(line.trim())
                     sawMeta = true
                 }
                 line.startsWith("|") -> {
@@ -101,7 +105,7 @@ object LegalMarkdown {
             index++
         }
         closeSection()
-        return LegalDocumentModel(title, meta, intro, summary, sections)
+        return LegalDocumentModel(title, meta, metaSpans, intro, summary, sections)
     }
 
     private fun block(line: String): Block {

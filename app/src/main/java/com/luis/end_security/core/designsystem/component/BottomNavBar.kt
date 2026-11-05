@@ -3,6 +3,7 @@ package com.luis.end_security.core.designsystem.component
 import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
 import androidx.compose.foundation.background
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,6 +26,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.dropShadow
@@ -104,7 +106,15 @@ private fun BottomNavItem(
     Column(
         modifier = Modifier
             .width(76.dp)
-            .selectable(selected = selected, onClick = onClick, role = Role.Tab)
+            // Sin onda al tocar: la píldora negra de la pestaña activa ya marca la selección (tarea 23). Se conservan el rol
+            // `Tab`, el estado seleccionado para TalkBack y el área táctil de 76 × 54.
+            .selectable(
+                selected = selected,
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                role = Role.Tab,
+                onClick = onClick,
+            )
             .testTag(tab.name),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {

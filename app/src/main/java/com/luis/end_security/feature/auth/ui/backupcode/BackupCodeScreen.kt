@@ -43,6 +43,8 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.luis.end_security.R
+import com.luis.end_security.core.designsystem.component.isKeyboardVisible
+import com.luis.end_security.core.designsystem.component.bringIntoViewWhenKeyboardOpens
 import com.luis.end_security.core.designsystem.component.BackTopBar
 import com.luis.end_security.core.designsystem.component.LabeledTextField
 import com.luis.end_security.core.designsystem.component.NeumorphicDisc
@@ -143,18 +145,23 @@ fun BackupCodeScreen(
                         .heightIn(min = viewportHeight)
                         .padding(horizontal = ContentHorizontalPadding),
                 ) {
-                    Spacer(Modifier.height(24.dp))
-                    // Figma (nodo 36:449): disco de 104 con la llave de 38 en on-surface.
-                    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                        NeumorphicDisc(
-                            icon = R.drawable.ic_key_38,
-                            contentDescription = null,
-                            size = 104.dp,
-                            iconSize = 38.dp,
-                            iconTint = MaterialTheme.colorScheme.onSurface,
-                        )
+                    // Con el teclado abierto se oculta el disco decorativo: así el campo y el botón caben a la vista (tarea 23).
+                    if (isKeyboardVisible()) {
+                        Spacer(Modifier.height(8.dp))
+                    } else {
+                        Spacer(Modifier.height(24.dp))
+                        // Figma (nodo 36:449): disco de 104 con la llave de 38 en on-surface.
+                        Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                            NeumorphicDisc(
+                                icon = R.drawable.ic_key_38,
+                                contentDescription = null,
+                                size = 104.dp,
+                                iconSize = 38.dp,
+                                iconTint = MaterialTheme.colorScheme.onSurface,
+                            )
+                        }
+                        Spacer(Modifier.height(56.dp))
                     }
-                    Spacer(Modifier.height(56.dp))
                     TwoWeightTitle(
                         boldLine = stringResource(R.string.backup_code_title_bold),
                         regularLine = stringResource(R.string.backup_code_title_regular),
@@ -201,7 +208,7 @@ fun BackupCodeScreen(
                         onClick = submit,
                         enabled = !state.isLockedOut,
                         loading = state.isLoading,
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth().bringIntoViewWhenKeyboardOpens(),
                     )
                     Spacer(Modifier.height(16.dp))
                 }

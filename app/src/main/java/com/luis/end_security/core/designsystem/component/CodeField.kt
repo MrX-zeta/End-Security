@@ -68,7 +68,7 @@ fun CodeField(
     var focused by remember { mutableStateOf(false) }
     val description = stringResource(R.string.code_field_description, value.length, CodeFieldFilter.LENGTH)
     val shownError = isError || errorText != null
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(modifier = Modifier.keepVisibleWhenFocusedWithKeyboard(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
     BasicTextField(
         value = value,
         onValueChange = { onValueChange(CodeFieldFilter.filter(it)) },

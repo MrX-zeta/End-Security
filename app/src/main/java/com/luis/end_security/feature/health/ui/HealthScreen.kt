@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -22,9 +23,14 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
@@ -49,6 +55,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.luis.end_security.R
 import com.luis.end_security.core.designsystem.component.BottomNavBar
 import com.luis.end_security.core.designsystem.component.BottomNavTab
+import com.luis.end_security.core.designsystem.component.MessageBar
 import com.luis.end_security.core.designsystem.component.TwoWeightTitle
 import com.luis.end_security.core.designsystem.theme.PreviewSurface
 import com.luis.end_security.core.security.SecureScreen
@@ -57,6 +64,7 @@ import com.luis.end_security.feature.health.domain.HealthAnalyzer
 import com.luis.end_security.feature.health.domain.HealthProgressCalculator
 import com.luis.end_security.feature.health.domain.ProgressSummary
 import com.luis.end_security.feature.auth.domain.PasswordStrengthEstimator
+import kotlinx.coroutines.delay
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -103,37 +111,59 @@ fun HealthScreen(
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-        Column(
-            modifier = Modifier
-                .weight(1f)
-                .statusBarsPadding()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 32.dp)
-                .padding(top = 32.dp, bottom = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp),
-        ) {
-            TwoWeightTitle(
-                boldLine = stringResource(R.string.health_title_bold),
-                regularLine = stringResource(R.string.health_title_regular),
-                style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Normal, lineHeight = 35.sp),
-            )
-            SegmentedSelector(
-                options = listOf(stringResource(R.string.health_tab_summary), stringResource(R.string.health_tab_progress)),
-                selectedIndex = state.tab.ordinal,
-                onSelect = { onTab(HealthTab.entries[it]) },
-            )
-            when {
-                state.isLoading -> LoadingContent()
-                !state.hasItems -> EmptyContent()
-                state.tab == HealthTab.Summary -> SummaryContent(
-                    state, onCheckNow, onOpenBreached, onOpenRepeated, onOpenWeak, onOpenOld,
+        Box(modifier = Modifier.weight(1f)) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .statusBarsPadding()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 32.dp)
+                    .padding(top = 32.dp, bottom = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(20.dp),
+            ) {
+                TwoWeightTitle(
+                    boldLine = stringResource(R.string.health_title_bold),
+                    regularLine = stringResource(R.string.health_title_regular),
+                    style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Normal, lineHeight = 35.sp),
                 )
-                else -> ProgressContent(state.progress, onOpenRanking)
+                SegmentedSelector(
+                    options = listOf(stringResource(R.string.health_tab_summary), stringResource(R.string.health_tab_progress)),
+                    selectedIndex = state.tab.ordinal,
+                    onSelect = { onTab(HealthTab.entries[it]) },
+                )
+                when {
+                    state.isLoading -> LoadingContent()
+                    !state.hasItems -> EmptyContent()
+                    state.tab == HealthTab.Summary -> SummaryContent(
+                        state, onCheckNow, onOpenBreached, onOpenRepeated, onOpenWeak, onOpenOld,
+                    )
+                    else -> ProgressContent(state.progress, onOpenRanking)
+                }
             }
+            OfflineNotice(
+                id = state.offlineNoticeId,
+                modifier = Modifier.align(Alignment.BottomCenter).padding(horizontal = 32.dp, vertical = 8.dp),
+            )
         }
         BottomNavBar(selected = BottomNavTab.Health, onTabSelected = onTabSelected)
     }
 }
+
+/** «Sin conexión. Te mostramos la última revisión.» unos segundos tras tocar «Revisar ahora» sin red; [id] cambia en cada aviso. */
+@Composable
+private fun OfflineNotice(id: Int, modifier: Modifier = Modifier) {
+    var visible by remember { mutableStateOf(false) }
+    LaunchedEffect(id) {
+        if (id > 0) {
+            visible = true
+            delay(NOTICE_MILLIS)
+            visible = false
+        }
+    }
+    if (visible) MessageBar(text = stringResource(R.string.health_offline_notice), icon = R.drawable.ic_wifi_off_20, modifier = modifier)
+}
+
+private const val NOTICE_MILLIS = 4_000L
 
 @Composable
 private fun SummaryContent(
@@ -157,27 +187,34 @@ private fun SummaryContent(
                     textAlign = TextAlign.Center,
                 )
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                if (state.checking) {
-                    Text(
-                        text = stringResource(R.string.health_checking),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = colors.onSurfaceVariant,
-                    )
-                } else {
-                    Text(
-                        text = checkedText(state.lastChecked, state.offline) + " ·",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = colors.onSurfaceVariant,
-                    )
+            if (state.checking) {
+                Text(
+                    text = stringResource(R.string.health_checking),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = colors.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                )
+            } else {
+                // Una línea con la fecha y, debajo, «Revisar ahora» como botón de texto en su propia línea (48 dp al tacto).
+                Text(
+                    text = checkedText(state.lastChecked),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = colors.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                )
+                Box(
+                    modifier = Modifier
+                        .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
+                        .clip(MaterialTheme.shapes.small)
+                        .clickable(role = Role.Button, onClick = onCheckNow)
+                        .padding(horizontal = 16.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
                     Text(
                         text = stringResource(R.string.health_check_now),
                         style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold, textDecoration = TextDecoration.Underline),
                         color = colors.onSurface,
-                        modifier = Modifier
-                            .clickable(role = Role.Button, onClick = onCheckNow)
-                            // 48 dp de alto al tacto.
-                            .padding(vertical = 14.dp),
+                        textAlign = TextAlign.Center,
                     )
                 }
             }

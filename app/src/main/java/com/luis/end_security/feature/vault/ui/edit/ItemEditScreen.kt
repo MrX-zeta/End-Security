@@ -80,7 +80,7 @@ import com.luis.end_security.feature.vault.domain.ItemDraft
 import com.luis.end_security.feature.vault.ui.generator.GeneratorSheet
 
 /** Los cinco campos de SCR-14. Viven aquí, en memoria, y nunca en `rememberSaveable` (regla no negociable 6). */
-private class FormFields {
+internal class FormFields {
     val name = TextFieldState()
     val username = TextFieldState()
     val password = TextFieldState()
@@ -195,7 +195,7 @@ fun ItemEditRoute(
 }
 
 @Composable
-private fun ItemEditScreen(
+internal fun ItemEditScreen(
     state: ItemEditUiState,
     fields: FormFields,
     passwordVisible: Boolean,

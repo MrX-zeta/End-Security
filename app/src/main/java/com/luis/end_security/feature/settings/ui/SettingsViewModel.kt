@@ -159,16 +159,25 @@ class SettingsViewModel @Inject constructor(
 
     /** El valor del servidor; sin red conserva el último conocido y mientras se guarda un cambio no pisa lo que se ve. */
     private fun refreshMarketing() {
+        // Un GET que salió antes de un cambio y llega después no debe pisar lo que la persona ya cambió (DEC-64): si la generación
+        // cambió mientras esperaba, su respuesta se descarta.
+        val generation = marketingGeneration
         viewModelScope.launch {
             val value = settings.marketingOptIn() ?: return@launch
-            _state.update { if (it.isSigningOut || it.marketingBusy) it else it.copy(marketingOptIn = value) }
+            _state.update {
+                if (it.isSigningOut || it.marketingBusy || generation != marketingGeneration) it else it.copy(marketingOptIn = value)
+            }
         }
     }
+
+    /** Cambia con cada interruptor tocado: invalida las lecturas del servidor que ya iban en camino. */
+    private var marketingGeneration = 0
 
     /** PATCH del interruptor: se ve el cambio al instante y, si el servidor no lo confirma, se revierte con un aviso genérico. */
     private fun toggleMarketing(enable: Boolean) {
         val previous = _state.value.marketingOptIn ?: return
         if (_state.value.marketingBusy || previous == enable) return
+        marketingGeneration++
         _state.update { it.copy(marketingOptIn = enable, marketingBusy = true) }
         viewModelScope.launch {
             val saved = try {
@@ -178,8 +187,13 @@ class SettingsViewModel @Inject constructor(
             } catch (_: Exception) {
                 null
             }
+            marketingGeneration++
             _state.update { it.copy(marketingOptIn = saved ?: previous, marketingBusy = false) }
-            if (saved == null) notify(NoticeKind.MarketingFailed)
+            if (saved == null || saved != enable) {
+                notify(NoticeKind.MarketingFailed)
+                // Con la respuesta perdida el servidor pudo aplicar el cambio: se vuelve a leer para mostrar lo que de verdad tiene.
+                refreshMarketing()
+            }
         }
     }
 

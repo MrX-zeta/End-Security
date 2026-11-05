@@ -87,29 +87,7 @@ private fun AppNavigation(route: String, modifier: Modifier = Modifier) {
     val navController = rememberNavController()
     val lockGuardViewModel: LockGuardViewModel = hiltViewModel()
     // Barra inferior (DEC-56): las cuatro pestañas navegan sin sumar historial.
-    val onTabSelected: (BottomNavTab) -> Unit = { tab ->
-        when (tab) {
-            BottomNavTab.Vault -> navController.navigate(Routes.VAULT) {
-                popUpTo(Routes.VAULT) { inclusive = false }
-                launchSingleTop = true
-            }
-            BottomNavTab.Generator -> {
-                // Desde la verificación en dos pasos salen sus secretos de la pila: así Atrás no los vuelve a mostrar (M3).
-                if (navController.currentDestination?.route in TWO_FACTOR_ROUTES) {
-                    navController.popBackStack(Routes.SETTINGS, inclusive = false)
-                }
-                navController.navigate(Routes.GENERATOR) { launchSingleTop = true }
-            }
-            BottomNavTab.Health -> navController.navigate(Routes.HEALTH) {
-                popUpTo(Routes.HEALTH) { inclusive = false }
-                launchSingleTop = true
-            }
-            BottomNavTab.Settings -> navController.navigate(Routes.SETTINGS) {
-                popUpTo(Routes.SETTINGS) { inclusive = false }
-                launchSingleTop = true
-            }
-        }
-    }
+    val onTabSelected: (BottomNavTab) -> Unit = { tab -> navController.navigateToTab(tab) }
     // Si la bóveda se bloquea: a Desbloquear (o a Iniciar sesión sin cuenta), sin nada debajo.
     LockGuard(
         viewModel = lockGuardViewModel,
@@ -172,7 +150,7 @@ private fun AppNavigation(route: String, modifier: Modifier = Modifier) {
                 onNavigateToLogin = { navController.navigateClearingStack(Routes.LOGIN) },
             )
         }
-        composable(Routes.SETTINGS, exitTransition = { ExitTransition.None }, popExitTransition = { ExitTransition.None }) { backStackEntry ->
+        composable(Routes.SETTINGS, enterTransition = TabEnterNone, exitTransition = TabExitNone, popEnterTransition = TabEnterNone, popExitTransition = TabExitNone) { backStackEntry ->
             RequireUnlocked(onLocked = lockGuardViewModel::onProtectedScreenLocked) {
                 val handle = backStackEntry.savedStateHandle
                 val disabled by handle.getStateFlow(Routes.RESULT_TWO_FACTOR_DISABLED, false).collectAsStateWithLifecycle()
@@ -279,7 +257,7 @@ private fun AppNavigation(route: String, modifier: Modifier = Modifier) {
                 )
             }
         }
-        composable(Routes.HEALTH, exitTransition = { ExitTransition.None }, popExitTransition = { ExitTransition.None }) {
+        composable(Routes.HEALTH, enterTransition = TabEnterNone, exitTransition = TabExitNone, popEnterTransition = TabEnterNone, popExitTransition = TabExitNone) {
             RequireUnlocked(onLocked = lockGuardViewModel::onProtectedScreenLocked) {
                 HealthRoute(
                     onTabSelected = onTabSelected,
@@ -333,7 +311,7 @@ private fun AppNavigation(route: String, modifier: Modifier = Modifier) {
                 )
             }
         }
-        composable(Routes.GENERATOR, exitTransition = { ExitTransition.None }, popExitTransition = { ExitTransition.None }) {
+        composable(Routes.GENERATOR, enterTransition = TabEnterNone, exitTransition = TabExitNone, popEnterTransition = TabEnterNone, popExitTransition = TabExitNone) {
             RequireUnlocked(onLocked = lockGuardViewModel::onProtectedScreenLocked) {
                 GeneratorRoute(
                     onTabSelected = onTabSelected,
@@ -354,7 +332,7 @@ private fun AppNavigation(route: String, modifier: Modifier = Modifier) {
                 )
             }
         }
-        composable(Routes.VAULT, exitTransition = { ExitTransition.None }, popExitTransition = { ExitTransition.None }) {
+        composable(Routes.VAULT, enterTransition = TabEnterNone, exitTransition = TabExitNone, popEnterTransition = TabEnterNone, popExitTransition = TabExitNone) {
             RequireUnlocked(onLocked = lockGuardViewModel::onProtectedScreenLocked) {
                 VaultListRoute(
                     onTabSelected = onTabSelected,
@@ -472,13 +450,14 @@ private fun AppNavigation(route: String, modifier: Modifier = Modifier) {
     }
 }
 
-/** Navega a [route] y saca de la pila todo lo anterior: atrás ya no regresa al acceso. */
-private fun NavHostController.navigateClearingStack(route: String) {
+/**
+ * Navega a [route] y saca de la pila todo lo anterior: atrás ya no regresa al acceso. También olvida lo que las pestañas habían
+ * guardado ([clearSavedTabStates]): tras bloquear o cerrar sesión no debe volver nada de antes.
+ */
+internal fun NavHostController.navigateClearingStack(route: String) {
+    clearSavedTabStates()
     navigate(route) {
         popUpTo(graph.id) { inclusive = true }
         launchSingleTop = true
     }
 }
-
-/** Destinos que muestran la clave TOTP o códigos de respaldo (T17). */
-private val TWO_FACTOR_ROUTES = setOf(Routes.TWO_FACTOR_SETUP, Routes.TWO_FACTOR_ACTIVE)

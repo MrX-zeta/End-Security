@@ -4,7 +4,9 @@ import androidx.annotation.DrawableRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
@@ -15,6 +17,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
@@ -22,6 +25,7 @@ import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.luis.end_security.R
@@ -56,29 +60,40 @@ fun MessageBar(
             tint = MaterialTheme.colorScheme.primary,
             modifier = Modifier.size(20.dp),
         )
+        // El texto se queda con lo que sobra (`weight`) y, con acción, a lo sumo 2 líneas: nunca pasa por debajo del botón.
+        val hasAction = actionLabel != null && onAction != null
         Text(
             text = text,
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.background,
+            maxLines = if (hasAction) 2 else Int.MAX_VALUE,
+            overflow = TextOverflow.Ellipsis,
             modifier = Modifier
                 .weight(1f)
                 .padding(vertical = 10.dp),
         )
         if (actionLabel != null && onAction != null) {
-            Text(
-                text = actionLabel,
-                style = MaterialTheme.typography.labelMedium.copy(
-                    fontWeight = FontWeight.Bold,
-                    textDecoration = TextDecoration.Underline,
-                ),
-                color = MaterialTheme.colorScheme.primary,
+            // Botón de texto con su propio ancho (se mide antes que el texto) y 48 dp de área táctil, centrado en el aviso.
+            Box(
                 modifier = Modifier
-                    .heightIn(min = 48.dp)
+                    .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
+                    .clip(MaterialTheme.shapes.small)
                     .clickable(role = Role.Button, onClick = onAction)
                     .padding(horizontal = 12.dp)
                     .semantics(mergeDescendants = true) {},
-                // Centrado vertical del texto dentro de los 48 dp.
-            )
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = actionLabel,
+                    style = MaterialTheme.typography.labelMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        textDecoration = TextDecoration.Underline,
+                    ),
+                    color = MaterialTheme.colorScheme.primary,
+                    maxLines = 1,
+                    softWrap = false,
+                )
+            }
         }
     }
 }

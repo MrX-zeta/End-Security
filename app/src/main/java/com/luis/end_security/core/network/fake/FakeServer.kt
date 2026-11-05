@@ -45,6 +45,7 @@ import com.luis.end_security.core.network.dto.WriteResultDto
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.contentOrNull
@@ -432,16 +433,19 @@ class FakeServer(
         require(body.isNotEmpty() && body.keys.all { it == "displayName" || it == "marketingOptIn" })
         val name = body["displayName"]
         val optIn = body["marketingOptIn"]
-        val newName = when {
-            name == null -> null
-            name is JsonNull -> ""
-            else -> name.jsonPrimitive.contentOrNull ?: throw IllegalArgumentException()
+        // Como el contrato: `displayName` es una cadena de 1 a 50 (`""` no vale) o `null` explícito (borra el nombre); `marketingOptIn`
+        // es un booleano de verdad (ni la cadena "true" ni un número).
+        val newName: String? = when {
+            name == null || name is JsonNull -> null
+            name is JsonPrimitive && name.isString -> name.content.also { require(it.length in 1..50) }
+            else -> throw IllegalArgumentException()
         }
-        val newOptIn = optIn?.jsonPrimitive?.let { it.booleanOrNull ?: throw IllegalArgumentException() }
-        if (name != null) {
-            if (newName!!.isNotEmpty()) require(newName.length in 1..50)
-            user.displayName = newName.ifEmpty { null }
+        val newOptIn: Boolean? = when {
+            optIn == null -> null
+            optIn is JsonPrimitive && !optIn.isString -> optIn.booleanOrNull ?: throw IllegalArgumentException()
+            else -> throw IllegalArgumentException()
         }
+        if (name != null) user.displayName = newName
         if (newOptIn != null) user.marketingOptIn = newOptIn
         return ok(AccountDto.serializer(), user.toDto())
     }

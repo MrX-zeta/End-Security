@@ -52,12 +52,14 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.luis.end_security.R
+import com.luis.end_security.core.designsystem.component.isKeyboardVisible
 import com.luis.end_security.core.designsystem.component.BackTopBar
 import com.luis.end_security.core.designsystem.component.BottomNavTab
 import com.luis.end_security.core.designsystem.component.CodeField
 import com.luis.end_security.core.designsystem.component.LabeledTextField
 import com.luis.end_security.core.designsystem.component.NeumorphicDisc
 import com.luis.end_security.core.designsystem.component.PrimaryButton
+import com.luis.end_security.core.designsystem.component.bringIntoViewWhenKeyboardOpens
 import com.luis.end_security.core.designsystem.component.ReadOnlyField
 import com.luis.end_security.core.designsystem.component.TwoWeightTitle
 import com.luis.end_security.core.designsystem.component.onFocusLost
@@ -283,17 +285,22 @@ private fun EmailCodeScreen(state: ChangeEmailUiState, onAction: (ChangeEmailAct
             val viewportHeight = maxHeight
             Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                 Column(modifier = Modifier.heightIn(min = viewportHeight).padding(horizontal = 32.dp)) {
-                    Spacer(Modifier.height(24.dp))
-                    androidx.compose.foundation.layout.Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                        NeumorphicDisc(
-                            icon = R.drawable.ic_mail_38,
-                            contentDescription = null,
-                            size = 104.dp,
-                            iconSize = 38.dp,
-                            iconTint = MaterialTheme.colorScheme.onSurface,
-                        )
+                    // Con el teclado abierto se oculta el disco decorativo: así el campo y el botón caben a la vista (tarea 23).
+                    if (isKeyboardVisible()) {
+                        Spacer(Modifier.height(8.dp))
+                    } else {
+                        Spacer(Modifier.height(24.dp))
+                        androidx.compose.foundation.layout.Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                            NeumorphicDisc(
+                                icon = R.drawable.ic_mail_38,
+                                contentDescription = null,
+                                size = 104.dp,
+                                iconSize = 38.dp,
+                                iconTint = MaterialTheme.colorScheme.onSurface,
+                            )
+                        }
+                        Spacer(Modifier.height(56.dp))
                     }
-                    Spacer(Modifier.height(56.dp))
                     TwoWeightTitle(
                         boldLine = stringResource(R.string.verify_title_bold),
                         regularLine = stringResource(R.string.verify_title_regular),
@@ -350,7 +357,7 @@ private fun EmailCodeScreen(state: ChangeEmailUiState, onAction: (ChangeEmailAct
                         onClick = submit,
                         enabled = state.codeError != EmailCodeError.Expired,
                         loading = state.isConfirming,
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth().bringIntoViewWhenKeyboardOpens(),
                     )
                     Spacer(Modifier.height(16.dp))
                 }

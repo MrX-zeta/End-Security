@@ -35,12 +35,13 @@ import com.luis.end_security.feature.settings.ui.legal.LICENSES_ROW_TAG
 import com.luis.end_security.feature.settings.ui.legal.LICENSE_TEXT_TAG
 import com.luis.end_security.feature.settings.ui.legal.LegalDocument
 import com.luis.end_security.feature.settings.ui.legal.LegalDocumentBody
-import com.luis.end_security.feature.settings.ui.legal.LegalDocumentContent
+import com.luis.end_security.feature.settings.ui.legal.LegalDocumentScreen
 import com.luis.end_security.feature.settings.ui.legal.LegalInfo
 import com.luis.end_security.feature.settings.ui.legal.LegalMarkdown
 import com.luis.end_security.feature.settings.ui.legal.LicensesScreen
 import com.luis.end_security.feature.settings.ui.legal.Licenses
 import com.luis.end_security.feature.settings.ui.legal.securityReportIntent
+import com.luis.end_security.feature.settings.ui.legal.supportIntent
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -162,16 +163,27 @@ class LegalScreensTest {
         var document by mutableStateOf(LegalDocument.entries.first())
         composeRule.setContent {
             EndSecurityTheme {
-                Box(Modifier.size(width = 412.dp, height = 917.dp)) { LegalDocumentContent(document = document) }
+                Box(Modifier.size(width = 412.dp, height = 917.dp)) { LegalDocumentScreen(document = document, onBack = {}) }
             }
         }
         for (entry in LegalDocument.entries) {
             document = entry
             composeRule.waitUntil(5_000) { composeRule.onAllNodesWithText(str(R.string.legal_summary_title)).fetchSemanticsNodes().isNotEmpty() }
+            // La barra superior lleva el título del documento (Figma 235:4976 y 236:5003).
+            composeRule.onAllNodesWithText(str(entry.screenTitle))[0].assertIsDisplayed()
             composeRule.onNodeWithText(str(R.string.legal_summary_title)).assertIsDisplayed()
             composeRule.onNodeWithText(str(R.string.legal_open_all)).assertIsDisplayed()
             composeRule.onAllNodesWithText(str(R.string.legal_load_error)).assertCountEquals(0)
-            capture("tarea22-${entry.routeArg}")
+            capture("tarea23-${entry.routeArg}-plegado")
+            // Con todo abierto, para compararlo con Figma.
+            composeRule.onNodeWithText(str(R.string.legal_open_all)).performClick()
+            composeRule.onNodeWithText(str(R.string.legal_close_all)).assertIsDisplayed()
+            capture("tarea23-${entry.routeArg}-abierto")
+            if (entry == LegalDocument.Privacy) {
+                // Las tarjetas de los encargados (tabla de la sección 4).
+                composeRule.onAllNodesWithText("Qué hace:", substring = true)[0].performScrollTo()
+                capture("tarea23-privacy-encargados")
+            }
         }
     }
 
@@ -211,11 +223,17 @@ class LegalScreensTest {
     @Test
     fun acercaDeMuestraNombreVersionYLosCreditos() {
         var reported = 0
+        var support = 0
         var repository = 0
         composeRule.setContent {
             EndSecurityTheme {
                 Box(Modifier.size(width = 412.dp, height = 917.dp)) {
-                    AboutBody(versionName = BuildConfig.VERSION_NAME, onReportSecurityIssue = { reported++ }, onOpenRepository = { repository++ })
+                    AboutBody(
+                        versionName = BuildConfig.VERSION_NAME,
+                        onReportSecurityIssue = { reported++ },
+                        onContactSupport = { support++ },
+                        onOpenRepository = { repository++ },
+                    )
                 }
             }
         }
@@ -224,11 +242,25 @@ class LegalScreensTest {
         composeRule.onNodeWithText(context.getString(R.string.about_version, BuildConfig.VERSION_NAME)).assertIsDisplayed()
         composeRule.onNodeWithText(str(R.string.about_academic)).assertIsDisplayed()
         composeRule.onNodeWithText(str(R.string.about_hibp)).assertIsDisplayed()
-        capture("tarea22-acerca-de")
+        capture("tarea23-acerca-de")
         composeRule.onNodeWithText(str(R.string.about_report_security)).performClick()
+        composeRule.onNodeWithText(str(R.string.about_support)).performClick()
         composeRule.onNodeWithText(str(R.string.about_repository)).performClick()
         assertEquals(1, reported)
+        assertEquals(1, support)
         assertEquals(1, repository)
+    }
+
+    @Test
+    fun soporteAbreElCorreoDeSoporteConSuAsuntoYElReporteSigueEnPrivacidad() {
+        val support = supportIntent()
+        assertEquals(Intent.ACTION_SENDTO, support.action)
+        assertEquals("mailto:", support.dataString)
+        assertArrayEquals(arrayOf("endsecurity.soporte@gmail.com"), support.getStringArrayExtra(Intent.EXTRA_EMAIL))
+        assertEquals("Soporte End Security", support.getStringExtra(Intent.EXTRA_SUBJECT))
+        assertEquals(null, support.getStringExtra(Intent.EXTRA_TEXT))
+        // «Reportar un problema de seguridad» sigue yendo al canal de privacidad.
+        assertArrayEquals(arrayOf("endsecurity.privacidad@gmail.com"), securityReportIntent().getStringArrayExtra(Intent.EXTRA_EMAIL))
     }
 
     @Test

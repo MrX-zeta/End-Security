@@ -92,6 +92,55 @@ class HealthViewModelTest {
     }
 
     @Test
+    fun `al bloquear la boveda el estado se vacia aunque nadie lo este mirando`() = runTest(dispatcher) {
+        health.set(HealthState(report("A" to "s4-a", "B" to "s0-b"), lastCheckedAt = Instant.ofEpochMilli(clock.now)))
+        val viewModel = viewModel()
+        assertNotNull(viewModel.state.value.report)
+        // Con `saveState` este ViewModel vive en segundo plano: al bloquear no debe quedar ningún análisis descifrado (INV-07).
+        session.lock()
+        runCurrent()
+        assertNull(viewModel.state.value.report)
+        assertTrue(viewModel.state.value.isLoading)
+    }
+
+    @Test
+    fun `Revisar ahora sin conexion avisa y lo no revisado sigue pendiente`() = runTest(dispatcher) {
+        val report = HealthAnalyzer.analyze(
+            listOf(item("A", "s4-a", breach = null), item("B", "s3-b", breach = 0)), Instant.ofEpochMilli(clock.now), estimator,
+        )
+        health.set(HealthState(report, lastCheckedAt = Instant.ofEpochMilli(clock.now)))
+        // La revisión termina sin red: el repositorio deja `offline` y la fecha de la última buena.
+        health.afterCheck = { health.set(HealthState(report, lastCheckedAt = Instant.ofEpochMilli(clock.now), offline = true)) }
+        val viewModel = viewModel()
+        assertEquals(0, viewModel.state.value.offlineNoticeId)
+
+        viewModel.onCheckNow()
+        runCurrent()
+
+        assertEquals(listOf(true), health.checks)
+        assertEquals(1, viewModel.state.value.offlineNoticeId)
+        // Sigue mostrando la última revisión y lo que no se pudo revisar queda como pendiente.
+        assertEquals(Instant.ofEpochMilli(clock.now), viewModel.state.value.lastChecked)
+        assertEquals(1, viewModel.state.value.report!!.pendingBreachCount)
+        // Otro intento sin red avisa otra vez.
+        viewModel.onCheckNow()
+        runCurrent()
+        assertEquals(2, viewModel.state.value.offlineNoticeId)
+    }
+
+    @Test
+    fun `Revisar ahora con conexion no avisa y entrar con la bandera vieja tampoco`() = runTest(dispatcher) {
+        health.set(HealthState(report("A" to "s4-a"), lastCheckedAt = Instant.ofEpochMilli(clock.now), offline = true))
+        val viewModel = viewModel()
+        // Solo la bandera de antes: no es un intento de la persona, no hay aviso.
+        assertEquals(0, viewModel.state.value.offlineNoticeId)
+        health.afterCheck = { health.set(HealthState(report("A" to "s4-a"), lastCheckedAt = Instant.ofEpochMilli(clock.now), offline = false)) }
+        viewModel.onCheckNow()
+        runCurrent()
+        assertEquals(0, viewModel.state.value.offlineNoticeId)
+    }
+
+    @Test
     fun `una boveda sin contrasenas no esta cargando y no tiene puntuacion`() = runTest(dispatcher) {
         health.set(HealthState(report()))
         val state = viewModel().state.value

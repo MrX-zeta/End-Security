@@ -62,6 +62,9 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.luis.end_security.R
+import com.luis.end_security.core.designsystem.component.IME_SETTLE_MILLIS
+import com.luis.end_security.core.designsystem.component.isKeyboardVisible
+import kotlinx.coroutines.delay
 import com.luis.end_security.core.designsystem.component.BlobShape
 import com.luis.end_security.core.designsystem.component.SignOutBottomSheet
 import com.luis.end_security.core.designsystem.component.SignOutSheet
@@ -184,7 +187,11 @@ fun UnlockScreen(
     val formRequester = remember { BringIntoViewRequester() }
     val imeBottom = WindowInsets.ime.getBottom(LocalDensity.current)
     LaunchedEffect(imeBottom) {
-        if (imeBottom > 0) formRequester.bringIntoView()
+        if (imeBottom > 0) {
+            // Con la altura final del teclado (no la de la mitad de su animación): si no, el campo queda cortado.
+            delay(IME_SETTLE_MILLIS)
+            formRequester.bringIntoView()
+        }
     }
     val submit = {
         focusManager.clearFocus()
@@ -213,7 +220,9 @@ fun UnlockScreen(
                 .verticalScroll(rememberScrollState())
                 .heightIn(min = viewportHeight),
         ) {
-            UnlockHeader()
+            // Con el teclado abierto las manchas se quitan y queda solo la marca: en un teléfono pequeño ocupaban todo el espacio libre
+            // y el campo quedaba fuera de pantalla (tarea 23).
+            UnlockHeader(compact = isKeyboardVisible())
             Column(
                 modifier = Modifier
                     .weight(1f)
@@ -256,8 +265,19 @@ fun UnlockScreen(
                         maxLength = MasterPasswordPolicy.MAX_FIELD_LENGTH,
                     )
                     Spacer(Modifier.height(28.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        if (state.biometricAvailable) {
+                    PrimaryButton(
+                        text = stringResource(R.string.unlock_submit),
+                        onClick = submit,
+                        // Siempre activo (salvo cargando o bloqueado por intentos, que muestra su cuenta regresiva).
+                        enabled = !state.isLockedOut,
+                        loading = state.isLoading,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    // La huella va debajo de «Desbloquear» y se desplaza con el contenido. Con el teclado abierto se oculta (nunca a
+                    // medias): la contraseña y «Desbloquear» son lo que se necesita a la vista.
+                    if (state.biometricAvailable && !isKeyboardVisible()) {
+                        Spacer(Modifier.height(16.dp))
+                        Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                             OutlinedIconButton(
                                 icon = R.drawable.ic_fingerprint_22,
                                 contentDescription = stringResource(R.string.unlock_biometric),
@@ -265,14 +285,6 @@ fun UnlockScreen(
                                 size = 56.dp,
                             )
                         }
-                        PrimaryButton(
-                            text = stringResource(R.string.unlock_submit),
-                            onClick = submit,
-                            // Siempre activo (salvo cargando o bloqueado por intentos, que muestra su cuenta regresiva).
-                            enabled = !state.isLockedOut,
-                            loading = state.isLoading,
-                            modifier = Modifier.weight(1f),
-                        )
                     }
                 }
                 Spacer(Modifier.weight(1f).heightIn(min = 24.dp))
@@ -301,13 +313,13 @@ fun UnlockScreen(
 
 /** Marca y manchas de arriba a la derecha, en la misma posición que en Iniciar sesión. */
 @Composable
-private fun UnlockHeader() {
+private fun UnlockHeader(compact: Boolean) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(HeaderAreaHeight),
+            .then(if (compact) Modifier else Modifier.height(HeaderAreaHeight)),
     ) {
-        OrganicBlob(
+        if (!compact) OrganicBlob(
             shape = BlobShape.B,
             grain = true,
             modifier = Modifier
@@ -315,7 +327,7 @@ private fun UnlockHeader() {
                 .offset(x = 68.dp, y = 24.dp)
                 .requiredSize(width = 230.dp, height = 210.dp),
         )
-        OrganicBlob(
+        if (!compact) OrganicBlob(
             shape = BlobShape.C,
             color = MaterialTheme.colorScheme.primary,
             modifier = Modifier
@@ -327,7 +339,7 @@ private fun UnlockHeader() {
             text = stringResource(R.string.app_name),
             style = MaterialTheme.typography.titleLarge,
             color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.padding(start = 28.dp, top = 22.dp),
+            modifier = Modifier.padding(start = 28.dp, top = 22.dp, bottom = if (compact) 8.dp else 0.dp),
         )
     }
 }

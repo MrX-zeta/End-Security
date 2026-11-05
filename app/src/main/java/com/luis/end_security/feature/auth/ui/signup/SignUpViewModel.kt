@@ -66,7 +66,8 @@ class SignUpViewModel @Inject constructor(
             is SignUpAction.PasswordsChanged -> onPasswordsChanged(action.password, action.confirmation)
             SignUpAction.PasswordsCleared -> clearPasswordDerivedState()
             SignUpAction.ConfirmationFocusLost -> revealMismatchIfAny()
-            is SignUpAction.MarketingOptInChanged -> _state.update { it.copy(marketingOptIn = action.optIn) }
+            // Mientras se crea la cuenta la casilla no cambia: lo que se ve es lo que se envió (DEC-64).
+            is SignUpAction.MarketingOptInChanged -> _state.update { if (it.isLoading) it else it.copy(marketingOptIn = action.optIn) }
             is SignUpAction.TermsAcceptedChanged -> _state.update {
                 it.copy(termsAccepted = action.accepted, showTermsError = it.showTermsError && !action.accepted).withCanSubmit()
             }
@@ -195,6 +196,8 @@ class SignUpViewModel @Inject constructor(
             _state.update { it.copy(focusRequest = focusOn(firstBad)) }
             return
         }
+        // El consentimiento que se envía es el que había al tocar «Crear cuenta» (DEC-64), no el de un instante posterior.
+        val marketingOptIn = _state.value.marketingOptIn
         _state.update { it.copy(isLoading = true).withCanSubmit() }
         submitJob = viewModelScope.launch {
             val accepted = passesNormalizedPolicy(password, normalizedPassword, normalizedConfirmation)
@@ -209,7 +212,7 @@ class SignUpViewModel @Inject constructor(
             // OP-11: el repositorio genera la cuenta, deriva las llaves (Argon2 fuera del hilo
             // principal) y registra. La contraseña no se guarda en ningún lado.
             val email = _state.value.email.trim()
-            val result = auth.register(email, password, _state.value.marketingOptIn)
+            val result = auth.register(email, password, marketingOptIn)
             _state.update {
                 it.copy(
                     isLoading = false,

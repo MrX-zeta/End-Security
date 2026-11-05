@@ -29,7 +29,7 @@ class AccountInfo(
     val protectedVaultKey: Sealed,
     val twoFactorEnabled: Boolean,
     /** Finalidades secundarias del aviso de privacidad (DEC-64). */
-    val marketingOptIn: Boolean = false,
+    val marketingOptIn: Boolean,
 ) {
     override fun toString(): String = "AccountInfo(userId=$userId, keyVersion=$keyVersion, ***)"
 }

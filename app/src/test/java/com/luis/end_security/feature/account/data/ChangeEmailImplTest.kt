@@ -365,7 +365,7 @@ class ChangeEmailImplTest {
     // --- Paso 3: el correo en el resto de la app ---
 
     private fun info(user: UUID, mail: String) = AccountInfo(
-        user, mail, true, null, 1, ServerKdf(65_536, 3, 1, salt), com.luis.end_security.core.crypto.Sealed(ByteArray(12), ByteArray(48)), false,
+        user, mail, true, null, 1, ServerKdf(65_536, 3, 1, salt), com.luis.end_security.core.crypto.Sealed(ByteArray(12), ByteArray(48)), false, false,
     )
 
     @Test
@@ -420,7 +420,7 @@ class ChangeEmailImplTest {
         setUp()
         val other = AccountInfo(
             userId, "valido@correo.com", true, null, 2, ServerKdf(65_536, 3, 1, ByteArray(16) { 9 }),
-            com.luis.end_security.core.crypto.Sealed(ByteArray(12), ByteArray(48)), false,
+            com.luis.end_security.core.crypto.Sealed(ByteArray(12), ByteArray(48)), false, false,
         )
         AccountEmailSync(accounts).apply(other)
         assertEquals(email, accounts.current!!.email)

@@ -138,12 +138,12 @@ fun messageText(message: HealthMessage): String = stringResource(
     },
 )
 
-/** «Revisado hoy a las 10:30», «Revisado ayer…» o «Sin revisar»; con `offline`, agrega «· sin conexión». */
+/** «Revisado hoy a las 10:30», «Revisado ayer…» o «Sin revisar». Sin «sin conexión»: eso lo dice un aviso al tocar «Revisar ahora». */
 @Composable
-fun checkedText(lastChecked: Instant?, offline: Boolean, now: Instant = Instant.now()): String {
+fun checkedText(lastChecked: Instant?, now: Instant = Instant.now()): String {
     val locale: Locale = LocalConfiguration.current.locales[0]
     val zone = ZoneId.systemDefault()
-    val base = if (lastChecked == null) {
+    return if (lastChecked == null) {
         stringResource(R.string.health_not_checked)
     } else {
         val local = lastChecked.atZone(zone)
@@ -158,7 +158,6 @@ fun checkedText(lastChecked: Instant?, offline: Boolean, now: Instant = Instant.
             )
         }
     }
-    return if (offline) base + " · " + stringResource(R.string.health_offline_suffix) else base
 }
 
 /** Una fila del resumen (Figma 47:1083): ícono, título, descripción, número y flecha; toda la fila es el botón. */

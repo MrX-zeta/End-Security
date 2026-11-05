@@ -202,8 +202,12 @@ class FakeHealthRepository : HealthRepository {
         refreshes++
     }
 
+    /** Lo que pasa al terminar una revisión (p. ej. quedar sin conexión). */
+    var afterCheck: (() -> Unit)? = null
+
     override suspend fun checkBreaches(force: Boolean) {
         checks += force
+        afterCheck?.invoke()
     }
 
     override suspend fun open() {

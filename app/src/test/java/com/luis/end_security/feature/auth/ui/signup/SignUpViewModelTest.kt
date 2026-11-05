@@ -255,6 +255,21 @@ class SignUpViewModelTest {
     }
 
     @Test
+    fun `la casilla de novedades no cambia mientras se crea la cuenta y se envia lo que habia al tocar`() = kotlinx.coroutines.test.runTest(dispatcher) {
+        fillValidForm()
+        viewModel.onAction(SignUpAction.MarketingOptInChanged(true))
+        val gate = kotlinx.coroutines.CompletableDeferred<Unit>()
+        auth.gate = gate
+        viewModel.onAction(SignUpAction.Submit(StringBuilder(STRONG), StringBuilder(STRONG)))
+        assertTrue(state.isLoading)
+        // Intento de desmarcarla durante la creación: se ignora (lo que se ve es lo que se envía).
+        viewModel.onAction(SignUpAction.MarketingOptInChanged(false))
+        assertTrue(state.marketingOptIn)
+        gate.complete(Unit)
+        assertEquals(listOf(true), auth.marketingOptIns)
+    }
+
+    @Test
     fun `si el registro falla la casilla de novedades conserva lo que marcaste`() = kotlinx.coroutines.test.runTest(dispatcher) {
         auth.registerResult = ApiResult.Failure(ApiError.NetworkUnavailable)
         fillValidForm()

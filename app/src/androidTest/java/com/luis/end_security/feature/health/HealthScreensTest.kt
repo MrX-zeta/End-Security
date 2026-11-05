@@ -6,7 +6,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.captureToImage
+import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -14,6 +16,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.height
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.luis.end_security.core.designsystem.theme.EndSecurityTheme
@@ -183,6 +186,52 @@ class HealthScreensTest {
     fun antiguas_lista_las_de_mas_de_un_anio() {
         render("scr28_antiguas") { HealthOldScreen(report(), {}, {}, {}) }
         composeRule.onNodeWithText("Uber", substring = true).assertIsDisplayed()
+    }
+
+    private fun offlineState(noticeId: Int = 0): HealthUiState {
+        val base = state()
+        // Revisado ayer y con una contraseña sin revisar (la de HIBP no respondió).
+        val unchecked = AnalysisItem(UUID.randomUUID(), "Instagram", "s4-a", Instant.now().minusSeconds(20 * 86_400L), null)
+        val pending = HealthAnalyzer.analyze(listOf(unchecked, item("Gmail", "s3-b")), Instant.now(), estimator)
+        return HealthUiState(
+            isLoading = false, report = pending, lastChecked = Instant.now().minusSeconds(24 * 3600L), offline = true,
+            progress = base.progress, offlineNoticeId = noticeId,
+        )
+    }
+
+    private fun renderScaled(name: String, fontScale: Float, content: @androidx.compose.runtime.Composable () -> Unit) {
+        render(name) {
+            val density = androidx.compose.ui.platform.LocalDensity.current
+            androidx.compose.runtime.CompositionLocalProvider(
+                androidx.compose.ui.platform.LocalDensity provides androidx.compose.ui.unit.Density(density.density, fontScale),
+            ) { content() }
+        }
+    }
+
+    @Test
+    fun sin_conexion_con_letra_grande_Revisar_ahora_queda_debajo_de_la_fecha() {
+        renderScaled("tarea23-salud-sin-conexion-1-3x", fontScale = 1.3f) {
+            HealthScreen(offlineState(), {}, {}, {}, {}, {}, {}, {}, {})
+        }
+        // La línea no dice «sin conexión» (eso lo avisa el mensaje al tocar «Revisar ahora»).
+        assertEquals(0, composeRule.onAllNodesWithText("sin conexión", substring = true, ignoreCase = true).fetchSemanticsNodes().size)
+        val line = composeRule.onNodeWithText("Revisado ayer", substring = true).getBoundsInRoot()
+        val button = composeRule.onNodeWithText("Revisar ahora").getBoundsInRoot()
+        // «Revisar ahora» está debajo de la fecha (no a su lado), en una sola línea de 48 dp o más.
+        assert(button.top >= line.bottom) { "el botón (${button.top}) no está debajo de la fecha (${line.bottom})" }
+        assert(button.height >= 48.dp) { "el botón mide ${button.height}" }
+        assert(button.height < 80.dp) { "«Revisar ahora» se partió en varias líneas (${button.height})" }
+        composeRule.onNodeWithText("Revisar ahora").assertHasClickAction()
+    }
+
+    @Test
+    fun tocar_Revisar_ahora_sin_conexion_muestra_el_aviso_y_lo_pendiente_sigue() {
+        render("tarea23-salud-aviso-sin-conexion") {
+            HealthScreen(offlineState(noticeId = 1), {}, {}, {}, {}, {}, {}, {}, {})
+        }
+        composeRule.onNodeWithText("Sin conexión. Te mostramos la última revisión.").assertIsDisplayed()
+        // Lo no revisado sigue como pendiente.
+        composeRule.onNodeWithText("sin revisar todavía", substring = true).assertIsDisplayed()
     }
 
     @Test

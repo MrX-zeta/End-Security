@@ -336,7 +336,7 @@
     <string name="health_checked_yesterday">Revisado ayer a las %1$s</string>
     <string name="health_checked_date">Revisado el %1$s a las %2$s</string>
     <string name="health_not_checked">Sin revisar</string>
-    <string name="health_offline_suffix">sin conexión</string>
+    <string name="health_offline_notice">Sin conexión. Te mostramos la última revisión.</string>
     <string name="health_check_now">Revisar ahora</string>
     <string name="health_checking">Revisando filtraciones…</string>
     <string name="health_loading_description">Calculando la salud de tu bóveda</string>
@@ -491,6 +491,7 @@
     <string name="about_academic">Proyecto académico de Seguridad Informática, Universidad Politécnica de Chiapas.</string>
     <string name="about_hibp">Las contraseñas filtradas se comprueban con Pwned Passwords, de Have I Been Pwned, bajo licencia CC BY 4.0.</string>
     <string name="about_report_security">Reportar un problema de seguridad</string>
+    <string name="about_support">Soporte</string>
     <string name="about_repository">Código fuente</string>
     <string name="about_no_app">No hay una app para abrirlo en este teléfono.</string>
     <string name="settings_sign_out">Cerrar sesión</string>

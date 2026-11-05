@@ -155,7 +155,10 @@ class VaultListViewModel @Inject constructor(
             offline = extras.offline,
             attentionCount = risky.size,
         )
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS), VaultListUiState())
+    // `Lazily`: arranca al primer uso y sigue mientras el ViewModel viva (la bóveda abierta). Con `WhileSubscribed(5 s)` la lista se
+    // volvía a descifrar entera al regresar a la Bóveda desde otra pestaña pasados los 5 s; así el primer cuadro ya trae la última lista.
+    // Al bloquear, el repositorio emite una lista vacía y el estado se vacía solo.
+    }.stateIn(viewModelScope, SharingStarted.Lazily, VaultListUiState())
 
     init {
         // Salud: el análisis local se mantiene al día con la bóveda (sin red; no se repite si nada cambió).
@@ -225,6 +228,5 @@ class VaultListViewModel @Inject constructor(
 
     private companion object {
         const val HEALTH_DEBOUNCE_MILLIS = 1_000L
-        const val STOP_TIMEOUT_MILLIS = 5_000L
     }
 }

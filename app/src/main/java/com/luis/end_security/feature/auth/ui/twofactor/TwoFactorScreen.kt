@@ -34,6 +34,8 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.luis.end_security.core.security.SecureScreen
 import com.luis.end_security.R
+import com.luis.end_security.core.designsystem.component.isKeyboardVisible
+import com.luis.end_security.core.designsystem.component.bringIntoViewWhenKeyboardOpens
 import com.luis.end_security.core.designsystem.component.BackTopBar
 import com.luis.end_security.core.designsystem.component.CodeField
 import com.luis.end_security.core.designsystem.component.InlineErrorMessage
@@ -107,18 +109,23 @@ fun TwoFactorScreen(
                         .heightIn(min = viewportHeight)
                         .padding(horizontal = ContentHorizontalPadding),
                 ) {
-                    Spacer(Modifier.height(24.dp))
-                    // Figma (nodo 36:377): disco de 104 con el teléfono de 38 en on-surface.
-                    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                        NeumorphicDisc(
-                            icon = R.drawable.ic_phone_38,
-                            contentDescription = null,
-                            size = 104.dp,
-                            iconSize = 38.dp,
-                            iconTint = MaterialTheme.colorScheme.onSurface,
-                        )
+                    // Con el teclado abierto se oculta el disco decorativo: así el campo y el botón caben a la vista (tarea 23).
+                    if (isKeyboardVisible()) {
+                        Spacer(Modifier.height(8.dp))
+                    } else {
+                        Spacer(Modifier.height(24.dp))
+                        // Figma (nodo 36:377): disco de 104 con el teléfono de 38 en on-surface.
+                        Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                            NeumorphicDisc(
+                                icon = R.drawable.ic_phone_38,
+                                contentDescription = null,
+                                size = 104.dp,
+                                iconSize = 38.dp,
+                                iconTint = MaterialTheme.colorScheme.onSurface,
+                            )
+                        }
+                        Spacer(Modifier.height(56.dp))
                     }
-                    Spacer(Modifier.height(56.dp))
                     TwoWeightTitle(
                         boldLine = stringResource(R.string.two_factor_title_bold),
                         regularLine = stringResource(R.string.two_factor_title_regular),
@@ -150,7 +157,7 @@ fun TwoFactorScreen(
                         onClick = submit,
                         enabled = !state.isLockedOut,
                         loading = state.isLoading,
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth().bringIntoViewWhenKeyboardOpens(),
                     )
                     Spacer(Modifier.height(4.dp))
                     PromptLink(

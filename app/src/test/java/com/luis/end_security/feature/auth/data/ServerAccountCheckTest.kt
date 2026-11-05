@@ -55,7 +55,7 @@ class ServerAccountCheckTest {
         mail: String = email,
     ) = AccountInfo(
         user, mail, true, null, keyVersion, ServerKdf(memoryKiB, iterations, 1, salt),
-        Sealed(ByteArray(12), ByteArray(48)), false,
+        Sealed(ByteArray(12), ByteArray(48)), false, false,
     )
 
     private fun key(bytes: ByteArray) = SecureBytes.copyOf(bytes)

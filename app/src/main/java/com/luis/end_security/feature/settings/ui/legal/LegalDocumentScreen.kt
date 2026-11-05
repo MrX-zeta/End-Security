@@ -20,6 +20,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -36,6 +37,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -128,12 +130,13 @@ fun LegalDocumentBody(
         Text(
             text = model.title,
             style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold,
+            fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.semantics { heading() },
         )
         if (model.meta.isNotEmpty()) {
-            Text(text = model.meta, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            // «End Security» en negrita y el resto normal (Figma 235:4976).
+            Text(text = annotated(model.metaSpans), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         model.intro.forEach { BlockView(it) }
         if (model.summary.isNotEmpty()) SummaryCard(model.summary)
@@ -158,51 +161,48 @@ fun LegalDocumentBody(
     }
 }
 
-/** «Resumen»: tarjeta siempre abierta con el fondo amarillo claro (`primary` suave). */
+/** «Resumen»: tarjeta siempre abierta en `primary` (el amarillo de Figma, FFCB74) con texto oscuro. */
 @Composable
 private fun SummaryCard(blocks: List<Block>) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.28f), RoundedCornerShape(20.dp))
+            .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(20.dp))
             .padding(horizontal = 16.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Text(
             text = stringResource(R.string.legal_summary_title),
             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-            color = MaterialTheme.colorScheme.onSurface,
+            color = MaterialTheme.colorScheme.onPrimary,
             modifier = Modifier.semantics { heading() },
         )
-        blocks.forEach { BlockView(it) }
+        blocks.forEach { BlockView(it, color = MaterialTheme.colorScheme.onPrimary) }
     }
 }
 
 /**
- * Una sección plegable. El encabezado es un botón que dice si está «Expandido» o «Contraído» (TalkBack) y el texto, abierto,
- * se lee en orden justo después.
+ * Una sección plegable. Abierta se ve como en Figma (título de sección y el texto directo sobre la página); el título es un botón
+ * con el chevrón y dice si está «Expandido» o «Contraído» (TalkBack), y el texto abierto se lee en orden justo después. Cerrada,
+ * una línea fina la separa de la siguiente.
  */
 @Composable
 private fun SectionAccordion(section: LegalSection, expanded: Boolean, onToggle: () -> Unit) {
     val stateText = stringResource(if (expanded) R.string.legal_expanded else R.string.legal_collapsed)
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(20.dp)),
-    ) {
+    Column(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .heightIn(min = 56.dp)
                 .clickable(role = Role.Button, onClick = onToggle)
                 .semantics(mergeDescendants = true) { stateDescription = stateText }
-                .padding(horizontal = 16.dp, vertical = 8.dp),
+                .padding(vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text(
                 text = section.title,
-                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
                 color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.weight(1f).semantics { heading() },
             )
@@ -216,11 +216,13 @@ private fun SectionAccordion(section: LegalSection, expanded: Boolean, onToggle:
         }
         if (expanded) {
             Column(
-                modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.padding(top = 4.dp, bottom = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 section.blocks.forEach { BlockView(it) }
             }
+        } else {
+            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.25f))
         }
     }
 }
@@ -233,56 +235,53 @@ private fun annotated(spans: List<Span>): AnnotatedString = buildAnnotatedString
 }
 
 @Composable
-private fun BlockView(block: Block) {
-    val color = MaterialTheme.colorScheme.onSurface
+private fun BlockView(block: Block, color: Color = MaterialTheme.colorScheme.onSurfaceVariant) {
     when (block) {
         is Block.Paragraph -> Text(annotated(block.spans), style = MaterialTheme.typography.bodyMedium, color = color)
+        // Los subtítulos y los rótulos en negrita van en `onSurface` (Figma: «Datos de cuenta», «Finalidades primarias…»).
         is Block.Subtitle -> Text(
             text = block.text,
             style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-            color = color,
+            color = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.padding(top = 4.dp),
         )
-        is Block.Bullet -> ListItem(marker = "•", spans = block.spans)
-        is Block.Numbered -> ListItem(marker = "${block.number}.", spans = block.spans)
+        is Block.Bullet -> ListItem(marker = "•", bold = false, spans = block.spans, color = color)
+        is Block.Numbered -> ListItem(marker = "${block.number}.", bold = true, spans = block.spans, color = color)
+        // Tarjeta de una fila de tabla (Figma 235:4976): blanca, radio 16; la negrita solo donde la trae el texto.
         is Block.Card -> Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(MaterialTheme.colorScheme.background, RoundedCornerShape(16.dp))
-                .padding(12.dp)
+                .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(16.dp))
+                .padding(16.dp)
                 .semantics(mergeDescendants = true) {},
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            // El primer campo de la fila, en negrita, y debajo «Qué hace: …» y «Datos que recibe: …».
-            Text(
-                annotated(block.title.map { it.copy(bold = true) }),
-                style = MaterialTheme.typography.bodyMedium,
-                color = color,
-            )
+            Text(annotated(block.title), style = MaterialTheme.typography.bodyMedium, color = color)
             block.fields.forEach { field ->
                 Text(
                     text = buildAnnotatedString {
-                        withStyle(SpanStyle(fontWeight = FontWeight.SemiBold)) { append(field.label + ": ") }
+                        withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append(field.label + ": ") }
                         append(annotated(field.spans))
                     },
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = color,
                 )
             }
         }
     }
 }
 
+/** Viñeta (punto pequeño a 16 dp del texto) o número en negrita (24 dp), como en Figma. */
 @Composable
-private fun ListItem(marker: String, spans: List<Span>) {
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.semantics(mergeDescendants = true) {}) {
+private fun ListItem(marker: String, bold: Boolean, spans: List<Span>, color: Color) {
+    Row(horizontalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.semantics(mergeDescendants = true) {}) {
         Text(
             text = marker,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.width(if (marker.length > 1) 24.dp else 12.dp),
+            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = if (bold) FontWeight.Bold else FontWeight.Normal),
+            color = if (bold) MaterialTheme.colorScheme.onSurface else color,
+            modifier = Modifier.width(if (bold) 24.dp else 12.dp),
         )
-        Text(annotated(spans), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
+        Text(annotated(spans), style = MaterialTheme.typography.bodyMedium, color = color, modifier = Modifier.weight(1f))
     }
 }
 
@@ -300,7 +299,7 @@ fun LegalDocumentScreen(
             .statusBarsPadding()
             .navigationBarsPadding(),
     ) {
-        BackTopBar(onBack = onBack)
+        BackTopBar(onBack = onBack, title = stringResource(document.screenTitle))
         LegalDocumentContent(document = document)
     }
 }

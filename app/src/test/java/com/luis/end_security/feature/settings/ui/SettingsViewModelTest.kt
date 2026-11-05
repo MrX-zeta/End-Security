@@ -59,11 +59,20 @@ class SettingsViewModelTest {
         var marketingSaveFails = false
         val marketingSaves = mutableListOf<Boolean>()
 
-        override suspend fun marketingOptIn() = marketing
+        /** Lo que responde la lectura del servidor si se quiere distinta de [marketing] (una lectura que salió antes de un cambio). */
+        var marketingReadOverride: Boolean? = null
+
+        /** La respuesta del PATCH se pierde (falla) pero el servidor sí aplicó el cambio. */
+        var marketingAppliesEvenIfFails = false
+
+        override suspend fun marketingOptIn() = marketingReadOverride ?: marketing
 
         override suspend fun setMarketingOptIn(optIn: Boolean): Boolean? {
             marketingSaves += optIn
-            if (marketingSaveFails) return null
+            if (marketingSaveFails) {
+                if (marketingAppliesEvenIfFails) marketing = optIn
+                return null
+            }
             marketing = optIn
             return optIn
         }
@@ -187,6 +196,35 @@ class SettingsViewModelTest {
         runCurrent()
         assertEquals(listOf(true), repo.marketingSaves)
         assertEquals(true, state.marketingOptIn)
+    }
+
+    @Test
+    fun `una lectura atrasada del servidor no pisa lo que la persona acaba de cambiar`() = scope.runTest {
+        repo.marketing = false
+        create()
+        // Sale una lectura que verá `false`…
+        repo.marketingReadOverride = false
+        viewModel.onAction(SettingsAction.Resumed)
+        // …y antes de que llegue la persona activa el interruptor.
+        viewModel.onAction(SettingsAction.MarketingToggled(true))
+        repo.marketingReadOverride = null
+        runCurrent()
+        // El servidor quedó en true y la pantalla también: la lectura de antes se descartó.
+        assertEquals(true, repo.marketing)
+        assertEquals(true, state.marketingOptIn)
+    }
+
+    @Test
+    fun `si la respuesta del PATCH se pierde se vuelve a leer lo que tiene el servidor`() = scope.runTest {
+        repo.marketing = false
+        repo.marketingSaveFails = true
+        repo.marketingAppliesEvenIfFails = true
+        create()
+        viewModel.onAction(SettingsAction.MarketingToggled(true))
+        runCurrent()
+        // El servidor sí aplicó el cambio aunque la respuesta se perdió: la pantalla muestra lo real y avisa del fallo.
+        assertEquals(true, state.marketingOptIn)
+        assertEquals(NoticeKind.MarketingFailed, state.notice?.kind)
     }
 
     @Test

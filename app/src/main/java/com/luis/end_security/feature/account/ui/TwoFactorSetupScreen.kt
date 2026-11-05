@@ -54,6 +54,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.luis.end_security.R
 import com.luis.end_security.core.designsystem.component.BackButton
 import com.luis.end_security.core.designsystem.component.BottomNavBar
+import com.luis.end_security.core.designsystem.component.isKeyboardVisible
 import com.luis.end_security.core.designsystem.component.BottomNavTab
 import com.luis.end_security.core.designsystem.component.CodeField
 import com.luis.end_security.core.designsystem.component.MessageBar
@@ -305,7 +306,8 @@ fun FlowScaffold(
                 )
             }
         }
-        BottomNavBar(selected = BottomNavTab.Settings, onTabSelected = onTabSelected)
+        // Con el teclado abierto la barra de abajo estorba (come altura útil en un teléfono pequeño): se oculta, como en Nueva contraseña.
+        if (!isKeyboardVisible()) BottomNavBar(selected = BottomNavTab.Settings, onTabSelected = onTabSelected)
     }
 }
 

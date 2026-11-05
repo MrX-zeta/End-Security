@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.ZoneId
@@ -41,6 +42,8 @@ class HealthUiState(
     val tab: HealthTab = HealthTab.Summary,
     val rankingTab: RankingTab = RankingTab.Strongest,
     val progress: ProgressSummary? = null,
+    /** Cambia cada vez que «Revisar ahora» termina sin conexión (0 = nunca): la pantalla muestra «Sin conexión…» un momento. */
+    val offlineNoticeId: Int = 0,
 ) {
     /** Hay una bóveda con contraseñas que analizar. */
     val hasItems: Boolean get() = report?.items?.isNotEmpty() == true
@@ -80,10 +83,17 @@ class HealthViewModel @Inject constructor(
         if (savedStateHandle.get<String>(RANKING_ARG) == RankingTab.Weakest.name) RankingTab.Weakest else RankingTab.Strongest,
     )
 
+    private val offlineNotices = MutableStateFlow(0)
+
     val state: StateFlow<HealthUiState> = combine(
-        health.state, health.observeProgress(), tab, rankingTab,
-    ) { state, snapshots, tab, ranking -> build(state.report, snapshots, tab, ranking, state.checking, state.lastCheckedAt, state.offline) }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MILLIS), HealthUiState())
+        health.state, health.observeProgress(), tab, rankingTab, offlineNotices,
+    ) { state, snapshots, tab, ranking, notices ->
+        build(state.report, snapshots, tab, ranking, state.checking, state.lastCheckedAt, state.offline, notices)
+    }
+        // Con la bóveda bloqueada el estado queda vacío aunque nadie lo esté mirando (INV-07): con `saveState` este ViewModel vive
+        // mientras la bóveda esté abierta, y con `WhileSubscribed` el último análisis descifrado se quedaba en memoria al bloquear.
+        .combine(session.state) { ui, vault -> if (vault is VaultState.Locked) HealthUiState() else ui }
+        .stateIn(viewModelScope, SharingStarted.Lazily, HealthUiState())
 
     init {
         // La primera vez que se abre Salud: análisis local y, si nunca se revisó, también HIBP (SCR-40).
@@ -100,6 +110,7 @@ class HealthViewModel @Inject constructor(
         checking: Boolean,
         lastChecked: Instant?,
         offline: Boolean,
+        offlineNoticeId: Int,
     ): HealthUiState {
         val today = Instant.ofEpochMilli(clock.wallMillis()).atZone(ZoneId.systemDefault()).toLocalDate()
         // «Revisando filtraciones…» mientras no hay análisis, o durante la primera revisión (nunca se había revisado).
@@ -113,6 +124,7 @@ class HealthViewModel @Inject constructor(
             tab = tab,
             rankingTab = ranking,
             progress = report?.let { HealthProgressCalculator.compute(snapshots, it, today) },
+            offlineNoticeId = offlineNoticeId,
         )
     }
 
@@ -124,13 +136,18 @@ class HealthViewModel @Inject constructor(
         rankingTab.value = selected
     }
 
-    /** «Revisar ahora»: vuelve a preguntarle a HIBP por todas (OP-10). */
+    /**
+     * «Revisar ahora»: vuelve a preguntarle a HIBP por todas (OP-10). Si termina sin conexión se avisa («Sin conexión. Te mostramos la
+     * última revisión.») y lo que no se pudo revisar sigue como «sin revisar todavía».
+     */
     fun onCheckNow() {
-        viewModelScope.launch { health.checkBreaches(force = true) }
+        viewModelScope.launch {
+            health.checkBreaches(force = true)
+            if (health.state.value.offline) offlineNotices.update { it + 1 }
+        }
     }
 
     companion object {
         const val RANKING_ARG = "tab"
-        private const val STOP_TIMEOUT_MILLIS = 5_000L
     }
 }
