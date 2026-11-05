@@ -1,61 +1,69 @@
-# Reporte · Tarea 21 · Cambiar el correo (OP-26; EP-15, EP-16; DEC-63)
+# Reporte · Tarea 22 · Legal y ayuda (PEND-12; DEC-64; contrato 1.4.0)
 
 **Estado:** hecha
 **Fecha:** 2026-11-04
 
-**REQUIERE REVISIÓN HUMANA:** el Paso 1 y el Paso 3 tocan autenticación e identificación local de la cuenta: `ChangeEmailImpl`, `AccountEmailSync` (y el decorador `EmailSyncingAccountApi`), `ServerAccountCheck` (comparación por correo normalizado), `EmailNormalizer`, `AccountDao.updateEmail` (SQL) y `AuthRepositoryImpl.normalizeEmail`. Pasaron por `security-reviewer` (ver abajo); los hallazgos alto y medios quedaron corregidos.
+**REQUIERE REVISIÓN HUMANA:** el registro (`RegisterRequest`, `AuthRepository.register`, `AuthRepositoryImpl`, `AuthApiImpl`) ahora lleva `marketingOptIn` hasta el servidor, y `AccountApi` ganó `updateMarketingOptIn` (PATCH). No toca crypto, sesión ni SQL, pero es autenticación y consentimiento (DEC-64): conviene pasarlo por `security-reviewer`. El **Paso 0** (`SecureScreen` en el código de cambiar correo) también queda para revisión.
 
-Antes de empezar se subió en un commit aparte (`docs:`) el grafo v1.6.2 (RSG-14) y `revisiones-pendientes.md`.
+El `docs:` de esta tarea (textos legales, contrato 1.4.0, alcance del backend, grafo v1.7.0) ya se había subido antes (`07684af`).
 
 ## Qué se hizo
 
-### Paso 1 · Entrada y pantalla del correo nuevo (Figma `227:4476`, `227:4534`, `227:4726`, `229:4852`)
-- **Ajustes:** la tarjeta de la cuenta lleva flecha y abre «Correo»; sin red (se pregunta al servidor) sale `MessageBar` «Necesitas conexión para cambiar tu correo.» y no navega.
-- **Pantalla «Correo»:** aviso oscuro, «Correo actual» (solo lectura y atenuado, del Room), «Correo nuevo» y «Continuar» (siempre activo). Validaciones al salir del campo y al tocar el botón: formato (`EmailFormat`, mensaje de la tarea 15) y **igual al actual tras normalizar** → «Es tu correo actual. Escribe uno distinto.».
-- **`EmailNormalizer`** (nuevo, `core/common`): trim + `lowercase(Locale.ROOT)` + NFC; **no** quita puntos ni `+alias` de Gmail. Lo usan la app, el backend falso y ahora también `AuthRepositoryImpl.normalizeEmail` (antes `trim().lowercase()`).
-- **«Continuar» con todo bien** abre `ReauthSheet` («Para cambiar tu correo escribe tu contraseña maestra y el código de tu app.», «Enviar código»). Pedí un parámetro nuevo `showCode` en la hoja: **sin 2FA no hay campo de código** y el texto es «…escribe tu contraseña maestra.». Luego **EP-15** con el correo normalizado y `Reauth` (`auth_key` derivada en el teléfono con `ReauthRunner`).
-- **Respuestas:** 202 → pantalla del código (sin distinguir si el correo estaba en uso); **429** → se cierra la hoja y el campo muestra, gris y con reloj, «Podrás cambiar tu correo de nuevo en N h / N min / N s», que cuenta hacia atrás (se redondea hacia arriba y el estado solo cambia al cambiar lo que se muestra); durante la espera «Continuar» no llama al servidor; `reauth_required` → «Contraseña o código incorrectos.» (con la regla de la `key_version` mayor: el mensaje del 409); `400` → el de «igual al actual»; sin red o 5xx → el genérico en la hoja.
+### Paso 0 · `SecureScreen` en el código de cambiar correo
+`EmailCodeScreen` (paso del código de `ChangeEmailScreen.kt`) llama a `SecureScreen()`: el código de un solo uso y el correo nuevo ya no salen en capturas ni en recientes. El paso del correo no lo lleva (no hay secretos; la contraseña solo vive en la hoja de reautenticación, que ya oculta su contenido).
 
-### Paso 2 · Código (Figma `227:4802`)
-- Mismo diseño que Verificar correo: «Te enviamos un código de 6 dígitos a {correo nuevo}. Tu correo cambia cuando lo confirmes.», `CodeField` y «Confirmar correo». **EP-16:** 200 → `account.email` de Room con el correo que devuelve el servidor y vuelve a Ajustes con «Tu correo ahora es {correo}»; código incorrecto («Código incorrecto. Te quedan N intentos.»), vencido o sin intentos («Este código ya no sirve. Pide uno nuevo.») y bloqueo con sus minutos.
-- «¿No te llegó? **Pide otro código**» vuelve al correo nuevo **con el correo ya escrito** (otra solicitud: reautenticación y cuenta para el límite). **Atrás** en el código vuelve al correo nuevo y no cambia nada. «Modo demostración · Código: N» con el backend falso (solo debug).
-- Un solo destino (`CHANGE_EMAIL`) con dos pasos y un solo ViewModel; la contraseña vive solo en el `TextFieldState` de la hoja.
+### Paso 1 · Documentos legales (`feature/settings/ui/legal/`)
+- **Gradle `copyLegalDocs`** (en `app/build.gradle.kts`, ligada a `preBuild`) copia `docs/legal/*.md` a `assets/legal/`; la copia está en `.gitignore`, así que `docs/legal/` sigue siendo la única fuente.
+- **`LegalMarkdown`** (renderizador mínimo, solo lo que usan los dos documentos): `#` título, línea de fecha, `##` secciones, línea completa en `**negritas**` como subtítulo, negritas en línea, viñetas, listas numeradas y **tablas → una tarjeta por fila**. Lo que no reconoce queda como párrafo con su texto (nada se pierde). `## Resumen` va aparte.
+- **`LegalDocumentScreen` / `LegalDocumentSheet`** (mismo contenido): título, fecha, **tarjeta «Resumen» siempre abierta** (amarillo claro), «Abrir todo / Cerrar todo» y cada sección como **acordeón plegado**. Cada encabezado es un botón con `stateDescription` «Expandido / Contraído» para TalkBack. Las secciones abiertas sobreviven a girar la pantalla (son índices, nada sensible). Funciona **con y sin sesión** (la ruta no está tras `RequireUnlocked`).
 
-### Paso 3 · El correo en el resto de la app
-- **Tarjeta de Ajustes:** muestra el correo de Room (ya lo hacía).
-- **Otro teléfono:** `EmailSyncingAccountApi` (decorador de `AccountApi` enlazado en Hilt) hace que **cualquier `getAccount()`** (Ajustes, 2 pasos, contraseña, eliminar) guarde el correo del servidor en Room **solo si el `userId` coincide** (`AccountEmailSync`), sin tocar el resto de esas pantallas.
-- **Iniciar sesión:** con el correo nuevo entra; con el viejo responde como una cuenta inexistente (probado contra el backend falso).
+### Paso 2 · Crear cuenta
+- Los enlaces de «Términos» y «Aviso de privacidad» abren el documento en una hoja sobre el formulario: lo escrito no se pierde.
+- Casilla nueva y **opcional**, sin marcar: «Quiero recibir novedades y encuestas de End Security (opcional)». No bloquea «Crear cuenta». `register` manda `marketingOptIn` (falso si no se marcó). Si el registro falla, la casilla conserva lo marcado.
 
-### Backend falso (solo el falso)
-EP-15: reautenticación; normalización y `400` si es el mismo (antes de contar el límite); 202 aunque el correo esté en uso; código de 6 dígitos que reemplaza al anterior, 15 min y 5 intentos; **límites de DEC-63** (3/h y 5/día por cuenta contando las aceptadas, 24 h desde el último `email_changed`) con `retryAfterSeconds` exacto; registra `email_change_requested`. EP-16: consume el código, cambia el correo (si en ese momento ya lo usa otra cuenta, responde como código inválido), registra `email_changed` y devuelve `Account`. El reloj es el inyectable de siempre.
+### Paso 3 · Ajustes
+- **Interruptor «Novedades y encuestas»** en la tarjeta Cuenta (después de «Actividad reciente»): toda la fila es un interruptor (`Role.Switch`). Valor: `getAccount().marketingOptIn`; al tocarlo, `PATCH /account { marketingOptIn }` con el cambio visible al instante. **Si falla (sin red o error), vuelve a su valor y avisa con el mensaje genérico** (`auth_error_generic`). Sin valor conocido se ve apagado y **deshabilitado**; mientras guarda no se puede volver a tocar. Se recarga al entrar y al volver a la pantalla.
+- **Grupo «Legal y ayuda»** con `ListCard` / `ListRowIcon` e íconos que ya existían: Términos y condiciones, Aviso de privacidad, Licencias, Acerca de.
+- **Licencias:** lista fija en `Licenses.kt` (AndroidX/Compose, Material 3, Hilt/Dagger, Kotlin/kotlinx, zxcvbn, Bouncy Castle, Montserrat y Pwned Passwords) y, al tocar una fila, hoja con el texto completo desde `assets/licenses/` (`apache-2.0.txt`, `mit.txt`, `cc-by-4.0.txt` nuevos; `montserrat/OFL.txt` ya estaba).
+- **Acerca de:** nombre, `BuildConfig.VERSION_NAME`, línea académica, crédito de HIBP (CC BY 4.0), **«Reportar un problema de seguridad»** (`ACTION_SENDTO`, destinatario `LegalInfo.PRIVACY_EMAIL`, asunto «Reporte de seguridad», sin cuerpo) y enlace al repositorio. Si no hay app que lo abra, `MessageBar` «No hay una app para abrirlo en este teléfono.».
+- Rutas nuevas `LICENSES` y `ABOUT` en `AppNavHost`.
+- **`LegalInfo`**: una sola constante `PRIVACY_EMAIL = "[privacidad@correo.com]"` (se dejó el marcador tal cual, igual que en los documentos).
 
-## Revisión con `security-reviewer` (Pasos 1 y 3)
-- **1 (alta) · la sincronización del correo debilitaba las defensas de la tarea 19.** `AccountEmailSync` guardaba cualquier correo del mismo `userId`; un servidor podía mandar uno mal formado o con mayúsculas, que no iguala al tecleado, y `ServerAccountCheck` dejaba de identificar la cuenta local (parámetros más baratos o sal distinta sin comparar). **Corregido:** solo se guarda un correo válido, **ya normalizado**, de ≤254 caracteres y solo si la cuenta **no cambió de sal** (eso es una recuperación, no un cambio de correo); además `ServerAccountCheck` compara con **ambos lados normalizados**.
-- **2 (media) · oráculo de enumeración entre EP-15 y EP-16.** Con el correo ocupado el falso quitaba el cambio pendiente y EP-16 respondía «ya no sirve»; con uno libre, «incorrecto, te quedan N». **Corregido en el falso:** el ocupado crea un cambio pendiente simulado (código al azar que nadie recibe, mismos intentos y vigencia). **Para el backend real (anotar):** EP-16 debe responder igual en los dos casos, y el envío del correo debe encolarse después del COMMIT con la misma latencia visible que el caso del correo ocupado.
-- **3 (media) · una respuesta atrasada de `getAccount()` podía revertir el correo recién cambiado.** **Corregido** serializando las escrituras con un `Mutex` (`AccountEmailSync` es `@Singleton`).
-- **4 y 5 (bajas):** la escritura tras el 200 va en `NonCancellable`; cualquier `validation_failed` se muestra como «igual al actual» (no filtra nada; se deja así hasta que el contrato distinga otra causa).
-- **6–7:** la normalización es determinista (sin NFKC: los caracteres de ancho completo cuentan como distintos, decisión del servidor); la contraseña y el código no se registran; la pantalla del código no lleva `SecureScreen` (código de un solo uso, igual que Verificar correo). El revisor lo dejó como recomendación opcional.
+### Contrato 1.4.0 (solo DTOs y backend falso)
+- `RegisterRequestDto.marketingOptIn` (no se escribe si es falso), `AccountDto.marketingOptIn` (obligatorio, como en el contrato) y `UpdateMarketingRequestDto`.
+- **Backend falso:** guarda `marketingOptIn` en el registro y lo devuelve en `Account`; `PATCH /account` acepta `displayName` y/o `marketingOptIn` (un cuerpo vacío o con campos desconocidos es 400; un campo ausente no se toca; `displayName: null` sí borra el nombre).
 
 ## Pruebas (salida real)
-- **`testDebugUnitTest`: 952, 0 fallas** (antes 878). Nuevas:
-  - `EmailNormalizerTest` (6): espacios, mayúsculas, NFC («é» compuesta y descompuesta), puntos y `+alias` de Gmail que no se quitan, la «I» turca (no depende del idioma) y que es idempotente.
-  - `ChangeEmailViewModelTest` (37): formato, igual al actual (espacios, mayúsculas, NFC), los puntos de Gmail, reauth con y sin 2FA, 202 → código, `reauth_required`, 409, genérico, 400, 429 con horas, minutos y segundos (el texto se actualiza y desaparece), «Continuar» sin llamar durante la espera, código incorrecto, vencido y bloqueado, «Pide otro código» con el correo escrito, Atrás (no cambia nada), el 200.
-  - `ChangeEmailImplTest` (26, **Argon2 real contra el backend falso** con reloj inyectable): la cuarta solicitud en una hora es 429 con los segundos exactos; la sexta del día es 429; tras un cambio hay que esperar 24 h (con 86 390 s, luego 1 s y a las 24 h se puede); mismo correo → 400 sin gastar solicitudes; correo ocupado → 202 e **indistinguible en EP-16**; un código nuevo invalida el anterior; entrar con el correo nuevo funciona y con el viejo responde como inexistente; 5 intentos; vence a los 15 min; el Paso 3 (mismo `userId` se actualiza, otro se ignora, correo malformado o sin normalizar y otra sal se ignoran, un `getAccount()` de la app guarda el correo del otro teléfono).
-  - `SettingsViewModelTest` (+4): la tarjeta con y sin red y el aviso «Tu correo ahora es …».
-- **Compose (`ChangeEmailScreensTest`, 17):** textos de Figma de las vistas, el mensaje de espera (horas, minutos, segundos), el de igual al actual, el formato, la hoja con y sin 2FA, el código (errores y «Pide otro código») y la tarjeta de Ajustes con su flecha.
-- **`connectedDebugAndroidTest` completa (sin E3): 187 pruebas, 0 fallas**, en dos tandas (105 de `feature.account`, `feature.activity`, `feature.auth` y `navigation`, y 82 del resto), porque el emulador se cae en una sola corrida larga. Incluye las 170 de antes, que la tarea 20 había dejado sin correr juntas.
-- **`lintDebug`: sin errores. `assembleRelease`: compila.**
+- **`testDebugUnitTest`: sin fallas.** Nuevas:
+  - `LegalMarkdownTest` (18): cada elemento, negritas en línea (incluida la sin pareja), tabla → tarjetas, `## Resumen` aparte, saltos `\r\n` y los dos documentos reales de `docs/legal`.
+  - `SettingsViewModelTest` (+7): valor del servidor, sin red (sin valor y tocarlo no hace nada), activar y desactivar, **fallo → vuelve a su valor y avisa**, segundo toque mientras guarda y recarga al volver.
+  - `SignUpViewModelTest` (+4): casilla sin marcar y opcional, registro con `marketingOptIn` falso / verdadero y la casilla se conserva si falla.
+  - `MarketingOptInAgainstFakeServerTest` (6, contra el backend falso): registro con y sin casilla, PATCH activa/retira, nombre y marketing independientes, los dos campos juntos y el 400 de cuerpo vacío o desconocido.
+  - `DtoContractTest`: el ejemplo de la cuenta ahora trae `marketingOptIn` (lo exige el contrato 1.4.0) y una prueba nueva de lo que se serializa.
+- **Compose** (en el emulador): `LegalScreensTest` (8: resumen abierto y secciones plegadas, abrir una sección, «Abrir todo / Cerrar todo», semántica Expandido/Contraído, los dos documentos reales sin sesión, Licencias con su hoja de texto, textos de licencia presentes en assets, Acerca de y el intent del correo), `SettingsScreenTest` (16; +6 del interruptor y de «Legal y ayuda»; la prueba del interruptor de huella ahora lo distingue del nuevo por su texto) y `FormErrorsScreenTest` (6; +2 de la casilla opcional). Las 30 de estos tres archivos pasaron en el emulador.
+- `lintDebug` sin errores y `assembleRelease` compila.
+- **`connectedDebugAndroidTest` completa, en dos tandas** (el emulador se cae en una sola corrida larga): **202 pruebas, 0 fallas** (5 omitidas, las de huella sin sensor), sin contar `ClipboardDeviceTest`.
+  - Tanda 1 (`feature.account`, `feature.activity`, `feature.auth`, `navigation`): 107. Una prueba de `TwoFactorScreensTest` falló por tiempo de espera de `PixelCopy` al capturar una hoja y luego el emulador se cayó («System has crashed»); tras reiniciarlo la clase pasó completa (15/15).
+  - Tanda 2 (`core`, `feature.health`, `feature.settings`, `feature.vault`): 95 sin `ClipboardDeviceTest`.
+  - **`ClipboardDeviceTest`: 2 de 4 fallan** («expected end-security:abc but was host clipboard»): es **E3** (el emulador comparte el portapapeles con el equipo); sigue pendiente de `revisiones-pendientes.md`, no es de esta tarea. No corrí `ExampleInstrumentedTest` por separado.
 
 ## En el emulador
-Capturas de `ChangeEmailScreensTest` comparadas con Figma: Correo nuevo, con la espera de 18 h, con «igual al actual», el código y Ajustes con la flecha coinciden (el campo «Correo actual» se atenuó tras la primera captura y no se volvió a capturar). **No recorrí por la interfaz de la app real** cambiar el correo con el código de «Modo demostración», cerrar sesión, entrar con el nuevo e intentar otro cambio para ver la espera (la prueba de Compose contra la app real se cuelga, ver tarea 13): **queda como prueba a mano**. El mismo flujo sin la interfaz está cubierto contra el backend falso con Argon2 real (`ChangeEmailImplTest`). El emulador se cayó varias veces ("System has crashed") en las corridas largas, así que la suite instrumentada se corrió en dos tandas.
+Capturas de las pruebas de Compose (Aviso de privacidad real con acordeones, documento abierto con «Cerrar todo», Licencias, Acerca de, Ajustes con el interruptor y «Legal y ayuda», Crear cuenta con la casilla) revisadas a ojo; la viñeta quedaba demasiado separada del texto y se redujo su espacio.
+
+**Figma — pendiente:** la página **«Legal»** no se puede alcanzar desde el MCP (el archivo solo expone el lienzo «Minimalista» hasta los frames de la tarea 21). Las vistas se hicieron con el enunciado de la tarea y los componentes del sistema de diseño; **no están comparadas con Figma**. Necesito los ids de nodo de la página «Legal» para compararlas con los acordeones abiertos.
 
 ## Decisiones y desviaciones a revisar
-- `AccountApi` se enlaza ahora al decorador `EmailSyncingAccountApi` (que delega en `AccountApiImpl`); ninguna otra pieza cambió su constructor.
-- `ReauthSheet` ganó `showCode`.
-- La espera de DEC-63 usa `Countdown` y solo actualiza el estado al cambiar el texto (cada hora, cada minuto o cada segundo).
-- «Correo actual» se atenúa con `alpha(0.6)`.
+- Los nombres de los componentes de terceros en `Licenses.kt` son nombres propios y viven en el código (no en `strings.xml`); los textos de la pantalla, sí.
+- El texto de `cc-by-4.0.txt` es el aviso de atribución con un resumen de la licencia y el enlace al texto legal completo, no el texto legal íntegro.
+- El marcador `[privacidad@correo.com]` y los `[Nombre completo del integrante …]` de los documentos se dejaron como están hasta que el equipo ponga los datos reales (**E4 pendiente del equipo**).
+- «Novedades y encuestas» va en la tarjeta Cuenta, después de «Actividad reciente».
+- Un `PATCH /account` con `displayName` ausente no toca el nombre (distinto de `null`, que lo borra); el backend real debe hacer lo mismo.
+
+## Pruebas manuales que no hice
+Abrir «Reportar un problema de seguridad» y el repositorio con una app de correo / navegador reales; recorrer Crear cuenta → documento → volver con la app real (las pruebas de Compose cubren la pantalla, no el flujo completo, porque la prueba de la app real se cuelga, ver tarea 13).
 
 ## Vistas / cambios (cómo llegar)
-- **Correo (nuevo y código):** Ajustes → tocar la tarjeta de la cuenta (con red).
-- **Hoja de reautenticación:** en «Correo», escribir un correo distinto y tocar «Continuar».
-- **«Tu correo ahora es …»:** al confirmar el código, de vuelta en Ajustes.
+- **Documentos legales:** Crear cuenta → «Términos» o «Aviso de privacidad» (hoja); Ajustes → «Legal y ayuda» → «Términos y condiciones» / «Aviso de privacidad» (pantalla).
+- **Casilla de novedades:** Crear cuenta, debajo de la casilla de términos.
+- **Interruptor «Novedades y encuestas»:** Ajustes → tarjeta «Cuenta».
+- **Licencias y Acerca de:** Ajustes → «Legal y ayuda».
