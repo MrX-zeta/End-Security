@@ -2,11 +2,9 @@ package com.luis.end_security.feature.unlock.ui
 
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.LocalActivity
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -14,20 +12,15 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.ime
-import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredSize
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.relocation.BringIntoViewRequester
-import androidx.compose.foundation.relocation.bringIntoViewRequester
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.text.input.clearText
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -45,7 +38,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalFocusManager
@@ -62,10 +56,8 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.luis.end_security.R
-import com.luis.end_security.core.designsystem.component.IME_SETTLE_MILLIS
-import com.luis.end_security.core.designsystem.component.isKeyboardVisible
-import kotlinx.coroutines.delay
 import com.luis.end_security.core.designsystem.component.BlobShape
+import com.luis.end_security.core.designsystem.component.KeyboardAwareLayout
 import com.luis.end_security.core.designsystem.component.SignOutBottomSheet
 import com.luis.end_security.core.designsystem.component.SignOutSheet
 import com.luis.end_security.core.designsystem.component.SignOutSheetContent
@@ -171,7 +163,6 @@ fun UnlockRoute(
 }
 
 /** SCR-09 · Desbloquear. Tema claro (DEC-51), sin flecha de atrás. */
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun UnlockScreen(
     state: UnlockUiState,
@@ -183,16 +174,6 @@ fun UnlockScreen(
     modifier: Modifier = Modifier,
 ) {
     val focusManager = LocalFocusManager.current
-    // Con el teclado abierto, el campo y «Desbloquear» se desplazan hasta quedar a la vista.
-    val formRequester = remember { BringIntoViewRequester() }
-    val imeBottom = WindowInsets.ime.getBottom(LocalDensity.current)
-    LaunchedEffect(imeBottom) {
-        if (imeBottom > 0) {
-            // Con la altura final del teclado (no la de la mitad de su animación): si no, el campo queda cortado.
-            delay(IME_SETTLE_MILLIS)
-            formRequester.bringIntoView()
-        }
-    }
     val submit = {
         focusManager.clearFocus()
         onSubmit()
@@ -200,47 +181,27 @@ fun UnlockScreen(
     // Con el campo vacío al tocar «Desbloquear» se marca y se le da el foco (tarea 15).
     val passwordFocus = remember { FocusRequester() }
     LaunchedEffect(state.focusRequest) {
-        if (state.focusRequest > 0) {
-            formRequester.bringIntoView()
-            passwordFocus.requestFocus()
-        }
+        if (state.focusRequest > 0) passwordFocus.requestFocus()
     }
 
-    BoxWithConstraints(
-        modifier = modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .statusBarsPadding()
-            .navigationBarsPadding()
-            .imePadding(),
-    ) {
-        val viewportHeight = maxHeight
-        Column(
-            modifier = Modifier
-                .verticalScroll(rememberScrollState())
-                .heightIn(min = viewportHeight),
-        ) {
-            // Con el teclado abierto las manchas se quitan y queda solo la marca: en un teléfono pequeño ocupaban todo el espacio libre
-            // y el campo quedaba fuera de pantalla (tarea 23).
-            UnlockHeader(compact = isKeyboardVisible())
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(horizontal = ContentHorizontalPadding),
-            ) {
-                TwoWeightTitle(
-                    boldLine = stringResource(R.string.unlock_title_bold),
-                    regularLine = stringResource(R.string.unlock_title_regular),
-                    style = MaterialTheme.typography.displaySmall,
-                )
-                Spacer(Modifier.height(10.dp))
-                Text(
-                    text = stringResource(R.string.unlock_body),
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Spacer(Modifier.height(28.dp))
-                Column(modifier = Modifier.bringIntoViewRequester(formRequester)) {
+    // Sin `imePadding` ni desplazamiento: [UnlockLayout] lee los insets animados del teclado y coloca todo a la par de él.
+    Box(modifier = modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+        KeyboardAwareLayout(
+            header = { UnlockHeader() },
+            main = {
+                Column(modifier = Modifier.padding(horizontal = ContentHorizontalPadding)) {
+                    TwoWeightTitle(
+                        boldLine = stringResource(R.string.unlock_title_bold),
+                        regularLine = stringResource(R.string.unlock_title_regular),
+                        style = MaterialTheme.typography.displaySmall,
+                    )
+                    Spacer(Modifier.height(10.dp))
+                    Text(
+                        text = stringResource(R.string.unlock_body),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(Modifier.height(28.dp))
                     if (state.biometricInvalidated) {
                         FieldErrorText(
                             text = stringResource(R.string.unlock_biometric_invalidated),
@@ -265,19 +226,10 @@ fun UnlockScreen(
                         maxLength = MasterPasswordPolicy.MAX_FIELD_LENGTH,
                     )
                     Spacer(Modifier.height(28.dp))
-                    PrimaryButton(
-                        text = stringResource(R.string.unlock_submit),
-                        onClick = submit,
-                        // Siempre activo (salvo cargando o bloqueado por intentos, que muestra su cuenta regresiva).
-                        enabled = !state.isLockedOut,
-                        loading = state.isLoading,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    // La huella va debajo de «Desbloquear» y se desplaza con el contenido. Con el teclado abierto se oculta (nunca a
-                    // medias): la contraseña y «Desbloquear» son lo que se necesita a la vista.
-                    if (state.biometricAvailable && !isKeyboardVisible()) {
-                        Spacer(Modifier.height(16.dp))
-                        Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    // «Acciones» (Figma 36:553): una sola fila de 56 dp, la huella cuadrada a la izquierda y «Desbloquear» con el resto del
+                    // ancho. Sin huella, «Desbloquear» ocupa todo. La huella nunca se oculta ni cambia de lugar, con o sin teclado.
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                        if (state.biometricAvailable) {
                             OutlinedIconButton(
                                 icon = R.drawable.ic_fingerprint_22,
                                 contentDescription = stringResource(R.string.unlock_biometric),
@@ -285,19 +237,30 @@ fun UnlockScreen(
                                 size = 56.dp,
                             )
                         }
+                        PrimaryButton(
+                            text = stringResource(R.string.unlock_submit),
+                            onClick = submit,
+                            // Siempre activo (salvo cargando o bloqueado por intentos, que muestra su cuenta regresiva).
+                            enabled = !state.isLockedOut,
+                            loading = state.isLoading,
+                            modifier = Modifier.weight(1f),
+                        )
                     }
                 }
-                Spacer(Modifier.weight(1f).heightIn(min = 24.dp))
-                PromptLink(
-                    prompt = state.displayName?.let { stringResource(R.string.unlock_not_you, it) }
-                        ?: stringResource(R.string.unlock_not_you_unknown),
-                    action = stringResource(R.string.unlock_sign_out),
-                    onClick = { onAction(UnlockAction.SignOutClicked) },
-                    style = MaterialTheme.typography.labelMedium,
-                )
-                Spacer(Modifier.height(16.dp))
-            }
-        }
+            },
+            footer = {
+                Column(modifier = Modifier.navigationBarsPadding().padding(horizontal = ContentHorizontalPadding)) {
+                    PromptLink(
+                        prompt = state.displayName?.let { stringResource(R.string.unlock_not_you, it) }
+                            ?: stringResource(R.string.unlock_not_you_unknown),
+                        action = stringResource(R.string.unlock_sign_out),
+                        onClick = { onAction(UnlockAction.SignOutClicked) },
+                        style = MaterialTheme.typography.labelMedium,
+                    )
+                    Spacer(Modifier.height(16.dp))
+                }
+            },
+        )
     }
 
     state.signOutSheet?.let { sheet ->
@@ -313,13 +276,9 @@ fun UnlockScreen(
 
 /** Marca y manchas de arriba a la derecha, en la misma posición que en Iniciar sesión. */
 @Composable
-private fun UnlockHeader(compact: Boolean) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .then(if (compact) Modifier else Modifier.height(HeaderAreaHeight)),
-    ) {
-        if (!compact) OrganicBlob(
+private fun UnlockHeader() {
+    Box(modifier = Modifier.fillMaxWidth().statusBarsPadding().height(HeaderAreaHeight)) {
+        OrganicBlob(
             shape = BlobShape.B,
             grain = true,
             modifier = Modifier
@@ -327,7 +286,7 @@ private fun UnlockHeader(compact: Boolean) {
                 .offset(x = 68.dp, y = 24.dp)
                 .requiredSize(width = 230.dp, height = 210.dp),
         )
-        if (!compact) OrganicBlob(
+        OrganicBlob(
             shape = BlobShape.C,
             color = MaterialTheme.colorScheme.primary,
             modifier = Modifier
@@ -339,7 +298,7 @@ private fun UnlockHeader(compact: Boolean) {
             text = stringResource(R.string.app_name),
             style = MaterialTheme.typography.titleLarge,
             color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.padding(start = 28.dp, top = 22.dp, bottom = if (compact) 8.dp else 0.dp),
+            modifier = Modifier.padding(start = 28.dp, top = 22.dp),
         )
     }
 }

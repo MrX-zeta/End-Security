@@ -56,6 +56,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.luis.end_security.R
+import com.luis.end_security.core.designsystem.component.KeyboardAwareLayout
 import com.luis.end_security.core.designsystem.component.BlobShape
 import com.luis.end_security.core.designsystem.component.LabeledTextField
 import com.luis.end_security.core.designsystem.component.OrganicBlob
@@ -146,124 +147,110 @@ fun LoginScreen(
     modifier: Modifier = Modifier,
 ) {
     val focusManager = LocalFocusManager.current
-    // Con el teclado abierto, los campos y «Entrar» se desplazan hasta quedar a la vista.
-    // Se repite con cada altura del teclado para que el último ajuste sea con la altura final.
-    val formRequester = remember { BringIntoViewRequester() }
-    val imeBottom = WindowInsets.ime.getBottom(LocalDensity.current)
-    LaunchedEffect(imeBottom) {
-        if (imeBottom > 0) formRequester.bringIntoView()
-    }
     val submit = {
         focusManager.clearFocus()
         onSubmit()
     }
-    // Con errores al tocar «Entrar», se desplaza al primer campo con error y se le da el foco (tarea 15).
+    // Con errores al tocar «Entrar», se da el foco al primer campo con error (tarea 15).
     val emailFocus = remember { FocusRequester() }
     val passwordFocus = remember { FocusRequester() }
-    val emailBring = remember { BringIntoViewRequester() }
-    val passwordBring = remember { BringIntoViewRequester() }
     LaunchedEffect(state.focusRequest) {
         val request = state.focusRequest ?: return@LaunchedEffect
-        val (focus, bring) = if (request.field == LoginField.Email) emailFocus to emailBring else passwordFocus to passwordBring
-        bring.bringIntoView()
-        focus.requestFocus()
+        (if (request.field == LoginField.Email) emailFocus else passwordFocus).requestFocus()
     }
     val credentialsWrong = state.error == LoginError.InvalidCredentials
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .statusBarsPadding()
-            .navigationBarsPadding()
-            .imePadding()
-            .verticalScroll(rememberScrollState()),
-    ) {
-        LoginHeader()
-        Column(modifier = Modifier.padding(horizontal = ContentHorizontalPadding)) {
-            TwoWeightTitle(
-                boldLine = stringResource(R.string.login_title_bold),
-                regularLine = stringResource(R.string.login_title_regular),
-                style = MaterialTheme.typography.displaySmall,
-            )
-            Spacer(Modifier.height(10.dp))
-            Text(
-                text = stringResource(R.string.login_subtitle),
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            if (state.passwordChangedNotice) {
-                Spacer(Modifier.height(12.dp))
-                Text(
-                    text = stringResource(R.string.login_password_changed_notice),
-                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold),
-                    color = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.semantics { liveRegion = androidx.compose.ui.semantics.LiveRegionMode.Polite },
-                )
-            }
-            Spacer(Modifier.height(28.dp))
-            Column(modifier = Modifier.bringIntoViewRequester(formRequester)) {
-                LabeledTextField(
-                    value = state.email,
-                    onValueChange = { onAction(LoginAction.EmailChanged(it)) },
-                    label = stringResource(R.string.login_email_label),
-                    leadingIcon = R.drawable.ic_mail_20,
-                    // Correo con formato inválido, o credenciales incorrectas: el campo se marca; el mensaje de las
-                    // credenciales va una sola vez, bajo la contraseña (no revela si el correo tiene cuenta).
-                    errorText = if (state.showEmailError) stringResource(R.string.auth_error_email_invalid) else null,
-                    isError = credentialsWrong,
-                    modifier = Modifier
-                        .bringIntoViewRequester(emailBring)
-                        .focusRequester(emailFocus)
-                        .onFocusLost { onAction(LoginAction.EmailFocusLost) },
-                    contentType = ContentType.EmailAddress,
-                    keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Email,
-                        capitalization = KeyboardCapitalization.None,
-                        autoCorrectEnabled = false,
-                        imeAction = ImeAction.Next,
-                    ),
-                    keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) }),
-                )
-                Spacer(Modifier.height(20.dp))
-                PasswordField(
-                    state = passwordState,
-                    label = stringResource(R.string.login_password_label),
-                    visible = passwordVisible,
-                    onVisibleChange = onPasswordVisibleChange,
-                    // Prioridad: bloqueo por intentos (DEC-32) > credenciales incorrectas > falta la contraseña > ayuda.
-                    // El texto de ayuda «Si la olvidas…» se oculta mientras se ve un error.
-                    errorText = when {
-                        state.isLockedOut -> lockoutMessage(state.lockoutSecondsLeft)
-                        credentialsWrong -> stringResource(R.string.login_error_invalid_credentials)
-                        state.error == LoginError.Generic -> stringResource(R.string.auth_error_generic)
-                        state.showPasswordRequired -> stringResource(R.string.auth_error_password_required)
-                        else -> null
-                    },
-                    supportingText = stringResource(R.string.login_password_help),
-                    modifier = Modifier.bringIntoViewRequester(passwordBring).focusRequester(passwordFocus),
-                    imeAction = ImeAction.Done,
-                    onKeyboardAction = { submit() },
-                    maxLength = MasterPasswordPolicy.MAX_FIELD_LENGTH,
-                )
-                Spacer(Modifier.height(32.dp))
-                PrimaryButton(
-                    text = stringResource(R.string.login_submit),
-                    onClick = submit,
-                    // Siempre activo (salvo cargando o bloqueado por intentos, que muestra su cuenta regresiva).
-                    enabled = !state.isLockedOut,
-                    loading = state.isLoading,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
-            Spacer(Modifier.height(8.dp))
-            PromptLink(
-                prompt = stringResource(R.string.login_first_time),
-                action = stringResource(R.string.login_create_account),
-                onClick = onCreateAccount,
-            )
-            Spacer(Modifier.height(24.dp))
-        }
+    // Sin `imePadding` ni desplazamiento: [KeyboardAwareLayout] coloca todo a la par del teclado y deja «Entrar» a 16 dp de él.
+    Box(modifier = modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+        KeyboardAwareLayout(
+            header = { LoginHeader() },
+            pinFooterToBottom = false,
+            main = {
+                Column(modifier = Modifier.padding(horizontal = ContentHorizontalPadding)) {
+                    TwoWeightTitle(
+                        boldLine = stringResource(R.string.login_title_bold),
+                        regularLine = stringResource(R.string.login_title_regular),
+                        style = MaterialTheme.typography.displaySmall,
+                    )
+                    Spacer(Modifier.height(10.dp))
+                    Text(
+                        text = stringResource(R.string.login_subtitle),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    if (state.passwordChangedNotice) {
+                        Spacer(Modifier.height(12.dp))
+                        Text(
+                            text = stringResource(R.string.login_password_changed_notice),
+                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.semantics { liveRegion = androidx.compose.ui.semantics.LiveRegionMode.Polite },
+                        )
+                    }
+                    Spacer(Modifier.height(28.dp))
+                    LabeledTextField(
+                        value = state.email,
+                        onValueChange = { onAction(LoginAction.EmailChanged(it)) },
+                        label = stringResource(R.string.login_email_label),
+                        leadingIcon = R.drawable.ic_mail_20,
+                        // Correo con formato inválido, o credenciales incorrectas: el campo se marca; el mensaje de las
+                        // credenciales va una sola vez, bajo la contraseña (no revela si el correo tiene cuenta).
+                        errorText = if (state.showEmailError) stringResource(R.string.auth_error_email_invalid) else null,
+                        isError = credentialsWrong,
+                        modifier = Modifier
+                            .focusRequester(emailFocus)
+                            .onFocusLost { onAction(LoginAction.EmailFocusLost) },
+                        contentType = ContentType.EmailAddress,
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Email,
+                            capitalization = KeyboardCapitalization.None,
+                            autoCorrectEnabled = false,
+                            imeAction = ImeAction.Next,
+                        ),
+                        keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) }),
+                    )
+                    Spacer(Modifier.height(20.dp))
+                    PasswordField(
+                        state = passwordState,
+                        label = stringResource(R.string.login_password_label),
+                        visible = passwordVisible,
+                        onVisibleChange = onPasswordVisibleChange,
+                        // Prioridad: bloqueo por intentos (DEC-32) > credenciales incorrectas > falta la contraseña > ayuda.
+                        // El texto de ayuda «Si la olvidas…» se oculta mientras se ve un error.
+                        errorText = when {
+                            state.isLockedOut -> lockoutMessage(state.lockoutSecondsLeft)
+                            credentialsWrong -> stringResource(R.string.login_error_invalid_credentials)
+                            state.error == LoginError.Generic -> stringResource(R.string.auth_error_generic)
+                            state.showPasswordRequired -> stringResource(R.string.auth_error_password_required)
+                            else -> null
+                        },
+                        supportingText = stringResource(R.string.login_password_help),
+                        modifier = Modifier.focusRequester(passwordFocus),
+                        imeAction = ImeAction.Done,
+                        onKeyboardAction = { submit() },
+                        maxLength = MasterPasswordPolicy.MAX_FIELD_LENGTH,
+                    )
+                    Spacer(Modifier.height(32.dp))
+                    PrimaryButton(
+                        text = stringResource(R.string.login_submit),
+                        onClick = submit,
+                        // Siempre activo (salvo cargando o bloqueado por intentos, que muestra su cuenta regresiva).
+                        enabled = !state.isLockedOut,
+                        loading = state.isLoading,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            },
+            footer = {
+                Box(modifier = Modifier.padding(horizontal = ContentHorizontalPadding)) {
+                    PromptLink(
+                        prompt = stringResource(R.string.login_first_time),
+                        action = stringResource(R.string.login_create_account),
+                        onClick = onCreateAccount,
+                    )
+                }
+            },
+        )
     }
 }
 
@@ -273,6 +260,7 @@ private fun LoginHeader() {
     Box(
         modifier = Modifier
             .fillMaxWidth()
+            .statusBarsPadding()
             .height(HeaderAreaHeight),
     ) {
         // En Figma la mancha grande sale 68 por la derecha y la pequeña queda a 72 del borde.

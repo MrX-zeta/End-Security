@@ -1,18 +1,7 @@
 package com.luis.end_security.navigation
 
-import androidx.compose.animation.AnimatedContentTransitionScope
-import androidx.compose.animation.EnterTransition
-import androidx.compose.animation.ExitTransition
-import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavHostController
 import com.luis.end_security.core.designsystem.component.BottomNavTab
-
-/**
- * Las pestañas no se animan (tarea 23): con las transiciones por defecto del `NavHost` el regreso a la Bóveda esperaba un fundido de
- * entrada de 700 ms con el fondo vacío. Aparecen al instante, con el último estado que tenían.
- */
-internal val TabEnterNone: AnimatedContentTransitionScope<NavBackStackEntry>.() -> EnterTransition = { EnterTransition.None }
-internal val TabExitNone: AnimatedContentTransitionScope<NavBackStackEntry>.() -> ExitTransition = { ExitTransition.None }
 
 /** La ruta de cada pestaña de la barra inferior. */
 internal fun BottomNavTab.route(): String = when (this) {

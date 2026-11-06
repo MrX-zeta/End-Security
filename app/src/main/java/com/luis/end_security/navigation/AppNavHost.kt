@@ -1,7 +1,5 @@
 package com.luis.end_security.navigation
 
-import androidx.compose.animation.EnterTransition
-import androidx.compose.animation.ExitTransition
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -15,6 +13,10 @@ import androidx.compose.ui.Modifier
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
+import androidx.compose.runtime.remember
+import com.luis.end_security.core.designsystem.theme.rememberReducedMotion
+import com.luis.end_security.core.designsystem.theme.Motion
+import androidx.compose.ui.platform.LocalDensity
 import com.luis.end_security.core.designsystem.component.BottomNavTab
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -102,7 +104,22 @@ private fun AppNavigation(route: String, modifier: Modifier = Modifier) {
             )
         },
     )
-    NavHost(navController = navController, startDestination = route, modifier = modifier) {
+    // Transiciones de toda la app (tarea 24): una sola política en `NavMotion`, ninguna pantalla pone las suyas.
+    val slidePx = with(LocalDensity.current) { Motion.Slide.roundToPx() }
+    val reducedMotion = rememberReducedMotion()
+    val transitions = remember(slidePx, reducedMotion) { NavTransitions(slidePx, reducedMotion) }
+    NavHost(
+        navController = navController,
+        startDestination = route,
+        modifier = modifier,
+        enterTransition = { transitions.enter(this) },
+        exitTransition = { transitions.exit(this) },
+        popEnterTransition = { transitions.popEnter(this) },
+        popExitTransition = { transitions.popExit(this) },
+        // Gesto de regreso predictivo: sigue el dedo y se puede cancelar, con las mismas transiciones de «Regresar».
+        predictivePopEnterTransition = { transitions.popEnter(this) },
+        predictivePopExitTransition = { transitions.popExit(this) },
+    ) {
         composable(Routes.ONBOARDING) {
             OnboardingRoute(
                 // «Omitir» y «Ya tengo una cuenta» sacan el onboarding de la pila.
@@ -142,7 +159,7 @@ private fun AppNavigation(route: String, modifier: Modifier = Modifier) {
             )
         }
         // A Desbloquear sin transición: no se ve la bóveda desvanecerse debajo (hallazgo 3 de la tarea 09).
-        composable(Routes.UNLOCK, enterTransition = { EnterTransition.None }, exitTransition = { ExitTransition.None }) {
+        composable(Routes.UNLOCK) {
             // Cerrar sesión deja Iniciar sesión sola en la pila.
             UnlockRoute(
                 // Los elementos ya están en Room: directo a la Bóveda, sin la descarga inicial.
@@ -150,7 +167,7 @@ private fun AppNavigation(route: String, modifier: Modifier = Modifier) {
                 onNavigateToLogin = { navController.navigateClearingStack(Routes.LOGIN) },
             )
         }
-        composable(Routes.SETTINGS, enterTransition = TabEnterNone, exitTransition = TabExitNone, popEnterTransition = TabEnterNone, popExitTransition = TabExitNone) { backStackEntry ->
+        composable(Routes.SETTINGS) { backStackEntry ->
             RequireUnlocked(onLocked = lockGuardViewModel::onProtectedScreenLocked) {
                 val handle = backStackEntry.savedStateHandle
                 val disabled by handle.getStateFlow(Routes.RESULT_TWO_FACTOR_DISABLED, false).collectAsStateWithLifecycle()
@@ -199,7 +216,7 @@ private fun AppNavigation(route: String, modifier: Modifier = Modifier) {
             }
         }
         // Cuenta eliminada: sin `RequireUnlocked` (la sesión ya se cerró) y con la pila limpia.
-        composable(Routes.ACCOUNT_DELETED, enterTransition = { EnterTransition.None }, exitTransition = { ExitTransition.None }) {
+        composable(Routes.ACCOUNT_DELETED) {
             AccountDeletedRoute(onGoHome = { navController.navigateClearingStack(Routes.LOGIN) })
         }
         composable(Routes.DEVICES) {
@@ -257,7 +274,7 @@ private fun AppNavigation(route: String, modifier: Modifier = Modifier) {
                 )
             }
         }
-        composable(Routes.HEALTH, enterTransition = TabEnterNone, exitTransition = TabExitNone, popEnterTransition = TabEnterNone, popExitTransition = TabExitNone) {
+        composable(Routes.HEALTH) {
             RequireUnlocked(onLocked = lockGuardViewModel::onProtectedScreenLocked) {
                 HealthRoute(
                     onTabSelected = onTabSelected,
@@ -277,14 +294,12 @@ private fun AppNavigation(route: String, modifier: Modifier = Modifier) {
                     defaultValue = "Strongest"
                 },
             ),
-            exitTransition = { ExitTransition.None },
-            popExitTransition = { ExitTransition.None },
         ) {
             RequireUnlocked(onLocked = lockGuardViewModel::onProtectedScreenLocked) {
                 HealthRankingRoute(onBack = { navController.popBackStack() }, onTabSelected = onTabSelected)
             }
         }
-        composable(Routes.HEALTH_BREACHED, exitTransition = { ExitTransition.None }, popExitTransition = { ExitTransition.None }) {
+        composable(Routes.HEALTH_BREACHED) {
             RequireUnlocked(onLocked = lockGuardViewModel::onProtectedScreenLocked) {
                 HealthBreachedRoute(
                     onBack = { navController.popBackStack() },
@@ -293,7 +308,7 @@ private fun AppNavigation(route: String, modifier: Modifier = Modifier) {
                 )
             }
         }
-        composable(Routes.HEALTH_REPEATED, exitTransition = { ExitTransition.None }, popExitTransition = { ExitTransition.None }) {
+        composable(Routes.HEALTH_REPEATED) {
             RequireUnlocked(onLocked = lockGuardViewModel::onProtectedScreenLocked) {
                 HealthRepeatedRoute(
                     onBack = { navController.popBackStack() },
@@ -302,7 +317,7 @@ private fun AppNavigation(route: String, modifier: Modifier = Modifier) {
                 )
             }
         }
-        composable(Routes.HEALTH_OLD, exitTransition = { ExitTransition.None }, popExitTransition = { ExitTransition.None }) {
+        composable(Routes.HEALTH_OLD) {
             RequireUnlocked(onLocked = lockGuardViewModel::onProtectedScreenLocked) {
                 HealthOldRoute(
                     onBack = { navController.popBackStack() },
@@ -311,7 +326,7 @@ private fun AppNavigation(route: String, modifier: Modifier = Modifier) {
                 )
             }
         }
-        composable(Routes.GENERATOR, enterTransition = TabEnterNone, exitTransition = TabExitNone, popEnterTransition = TabEnterNone, popExitTransition = TabExitNone) {
+        composable(Routes.GENERATOR) {
             RequireUnlocked(onLocked = lockGuardViewModel::onProtectedScreenLocked) {
                 GeneratorRoute(
                     onTabSelected = onTabSelected,
@@ -319,7 +334,7 @@ private fun AppNavigation(route: String, modifier: Modifier = Modifier) {
                 )
             }
         }
-        composable(Routes.VAULT_LOADING, exitTransition = { ExitTransition.None }, popExitTransition = { ExitTransition.None }) {
+        composable(Routes.VAULT_LOADING) {
             RequireUnlocked(onLocked = lockGuardViewModel::onProtectedScreenLocked) {
                 // OP-32: descarga inicial real y después a la Bóveda.
                 VaultLoadingRoute(
@@ -332,7 +347,7 @@ private fun AppNavigation(route: String, modifier: Modifier = Modifier) {
                 )
             }
         }
-        composable(Routes.VAULT, enterTransition = TabEnterNone, exitTransition = TabExitNone, popEnterTransition = TabEnterNone, popExitTransition = TabExitNone) {
+        composable(Routes.VAULT) {
             RequireUnlocked(onLocked = lockGuardViewModel::onProtectedScreenLocked) {
                 VaultListRoute(
                     onTabSelected = onTabSelected,
@@ -344,7 +359,7 @@ private fun AppNavigation(route: String, modifier: Modifier = Modifier) {
                 )
             }
         }
-        composable(Routes.CONFLICTS, exitTransition = { ExitTransition.None }, popExitTransition = { ExitTransition.None }) {
+        composable(Routes.CONFLICTS) {
             RequireUnlocked(onLocked = lockGuardViewModel::onProtectedScreenLocked) {
                 ConflictListRoute(
                     onBack = { navController.popBackStack() },
@@ -356,8 +371,6 @@ private fun AppNavigation(route: String, modifier: Modifier = Modifier) {
         composable(
             route = Routes.CONFLICT_ITEM,
             arguments = listOf(navArgument(Routes.ITEM_ID_ARG) { type = NavType.StringType }),
-            exitTransition = { ExitTransition.None },
-            popExitTransition = { ExitTransition.None },
         ) {
             RequireUnlocked(onLocked = lockGuardViewModel::onProtectedScreenLocked) {
                 ConflictDetailRoute(
@@ -370,8 +383,6 @@ private fun AppNavigation(route: String, modifier: Modifier = Modifier) {
         composable(
             route = Routes.VAULT_ITEM,
             arguments = listOf(navArgument(Routes.ITEM_ID_ARG) { type = NavType.StringType }),
-            exitTransition = { ExitTransition.None },
-            popExitTransition = { ExitTransition.None },
         ) { entry ->
             val itemId = entry.arguments?.getString(Routes.ITEM_ID_ARG)?.let { runCatching { UUID.fromString(it) }.getOrNull() }
             RequireUnlocked(onLocked = lockGuardViewModel::onProtectedScreenLocked) {
@@ -399,8 +410,6 @@ private fun AppNavigation(route: String, modifier: Modifier = Modifier) {
                     defaultValue = false
                 },
             ),
-            exitTransition = { ExitTransition.None },
-            popExitTransition = { ExitTransition.None },
         ) { entry ->
             // Si vino de «Guardar en la bóveda» del Generador, al guardar se va a la Bóveda a ver la nueva.
             val fromGenerator = entry.arguments?.getBoolean(Routes.GENERATED_ARG) == true

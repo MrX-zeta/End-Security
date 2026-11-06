@@ -6,6 +6,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
@@ -50,6 +51,7 @@ import com.luis.end_security.feature.vault.ui.edit.ItemEditUiState
 import com.luis.end_security.feature.vault.ui.list.VaultListScreen
 import com.luis.end_security.feature.vault.ui.list.VaultListUiState
 import com.luis.end_security.feature.vault.ui.list.VaultRow
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -217,6 +219,157 @@ class KeyboardAuditTest {
             onSubmit = {},
             onAction = {},
         )
+    }
+
+
+    // ---------------------------------------------------------------- Desbloquear: la fila «Acciones» (tarea 24)
+
+    private val dp get() = context.resources.displayMetrics.density
+
+    private fun boundsOf(node: androidx.compose.ui.test.SemanticsNodeInteraction) = node.fetchSemanticsNode().boundsInWindow
+
+    private fun renderUnlock(biometric: Boolean) {
+        composeRule.runOnUiThread { composeRule.activity.enableEdgeToEdge() }
+        composeRule.setContent {
+            EndSecurityTheme {
+                UnlockScreen(
+                    state = UnlockUiState(biometricAvailable = biometric, displayName = "Ana"),
+                    passwordState = TextFieldState(),
+                    passwordVisible = false,
+                    onPasswordVisibleChange = {},
+                    onSubmit = {},
+                    onAction = {},
+                )
+            }
+        }
+        composeRule.waitForIdle()
+    }
+
+    private fun openKeyboard(fieldIndex: Int = 0): Int {
+        composeRule.onAllNodes(hasSetTextAction())[fieldIndex].performClick()
+        composeRule.runOnUiThread {
+            val window = composeRule.activity.window
+            WindowCompat.getInsetsController(window, window.decorView).show(WindowInsetsCompat.Type.ime())
+        }
+        val deadline = System.currentTimeMillis() + 10_000
+        while (!imeVisible() && System.currentTimeMillis() < deadline) Thread.sleep(100)
+        assertTrue("el teclado no salió (¿hw.keyboard=no en el AVD?)", imeVisible())
+        Thread.sleep(1_500)
+        composeRule.waitForIdle()
+        return imeTopPx()
+    }
+
+    private fun closeKeyboard() {
+        composeRule.runOnUiThread {
+            val window = composeRule.activity.window
+            WindowCompat.getInsetsController(window, window.decorView).hide(WindowInsetsCompat.Type.ime())
+        }
+        val deadline = System.currentTimeMillis() + 10_000
+        while (imeVisible() && System.currentTimeMillis() < deadline) Thread.sleep(100)
+        Thread.sleep(1_000)
+        composeRule.waitForIdle()
+    }
+
+    /** La fila «Acciones»: huella (si hay) y «Desbloquear», con sus medidas y su posición respecto del campo y del teclado. */
+    private fun unlockRowChecks(biometric: Boolean, withKeyboard: Boolean, naturalBottom: Float?, imeTop: Int) {
+        val unlock = boundsOf(composeRule.onNodeWithText(str(R.string.unlock_submit)))
+        val field = boundsOf(composeRule.onAllNodes(hasSetTextAction())[0])
+        val fullWidth = composeRule.activity.window.decorView.width.toFloat()
+        // El botón mide 56 dp de alto y la fila empieza 28 dp bajo el campo (Figma 36:553).
+        assertEquals("alto de «Desbloquear»", 56f * dp, unlock.height, 1.5f)
+        if (!withKeyboard) assertEquals("la fila va 28 dp bajo el campo", 28f * dp, unlock.top - field.bottom, 2f * dp)
+        if (biometric) {
+            val finger = boundsOf(composeRule.onNodeWithContentDescription(str(R.string.unlock_biometric)))
+            assertEquals("la huella es de 56 × 56", 56f * dp, finger.width, 1.5f)
+            assertEquals("la huella es de 56 × 56", 56f * dp, finger.height, 1.5f)
+            assertEquals("12 dp entre la huella y «Desbloquear»", 12f * dp, unlock.left - finger.right, 1.5f)
+            assertEquals("la huella a la misma altura que «Desbloquear»", unlock.top, finger.top, 1.5f)
+            assertTrue("la huella va a la izquierda de «Desbloquear»", finger.right <= unlock.left)
+            assertEquals("la huella empieza en el margen de 32 dp", 32f * dp, finger.left, 1.5f)
+        } else {
+            // Sin huella, «Desbloquear» ocupa todo el ancho (32 dp de margen a cada lado).
+            assertEquals("«Desbloquear» a todo el ancho", fullWidth - 64f * dp, unlock.width, 2f)
+        }
+        if (withKeyboard) {
+            val distance = (imeTop - unlock.bottom) / dp
+            val natural = naturalBottom!!
+            if (natural + 16f * dp <= imeTop + 1f) {
+                // Ya cabía sin moverse (pantalla alta): no se mueve nada.
+                assertEquals("la fila no debía moverse", natural, unlock.bottom, 1.5f)
+                assertTrue("la fila queda a $distance dp del teclado", distance >= 14f)
+            } else {
+                assertTrue("la fila debe quedar a 16 dp ± 2 del teclado y quedó a $distance dp", distance in 14f..18f)
+            }
+            // Los dos botones, completos y a la vista.
+            composeRule.onNodeWithText(str(R.string.unlock_submit)).assertIsDisplayed()
+            if (biometric) composeRule.onNodeWithContentDescription(str(R.string.unlock_biometric)).assertIsDisplayed()
+            // El título, el texto y el campo se ven siempre.
+            composeRule.onNodeWithText(str(R.string.unlock_body)).assertIsDisplayed()
+            composeRule.onAllNodes(hasSetTextAction())[0].assertIsDisplayed()
+            assertTrue("el campo queda bajo el teclado", field.bottom <= imeTop)
+        }
+    }
+
+    private fun unlockScenario(biometric: Boolean, name: String) {
+        renderUnlock(biometric)
+        // Que el teclado de una prueba anterior no falsee la posición «natural» (sin teclado).
+        if (imeVisible()) closeKeyboard()
+        assertTrue("el teclado debía estar cerrado al empezar", !imeVisible())
+        screenshot("$name-sin-teclado")
+        unlockRowChecks(biometric, withKeyboard = false, naturalBottom = null, imeTop = 0)
+        val natural = boundsOf(composeRule.onNodeWithText(str(R.string.unlock_submit))).bottom
+        val imeTop = openKeyboard()
+        screenshot("$name-con-teclado")
+        unlockRowChecks(biometric, withKeyboard = true, naturalBottom = natural, imeTop = imeTop)
+        // Al cerrar el teclado todo vuelve a su lugar.
+        closeKeyboard()
+        assertEquals("la fila no volvió a su lugar", natural, boundsOf(composeRule.onNodeWithText(str(R.string.unlock_submit))).bottom, 1.5f)
+        screenshot("$name-cerrado")
+    }
+
+    @Test
+    fun desbloquearFilaAccionesConHuella() = unlockScenario(biometric = true, name = "desbloquear-acciones-huella")
+
+    @Test
+    fun desbloquearFilaAccionesSinHuella() = unlockScenario(biometric = false, name = "desbloquear-acciones-sin-huella")
+
+
+    // ---------------------------------------------------------------- Iniciar sesión: la misma regla (tarea 24)
+
+    @Test
+    fun iniciarSesionElBotonQuedaA16DpDelTeclado() {
+        composeRule.runOnUiThread { composeRule.activity.enableEdgeToEdge() }
+        composeRule.setContent {
+            EndSecurityTheme {
+                LoginScreen(
+                    state = LoginUiState(),
+                    passwordState = TextFieldState(),
+                    passwordVisible = false,
+                    onPasswordVisibleChange = {},
+                    onAction = {},
+                    onSubmit = {},
+                    onCreateAccount = {},
+                )
+            }
+        }
+        composeRule.waitForIdle()
+        if (imeVisible()) closeKeyboard()
+        screenshot("login-regla-sin-teclado")
+        val button = composeRule.onNodeWithText(str(R.string.login_submit))
+        val natural = boundsOf(button).bottom
+        // Se enfoca la contraseña: con el campo de correo Gboard a veces muestra su barra flotante en vez del teclado acoplado.
+        val imeTop = openKeyboard(fieldIndex = 1)
+        screenshot("login-regla-con-teclado")
+        // Con el teclado, el botón principal queda completo y a 16 dp ± 2 sobre él; si ya cabía, no se mueve.
+        button.assertIsDisplayed()
+        val now = boundsOf(button)
+        val distance = (imeTop - now.bottom) / dp
+        println("LOGIN-REGLA natural=${natural / dp} dp, con teclado: bottom=${now.bottom / dp} dp, distancia=$distance dp")
+        if (natural + 16f * dp <= imeTop + 1f) {
+            assertEquals("el botón no debía moverse", natural, now.bottom, 1.5f)
+        } else {
+            assertTrue("el botón de Iniciar sesión debe quedar a 16 dp ± 2 del teclado y quedó a $distance dp", distance in 14f..18f)
+        }
     }
 
     // ---------------------------------------------------------------- Bóveda
