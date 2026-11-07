@@ -19,6 +19,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import com.luis.end_security.core.designsystem.component.rememberArrivalWindow
+import com.luis.end_security.core.designsystem.component.staggeredEnter
+import com.luis.end_security.core.designsystem.theme.Motion
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberUpdatedState
@@ -135,7 +138,14 @@ fun ConflictListScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(top = 4.dp, bottom = 8.dp),
                     )
-                    state.rows.forEach { row -> ConflictRowItem(row = row, onClick = { onRowClick(row) }) }
+                    val arriving = rememberArrivalWindow(Unit)
+                    state.rows.forEachIndexed { index, row ->
+                        ConflictRowItem(
+                            row = row,
+                            onClick = { onRowClick(row) },
+                            modifier = Modifier.staggeredEnter(index, arriving, maxStaggered = Motion.MaxStaggeredRows),
+                        )
+                    }
                     Row(
                         modifier = Modifier.padding(top = 8.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -162,11 +172,11 @@ fun ConflictListScreen(
 }
 
 @Composable
-private fun ConflictRowItem(row: ConflictListRow, onClick: () -> Unit) {
+private fun ConflictRowItem(row: ConflictListRow, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val title = row.name ?: stringResource(R.string.conflicts_unnamed)
     val whenText = stringResource(R.string.conflicts_row_when, whenText(row.localAt))
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .dropShadow(
                 shape = RowShape,

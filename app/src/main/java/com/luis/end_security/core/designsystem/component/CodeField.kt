@@ -102,7 +102,7 @@ fun CodeField(
             }
         },
     )
-    if (errorText != null) FieldErrorText(errorText)
+    RevealValue(errorText) { FieldErrorText(it) }
     }
 }
 

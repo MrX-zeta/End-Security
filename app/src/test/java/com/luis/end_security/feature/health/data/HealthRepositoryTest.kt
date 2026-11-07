@@ -369,3 +369,52 @@ class HealthRepositoryTest {
         assertEquals(2, api.lookups.size)
     }
 }
+
+/** Las fotos diarias con el formato de la tarea 27 (`healthy` y el desglose) y las anteriores (versión 1), que se siguen leyendo. */
+class SnapshotStoreVersionTest {
+    private val session: VaultSession = openedSession(object : DeviceClock {
+        override fun wallMillis() = 0L
+        override fun elapsedRealtimeMillis() = 0L
+    })
+    private val dao = FakeSnapshotDao()
+    private val store = SnapshotStore(dao, session)
+    private val userId = UUID.randomUUID()
+    private val day = LocalDate.parse("2026-11-02")
+
+    @After
+    fun tearDown() {
+        session.lock()
+    }
+
+    @Test
+    fun `la foto nueva guarda sanas y el desglose y se lee igual`() = runBlocking {
+        val mix = com.luis.end_security.feature.health.domain.HealthMix(healthy = 6, old = 1, weak = 1, reused = 1, breached = 1)
+        store.save(day, userId, com.luis.end_security.feature.health.domain.HealthTotals(49, 10, 2, 1, 7, 1, 1, 1, 6, mix), 0L)
+        val row = dao.rows.value.getValue(day.toString())
+        assertEquals(SnapshotStore.VERSION, row.formatVersion)
+        val read = store.readAll(listOf(row), userId).single().totals
+        assertEquals(49, read.score)
+        assertEquals(6, read.healthy)
+        assertEquals(mix.total, read.mix!!.total)
+        assertEquals(1, read.mix!!.breached)
+    }
+
+    @Test
+    fun `una foto de la version 1 se lee con su indice de entonces y sin desglose`() = runBlocking {
+        val plaintext = """{"score":55,"total":10,"weak":2,"fair":1,"strong":7,"repeated":1,"breached":0,"old":0}""".toByteArray(Charsets.UTF_8)
+        val aad = "health|$day|$userId|1".toByteArray(Charsets.US_ASCII)
+        val sealed = session.withVaultKey { key -> key.withBytes { com.luis.end_security.core.crypto.AesGcm.seal(it, plaintext, aad) } }
+        dao.upsert(HealthSnapshotEntity(day.toString(), 1, sealed.nonce, sealed.ciphertext, 0L))
+        val read = store.readAll(dao.rows.value.values.toList(), userId).single().totals
+        assertEquals("no se recalcula el pasado", 55, read.score)
+        assertNull(read.healthy)
+        assertNull(read.mix)
+    }
+
+    @Test
+    fun `una version desconocida se salta`() = runBlocking {
+        store.save(day, userId, com.luis.end_security.feature.health.domain.HealthTotals(80, 10, 1, 1, 8, 0, 0, 0, 8, null), 0L)
+        val row = dao.rows.value.getValue(day.toString())
+        assertTrue(store.readAll(listOf(HealthSnapshotEntity(row.day, 99, row.nonce, row.ciphertext, row.createdAt)), userId).isEmpty())
+    }
+}

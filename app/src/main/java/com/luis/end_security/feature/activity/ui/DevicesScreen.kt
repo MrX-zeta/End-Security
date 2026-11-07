@@ -19,6 +19,13 @@ import androidx.compose.material3.ModalBottomSheetProperties
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.key
+import com.luis.end_security.core.designsystem.component.Reveal
+import com.luis.end_security.core.designsystem.component.rememberLeavingList
+import com.luis.end_security.core.designsystem.component.LoadingCrossfade
+import com.luis.end_security.core.designsystem.component.rememberArrivalWindow
+import com.luis.end_security.core.designsystem.component.staggeredEnter
+import com.luis.end_security.core.designsystem.theme.Motion
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -122,13 +129,16 @@ fun DevicesScreen(
             else -> null
         },
     ) {
-        when (state.phase) {
-            DevicesPhase.Loading -> DevicesSkeleton(loadingText = stringResource(R.string.devices_loading_description))
-            DevicesPhase.Offline -> OfflinePanel(
-                title = stringResource(R.string.devices_offline_title),
-                body = stringResource(R.string.devices_offline_body),
-            )
-            DevicesPhase.Loaded -> DevicesContent(state, onAction, onChangePassword)
+        // Del esqueleto al contenido: fundido cruzado de 200 ms.
+        LoadingCrossfade(state.phase) { phase ->
+            when (phase) {
+                DevicesPhase.Loading -> DevicesSkeleton(loadingText = stringResource(R.string.devices_loading_description))
+                DevicesPhase.Offline -> OfflinePanel(
+                    title = stringResource(R.string.devices_offline_title),
+                    body = stringResource(R.string.devices_offline_body),
+                )
+                DevicesPhase.Loaded -> DevicesContent(state, onAction, onChangePassword)
+            }
         }
     }
     state.sheet?.let { sheet ->
@@ -170,10 +180,24 @@ private fun DevicesContent(state: DevicesUiState, onAction: (DevicesAction) -> U
             style = TitleStyle(),
         )
         Spacer(Modifier.height(16.dp))
+        // Las filas suben 8 dp y aparecen escalonadas (máximo 8) solo cuando llegan los datos.
+        val arriving = rememberArrivalWindow(Unit)
+        // Al cerrar la sesión de un dispositivo su fila se encoge y se desvanece (200 ms) en vez de desaparecer de golpe.
+        val rows = rememberLeavingList(state.devices, key = { it.id })
         ListCard {
-            state.devices.forEachIndexed { index, row ->
-                if (index > 0) ListRowDivider()
-                DeviceRowItem(row = row, onClick = { onAction(DevicesAction.RowClicked(row.id)) })
+            rows.forEachIndexed { index, entry ->
+                key(entry.item.id) {
+                    Reveal(visible = entry.present) {
+                        Column {
+                            if (index > 0) ListRowDivider()
+                            DeviceRowItem(
+                                row = entry.item,
+                                onClick = { onAction(DevicesAction.RowClicked(entry.item.id)) },
+                                modifier = Modifier.staggeredEnter(index, arriving, maxStaggered = Motion.MaxStaggeredRows),
+                            )
+                        }
+                    }
+                }
             }
         }
         Spacer(Modifier.height(16.dp))
@@ -198,12 +222,12 @@ private fun DevicesContent(state: DevicesUiState, onAction: (DevicesAction) -> U
 
 /** «Fila de ajuste» de Figma 47:1854: ícono, nombre, cuándo se usó por última vez y «Este» (sin acción) o la flecha. */
 @Composable
-private fun DeviceRowItem(row: DeviceRow, onClick: () -> Unit) {
+private fun DeviceRowItem(row: DeviceRow, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val lastUsed = lastUsedText(row.lastUsed)
     val closeLabel = stringResource(R.string.devices_row_close_label)
     val thisDevice = stringResource(R.string.devices_this_description)
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .heightIn(min = 64.dp)
             // La actual no tiene acción ni flecha: la sesión de este teléfono se cierra desde Ajustes → Cerrar sesión.

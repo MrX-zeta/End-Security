@@ -102,10 +102,10 @@ object Routes {
 
     const val RANKING_TAB_ARG = "tab"
 
-    /** SCR-24 y SCR-25: ranking de fuerza («Más fuertes» o «Más débiles», según `tab`). */
+    /** SCR-24 y SCR-25: ranking de fuerza («Más débiles» o «Mejoradas recientemente», según `tab`). */
     const val HEALTH_RANKING = "health_ranking?$RANKING_TAB_ARG={$RANKING_TAB_ARG}"
 
-    fun healthRanking(weakest: Boolean): String = "health_ranking?$RANKING_TAB_ARG=${if (weakest) "Weakest" else "Strongest"}"
+    fun healthRanking(improved: Boolean = false): String = "health_ranking?$RANKING_TAB_ARG=${if (improved) "Improved" else "Weakest"}"
 
     /** SCR-26, SCR-27 y SCR-28. */
     const val HEALTH_BREACHED = "health_breached"

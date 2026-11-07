@@ -19,7 +19,7 @@ import com.luis.end_security.core.designsystem.theme.rememberReducedMotion
  * [Motion.ValueChange] ms (sin volver a cero). Nace ya en [target]: la primera vez no anima nada. Con «Quitar animaciones» salta.
  */
 @Composable
-internal fun rememberMorphingValues(target: List<Float>, reducedMotion: Boolean = rememberReducedMotion()): State<List<Float>> {
+fun rememberMorphingValues(target: List<Float>, reducedMotion: Boolean = rememberReducedMotion()): State<List<Float>> {
     val progress = remember { Animatable(1f) }
     var from by remember { mutableStateOf(target) }
     var to by remember { mutableStateOf(target) }

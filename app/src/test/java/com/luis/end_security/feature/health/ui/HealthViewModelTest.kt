@@ -150,18 +150,11 @@ class HealthViewModelTest {
     }
 
     @Test
-    fun `el ranking trae los 10 primeros, mas fuertes y mas debiles`() = runTest(dispatcher) {
+    fun `el ranking de Mas debiles trae las 10 primeras`() = runTest(dispatcher) {
         val items = (0..11).map { it.toString() to "s${it % 5}-" + "x".repeat(it + 3) }
         health.set(HealthState(report(*items.toTypedArray())))
         val viewModel = viewModel()
 
-        val strongest = viewModel.state.value.ranking
-        assertEquals(10, strongest.size)
-        assertTrue(strongest.zipWithNext().all { (a, b) -> a.strengthScore >= b.strengthScore })
-        assertEquals(4, strongest.first().strengthScore)
-
-        viewModel.onRankingTab(RankingTab.Weakest)
-        runCurrent()
         val weakest = viewModel.state.value.ranking
         assertEquals(10, weakest.size)
         assertTrue(weakest.zipWithNext().all { (a, b) -> a.strengthScore <= b.strengthScore })
@@ -196,5 +189,53 @@ class HealthViewModelTest {
         val printed = state.toString() + state.ranking.joinToString { it.toString() } + state.report.toString()
         assertFalse(printed.contains("Secreto"))
         assertFalse(printed.contains("Contrasena"))
+    }
+
+    // ---- Tarea 27: «Más débiles | Mejoradas recientemente»
+
+    private fun itemChangedDaysAgo(name: String, password: String, days: Long, breach: Int? = 0) =
+        AnalysisItem(UUID.randomUUID(), name, password, Instant.ofEpochMilli(clock.now).minusSeconds(days * 86_400), breach)
+
+    private fun reportOf(vararg items: AnalysisItem): HealthReport =
+        HealthAnalyzer.analyze(items.toList(), Instant.ofEpochMilli(clock.now), estimator)
+
+    @Test
+    fun `el ranking arranca en Mas debiles y se puede abrir en Mejoradas`() = runTest(dispatcher) {
+        health.set(HealthState(report("A" to "s4-a"), lastCheckedAt = Instant.ofEpochMilli(clock.now)))
+        assertEquals(RankingTab.Weakest, viewModel().state.value.rankingTab)
+        val improved = viewModel(SavedStateHandle(mapOf(HealthViewModel.RANKING_ARG to RankingTab.Improved.name)))
+        assertEquals(RankingTab.Improved, improved.state.value.rankingTab)
+    }
+
+    @Test
+    fun `Mejoradas son las de los ultimos 30 dias que hoy son sanas, de la mas reciente a la mas antigua`() = runTest(dispatcher) {
+        val report = reportOf(
+            itemChangedDaysAgo("Hace 3", "s4-Tortuga-Verde", 3),
+            itemChangedDaysAgo("Hace 20", "s3-Cebolla-Roja-77", 20),
+            itemChangedDaysAgo("Hace 31", "s4-Violin-Azul-Fuerte", 31), // fuera de los 30 días
+            itemChangedDaysAgo("Hace 5 pero debil", "s0-debil", 5), // no es sana
+            itemChangedDaysAgo("Hace 6 pero filtrada", "s4-Filtrada-Larga-9", 6, breach = 4), // no es sana
+        )
+        health.set(HealthState(report, lastCheckedAt = Instant.ofEpochMilli(clock.now)))
+        val state = viewModel().state.value
+        assertEquals(listOf("Hace 3", "Hace 20"), state.rankingFor(RankingTab.Improved).map { it.name })
+    }
+
+    @Test
+    fun `sin mejoradas el ranking esta vacio`() = runTest(dispatcher) {
+        health.set(HealthState(report("A" to "s4-Tortuga-Verde"), lastCheckedAt = Instant.ofEpochMilli(clock.now)))
+        // El elemento se creó «ahora»: cuenta como cambiado hoy, así que lo vaciamos con uno viejo.
+        val old = reportOf(itemChangedDaysAgo("Vieja", "s4-Tortuga-Verde", 100))
+        health.set(HealthState(old, lastCheckedAt = Instant.ofEpochMilli(clock.now)))
+        assertTrue(viewModel().state.value.rankingFor(RankingTab.Improved).isEmpty())
+    }
+
+    @Test
+    fun `Mas debiles son las 10 de menor fuerza`() = runTest(dispatcher) {
+        val items = (0..11).map { itemChangedDaysAgo("P$it", "s${it % 5}-clave-numero-$it", 400) }
+        health.set(HealthState(reportOf(*items.toTypedArray()), lastCheckedAt = Instant.ofEpochMilli(clock.now)))
+        val ranking = viewModel().state.value.rankingFor(RankingTab.Weakest)
+        assertEquals(10, ranking.size)
+        assertTrue("de menor a mayor fuerza", ranking.zipWithNext().all { (a, b) -> a.strengthScore <= b.strengthScore })
     }
 }

@@ -24,6 +24,10 @@ import androidx.compose.ui.window.DialogWindowProvider
  *   su contenido. Compose expone el texto real de los campos de contraseña en el árbol de
  *   accesibilidad, y FLAG_SECURE no protege contra eso. En Android 9 a 13 no hay equivalente.
  *
+ * **Riesgo aceptado (B4, tarea 27):** la contraseña generada va completa en la `contentDescription` del Generador para que TalkBack la
+ * lea carácter por carácter. Un servicio de accesibilidad malicioso podría leerla y FLAG_SECURE no lo impide; se acepta porque quien
+ * usa TalkBack la necesita y en Android 14 o superior la ventana ya se marca como datos sensibles para accesibilidad (arriba).
+ *
  * Al salir se quita todo, salvo que otra pantalla segura siga visible.
  *
  * Dentro de un diálogo o una hoja inferior protege la ventana de ese diálogo (tiene la suya),

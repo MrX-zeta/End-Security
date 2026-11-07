@@ -316,9 +316,9 @@ private fun AppNavigation(route: String, modifier: Modifier = Modifier) {
                 HealthRoute(
                     onOpenBreached = { navController.navigate(Routes.HEALTH_BREACHED) { launchSingleTop = true } },
                     onOpenRepeated = { navController.navigate(Routes.HEALTH_REPEATED) { launchSingleTop = true } },
-                    onOpenWeak = { navController.navigate(Routes.healthRanking(weakest = true)) { launchSingleTop = true } },
+                    onOpenWeak = { navController.navigate(Routes.healthRanking()) { launchSingleTop = true } },
                     onOpenOld = { navController.navigate(Routes.HEALTH_OLD) { launchSingleTop = true } },
-                    onOpenRanking = { navController.navigate(Routes.healthRanking(weakest = false)) { launchSingleTop = true } },
+                    onOpenRanking = { navController.navigate(Routes.healthRanking()) { launchSingleTop = true } },
                 )
             }
         }
@@ -327,7 +327,7 @@ private fun AppNavigation(route: String, modifier: Modifier = Modifier) {
             arguments = listOf(
                 navArgument(Routes.RANKING_TAB_ARG) {
                     type = NavType.StringType
-                    defaultValue = "Strongest"
+                    defaultValue = "Weakest"
                 },
             ),
         ) {

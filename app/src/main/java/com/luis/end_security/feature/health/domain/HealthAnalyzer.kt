@@ -7,12 +7,15 @@ import java.time.Instant
 import java.util.UUID
 import kotlin.math.roundToInt
 
-/** Nivel de riesgo de un elemento (DEC-20) con su peso en la puntuación global. */
-enum class RiskLevel(val weight: Double) {
-    Low(1.0),
-    Medium(0.7),
-    High(0.35),
-    Critical(0.0),
+/**
+ * Nivel de riesgo de un elemento (DEC-20). Sirve para **ordenar qué atender primero** (los triángulos de la Bóveda, el aviso de
+ * «necesitan atención»); ya no pesa en el índice global (tarea 27: el índice es el porcentaje de contraseñas sanas).
+ */
+enum class RiskLevel {
+    Low,
+    Medium,
+    High,
+    Critical,
 }
 
 /** Fuerza agrupada como el medidor de DEC-31: débil 0–1, regular 2, fuerte 3–4. */
@@ -31,7 +34,10 @@ enum class StrengthClass {
     }
 }
 
-/** Mensaje de la puntuación global (DEC-20). */
+/**
+ * Mensaje de la puntuación global (DEC-20). Los rangos viven aquí **una sola vez**: el tope del índice con una filtrada
+ * ([AT_RISK_MAX]) se deriva de ellos y cambia solo si cambian.
+ */
 enum class HealthMessage {
     Excellent,
     Good,
@@ -40,14 +46,24 @@ enum class HealthMessage {
     ;
 
     companion object {
+        const val EXCELLENT_MIN = 90
+        const val GOOD_MIN = 70
+        const val ATTENTION_MIN = 50
+
+        /** El máximo del rango «En riesgo» (menos de [ATTENTION_MIN]): con una filtrada, el índice no pasa de aquí. */
+        const val AT_RISK_MAX = ATTENTION_MIN - 1
+
         fun forScore(score: Int): HealthMessage = when {
-            score >= 90 -> Excellent
-            score >= 70 -> Good
-            score >= 50 -> NeedsAttention
+            score >= EXCELLENT_MIN -> Excellent
+            score >= GOOD_MIN -> Good
+            score >= ATTENTION_MIN -> NeedsAttention
             else -> AtRisk
         }
     }
 }
+
+/** Por qué una contraseña cae en un grupo de reutilización: es la **misma** o es solo **parecida**. */
+enum class ReuseKind { Identical, Similar }
 
 /**
  * Lo que el análisis necesita de un elemento legible. **Lleva la contraseña**: existe solo mientras dura el
@@ -73,52 +89,80 @@ class ItemHealth(
     val strengthScore: Int,
     val strength: StrengthClass,
     val level: RiskLevel,
+    /** Está en un grupo de reutilización: la misma contraseña **o una parecida** (cuenta igual: nivel Alto, no sana). */
     val repeated: Boolean,
-    /** Grupo de repetidas (mismas contraseñas comparten número); `null` si no se repite. */
+    /** Grupo de reutilización (los miembros comparten número); `null` si no se repite ni se parece a otra. */
     val repeatGroup: Int?,
     val old: Boolean,
     val breached: Boolean,
     /** Cuántas veces apareció en filtraciones (0 si no, o si aún no se revisó). */
     val breachCount: Int,
-    /** En cuántos elementos se usa esta misma contraseña (1 si es única). */
+    /** Cuántos elementos hay en su grupo de reutilización (1 si es única). */
     val repeatCount: Int,
     /** Aún sin revisar en HIBP (sin red o todavía no le tocaba). */
     val breachPending: Boolean,
     val passwordChangedAt: Instant,
+    /** `Identical` si todo su grupo usa exactamente la misma contraseña, `Similar` si hay contraseñas distintas; `null` si no se repite. */
+    val reuseKind: ReuseKind? = null,
+    /** El nombre de otro elemento con una contraseña **distinta pero parecida** («Parecida a la de {Nombre}»); `null` si no hay. */
+    val similarTo: String? = null,
+    /** **Sana** (DEC-20): no filtrada, no repetida ni parecida, fuerte (zxcvbn 3–4) y de menos de 365 días. */
+    val healthy: Boolean = false,
 ) {
     override fun toString(): String = "ItemHealth(level=$level)"
 }
 
-/** Un grupo de contraseñas repetidas: la misma contraseña en [items]. */
-class RepeatGroup(val items: List<ItemHealth>) {
-    override fun toString(): String = "RepeatGroup(size=${items.size})"
+/** Un grupo de reutilización: la misma contraseña, o contraseñas parecidas, en [items]. */
+class RepeatGroup(val items: List<ItemHealth>, val kind: ReuseKind = ReuseKind.Identical) {
+    override fun toString(): String = "RepeatGroup(size=${items.size}, kind=$kind)"
 }
 
-/** Los totales de un análisis (lo que guarda la foto diaria, INV-29: nunca contraseñas ni fuerza individual). */
+/**
+ * Cuántas contraseñas hay en cada categoría, **cada una solo en la más grave** (filtrada > repetida o parecida > débil > antigua >
+ * sana): la suma es el total. Es lo que dibujan las barras por semana de Progreso.
+ */
+class HealthMix(val healthy: Int, val old: Int, val weak: Int, val reused: Int, val breached: Int) {
+    val total: Int get() = healthy + old + weak + reused + breached
+}
+
+/**
+ * Los totales de un análisis (lo que guarda la foto diaria, INV-29: nunca contraseñas ni fuerza individual). [healthy] y [mix] son
+ * `null` en las fotos de antes de la tarea 27.
+ */
 class HealthTotals(
     val score: Int,
     val total: Int,
     val weak: Int,
     val fair: Int,
     val strong: Int,
-    /** Elementos cuya contraseña se repite. */
+    /** Elementos cuya contraseña se repite o se parece a otra. */
     val repeated: Int,
     val breached: Int,
     val old: Int,
+    val healthy: Int? = null,
+    val mix: HealthMix? = null,
 )
 
 /** El resultado global: **no contiene contraseñas**. */
 class HealthReport(val items: List<ItemHealth>) {
-    /** `null` si no hay elementos (estado vacío). */
+    /** Cuántas son sanas. */
+    val healthyCount: Int = items.count { it.healthy }
+
+    val breached: List<ItemHealth> = items.filter { it.breached }
+
+    /**
+     * El índice de salud (DEC-20, tarea 27): `round(100 × sanas / total)`. Con **al menos una filtrada** no pasa del máximo del rango
+     * «En riesgo» ([HealthMessage.AT_RISK_MAX]). `null` si no hay elementos (estado vacío).
+     */
     val score: Int? = if (items.isEmpty()) {
         null
     } else {
-        (100 * items.map { it.level.weight }.average()).roundToInt()
+        val raw = (100.0 * healthyCount / items.size).roundToInt()
+        if (breached.isNotEmpty()) minOf(raw, HealthMessage.AT_RISK_MAX) else raw
     }
 
     val message: HealthMessage? = score?.let { HealthMessage.forScore(it) }
 
-    val breached: List<ItemHealth> = items.filter { it.breached }
     val repeated: List<ItemHealth> = items.filter { it.repeated }
     val weak: List<ItemHealth> = items.filter { it.strength == StrengthClass.Weak }
     val fair: List<ItemHealth> = items.filter { it.strength == StrengthClass.Fair }
@@ -133,11 +177,28 @@ class HealthReport(val items: List<ItemHealth>) {
         .filter { it.repeatGroup != null }
         .groupBy { it.repeatGroup }
         .values
-        .map { RepeatGroup(it) }
+        .map { members -> RepeatGroup(members, members.first().reuseKind ?: ReuseKind.Identical) }
         .sortedByDescending { it.items.size }
 
+    /** Cada contraseña en su categoría más grave (ver [HealthMix]). */
+    val mix: HealthMix = HealthMix(
+        healthy = items.count { category(it) == 0 },
+        old = items.count { category(it) == 1 },
+        weak = items.count { category(it) == 2 },
+        reused = items.count { category(it) == 3 },
+        breached = items.count { category(it) == 4 },
+    )
+
+    private fun category(item: ItemHealth): Int = when {
+        item.breached -> 4
+        item.repeated -> 3
+        item.strength != StrengthClass.Strong -> 2
+        item.old -> 1
+        else -> 0
+    }
+
     val totals: HealthTotals? = score?.let {
-        HealthTotals(it, items.size, weak.size, fair.size, strong.size, repeated.size, breached.size, old.size)
+        HealthTotals(it, items.size, weak.size, fair.size, strong.size, repeated.size, breached.size, old.size, healthyCount, mix)
     }
 
     fun forItem(id: UUID): ItemHealth? = items.firstOrNull { it.id == id }
@@ -146,40 +207,84 @@ class HealthReport(val items: List<ItemHealth>) {
 }
 
 /**
- * Análisis de salud (OP-09, DEC-20), Kotlin puro y local. Por elemento: fuerza (el mismo estimador), repetida
- * (SHA-256 en memoria que nunca se guarda), antigua (`password_changed_at` hace más de 365 días) y filtrada (cuenta de
- * HIBP > 0). Nivel: Crítico = filtrada; Alto = repetida o débil; Medio = regular o antigua; Bajo = el resto.
+ * Análisis de salud (OP-09, DEC-20), Kotlin puro y local. Por elemento: fuerza (el mismo estimador), repetida (SHA-256 en memoria
+ * que nunca se guarda) o **parecida** ([PasswordSimilarity]), antigua (`password_changed_at` hace más de 365 días) y filtrada (cuenta
+ * de HIBP > 0). Nivel: Crítico = filtrada; Alto = repetida, parecida o débil; Medio = regular o antigua; Bajo = el resto. **Sana** =
+ * no filtrada, no repetida ni parecida, fuerte y no antigua.
  */
 object HealthAnalyzer {
     /** Una contraseña con más de 365 días se considera antigua. */
     val OLD_AFTER: Duration = Duration.ofDays(365)
 
     fun analyze(inputs: List<AnalysisItem>, now: Instant, estimator: PasswordStrengthEstimator): HealthReport {
-        // Agrupa las repetidas por el SHA-256 de la contraseña, solo aquí y sin guardarlo.
-        val groupByHash = HashMap<String, MutableList<AnalysisItem>>()
-        for (input in inputs) {
+        val count = inputs.size
+        // Las repetidas (idénticas) se agrupan por el SHA-256 de la contraseña, solo aquí y sin guardarlo.
+        val identicalKey = IntArray(count)
+        val hashIds = HashMap<String, Int>()
+        for ((index, input) in inputs.withIndex()) {
             val bytes = input.password.toByteArray(Charsets.UTF_8)
             val digest = Hashes.sha256(bytes)
             bytes.fill(0)
-            groupByHash.getOrPut(digest.joinToString("") { "%02x".format(it) }) { mutableListOf() } += input
+            identicalKey[index] = hashIds.getOrPut(digest.joinToString("") { "%02x".format(it) }) { hashIds.size }
             digest.fill(0)
         }
-        val groupIndex = HashMap<UUID, Int>()
-        var next = 0
-        for (members in groupByHash.values) {
-            if (members.size >= 2) {
-                members.forEach { groupIndex[it.id] = next }
-                next++
+
+        // Componentes: idénticas o parecidas (unión de conjuntos).
+        val parent = IntArray(count) { it }
+
+        fun find(x: Int): Int {
+            var root = x
+            while (parent[root] != root) root = parent[root]
+            var node = x
+            while (parent[node] != root) {
+                val next = parent[node]
+                parent[node] = root
+                node = next
+            }
+            return root
+        }
+
+        fun union(a: Int, b: Int) {
+            val ra = find(a)
+            val rb = find(b)
+            if (ra != rb) parent[ra] = rb
+        }
+        val firstWithKey = HashMap<Int, Int>()
+        for (index in 0 until count) {
+            val first = firstWithKey.getOrPut(identicalKey[index]) { index }
+            if (first != index) union(first, index)
+        }
+        // Parecidas: se une el par y se anota un vecino de contraseña distinta para «Parecida a la de {Nombre}».
+        val similarNeighbor = arrayOfNulls<Int>(count)
+        PasswordSimilarity.findSimilarPairs(inputs.map { it.password }) { i, j ->
+            union(i, j)
+            if (identicalKey[i] != identicalKey[j]) {
+                if (similarNeighbor[i] == null) similarNeighbor[i] = j
+                if (similarNeighbor[j] == null) similarNeighbor[j] = i
             }
         }
-        val sizeByGroup = HashMap<Int, Int>()
-        for (members in groupByHash.values) {
-            if (members.size >= 2) groupIndex[members.first().id]?.let { sizeByGroup[it] = members.size }
+
+        val members = HashMap<Int, MutableList<Int>>()
+        for (index in 0 until count) members.getOrPut(find(index)) { mutableListOf() } += index
+        val groupOf = IntArray(count) { -1 }
+        val groupSize = IntArray(count)
+        val kindOf = arrayOfNulls<ReuseKind>(count)
+        var next = 0
+        for (group in members.values) {
+            if (group.size < 2) continue
+            val kind = if (group.all { identicalKey[it] == identicalKey[group.first()] }) ReuseKind.Identical else ReuseKind.Similar
+            for (index in group) {
+                groupOf[index] = next
+                groupSize[index] = group.size
+                kindOf[index] = kind
+            }
+            next++
         }
-        val items = inputs.map { input ->
+
+        val items = inputs.mapIndexed { index, input ->
             val score = estimator.score(input.password)
             val strength = StrengthClass.fromScore(score)
-            val repeated = input.id in groupIndex
+            val repeated = groupOf[index] >= 0
             val old = Duration.between(input.passwordChangedAt, now) > OLD_AFTER
             val breached = (input.breachCount ?: 0) > 0
             val level = when {
@@ -196,13 +301,16 @@ object HealthAnalyzer {
                 strength = strength,
                 level = level,
                 repeated = repeated,
-                repeatGroup = groupIndex[input.id],
+                repeatGroup = groupOf[index].takeIf { it >= 0 },
                 old = old,
                 breached = breached,
                 breachCount = input.breachCount ?: 0,
-                repeatCount = groupIndex[input.id]?.let { sizeByGroup[it] } ?: 1,
+                repeatCount = if (repeated) groupSize[index] else 1,
                 breachPending = input.breachCount == null,
                 passwordChangedAt = input.passwordChangedAt,
+                reuseKind = kindOf[index],
+                similarTo = similarNeighbor[index]?.let { inputs[it].name },
+                healthy = !breached && !repeated && strength == StrengthClass.Strong && !old,
             )
         }
         return HealthReport(items)

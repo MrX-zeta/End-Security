@@ -26,7 +26,17 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
+import com.luis.end_security.core.designsystem.component.LoadingCrossfade
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
+import com.luis.end_security.core.designsystem.component.StepSwap
+import com.luis.end_security.core.designsystem.theme.Motion
+import com.luis.end_security.core.designsystem.theme.rememberReducedMotion
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
@@ -190,17 +200,20 @@ fun TwoFactorSetupScreen(
     ) {
         StepIndicator(step = step.ordinal + 1)
         Spacer(Modifier.height(16.dp))
-        when (step) {
-            SetupStep.Key -> KeyStep(state = state, onCopy = { onAction(SetupAction.CopyKey) })
-            SetupStep.Code -> CodeStep(state = state, onAction = onAction, codeFocus = codeFocus)
-            SetupStep.Codes -> {
-                TwoWeightTitle(
-                    boldLine = stringResource(R.string.tf_step3_title_bold),
-                    regularLine = stringResource(R.string.tf_step3_title_regular),
-                    style = TitleStyle(),
-                )
-                Spacer(Modifier.height(16.dp))
-                RecoveryCodesBody(codes = state.codes, notice = stringResource(R.string.tf_codes_notice))
+        // Los pasos usan la misma transición de avanzar y regresar de la navegación: 60 dp y fundido, por el mismo camino al volver.
+        StepSwap(step = step.ordinal) { index ->
+            when (SetupStep.entries[index]) {
+                SetupStep.Key -> KeyStep(state = state, onCopy = { onAction(SetupAction.CopyKey) })
+                SetupStep.Code -> CodeStep(state = state, onAction = onAction, codeFocus = codeFocus)
+                SetupStep.Codes -> Column {
+                    TwoWeightTitle(
+                        boldLine = stringResource(R.string.tf_step3_title_bold),
+                        regularLine = stringResource(R.string.tf_step3_title_regular),
+                        style = TitleStyle(),
+                    )
+                    Spacer(Modifier.height(16.dp))
+                    RecoveryCodesBody(codes = state.codes, notice = stringResource(R.string.tf_codes_notice))
+                }
             }
         }
     }
@@ -327,17 +340,31 @@ private fun StepIndicator(step: Int) {
     Column(modifier = Modifier.fillMaxWidth().semantics(mergeDescendants = true) { }) {
         Text(text = label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurface)
         Spacer(Modifier.height(8.dp))
+        val reducedMotion = rememberReducedMotion()
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             repeat(3) { index ->
+                // Cada tramo se llena de izquierda a derecha en 260 ms (y se vacía igual si se regresa).
+                val fill by animateFloatAsState(
+                    targetValue = if (index < step) 1f else 0f,
+                    animationSpec = if (reducedMotion) snap() else tween(Motion.Push, easing = Motion.EaseOut),
+                    label = "stepFill$index",
+                )
                 Box(
                     modifier = Modifier
                         .weight(1f)
                         .height(4.dp)
-                        .background(
-                            if (index < step) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
-                            CircleShape,
-                        ),
-                )
+                        .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.3f), CircleShape),
+                ) {
+                    Box(
+                        Modifier
+                            .fillMaxSize()
+                            .graphicsLayer {
+                                scaleX = fill
+                                transformOrigin = TransformOrigin(0f, 0.5f)
+                            }
+                            .background(MaterialTheme.colorScheme.onSurface, CircleShape),
+                    )
+                }
             }
         }
     }
@@ -393,7 +420,10 @@ private fun KeyCard(keyDisplay: String?, loading: Boolean, onCopy: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            if (loading || keyDisplay == null) {
+            // Del esqueleto a la clave: fundido cruzado de 200 ms.
+            LoadingCrossfade(loading || keyDisplay == null) { showSkeleton ->
+              Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (showSkeleton || keyDisplay == null) {
                 SkeletonPulse {
                     SkeletonBlock(Modifier.size(width = 60.dp, height = 12.dp), RoundedCornerShape(6.dp))
                     Spacer(Modifier.height(8.dp))
@@ -413,6 +443,8 @@ private fun KeyCard(keyDisplay: String?, loading: Boolean, onCopy: () -> Unit) {
                     style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold, letterSpacing = 2.sp, lineHeight = 30.sp),
                     color = MaterialTheme.colorScheme.background,
                 )
+            }
+              }
             }
         }
         Spacer(Modifier.size(12.dp))

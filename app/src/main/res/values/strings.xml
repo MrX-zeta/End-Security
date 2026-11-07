@@ -327,6 +327,11 @@
     <string name="health_tab_summary">Resumen</string>
     <string name="health_tab_progress">Progreso</string>
     <string name="health_score_of">de 100</string>
+    <plurals name="health_healthy_count">
+        <item quantity="one">%1$d de %2$d contraseña está sana</item>
+        <item quantity="other">%1$d de %2$d contraseñas están sanas</item>
+    </plurals>
+    <string name="health_breached_cap_hint">Cambia las filtradas para subir tu índice</string>
     <string name="health_score_description">Puntuación de salud: %1$d de 100</string>
     <string name="health_message_excellent">Excelente</string>
     <string name="health_message_good">Bien, pero puedes mejorar</string>
@@ -342,8 +347,8 @@
     <string name="health_loading_description">Calculando la salud de tu bóveda</string>
     <string name="health_row_breached">Filtradas</string>
     <string name="health_row_breached_hint">Aparecen en filtraciones</string>
-    <string name="health_row_repeated">Repetidas</string>
-    <string name="health_row_repeated_hint">Usas la misma en varios sitios</string>
+    <string name="health_row_repeated">Repetidas y parecidas</string>
+    <string name="health_row_repeated_hint">La misma o muy parecidas en varios sitios</string>
     <string name="health_row_weak">Débiles</string>
     <string name="health_row_weak_hint">Son fáciles de adivinar</string>
     <string name="health_row_old">Antiguas</string>
@@ -374,7 +379,8 @@
     <string name="health_legend_strong">Fuertes · %1$d</string>
     <string name="health_see_ranking">Ver ranking de fuerza</string>
     <string name="health_ranking_title">Fuerza de tus contraseñas</string>
-    <string name="health_ranking_strongest">Más fuertes</string>
+    <string name="health_ranking_improved">Mejoradas recientemente</string>
+    <string name="health_improved_empty">Todavía no hay contraseñas mejoradas este mes. Cambia una débil y aparecerá aquí.</string>
     <string name="health_ranking_weakest">Más débiles</string>
     <plurals name="health_chars">
         <item quantity="one">%1$d carácter</item>
@@ -393,8 +399,8 @@
     </plurals>
     <string name="health_breached_notice">Otros sitios sufrieron robos de datos y estas contraseñas quedaron expuestas. Cámbialas cuanto antes.</string>
     <plurals name="health_breached_seen">
-        <item quantity="one">Vista en %1$d filtración</item>
-        <item quantity="other">Vista en %1$d filtraciones</item>
+        <item quantity="one">Apareció en %1$s filtración</item>
+        <item quantity="other">Apareció en %1$s filtraciones</item>
     </plurals>
     <string name="health_breached_footnote">Para revisarlas no enviamos tus contraseñas: solo un fragmento que no permite reconstruirlas.</string>
     <string name="health_hibp_attribution">Datos de Have I Been Pwned</string>
@@ -403,7 +409,7 @@
         <item quantity="other">%1$d contraseñas sin revisar todavía</item>
     </plurals>
     <string name="health_none_good_job">Ninguna, bien hecho</string>
-    <string name="health_repeated_title">Repetidas</string>
+    <string name="health_repeated_title">Repetidas y parecidas</string>
     <plurals name="health_repeated_heading_bold">
         <item quantity="one">%1$d contraseña</item>
         <item quantity="other">%1$d contraseñas</item>
@@ -412,6 +418,7 @@
     <string name="health_repeated_heading_many">se repiten en %1$d sitios</string>
     <string name="health_repeated_notice">Si una se filtra, quedan expuestos todos los sitios que la comparten.</string>
     <string name="health_repeated_group">Misma contraseña en %1$d sitios</string>
+    <string name="health_repeated_group_similar">Contraseñas parecidas en %1$d sitios</string>
     <string name="health_review_badge">Revisar</string>
     <string name="health_change">Cambiar</string>
     <string name="health_change_description">Cambiar la contraseña de %1$s</string>
@@ -438,6 +445,8 @@
         <item quantity="other">Apareció en %1$d filtraciones</item>
     </plurals>
     <string name="health_detail_repeated_title">Repetida</string>
+    <string name="health_detail_similar_title">Parecida</string>
+    <string name="health_detail_similar_body">Parecida a la de %1$s</string>
     <string name="health_detail_repeated_body">Usas la misma en %1$d sitios</string>
     <string name="health_detail_weak_title">Débil</string>
     <string name="health_detail_weak_body">Es fácil de adivinar</string>
@@ -757,4 +766,38 @@
     <string name="msg_conflict_kept_mine_offline">Listo, se conservó tu versión. Se subirá cuando haya conexión.</string>
     <string name="msg_conflict_kept_other">Listo, se conservó la otra versión</string>
     <string name="msg_conflict_kept_other_offline">Listo, se conservó la otra versión. Se subirá cuando haya conexión.</string>
+
+    <!-- Barras por semana de Progreso (tarea 27) -->
+    <string name="health_mix_title">Contraseñas por semana</string>
+    <string name="health_mix_healthy">Sanas</string>
+    <string name="health_mix_old">Antiguas</string>
+    <string name="health_mix_weak">Débiles</string>
+    <string name="health_mix_reused">Repetidas o parecidas</string>
+    <string name="health_mix_breached">Filtradas</string>
+    <string name="health_week_date_pattern">d \'de\' MMMM</string>
+    <string name="health_week_description">Semana del %1$s: %2$s</string>
+    <plurals name="health_week_total">
+        <item quantity="one">%1$d contraseña</item>
+        <item quantity="other">%1$d contraseñas</item>
+    </plurals>
+    <plurals name="health_week_healthy">
+        <item quantity="one">%1$d sana</item>
+        <item quantity="other">%1$d sanas</item>
+    </plurals>
+    <plurals name="health_week_old">
+        <item quantity="one">%1$d antigua</item>
+        <item quantity="other">%1$d antiguas</item>
+    </plurals>
+    <plurals name="health_week_weak">
+        <item quantity="one">%1$d débil</item>
+        <item quantity="other">%1$d débiles</item>
+    </plurals>
+    <plurals name="health_week_reused">
+        <item quantity="one">%1$d repetida o parecida</item>
+        <item quantity="other">%1$d repetidas o parecidas</item>
+    </plurals>
+    <plurals name="health_week_breached">
+        <item quantity="one">%1$d filtrada</item>
+        <item quantity="other">%1$d filtradas</item>
+    </plurals>
 </resources>

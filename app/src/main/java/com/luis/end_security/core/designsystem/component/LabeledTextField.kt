@@ -193,9 +193,8 @@ internal fun FieldLayout(
             modifier = Modifier.clearAndSetSemantics {},
         )
         field()
-        if (supportingText != null) {
-            SupportingText(text = supportingText, isError = isError)
-        }
+        // La ayuda o el error se despliegan con fundido y el contenido de abajo se desplaza suave en vez de saltar.
+        RevealValue(supportingText) { text -> SupportingText(text = text, isError = isError) }
     }
 }
 

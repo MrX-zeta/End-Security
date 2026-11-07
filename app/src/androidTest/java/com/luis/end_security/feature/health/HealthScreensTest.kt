@@ -83,7 +83,7 @@ class HealthScreensTest {
         Instant.now(), estimator,
     )
 
-    private fun state(tab: HealthTab = HealthTab.Summary, ranking: RankingTab = RankingTab.Strongest): HealthUiState {
+    private fun state(tab: HealthTab = HealthTab.Summary, ranking: RankingTab = RankingTab.Weakest): HealthUiState {
         val report = report()
         val today = LocalDate.now()
         val snapshots = (1..11).map { week ->
@@ -108,7 +108,7 @@ class HealthScreensTest {
         composeRule.onNodeWithText("Progreso").assertIsDisplayed()
         composeRule.onNodeWithContentDescription("Puntuación de salud", substring = true).assertIsDisplayed()
         composeRule.onNodeWithText("Aparecen en filtraciones").assertIsDisplayed()
-        composeRule.onNodeWithText("Usas la misma en varios sitios").assertIsDisplayed()
+        composeRule.onNodeWithText("La misma o muy parecidas en varios sitios").assertIsDisplayed()
         composeRule.onNodeWithText("Son fáciles de adivinar").assertIsDisplayed()
         composeRule.onNodeWithText("Más de un año sin cambio").assertIsDisplayed()
 

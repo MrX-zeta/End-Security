@@ -20,6 +20,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import com.luis.end_security.core.designsystem.component.rememberArrivalWindow
+import com.luis.end_security.core.designsystem.component.staggeredEnter
+import com.luis.end_security.core.designsystem.theme.Motion
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -37,6 +40,9 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.luis.end_security.R
+import com.luis.end_security.feature.health.domain.ReuseKind
+import androidx.compose.ui.platform.LocalConfiguration
+import java.text.NumberFormat
 import com.luis.end_security.core.designsystem.component.DirectionalContentSwap
 import com.luis.end_security.core.designsystem.component.LetterTile
 import com.luis.end_security.core.designsystem.component.TwoWeightTitle
@@ -90,7 +96,7 @@ fun HealthRankingScreen(
 ) {
     HealthSubScreen(stringResource(R.string.health_ranking_title), onBack) {
         SegmentedSelector(
-            options = listOf(stringResource(R.string.health_ranking_strongest), stringResource(R.string.health_ranking_weakest)),
+            options = listOf(stringResource(R.string.health_ranking_weakest), stringResource(R.string.health_ranking_improved)),
             selectedIndex = state.rankingTab.ordinal,
             onSelect = { onRankingTab(RankingTab.entries[it]) },
         )
@@ -99,7 +105,7 @@ fun HealthRankingScreen(
             val ranking = state.rankingFor(RankingTab.entries[tab])
             if (ranking.isEmpty()) {
                 Text(
-                    text = stringResource(R.string.health_empty),
+                    text = stringResource(if (tab == RankingTab.Improved.ordinal) R.string.health_improved_empty else R.string.health_empty),
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -110,9 +116,10 @@ fun HealthRankingScreen(
                         .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(20.dp))
                         .padding(vertical = 4.dp),
                 ) {
+                    val arriving = rememberArrivalWindow(Unit)
                     ranking.forEachIndexed { index, item ->
                         if (index > 0) HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.25f))
-                        RankingRow(position = index + 1, item = item)
+                        RankingRow(position = index + 1, item = item, modifier = Modifier.staggeredEnter(index, arriving, maxStaggered = Motion.MaxStaggeredRows))
                     }
                 }
             }
@@ -122,14 +129,14 @@ fun HealthRankingScreen(
 }
 
 @Composable
-private fun RankingRow(position: Int, item: ItemHealth) {
+private fun RankingRow(position: Int, item: ItemHealth, modifier: Modifier = Modifier) {
     val colors = MaterialTheme.colorScheme
     val level = PasswordStrengthLevel.fromScore(item.strengthScore)
     val label = stringResource(if (item.strengthScore >= 4) R.string.strength_very_strong else level.label)
     val chars = pluralStringResource(R.plurals.health_chars, item.passwordLength, item.passwordLength)
     val spoken = stringResource(R.string.health_ranking_row, position, item.name, chars, label)
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 12.dp)
             .semantics(mergeDescendants = true) { contentDescription = spoken },
@@ -196,10 +203,12 @@ fun HealthBreachedScreen(report: HealthReport?, onBack: () -> Unit, onOpen: (UUI
                 )
             }
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                items.forEach { item ->
+                val arriving = rememberArrivalWindow(Unit)
+                items.forEachIndexed { index, item ->
                     VaultLikeRow(
+                        modifier = Modifier.staggeredEnter(index, arriving, maxStaggered = Motion.MaxStaggeredRows),
                         name = item.name,
-                        subtitle = pluralStringResource(R.plurals.health_breached_seen, item.breachCount, item.breachCount),
+                        subtitle = pluralStringResource(R.plurals.health_breached_seen, item.breachCount, NumberFormat.getIntegerInstance(LocalConfiguration.current.locales[0]).format(item.breachCount)),
                         atRisk = true,
                         onClick = { onOpen(item.id) },
                     )
@@ -250,10 +259,10 @@ private fun EmptyList(pending: Int) {
 
 /** Una fila como la de la Bóveda (Figma «Elemento de bóveda»): inicial, nombre, subtítulo, triángulo de riesgo y flecha. */
 @Composable
-private fun VaultLikeRow(name: String, subtitle: String, atRisk: Boolean, onClick: () -> Unit) {
+private fun VaultLikeRow(name: String, subtitle: String, atRisk: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val colors = MaterialTheme.colorScheme
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .background(colors.surface, RoundedCornerShape(20.dp))
             .clickable(role = Role.Button, onClick = onClick)
@@ -308,14 +317,19 @@ fun HealthRepeatedScreen(report: HealthReport?, onBack: () -> Unit, onChange: (U
                     color = colors.background,
                 )
             }
-            groups.forEach { group ->
+            val arriving = rememberArrivalWindow(Unit)
+            groups.forEachIndexed { groupIndex, group ->
                 Column(
-                    modifier = Modifier.fillMaxWidth().background(colors.surface, RoundedCornerShape(20.dp)).padding(16.dp),
+                    modifier = Modifier
+                        .staggeredEnter(groupIndex, arriving, maxStaggered = Motion.MaxStaggeredRows)
+                        .fillMaxWidth()
+                        .background(colors.surface, RoundedCornerShape(20.dp))
+                        .padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(
-                            text = stringResource(R.string.health_repeated_group, group.items.size),
+                            text = stringResource(if (group.kind == ReuseKind.Similar) R.string.health_repeated_group_similar else R.string.health_repeated_group, group.items.size),
                             style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
                             color = colors.onSurface,
                             modifier = Modifier.weight(1f),
@@ -348,11 +362,11 @@ private fun ReviewBadge() {
 
 /** Nombre con su inicial y «Cambiar» (48 dp al tacto): lleva a Editar ese elemento. */
 @Composable
-private fun ChangeRow(name: String, subtitle: String? = null, onClick: () -> Unit) {
+private fun ChangeRow(name: String, subtitle: String? = null, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val colors = MaterialTheme.colorScheme
     val description = stringResource(R.string.health_change_description, name)
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .heightIn(min = 48.dp)
             .clickable(role = Role.Button, onClick = onClick)
@@ -400,8 +414,14 @@ fun HealthOldScreen(report: HealthReport?, onBack: () -> Unit, onChange: (UUID) 
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 val now = Instant.now()
-                items.forEach { item ->
-                    ChangeRow(item.name, subtitle = editedAgeText(EditedAge.of(item.passwordChangedAt, now)), onClick = { onChange(item.id) })
+                val arriving = rememberArrivalWindow(Unit)
+                items.forEachIndexed { index, item ->
+                    ChangeRow(
+                        item.name,
+                        subtitle = editedAgeText(EditedAge.of(item.passwordChangedAt, now)),
+                        onClick = { onChange(item.id) },
+                        modifier = Modifier.staggeredEnter(index, arriving, maxStaggered = Motion.MaxStaggeredRows),
+                    )
                 }
             }
         }

@@ -1,5 +1,9 @@
 package com.luis.end_security.core.designsystem.component
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.AnimationSpec
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -13,6 +17,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -25,7 +30,9 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.luis.end_security.core.designsystem.theme.EndSecurityTheme
+import com.luis.end_security.core.designsystem.theme.Motion
 import com.luis.end_security.core.designsystem.theme.PreviewSurface
+import com.luis.end_security.core.designsystem.theme.rememberReducedMotion
 
 const val StrengthMeterBars = 4
 private val BarShape = RoundedCornerShape(3.dp)
@@ -49,6 +56,7 @@ fun StrengthMeter(
     labelBelow: Boolean = false,
 ) {
     val emptyColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+    val reducedMotion = rememberReducedMotion()
     val semantics = Modifier
         .heightIn(min = 18.dp)
         .clearAndSetSemantics {
@@ -59,11 +67,14 @@ fun StrengthMeter(
         }
     @Composable
     fun Bars() {
+        // Las barras se llenan (y se vacían) en 200 ms, no de golpe; con «Quitar animaciones», al instante.
+        val fill: AnimationSpec<Color> = if (reducedMotion) snap() else tween(Motion.MeterFill, easing = Motion.EaseOut)
         repeat(StrengthMeterBars) { index ->
+            val barColor by animateColorAsState(if (index < filledBars) color else emptyColor, fill, label = "meterBar$index")
             Box(
                 modifier = Modifier
                     .size(width = barWidth, height = 6.dp)
-                    .background(if (index < filledBars) color else emptyColor, BarShape),
+                    .background(barColor, BarShape),
             )
         }
     }

@@ -9,6 +9,7 @@ import com.luis.end_security.core.database.dao.HealthSnapshotDao
 import com.luis.end_security.core.database.entity.BreachCheckEntity
 import com.luis.end_security.core.database.entity.HealthSnapshotEntity
 import com.luis.end_security.core.session.VaultSession
+import com.luis.end_security.feature.health.domain.HealthMix
 import com.luis.end_security.feature.health.domain.HealthTotals
 import com.luis.end_security.feature.health.domain.SnapshotPoint
 import kotlinx.serialization.SerialName
@@ -122,9 +123,11 @@ class SnapshotStore @Inject constructor(
         } catch (_: DateTimeParseException) {
             return@mapNotNull null
         }
-        if (row.formatVersion != VERSION) return@mapNotNull null
+        // Las fotos de la versión 1 (sin `healthy` ni el desglose por categoría) se leen tal cual, con el índice de entonces, y su AAD
+        // lleva la versión con la que se cifraron. Una versión que no se conoce se salta.
+        if (row.formatVersion != VERSION && row.formatVersion != LEGACY_VERSION) return@mapNotNull null
         val plaintext = try {
-            session.withVaultKey { key -> key.withBytes { AesGcm.open(it, Sealed(row.nonce, row.ciphertext), aad(day, userId)) } }
+            session.withVaultKey { key -> key.withBytes { AesGcm.open(it, Sealed(row.nonce, row.ciphertext), aad(day, userId, row.formatVersion)) } }
         } catch (_: AuthenticationFailed) {
             return@mapNotNull null
         }
@@ -139,10 +142,13 @@ class SnapshotStore @Inject constructor(
         }
     }
 
-    private fun aad(day: LocalDate, userId: UUID): ByteArray = "health|$day|$userId|$VERSION".toByteArray(Charsets.US_ASCII)
+    private fun aad(day: LocalDate, userId: UUID, version: Int = VERSION): ByteArray =
+        "health|$day|$userId|$version".toByteArray(Charsets.US_ASCII)
 
     companion object {
-        const val VERSION = 1
+        /** Versión 2 (tarea 27): añade `healthy` y el desglose por categoría. La 1 se sigue leyendo. */
+        const val VERSION = 2
+        const val LEGACY_VERSION = 1
         const val RETENTION_MONTHS = 12L
     }
 }
@@ -157,10 +163,27 @@ private class SnapshotJson(
     @SerialName("repeated") val repeated: Int,
     @SerialName("breached") val breached: Int,
     @SerialName("old") val old: Int,
+    // Versión 2: las contraseñas sanas y cuántas hay en cada categoría (cada una solo en la más grave). Faltan en las fotos de la 1.
+    @SerialName("healthy") val healthy: Int? = null,
+    @SerialName("mix_old") val mixOld: Int? = null,
+    @SerialName("mix_weak") val mixWeak: Int? = null,
+    @SerialName("mix_reused") val mixReused: Int? = null,
+    @SerialName("mix_breached") val mixBreached: Int? = null,
 ) {
-    fun toTotals() = HealthTotals(score, total, weak, fair, strong, repeated, breached, old)
+    fun toTotals(): HealthTotals {
+        val mix = if (healthy != null && mixOld != null && mixWeak != null && mixReused != null && mixBreached != null) {
+            HealthMix(healthy, mixOld, mixWeak, mixReused, mixBreached)
+        } else {
+            null
+        }
+        return HealthTotals(score, total, weak, fair, strong, repeated, breached, old, healthy, mix)
+    }
 
     companion object {
-        fun from(t: HealthTotals) = SnapshotJson(t.score, t.total, t.weak, t.fair, t.strong, t.repeated, t.breached, t.old)
+        fun from(t: HealthTotals) = SnapshotJson(
+            t.score, t.total, t.weak, t.fair, t.strong, t.repeated, t.breached, t.old,
+            healthy = t.healthy,
+            mixOld = t.mix?.old, mixWeak = t.mix?.weak, mixReused = t.mix?.reused, mixBreached = t.mix?.breached,
+        )
     }
 }

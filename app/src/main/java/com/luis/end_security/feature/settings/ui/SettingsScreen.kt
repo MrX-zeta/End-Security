@@ -34,6 +34,7 @@ import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import com.luis.end_security.core.designsystem.component.FadeOnChange
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
@@ -424,7 +425,10 @@ private fun SettingsRow(
             modifier = Modifier.weight(1f),
         )
         if (value != null) {
-            Text(text = value, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            // El valor puede cambiar mientras se ve (p. ej. el número de dispositivos al cerrar una sesión): fundido de 150 ms.
+            FadeOnChange(value) { current ->
+                Text(text = current, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
         }
         Icon(
             painter = painterResource(R.drawable.ic_chevron_right_20),

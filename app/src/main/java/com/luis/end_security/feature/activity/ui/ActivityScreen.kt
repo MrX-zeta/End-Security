@@ -16,6 +16,10 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import com.luis.end_security.core.designsystem.component.LoadingCrossfade
+import com.luis.end_security.core.designsystem.component.rememberArrivalWindow
+import com.luis.end_security.core.designsystem.component.staggeredEnter
+import com.luis.end_security.core.designsystem.theme.Motion
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -108,13 +112,16 @@ fun ActivityScreen(
             null
         },
     ) {
-        when (state.phase) {
-            ActivityPhase.Loading -> ActivitySkeleton(loadingText = stringResource(R.string.activity_loading_description))
-            ActivityPhase.Offline -> OfflinePanel(
-                title = stringResource(R.string.activity_offline_title),
-                body = stringResource(R.string.activity_offline_body),
-            )
-            ActivityPhase.Loaded -> ActivityList(state, onAction, onChangePassword)
+        // Del esqueleto al contenido: fundido cruzado de 200 ms.
+        LoadingCrossfade(state.phase) { phase ->
+            when (phase) {
+                ActivityPhase.Loading -> ActivitySkeleton(loadingText = stringResource(R.string.activity_loading_description))
+                ActivityPhase.Offline -> OfflinePanel(
+                    title = stringResource(R.string.activity_offline_title),
+                    body = stringResource(R.string.activity_offline_body),
+                )
+                ActivityPhase.Loaded -> ActivityList(state, onAction, onChangePassword)
+            }
         }
     }
 }
@@ -124,13 +131,15 @@ private fun ActivityList(state: ActivityUiState, onAction: (ActivityAction) -> U
     val context = LocalContext.current
     val timeFormat = remember(context) { DateFormat.getTimeFormat(context) }
     val currentOnAction by rememberUpdatedState(onAction)
+    // Las filas entran escalonadas solo cuando llegan los datos (y cada página nueva): las que se componen después, al desplazar, no.
+    val arriving = rememberArrivalWindow(state.events.size)
     LazyColumn(
         modifier = Modifier.fillMaxWidth(),
         contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = ListPagePadding, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         items(state.days, key = { it.date.toEpochDay() }) { day ->
-            DayBlock(day = day, today = state.today, timeOf = { timeFormat.format(Date(it.occurredAt.toEpochMilli())) })
+            DayBlock(day = day, today = state.today, arriving = arriving, timeOf = { timeFormat.format(Date(it.occurredAt.toEpochMilli())) })
         }
         item(key = "more") {
             when {
@@ -193,7 +202,7 @@ private fun ActivityList(state: ActivityUiState, onAction: (ActivityAction) -> U
 
 /** El título del día («Hoy», «Ayer» o la fecha) y su tarjeta de filas. */
 @Composable
-private fun DayBlock(day: ActivityDay, today: LocalDate, timeOf: (ActivityEvent) -> String) {
+private fun DayBlock(day: ActivityDay, today: LocalDate, arriving: Boolean, timeOf: (ActivityEvent) -> String) {
     val label = when (val relative = DayLabel.of(day.date, today)) {
         DayLabel.Today -> stringResource(R.string.activity_today)
         DayLabel.Yesterday -> stringResource(R.string.activity_yesterday)
@@ -209,7 +218,11 @@ private fun DayBlock(day: ActivityDay, today: LocalDate, timeOf: (ActivityEvent)
         ListCard {
             day.events.forEachIndexed { index, event ->
                 if (index > 0) ListRowDivider()
-                ActivityRow(event = event, time = timeOf(event))
+                ActivityRow(
+                    event = event,
+                    time = timeOf(event),
+                    modifier = Modifier.staggeredEnter(index, arriving, maxStaggered = Motion.MaxStaggeredRows),
+                )
             }
         }
     }
@@ -220,13 +233,13 @@ private fun DayBlock(day: ActivityDay, today: LocalDate, timeOf: (ActivityEvent)
  * título en `danger`. El título largo se corta en una línea con «…» y la hora no se mueve.
  */
 @Composable
-private fun ActivityRow(event: ActivityEvent, time: String) {
+private fun ActivityRow(event: ActivityEvent, time: String, modifier: Modifier = Modifier) {
     val title = stringResource(event.rowTitleRes())
     val device = event.deviceName ?: stringResource(R.string.activity_unknown_device)
     val timeDescription = stringResource(R.string.activity_time_description, time)
     val failedSuffix = if (event.success) "" else stringResource(R.string.activity_failed_suffix)
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .heightIn(min = 64.dp)
             .padding(vertical = 8.dp)

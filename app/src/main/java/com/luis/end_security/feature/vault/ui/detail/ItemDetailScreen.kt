@@ -29,6 +29,7 @@ import androidx.compose.material3.ModalBottomSheetProperties
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import com.luis.end_security.core.designsystem.component.RevealValue
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberUpdatedState
@@ -189,9 +190,12 @@ fun ItemDetailScreen(
                         onTogglePassword = onTogglePassword,
                         onOpenSite = onOpenSite,
                     )
-                    state.health?.let { health ->
-                        Spacer(Modifier.height(12.dp))
-                        HealthBlock(health)
+                    // El bloque de salud se despliega con fundido cuando llega el análisis (y se pliega si deja de haberlo).
+                    RevealValue(state.health) { health ->
+                        Column {
+                            Spacer(Modifier.height(12.dp))
+                            HealthBlock(health)
+                        }
                     }
                     Spacer(Modifier.height(20.dp))
                     DeleteLink(onClick = onDelete)
@@ -377,6 +381,10 @@ private fun HealthBlock(health: ItemHealth) {
         health.breached -> {
             title = stringResource(R.string.health_detail_breached_title)
             body = pluralStringResource(R.plurals.health_detail_breached_body, health.breachCount, health.breachCount)
+        }
+        health.repeated && health.similarTo != null -> {
+            title = stringResource(R.string.health_detail_similar_title)
+            body = stringResource(R.string.health_detail_similar_body, health.similarTo)
         }
         health.repeated -> {
             title = stringResource(R.string.health_detail_repeated_title)

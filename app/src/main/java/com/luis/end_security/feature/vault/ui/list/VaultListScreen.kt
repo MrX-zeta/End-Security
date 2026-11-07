@@ -20,6 +20,14 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import com.luis.end_security.core.designsystem.component.rememberArrivalWindow
+import com.luis.end_security.core.designsystem.component.staggeredEnter
+import com.luis.end_security.core.designsystem.theme.Motion
+import androidx.compose.animation.core.FiniteAnimationSpec
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.lazy.itemsIndexed
+import com.luis.end_security.core.designsystem.theme.rememberReducedMotion
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberUpdatedState
@@ -180,6 +188,10 @@ private fun ListContent(
     onResolve: () -> Unit,
     onAttention: () -> Unit,
 ) {
+    val reduced = rememberReducedMotion()
+    val rowSpec: FiniteAnimationSpec<Float> = if (reduced) snap() else tween(Motion.RowMove, easing = Motion.EaseOut)
+    // Las filas entran escalonadas solo cuando llegan los datos, no al desplazar la lista.
+    val arriving = rememberArrivalWindow(state.isLoading)
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -263,8 +275,15 @@ private fun ListContent(
                 )
             }
         }
-        items(state.rows, key = { it.id }) { row ->
-            VaultItemRow(row = row, onClick = { onItemClick(row) })
+        // Con claves estables por id: eliminar, «Deshacer» y buscar mueven las filas con `animateItem` (200 ms) en vez de saltar.
+        itemsIndexed(state.rows, key = { _, row -> row.id }) { index, row ->
+            VaultItemRow(
+                row = row,
+                onClick = { onItemClick(row) },
+                modifier = Modifier
+                    .animateItem(fadeInSpec = rowSpec, placementSpec = if (reduced) snap() else tween(Motion.RowMove, easing = Motion.EaseOut), fadeOutSpec = rowSpec)
+                    .staggeredEnter(index, arriving, maxStaggered = Motion.MaxStaggeredRows),
+            )
         }
     }
 }
@@ -294,7 +313,7 @@ private fun Header(initial: String, onLockNow: () -> Unit) {
 
 /** «Elemento de bóveda» de Figma (nodo 46:410): 76 de alto, inicial, nombre, usuario y chevrón. */
 @Composable
-private fun VaultItemRow(row: VaultRow, onClick: () -> Unit) {
+private fun VaultItemRow(row: VaultRow, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val title: String
     val subtitle: String
     val initial: String
@@ -319,7 +338,7 @@ private fun VaultItemRow(row: VaultRow, onClick: () -> Unit) {
     val clickable = true
     val openLabel = stringResource(R.string.vault_item_open, title)
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .dropShadow(
                 shape = RowShape,

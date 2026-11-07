@@ -20,13 +20,51 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.time.Duration
 import java.time.Instant
 import java.time.ZoneId
 import javax.inject.Inject
 
 enum class HealthTab { Summary, Progress }
 
-enum class RankingTab { Strongest, Weakest }
+/** Cómo entra una vista de Salud (tarea 27). */
+enum class EntranceMode {
+    /** Ya está a la vista (volviendo de un detalle con Atrás): sin animar. */
+    None,
+
+    /** La primera vez de la sesión desbloqueada: animaciones completas (600 ms). */
+    First,
+
+    /** Una repetición (al cambiar de vista con el selector o al volver a la pestaña): más corta (400 ms). */
+    Replay,
+}
+
+/**
+ * Cuándo se animan las vistas de Salud: **cada vez que se entra** a una vista —al cambiar con el selector o al volver a la pestaña—, no al
+ * recomponer ni al volver de un detalle (Filtradas, Repetidas…) con Atrás. La primera vez de la sesión dura 600 ms y las repeticiones 400.
+ * Vive en el ViewModel, que se descarta al bloquear (se limpian las pilas guardadas).
+ */
+class HealthEntrance {
+    private val shown = mutableSetOf<HealthTab>()
+    private var skipNext = false
+
+    /** Se va a una pantalla de detalle: la próxima vez que se vea una vista es un regreso con Atrás y no se anima. */
+    fun leavingForDetail() {
+        skipNext = true
+    }
+
+    /** Se llama una vez cada vez que una vista entra a la composición. */
+    fun modeFor(tab: HealthTab): EntranceMode {
+        if (skipNext) {
+            skipNext = false
+            shown += tab
+            return EntranceMode.None
+        }
+        return if (shown.add(tab)) EntranceMode.First else EntranceMode.Replay
+    }
+}
+
+enum class RankingTab { Weakest, Improved }
 
 /**
  * Lo que muestran las pantallas de Salud (SCR-22…28, SCR-40). Nada de esto lleva contraseñas: solo ids, nombres,
@@ -40,25 +78,27 @@ class HealthUiState(
     val lastChecked: Instant? = null,
     val offline: Boolean = false,
     val tab: HealthTab = HealthTab.Summary,
-    val rankingTab: RankingTab = RankingTab.Strongest,
+    val rankingTab: RankingTab = RankingTab.Weakest,
     val progress: ProgressSummary? = null,
     /** Cambia cada vez que «Revisar ahora» termina sin conexión (0 = nunca): la pantalla muestra «Sin conexión…» un momento. */
     val offlineNoticeId: Int = 0,
+    /** «Mejoradas recientemente»: cambiadas en los últimos 30 días y hoy sanas, de la más reciente a la más antigua. */
+    val improvedRecently: List<ItemHealth> = emptyList(),
 ) {
     /** Hay una bóveda con contraseñas que analizar. */
     val hasItems: Boolean get() = report?.items?.isNotEmpty() == true
 
-    /** Los 10 primeros del ranking elegido (largo como desempate). */
+    /** El ranking elegido. */
     val ranking: List<ItemHealth> get() = rankingFor(rankingTab)
 
     /** El ranking de [tab]: la pantalla lo pide por pestaña para que el cambio entre «Más fuertes» y «Más débiles» pueda animarse. */
     fun rankingFor(tab: RankingTab): List<ItemHealth> {
         val items = report?.items.orEmpty()
-        val sorted = when (tab) {
-            RankingTab.Strongest -> items.sortedWith(compareByDescending<ItemHealth> { it.strengthScore }.thenByDescending { it.passwordLength })
-            RankingTab.Weakest -> items.sortedWith(compareBy<ItemHealth> { it.strengthScore }.thenBy { it.passwordLength })
+        return when (tab) {
+            // Las 10 más débiles (largo como desempate).
+            RankingTab.Weakest -> items.sortedWith(compareBy<ItemHealth> { it.strengthScore }.thenBy { it.passwordLength }).take(RANKING_SIZE)
+            RankingTab.Improved -> improvedRecently
         }
-        return sorted.take(RANKING_SIZE)
     }
 
     override fun toString(): String = "HealthUiState(loading=$isLoading, report=$report)"
@@ -80,9 +120,12 @@ class HealthViewModel @Inject constructor(
     private val clock: DeviceClock,
 ) : ViewModel() {
 
+    /** Cuándo se animan las vistas (ver [HealthEntrance]). */
+    val entrance = HealthEntrance()
+
     private val tab = MutableStateFlow(HealthTab.Summary)
     private val rankingTab = MutableStateFlow(
-        if (savedStateHandle.get<String>(RANKING_ARG) == RankingTab.Weakest.name) RankingTab.Weakest else RankingTab.Strongest,
+        if (savedStateHandle.get<String>(RANKING_ARG) == RankingTab.Improved.name) RankingTab.Improved else RankingTab.Weakest,
     )
 
     private val offlineNotices = MutableStateFlow(0)
@@ -127,7 +170,17 @@ class HealthViewModel @Inject constructor(
             rankingTab = ranking,
             progress = report?.let { HealthProgressCalculator.compute(snapshots, it, today) },
             offlineNoticeId = offlineNoticeId,
+            improvedRecently = improvedRecently(report),
         )
+    }
+
+    /** Cambiadas en los últimos [IMPROVED_DAYS] días y hoy sanas, de la más reciente a la más antigua. */
+    private fun improvedRecently(report: HealthReport?): List<ItemHealth> {
+        val now = Instant.ofEpochMilli(clock.wallMillis())
+        val since = now.minus(Duration.ofDays(IMPROVED_DAYS))
+        return report?.items.orEmpty()
+            .filter { it.healthy && !it.passwordChangedAt.isBefore(since) && !it.passwordChangedAt.isAfter(now) }
+            .sortedByDescending { it.passwordChangedAt }
     }
 
     fun onTab(selected: HealthTab) {
@@ -151,5 +204,8 @@ class HealthViewModel @Inject constructor(
 
     companion object {
         const val RANKING_ARG = "tab"
+
+        /** «Mejoradas recientemente»: cambiadas en los últimos 30 días. */
+        const val IMPROVED_DAYS = 30L
     }
 }

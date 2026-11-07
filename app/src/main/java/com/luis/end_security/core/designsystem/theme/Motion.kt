@@ -54,6 +54,9 @@ object Motion {
     const val ChartDraw = 600
     const val CountUp = 600
 
+    /** Las repeticiones (al cambiar de vista o al volver a la pestaña) son más cortas para no cansar: la primera vez de la sesión usa 600. */
+    const val ChartReplay = 400
+
     /** Las barras de «Por fuerza» crecen más rápido y, si los datos cambian después, todo va del valor anterior al nuevo. */
     const val BarGrow = 300
     const val ValueChange = 300
@@ -63,6 +66,22 @@ object Motion {
     const val MessageOut = 150
     val MessageRiseIn = 16.dp
     val MessageDropOut = 8.dp
+
+    /** Movimiento dentro de una pantalla (tarea 27). */
+    const val RevealIn = 200
+    const val RevealOut = 150
+    const val LoadingFade = 200
+    const val ValueFade = 150
+
+    /** Filas de una lista al llegar los datos: máximo 8 escalonadas (las demás entran con la octava) y una ventana tras la llegada. */
+    const val MaxStaggeredRows = 8
+    const val ArrivalWindowMillis = 700L
+
+    /** Una fila que sale, vuelve o se reacomoda en una lista (eliminar, «Deshacer», buscar). */
+    const val RowMove = 200
+
+    /** El medidor de fuerza llena sus barras en este tiempo. */
+    const val MeterFill = 200
 
     // Topes que las pruebas de tiempo exigen (duración + un cuadro de margen).
     const val TabSwitchLimitMillis = 200L

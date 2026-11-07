@@ -149,10 +149,10 @@ fun HealthTopBar(title: String, onBack: () -> Unit, modifier: Modifier = Modifie
  * lee siempre el valor final («78 de 100»), nunca los intermedios.
  */
 @Composable
-fun ScoreRing(score: Int, modifier: Modifier = Modifier, size: Dp = 200.dp, animateIn: Boolean = false) {
+fun ScoreRing(score: Int, modifier: Modifier = Modifier, size: Dp = 200.dp, animateIn: Boolean = false, animateMillis: Int = Motion.CountUp) {
     val colors = MaterialTheme.colorScheme
     val description = stringResource(R.string.health_score_description, score)
-    val shown by rememberAnimatedFloat(score.coerceIn(0, 100).toFloat(), fromZeroFirst = animateIn, firstMillis = Motion.CountUp)
+    val shown by rememberAnimatedFloat(score.coerceIn(0, 100).toFloat(), fromZeroFirst = animateIn, firstMillis = animateMillis)
     Box(modifier = modifier.size(size).clearAndSetSemantics { contentDescription = description }, contentAlignment = Alignment.Center) {
         val track = colors.outline.copy(alpha = 0.25f)
         val arc = colors.onSurface

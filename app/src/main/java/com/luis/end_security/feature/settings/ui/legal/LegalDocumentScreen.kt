@@ -53,6 +53,8 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.SecureFlagPolicy
+import com.luis.end_security.core.designsystem.component.Reveal
+import com.luis.end_security.core.designsystem.component.RevealValue
 import com.luis.end_security.R
 import com.luis.end_security.core.designsystem.component.BackTopBar
 import com.luis.end_security.core.designsystem.theme.PreviewSurface
@@ -214,16 +216,16 @@ private fun SectionAccordion(section: LegalSection, expanded: Boolean, onToggle:
                 modifier = Modifier.size(20.dp).rotate(if (expanded) 90f else 0f),
             )
         }
-        if (expanded) {
+        // El acordeón se abre y se cierra desplegando con fundido (200 ms) y plegando (150 ms): lo de abajo se desplaza suave.
+        Reveal(visible = expanded) {
             Column(
                 modifier = Modifier.padding(top = 4.dp, bottom = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 section.blocks.forEach { BlockView(it) }
             }
-        } else {
-            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.25f))
         }
+        if (!expanded) HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.25f))
     }
 }
 

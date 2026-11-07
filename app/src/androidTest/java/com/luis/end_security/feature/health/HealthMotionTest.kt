@@ -354,65 +354,111 @@ class HealthMotionTest {
         }
     }
 
+    private val entrance = com.luis.end_security.feature.health.ui.HealthEntrance()
+    private var healthVisible by mutableStateOf(true)
+
+    private fun setHealthWithEntrance() {
+        composeRule.mainClock.autoAdvance = false
+        healthVisible = true
+        composeRule.setContent {
+            EndSecurityTheme {
+                Box(Modifier.size(width = 412.dp, height = 917.dp)) {
+                    if (healthVisible) HealthScreen(health, {}, {}, {}, {}, {}, {}, {}, entrance = entrance)
+                }
+            }
+        }
+    }
+
     @Test
-    fun el_resumen_anima_solo_la_primera_vez_y_al_volver_ya_esta_en_su_lugar() {
+    fun el_resumen_se_repite_al_cambiar_de_vista_y_la_repeticion_es_mas_corta() {
         health = healthState(HealthTab.Summary)
         setHealth()
         composeRule.mainClock.advanceTimeByFrame()
         frames(3)
-        val first = ringNumber()
         val final = healthState(HealthTab.Summary).report!!.score!!
-        assertTrue("la primera vez el aro empieza contando ($first de $final)", first < final)
-        composeRule.mainClock.advanceTimeBy(1_200)
+        assertTrue("la primera vez el aro empieza contando", ringNumber() < final)
+        // A los ~300 ms desde que entró, la primera vez (600 ms) va más atrás que lo que irá una repetición (400 ms).
+        composeRule.mainClock.advanceTimeBy(236)
+        val firstAt300 = ringNumber()
+        composeRule.mainClock.advanceTimeBy(1_000)
         assertEquals(final, ringNumber())
 
         health = healthState(HealthTab.Progress)
-        composeRule.mainClock.advanceTimeBy(600)
+        composeRule.mainClock.advanceTimeBy(800)
         health = healthState(HealthTab.Summary)
-        frames(3) // el contenido nuevo ya entró
-        assertEquals("al volver al Resumen el número ya está en su valor", final, ringNumber())
-    }
-
-    private fun darkPixels(tag: String): Int {
-        val bitmap = composeRule.onNodeWithTag(tag, useUnmergedTree = true).captureToImage().asAndroidBitmap()
-        val pixels = IntArray(bitmap.width * bitmap.height)
-        bitmap.getPixels(pixels, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
-        return pixels.count { android.graphics.Color.red(it) < 90 && android.graphics.Color.green(it) < 90 && android.graphics.Color.blue(it) < 90 }
-    }
-
-    @Test
-    fun la_linea_se_traza_de_izquierda_a_derecha_la_primera_vez() {
-        health = healthState(HealthTab.Progress)
-        setHealth()
-        composeRule.mainClock.advanceTimeByFrame()
-        frames(6) // el contenido entra
-        val early = darkPixels(HealthChartTag)
-        composeRule.mainClock.advanceTimeBy(300)
-        val middle = darkPixels(HealthChartTag)
-        composeRule.mainClock.advanceTimeBy(900)
-        val final = darkPixels(HealthChartTag)
-        assertTrue("la línea completa dibuja algo ($final)", final > 20)
-        assertTrue("al empezar casi no hay línea ($early de $final)", early < final * 0.5)
-        assertTrue("a la mitad hay menos que al final ($middle de $final)", middle < final)
-        assertTrue("avanza ($early < $middle)", early <= middle)
+        frames(3)
+        assertTrue("al volver al Resumen el aro cuenta otra vez (${ringNumber()} de $final)", ringNumber() < final)
+        composeRule.mainClock.advanceTimeBy(236)
+        val replayAt300 = ringNumber()
+        assertTrue("la repetición va más adelantada que la primera vez a los 300 ms ($replayAt300 >= $firstAt300)", replayAt300 >= firstAt300)
+        composeRule.mainClock.advanceTimeBy(600)
+        assertEquals("la repetición termina", final, ringNumber())
     }
 
     @Test
-    fun la_barra_por_fuerza_crece_y_si_los_datos_cambian_no_vuelve_a_cero() {
-        health = healthState(HealthTab.Progress)
-        setHealth()
-        composeRule.mainClock.advanceTimeByFrame()
+    fun al_volver_de_un_detalle_con_Atras_no_se_repite_pero_al_entrar_desde_otra_pestana_si() {
+        health = healthState(HealthTab.Summary)
+        setHealthWithEntrance()
+        composeRule.mainClock.advanceTimeBy(1_500)
+        val final = healthState(HealthTab.Summary).report!!.score!!
+        assertEquals(final, ringNumber())
+
+        // Se abre un detalle (Filtradas…): al regresar con Atrás, la pantalla vuelve ya en su lugar.
+        entrance.leavingForDetail()
+        healthVisible = false
+        composeRule.mainClock.advanceTimeBy(400)
+        healthVisible = true
+        frames(2)
+        assertEquals("el regreso con Atrás no repite", final, ringNumber())
+
+        // Salir a otra pestaña y volver sí repite.
+        healthVisible = false
+        composeRule.mainClock.advanceTimeBy(400)
+        healthVisible = true
         frames(4)
-        val early = darkPixels(HealthStrengthBarTag)
-        composeRule.mainClock.advanceTimeBy(900)
-        val final = darkPixels(HealthStrengthBarTag)
-        assertTrue("la barra dibuja algo al final ($final)", final > 20)
-        assertTrue("al empezar la barra es menor ($early de $final)", early < final)
-        // «Revisar ahora» trae datos nuevos: la barra nunca se vacía por completo.
-        health = healthState(HealthTab.Progress, lastWeekBase = 30)
-        repeat(20) {
-            composeRule.mainClock.advanceTimeByFrame()
-            assertTrue("la barra no vuelve a cero", darkPixels(HealthStrengthBarTag) > final * 0.5)
+        assertTrue("al entrar desde otra pestaña el aro cuenta otra vez (${ringNumber()} de $final)", ringNumber() < final)
+    }
+
+    @Test
+    fun con_datos_nuevos_sigue_del_valor_anterior_al_nuevo_y_no_se_repite_la_entrada() {
+        health = healthState(HealthTab.Summary)
+        setHealth()
+        composeRule.mainClock.advanceTimeBy(1_500)
+        val final = ringNumber()
+        // «Revisar ahora» trae otro índice: va del anterior al nuevo, sin volver a cero.
+        val newer = healthState(HealthTab.Summary).let { state ->
+            val extra = HealthAnalyzer.analyze(
+                listOf(item("Uno", "s4-Tortuga-Verde"), item("Dos", "s4-Cebolla-Roja-77"), item("Tres", "s0-debil")),
+                Instant.now(), estimator,
+            )
+            HealthUiState(isLoading = false, report = extra, lastChecked = Instant.now(), tab = HealthTab.Summary, progress = state.progress)
         }
+        health = newer
+        repeat(10) {
+            composeRule.mainClock.advanceTimeByFrame()
+            assertTrue("nunca vuelve a cero (${ringNumber()})", ringNumber() > 0)
+        }
+    }
+
+    @Test
+    fun los_puntos_de_la_grafica_van_del_valor_anterior_al_nuevo_en_300_ms_sin_pasar_por_cero() {
+        composeRule.mainClock.autoAdvance = false
+        var target by mutableStateOf(listOf(40f, 60f, 80f))
+        var shown = target
+        composeRule.setContent {
+            val values by com.luis.end_security.feature.health.ui.rememberMorphingValues(target, reducedMotion = false)
+            shown = values
+        }
+        composeRule.mainClock.advanceTimeByFrame()
+        assertEquals(listOf(40f, 60f, 80f), shown)
+        target = listOf(60f, 80f, 100f)
+        var previous = 40f
+        repeat(25) {
+            composeRule.mainClock.advanceTimeByFrame()
+            assertTrue("nunca baja del valor anterior ni vuelve a cero (${shown[0]})", shown[0] >= previous - 0.001f && shown[0] >= 40f)
+            previous = shown[0]
+        }
+        composeRule.mainClock.advanceTimeBy(400)
+        assertEquals(listOf(60f, 80f, 100f), shown)
     }
 }

@@ -23,6 +23,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import com.luis.end_security.core.designsystem.component.FadeOnChange
+import com.luis.end_security.core.designsystem.component.LoadingCrossfade
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -88,6 +90,8 @@ fun HealthRoute(
     onOpenRanking: () -> Unit,
     viewModel: HealthViewModel = hiltViewModel(),
 ) {
+    // Al ir a un detalle, el regreso con Atrás no repite las animaciones.
+    val entrance = viewModel.entrance
     val state by viewModel.state.collectAsStateWithLifecycle()
     // Muestra nombres y fuerza de las contraseñas: sin capturas ni vista en Recientes.
     SecureScreen()
@@ -95,11 +99,12 @@ fun HealthRoute(
         state = state,
         onTab = viewModel::onTab,
         onCheckNow = viewModel::onCheckNow,
-        onOpenBreached = onOpenBreached,
-        onOpenRepeated = onOpenRepeated,
-        onOpenWeak = onOpenWeak,
-        onOpenOld = onOpenOld,
-        onOpenRanking = onOpenRanking,
+        onOpenBreached = { entrance.leavingForDetail(); onOpenBreached() },
+        onOpenRepeated = { entrance.leavingForDetail(); onOpenRepeated() },
+        onOpenWeak = { entrance.leavingForDetail(); onOpenWeak() },
+        onOpenOld = { entrance.leavingForDetail(); onOpenOld() },
+        onOpenRanking = { entrance.leavingForDetail(); onOpenRanking() },
+        entrance = entrance,
     )
 }
 
@@ -115,11 +120,9 @@ fun HealthScreen(
     onOpenOld: () -> Unit,
     onOpenRanking: () -> Unit,
     modifier: Modifier = Modifier,
+    /** Cuándo se animan las vistas; la da el ViewModel para que sobreviva a salir y volver a la pestaña. */
+    entrance: HealthEntrance = remember { HealthEntrance() },
 ) {
-    // Qué vistas ya se mostraron en esta sesión desbloqueada: la entrada escalonada y los datos animados ocurren solo la primera vez.
-    // Se guardan con la pestaña (`rememberSaveable` por entrada de la pila) y se olvidan al bloquear, cuando se limpian las pilas.
-    val summaryPlayed = rememberSaveable { mutableStateOf(false) }
-    val progressPlayed = rememberSaveable { mutableStateOf(false) }
     Column(modifier = modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         Box(modifier = Modifier.weight(1f)) {
             Column(
@@ -141,14 +144,22 @@ fun HealthScreen(
                     selectedIndex = state.tab.ordinal,
                     onSelect = { onTab(HealthTab.entries[it]) },
                 )
-                when {
-                    state.isLoading -> LoadingContent()
-                    !state.hasItems -> EmptyContent()
-                    else -> DirectionalContentSwap(targetIndex = state.tab.ordinal) { tab ->
-                        if (tab == HealthTab.Summary.ordinal) {
-                            SummaryContent(state, summaryPlayed, onCheckNow, onOpenBreached, onOpenRepeated, onOpenWeak, onOpenOld)
-                        } else {
-                            ProgressContent(state.progress, progressPlayed, onOpenRanking)
+                // Del esqueleto («Revisando filtraciones…») al contenido: fundido cruzado de 200 ms.
+                val phase = when {
+                    state.isLoading -> 0
+                    !state.hasItems -> 1
+                    else -> 2
+                }
+                LoadingCrossfade(phase) { current ->
+                    when (current) {
+                        0 -> LoadingContent()
+                        1 -> EmptyContent()
+                        else -> DirectionalContentSwap(targetIndex = state.tab.ordinal) { tab ->
+                            if (tab == HealthTab.Summary.ordinal) {
+                                SummaryContent(state, entrance, onCheckNow, onOpenBreached, onOpenRepeated, onOpenWeak, onOpenOld)
+                            } else {
+                                ProgressContent(state.progress, entrance, onOpenRanking)
+                            }
                         }
                     }
                 }
@@ -184,7 +195,7 @@ const val HealthStrengthBarTag = "HealthStrengthBar"
 @Composable
 private fun SummaryContent(
     state: HealthUiState,
-    played: MutableState<Boolean>,
+    entrance: HealthEntrance,
     onCheckNow: () -> Unit,
     onOpenBreached: () -> Unit,
     onOpenRepeated: () -> Unit,
@@ -193,11 +204,13 @@ private fun SummaryContent(
 ) {
     val report = state.report ?: return
     val colors = MaterialTheme.colorScheme
-    // Primera vez que se ve el Resumen en la sesión: el aro cuenta, el número sube y todo entra escalonado.
-    val firstTime = remember { !played.value }
-    LaunchedEffect(Unit) { played.value = true }
+    // Cada vez que se entra al Resumen (no al recomponer ni al volver de un detalle) el aro cuenta, el número sube y todo entra
+    // escalonado; la primera vez de la sesión en 600 ms y las repeticiones en 400.
+    val mode = remember { entrance.modeFor(HealthTab.Summary) }
+    val firstTime = mode != EntranceMode.None
+    val countMillis = if (mode == EntranceMode.First) Motion.CountUp else Motion.ChartReplay
     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(20.dp)) {
-        ScoreRing(score = report.score ?: 0, modifier = Modifier.staggeredEnter(0, firstTime), animateIn = firstTime)
+        ScoreRing(score = report.score ?: 0, modifier = Modifier.staggeredEnter(0, firstTime), animateIn = firstTime, animateMillis = countMillis)
         Column(
             modifier = Modifier.staggeredEnter(1, firstTime),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -220,12 +233,15 @@ private fun SummaryContent(
                 )
             } else {
                 // Una línea con la fecha y, debajo, «Revisar ahora» como botón de texto en su propia línea (48 dp al tacto).
-                Text(
-                    text = checkedText(state.lastChecked),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = colors.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                )
+                // «Revisado hoy a las…» cambia en su lugar: fundido de 150 ms.
+                FadeOnChange(checkedText(state.lastChecked)) { text ->
+                    Text(
+                        text = text,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = colors.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                    )
+                }
                 Box(
                     modifier = Modifier
                         .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
@@ -241,6 +257,22 @@ private fun SummaryContent(
                         textAlign = TextAlign.Center,
                     )
                 }
+            }
+            // «N de M contraseñas están sanas»; con filtradas, qué hacer para subir el índice (el índice tiene tope por ellas).
+            val total = report.items.size
+            Text(
+                text = pluralStringResource(R.plurals.health_healthy_count, total, report.healthyCount, total),
+                style = MaterialTheme.typography.bodyMedium,
+                color = colors.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+            )
+            if (report.breached.isNotEmpty()) {
+                Text(
+                    text = stringResource(R.string.health_breached_cap_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = colors.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                )
             }
             if (report.pendingBreachCount > 0 && !state.checking) {
                 Text(
@@ -347,16 +379,17 @@ private fun LoadingContent() {
 // --- Progreso (SCR-23) ---
 
 @Composable
-private fun ProgressContent(progress: ProgressSummary?, played: MutableState<Boolean>, onOpenRanking: () -> Unit) {
+private fun ProgressContent(progress: ProgressSummary?, entrance: HealthEntrance, onOpenRanking: () -> Unit) {
     if (progress == null) {
         EmptyContent()
         return
     }
-    // Primera vez que se ve el Progreso en la sesión: las tarjetas entran escalonadas y la gráfica y las barras se dibujan.
-    val firstTime = remember { !played.value }
-    LaunchedEffect(Unit) { played.value = true }
+    // Cada vez que se entra al Progreso: las tarjetas entran escalonadas y la gráfica y las barras se dibujan.
+    val mode = remember { entrance.modeFor(HealthTab.Progress) }
+    val firstTime = mode != EntranceMode.None
+    val drawMillis = if (mode == EntranceMode.First) Motion.ChartDraw else Motion.ChartReplay
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        ChartCard(progress, firstTime, Modifier.staggeredEnter(0, firstTime))
+        ChartCard(progress, firstTime, drawMillis, Modifier.staggeredEnter(0, firstTime))
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
             IndicatorCard(progress.strengthenedThisMonth, stringResource(R.string.health_strengthened), Modifier.weight(1f).staggeredEnter(1, firstTime))
             IndicatorCard(progress.resolvedBreaches, stringResource(R.string.health_resolved), Modifier.weight(1f).staggeredEnter(2, firstTime))
@@ -366,7 +399,7 @@ private fun ProgressContent(progress: ProgressSummary?, played: MutableState<Boo
 }
 
 @Composable
-private fun ChartCard(progress: ProgressSummary, firstTime: Boolean, modifier: Modifier = Modifier) {
+private fun ChartCard(progress: ProgressSummary, firstTime: Boolean, drawMillis: Int, modifier: Modifier = Modifier) {
     val colors = MaterialTheme.colorScheme
     Column(
         modifier = modifier.fillMaxWidth().background(colors.surface, RoundedCornerShape(20.dp)).padding(20.dp),
@@ -400,19 +433,21 @@ private fun ChartCard(progress: ProgressSummary, firstTime: Boolean, modifier: M
                 color = colors.onSurfaceVariant,
             )
         }
-        Chart(progress, firstTime)
+        Chart(progress, firstTime, drawMillis)
+        // Debajo de la línea del índice: cuántas contraseñas hay en cada categoría por semana.
+        WeeklyMixChart(progress, firstTime)
     }
 }
 
 /** La gráfica de las últimas 12 semanas (Figma 62:2392): guías, línea, último punto y los valores de los extremos. */
 @Composable
-private fun Chart(progress: ProgressSummary, firstTime: Boolean) {
+private fun Chart(progress: ProgressSummary, firstTime: Boolean, drawMillis: Int) {
     val colors = MaterialTheme.colorScheme
     val locale = LocalConfiguration.current.locales[0]
     val points = progress.points
     // La línea se traza de izquierda a derecha la primera vez (ChartDraw); si los datos cambian después, los puntos van de su valor
     // anterior al nuevo en ValueChange, sin volver a trazarse.
-    val drawProgress by rememberAnimatedFloat(1f, fromZeroFirst = firstTime, firstMillis = Motion.ChartDraw)
+    val drawProgress by rememberAnimatedFloat(1f, fromZeroFirst = firstTime, firstMillis = drawMillis)
     val scores by rememberMorphingValues(points.map { it.score.toFloat() })
     // El eje va de 50 a 100 como en Figma; si alguna semana bajó de 50, llega hasta 0.
     val axisMin = if (points.minOf { it.score } < 50) 0 else 50

@@ -27,6 +27,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import com.luis.end_security.core.designsystem.component.StepSwap
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -106,9 +107,12 @@ fun ChangeEmailScreen(
     onAction: (ChangeEmailAction) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    when (state.step) {
-        EmailStep.Enter -> EnterEmailScreen(state, onAction, modifier)
-        EmailStep.Code -> EmailCodeScreen(state, onAction, modifier)
+    // Correo nuevo → código: la misma transición de avanzar y regresar de la navegación (60 dp y fundido, mismo camino al volver).
+    StepSwap(step = state.step.ordinal, modifier = modifier) { index ->
+        when (EmailStep.entries[index]) {
+            EmailStep.Enter -> EnterEmailScreen(state, onAction, Modifier)
+            EmailStep.Code -> EmailCodeScreen(state, onAction, Modifier)
+        }
     }
 }
 

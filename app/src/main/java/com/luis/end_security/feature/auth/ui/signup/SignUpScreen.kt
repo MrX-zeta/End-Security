@@ -60,6 +60,8 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.luis.end_security.core.designsystem.component.Reveal
+import com.luis.end_security.core.designsystem.component.RevealValue
 import com.luis.end_security.R
 import com.luis.end_security.core.designsystem.component.BackTopBar
 import com.luis.end_security.core.designsystem.component.Checkbox
@@ -358,7 +360,12 @@ private fun PasswordStrength(state: SignUpUiState) {
  */
 @Composable
 private fun PasswordRequirements(state: SignUpUiState) {
-    if (!state.passwordTyped || state.hasForbiddenCharacters) return
+    // La lista se despliega al empezar a escribir y se pliega con caracteres prohibidos (el contenido de abajo se desplaza suave).
+    Reveal(visible = state.passwordTyped && !state.hasForbiddenCharacters) { PasswordRequirementList(state) }
+}
+
+@Composable
+private fun PasswordRequirementList(state: SignUpUiState) {
     // La confirmación se evalúa en cuanto tiene el mismo largo o más; antes, la línea va en gris neutro.
     val confirmationReady = state.confirmationLength >= state.passwordLength && state.confirmationLength > 0
     Column(modifier = Modifier.padding(top = 10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -467,7 +474,7 @@ private fun TermsRow(
             )
         }
         // Figma 210:3868: ícono de alerta + mensaje en `danger` bajo la casilla.
-        if (showError) FieldErrorText(stringResource(R.string.signup_terms_error))
+        Reveal(showError) { FieldErrorText(stringResource(R.string.signup_terms_error)) }
     }
 }
 

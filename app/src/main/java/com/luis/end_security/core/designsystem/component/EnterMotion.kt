@@ -22,6 +22,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Dp
 import com.luis.end_security.core.designsystem.theme.Motion
 import com.luis.end_security.core.designsystem.theme.rememberReducedMotion
 import kotlinx.coroutines.delay
@@ -39,12 +40,13 @@ fun Modifier.staggeredEnter(
     index: Int,
     play: Boolean = true,
     reducedMotion: Boolean = rememberReducedMotion(),
+    maxStaggered: Int = Motion.MaxStaggered,
 ): Modifier {
     val animate = play && !reducedMotion
     val progress = remember { Animatable(if (animate) 0f else 1f) }
     LaunchedEffect(Unit) {
         if (animate) {
-            delay(index.coerceIn(0, Motion.MaxStaggered - 1) * Motion.Stagger.toLong())
+            delay(index.coerceIn(0, maxStaggered - 1) * Motion.Stagger.toLong())
             progress.animateTo(1f, tween(Motion.EnterMillis, easing = Motion.EaseOut))
         }
     }
@@ -66,9 +68,13 @@ fun DirectionalContentSwap(
     targetIndex: Int,
     modifier: Modifier = Modifier,
     reducedMotion: Boolean = rememberReducedMotion(),
+    /** Cuánto se desplaza y cuánto dura lo que entra y lo que sale; por defecto el cambio sutil de un selector. */
+    slide: Dp = Motion.ContentSwapSlide,
+    enterMillis: Int = Motion.ContentSwap,
+    exitMillis: Int = Motion.ContentSwap,
     content: @Composable (Int) -> Unit,
 ) {
-    val slidePx = with(LocalDensity.current) { Motion.ContentSwapSlide.roundToPx() }
+    val slidePx = with(LocalDensity.current) { slide.roundToPx() }
     AnimatedContent(
         targetState = targetIndex,
         modifier = modifier,
@@ -79,11 +85,11 @@ fun DirectionalContentSwap(
                 val forward = targetState > initialState
                 val direction = if (forward) 1 else -1
                 (
-                    fadeIn(tween(Motion.ContentSwap, easing = Motion.EaseOut)) +
-                        slideInHorizontally(tween(Motion.ContentSwap, easing = Motion.EaseOut)) { direction * slidePx }
+                    fadeIn(tween(enterMillis, easing = Motion.EaseOut)) +
+                        slideInHorizontally(tween(enterMillis, easing = Motion.EaseOut)) { direction * slidePx }
                     ) togetherWith (
-                    fadeOut(tween(Motion.ContentSwap, easing = Motion.EaseOut)) +
-                        slideOutHorizontally(tween(Motion.ContentSwap, easing = Motion.EaseOut)) { -direction * slidePx }
+                    fadeOut(tween(exitMillis, easing = Motion.EaseOut)) +
+                        slideOutHorizontally(tween(exitMillis, easing = Motion.EaseOut)) { -direction * slidePx }
                     ) using SizeTransform(clip = false) { _, _ -> snap() }
             }
         },
