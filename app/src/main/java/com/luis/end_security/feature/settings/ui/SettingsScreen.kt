@@ -59,6 +59,8 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.luis.end_security.core.designsystem.component.Reveal
+import com.luis.end_security.core.designsystem.component.RevealValue
 import com.luis.end_security.R
 import com.luis.end_security.core.designsystem.component.HostedMessage
 import com.luis.end_security.core.designsystem.component.FieldErrorText
@@ -252,7 +254,7 @@ fun SettingsScreen(
                     if (state.biometricRowVisible) {
                         ListRowDivider()
                         BiometricRow(state = state, onToggle = { onAction(SettingsAction.BiometricToggled(it)) })
-                        if (state.biometricNeedsEnrollment) {
+                        Reveal(visible = state.biometricNeedsEnrollment) {
                             FieldErrorText(
                                 text = stringResource(R.string.settings_biometric_needs_enrollment),
                                 modifier = Modifier.padding(start = 4.dp, end = 4.dp, bottom = 8.dp),

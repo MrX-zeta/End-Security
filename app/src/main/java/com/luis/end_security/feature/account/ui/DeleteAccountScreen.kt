@@ -53,6 +53,8 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.luis.end_security.core.designsystem.component.Reveal
+import com.luis.end_security.core.designsystem.component.RevealValue
 import com.luis.end_security.R
 import com.luis.end_security.core.designsystem.component.InterceptTabSelection
 import com.luis.end_security.core.designsystem.component.DangerButton
@@ -209,9 +211,11 @@ fun DeleteAccountScreen(
             state.genericError -> stringResource(R.string.auth_error_generic)
             else -> null
         }
-        if (message != null) {
-            Spacer(Modifier.height(12.dp))
-            FieldErrorText(message)
+        RevealValue(message) { text ->
+            Column {
+                Spacer(Modifier.height(12.dp))
+                FieldErrorText(text)
+            }
         }
         Spacer(Modifier.height(16.dp))
     }
@@ -311,9 +315,11 @@ fun DeleteConfirmSheetContent(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
         )
-        if (error) {
-            Spacer(Modifier.height(12.dp))
-            FieldErrorText(stringResource(R.string.auth_error_generic))
+        Reveal(visible = error) {
+            Column {
+                Spacer(Modifier.height(12.dp))
+                FieldErrorText(stringResource(R.string.auth_error_generic))
+            }
         }
         Spacer(Modifier.height(20.dp))
         DangerButton(

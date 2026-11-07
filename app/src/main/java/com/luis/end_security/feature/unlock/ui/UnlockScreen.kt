@@ -55,6 +55,8 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.luis.end_security.core.designsystem.component.Reveal
+import com.luis.end_security.core.designsystem.component.RevealValue
 import com.luis.end_security.R
 import com.luis.end_security.core.designsystem.component.BlobShape
 import com.luis.end_security.core.designsystem.component.KeyboardAwareLayout
@@ -211,7 +213,8 @@ fun UnlockScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Spacer(Modifier.height(28.dp))
-                    if (state.biometricInvalidated) {
+                    // El aviso se despliega con fundido y el campo de abajo se desplaza suave (tarea 28).
+                    Reveal(visible = state.biometricInvalidated) {
                         FieldErrorText(
                             text = stringResource(R.string.unlock_biometric_invalidated),
                             modifier = Modifier.padding(bottom = 12.dp),

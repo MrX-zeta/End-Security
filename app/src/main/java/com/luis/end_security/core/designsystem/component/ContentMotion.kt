@@ -12,6 +12,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
@@ -134,7 +135,7 @@ fun StepSwap(
     step: Int,
     modifier: Modifier = Modifier,
     reducedMotion: Boolean = rememberReducedMotion(),
-    content: @Composable (Int) -> Unit,
+    content: @Composable ColumnScope.(Int) -> Unit,
 ) {
     DirectionalContentSwap(
         targetIndex = step,

@@ -43,6 +43,8 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.luis.end_security.core.designsystem.component.Reveal
+import com.luis.end_security.core.designsystem.component.RevealValue
 import com.luis.end_security.R
 import com.luis.end_security.core.designsystem.component.BackButton
 import com.luis.end_security.core.designsystem.component.InlineErrorMessage
@@ -198,8 +200,8 @@ private fun androidx.compose.foundation.layout.ColumnScope.ReadyContent(
             onSelect = { onSelect(KeepVersion.Remote) },
             onTogglePassword = onToggleRemotePassword,
         )
-        state.error?.let { error ->
-            if (error == ResolveError.Unavailable) InlineErrorMessage(text = stringResource(R.string.conflict_error_unavailable))
+        RevealValue(state.error?.takeIf { it == ResolveError.Unavailable }) {
+            InlineErrorMessage(text = stringResource(R.string.conflict_error_unavailable))
         }
     }
     Column(

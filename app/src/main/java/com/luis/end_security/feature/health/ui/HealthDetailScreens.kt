@@ -44,6 +44,7 @@ import com.luis.end_security.feature.health.domain.ReuseKind
 import androidx.compose.ui.platform.LocalConfiguration
 import java.text.NumberFormat
 import com.luis.end_security.core.designsystem.component.DirectionalContentSwap
+import com.luis.end_security.core.designsystem.component.Reveal
 import com.luis.end_security.core.designsystem.component.LetterTile
 import com.luis.end_security.core.designsystem.component.TwoWeightTitle
 import com.luis.end_security.core.designsystem.component.initialOf
@@ -100,7 +101,15 @@ fun HealthRankingScreen(
             selectedIndex = state.rankingTab.ordinal,
             onSelect = { onRankingTab(RankingTab.entries[it]) },
         )
-        // Cambio entre «Más fuertes» y «Más débiles»: fundido cruzado con desplazamiento en el sentido del selector.
+        // Qué es «Mejoradas», en pequeño y solo cuando esa opción está activa.
+        Reveal(visible = state.rankingTab == RankingTab.Improved) {
+            Text(
+                text = stringResource(R.string.health_ranking_improved_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        // Cambio entre «Más débiles» y «Mejoradas»: fundido cruzado con desplazamiento en el sentido del selector.
         DirectionalContentSwap(targetIndex = state.rankingTab.ordinal) { tab ->
             val ranking = state.rankingFor(RankingTab.entries[tab])
             if (ranking.isEmpty()) {

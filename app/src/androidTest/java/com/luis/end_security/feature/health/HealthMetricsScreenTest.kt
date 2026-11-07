@@ -112,7 +112,7 @@ class HealthMetricsScreenTest {
         )
         show { HealthRankingScreen(state, {}, {}) }
         composeRule.onNodeWithText("Más débiles").assertIsDisplayed()
-        composeRule.onNodeWithText("Mejoradas recientemente").assertIsDisplayed()
+        composeRule.onNodeWithText("Mejoradas").assertIsDisplayed()
         composeRule.onNodeWithText("Más fuertes").assertDoesNotExist()
     }
 

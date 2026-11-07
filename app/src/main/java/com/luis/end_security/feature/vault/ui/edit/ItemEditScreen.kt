@@ -58,6 +58,8 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.luis.end_security.core.designsystem.component.Reveal
+import com.luis.end_security.core.designsystem.component.RevealValue
 import com.luis.end_security.R
 import com.luis.end_security.core.designsystem.component.BackButton
 import com.luis.end_security.core.designsystem.component.DangerButton
@@ -301,7 +303,10 @@ internal fun ItemEditScreen(
                 modifier = Modifier.padding(start = 32.dp, end = 32.dp, top = 8.dp, bottom = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                when (state.error) {
+                // El error de guardado se despliega con fundido y el botón de abajo se desplaza suave en vez de saltar.
+                RevealValue(state.error) { saveError ->
+                  Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                  when (saveError) {
                     SaveError.Generic -> InlineErrorMessage(text = stringResource(R.string.item_form_error_generic))
                     SaveError.Conflict -> {
                         InlineErrorMessage(text = stringResource(R.string.item_form_error_conflict))
@@ -319,7 +324,8 @@ internal fun ItemEditScreen(
                             )
                         }
                     }
-                    null -> Unit
+                  }
+                  }
                 }
                 PrimaryButton(
                     text = stringResource(R.string.item_form_save),

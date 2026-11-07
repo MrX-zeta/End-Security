@@ -40,6 +40,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.luis.end_security.R
 import androidx.compose.foundation.text.BasicText
+import androidx.compose.foundation.text.TextAutoSize
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.lerp
@@ -102,16 +105,26 @@ fun SegmentedSelector(
                         .selectable(selected = index == selectedIndex, role = Role.Tab, onClick = { onSelect(index) }),
                     contentAlignment = Alignment.Center,
                 ) {
+                    // Una sola línea, centrada; si no cabe (letra grande) el texto se achica hasta 12 sp y, si aún no cabe, termina en «…».
+                    val labelStyle = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
                     BasicText(
                         text = label,
-                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 6.dp).testTag(SegmentedLabelTag),
+                        style = labelStyle,
                         color = { lerp(dim, lit, selection.reach(index)) },
+                        maxLines = 1,
+                        softWrap = false,
+                        overflow = TextOverflow.Ellipsis,
+                        autoSize = TextAutoSize.StepBased(minFontSize = 12.sp, maxFontSize = labelStyle.fontSize),
                     )
                 }
             }
         }
     }
 }
+
+/** Etiqueta de prueba del texto de cada opción de [SegmentedSelector]. */
+const val SegmentedLabelTag = "SegmentedLabel"
 
 /** Etiqueta de prueba del número del aro de la puntuación. */
 const val ScoreNumberTag = "ScoreNumber"

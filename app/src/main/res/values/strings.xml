@@ -379,7 +379,8 @@
     <string name="health_legend_strong">Fuertes · %1$d</string>
     <string name="health_see_ranking">Ver ranking de fuerza</string>
     <string name="health_ranking_title">Fuerza de tus contraseñas</string>
-    <string name="health_ranking_improved">Mejoradas recientemente</string>
+    <string name="health_ranking_improved">Mejoradas</string>
+    <string name="health_ranking_improved_hint">Mejoradas recientemente: cambiadas en los últimos 30 días y hoy sanas</string>
     <string name="health_improved_empty">Todavía no hay contraseñas mejoradas este mes. Cambia una débil y aparecerá aquí.</string>
     <string name="health_ranking_weakest">Más débiles</string>
     <plurals name="health_chars">

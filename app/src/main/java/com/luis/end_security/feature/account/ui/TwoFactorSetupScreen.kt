@@ -30,6 +30,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.platform.testTag
 import com.luis.end_security.core.designsystem.component.LoadingCrossfade
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.graphics.TransformOrigin
@@ -79,6 +80,14 @@ import com.luis.end_security.feature.account.domain.OtpAuthUri
 import com.luis.end_security.feature.auth.ui.lockoutMessage
 
 private val ContentPadding = 32.dp
+
+/** Etiquetas de prueba de los pasos del 2FA: se comprueba que quedan en orden vertical y sin solaparse. */
+const val StepTitleTag = "tf-title"
+const val KeyCardTag = "tf-key-card"
+const val InstructionsTag = "tf-instructions"
+const val KeyWarningTag = "tf-key-warning"
+const val CodeFieldTag = "tf-code-field"
+const val CodeTimerTag = "tf-code-timer"
 
 /**
  * Activar la verificación en dos pasos (SCR-43, SCR-30, SCR-31, SCR-32; OP-22, OP-23). Un solo destino con los tres
@@ -376,9 +385,10 @@ private fun KeyStep(state: TwoFactorSetupUiState, onCopy: () -> Unit) {
         boldLine = stringResource(R.string.tf_step1_title_bold),
         regularLine = stringResource(R.string.tf_step1_title_regular),
         style = TitleStyle(),
+        modifier = Modifier.testTag(StepTitleTag),
     )
     Spacer(Modifier.height(16.dp))
-    KeyCard(keyDisplay = state.keyDisplay, loading = state.isLoadingKey, onCopy = onCopy)
+    KeyCard(keyDisplay = state.keyDisplay, loading = state.isLoadingKey, onCopy = onCopy, modifier = Modifier.testTag(KeyCardTag))
     Spacer(Modifier.height(16.dp))
     if (state.keyError) {
         Text(
@@ -391,6 +401,7 @@ private fun KeyStep(state: TwoFactorSetupUiState, onCopy: () -> Unit) {
     }
     Column(
         modifier = Modifier
+            .testTag(InstructionsTag)
             .fillMaxWidth()
             .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(20.dp))
             .padding(horizontal = 16.dp, vertical = 16.dp),
@@ -405,15 +416,16 @@ private fun KeyStep(state: TwoFactorSetupUiState, onCopy: () -> Unit) {
         text = stringResource(R.string.tf_key_warning),
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.testTag(KeyWarningTag),
     )
 }
 
 /** La tarjeta oscura «Tu clave» (Figma 47:1509) o su esqueleto mientras responde EP-19 (69:3626). */
 @Composable
-private fun KeyCard(keyDisplay: String?, loading: Boolean, onCopy: () -> Unit) {
+private fun KeyCard(keyDisplay: String?, loading: Boolean, onCopy: () -> Unit, modifier: Modifier = Modifier) {
     val dark = MaterialTheme.colorScheme.onSurface
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .background(dark, RoundedCornerShape(20.dp))
             .padding(horizontal = 20.dp, vertical = 18.dp),
@@ -506,6 +518,7 @@ private fun CodeStep(state: TwoFactorSetupUiState, onAction: (SetupAction) -> Un
         boldLine = stringResource(R.string.tf_step2_title_bold),
         regularLine = stringResource(R.string.tf_step2_title_regular),
         style = TitleStyle(),
+        modifier = Modifier.testTag(StepTitleTag),
     )
     Spacer(Modifier.height(20.dp))
     CodeField(
@@ -518,11 +531,15 @@ private fun CodeStep(state: TwoFactorSetupUiState, onAction: (SetupAction) -> Un
             state.showIncomplete -> stringResource(R.string.code_error_incomplete)
             else -> null
         },
-        modifier = Modifier.focusRequester(codeFocus),
+        modifier = Modifier.focusRequester(codeFocus).testTag(CodeFieldTag),
         onDone = { onAction(SetupAction.Confirm) },
     )
     Spacer(Modifier.height(14.dp))
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(
+        modifier = Modifier.testTag(CodeTimerTag),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
         Icon(
             painter = painterResource(R.drawable.ic_clock_16),
             contentDescription = null,

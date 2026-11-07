@@ -290,9 +290,12 @@ fun ChangePasswordScreen(
                 maxLength = MasterPasswordPolicy.MAX_FIELD_LENGTH,
             )
         }
-        if (state.newTyped && !state.hasForbiddenCharacters) {
-            Spacer(Modifier.height(12.dp))
-            Requirements(state)
+        // La lista de requisitos se despliega al empezar a escribir y se pliega con caracteres prohibidos.
+        Reveal(visible = state.newTyped && !state.hasForbiddenCharacters) {
+            Column {
+                Spacer(Modifier.height(12.dp))
+                Requirements(state)
+            }
         }
         // Errores del cambio que no son de un campo.
         val message = when {

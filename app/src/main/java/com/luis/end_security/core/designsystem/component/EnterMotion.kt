@@ -12,6 +12,9 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
@@ -72,7 +75,7 @@ fun DirectionalContentSwap(
     slide: Dp = Motion.ContentSwapSlide,
     enterMillis: Int = Motion.ContentSwap,
     exitMillis: Int = Motion.ContentSwap,
-    content: @Composable (Int) -> Unit,
+    content: @Composable ColumnScope.(Int) -> Unit,
 ) {
     val slidePx = with(LocalDensity.current) { slide.roundToPx() }
     AnimatedContent(
@@ -94,7 +97,11 @@ fun DirectionalContentSwap(
             }
         },
         label = "directionalContentSwap",
-    ) { index -> content(index) }
+    ) { index ->
+        // `AnimatedContent` coloca su contenido en un `Box`: varios elementos sueltos en la raíz (título, tarjeta, lista…) se
+        // apilarían en la misma posición. Con una `Column` siempre debajo, cualquier pantalla que lo use queda en orden vertical.
+        Column(Modifier.fillMaxWidth()) { content(index) }
+    }
 }
 
 /**
