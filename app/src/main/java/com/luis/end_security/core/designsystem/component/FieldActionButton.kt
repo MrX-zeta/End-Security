@@ -27,21 +27,27 @@ fun FieldActionButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    /** Si es un botón de copiar: su ícono pasa a palomita un momento y anuncia «Copiado» (tarea 29). */
+    confirmation: CopyConfirmation? = null,
 ) {
     Surface(
         onClick = onClick,
         enabled = enabled,
-        modifier = modifier.alpha(if (enabled) 1f else 0.4f),
+        modifier = modifier.alpha(if (enabled) 1f else 0.4f).then(if (confirmation != null) Modifier.copiedSemantics(confirmation) else Modifier),
         shape = FieldActionShape,
         color = MaterialTheme.colorScheme.primary,
         contentColor = MaterialTheme.colorScheme.onPrimary,
     ) {
         Box(modifier = Modifier.size(40.dp), contentAlignment = Alignment.Center) {
-            Icon(
-                painter = painterResource(icon),
-                contentDescription = contentDescription,
-                modifier = Modifier.size(20.dp),
-            )
+            if (confirmation != null) {
+                CopyIcon(confirmation, contentDescription, copyIcon = icon)
+            } else {
+                Icon(
+                    painter = painterResource(icon),
+                    contentDescription = contentDescription,
+                    modifier = Modifier.size(20.dp),
+                )
+            }
         }
     }
 }

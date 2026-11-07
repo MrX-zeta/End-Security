@@ -55,6 +55,7 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.luis.end_security.core.designsystem.component.Reveal
 import com.luis.end_security.core.designsystem.component.RevealValue
+import com.luis.end_security.core.designsystem.component.AppBottomSheet
 import com.luis.end_security.R
 import com.luis.end_security.core.designsystem.component.InterceptTabSelection
 import com.luis.end_security.core.designsystem.component.DangerButton
@@ -262,7 +263,7 @@ private fun Consequence(@DrawableRes icon: Int, text: String) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun DeleteConfirmSheet(count: Int, loading: Boolean, error: Boolean, onConfirm: () -> Unit, onDismiss: () -> Unit) {
-    ModalBottomSheet(
+    AppBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         // Con la eliminación en curso la hoja no se cierra ni con el gesto ni con Atrás.

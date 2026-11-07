@@ -3,6 +3,7 @@ package com.luis.end_security.core.designsystem.component
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -29,8 +30,10 @@ fun SecondaryButton(
     text: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    /** Un ícono propio después del texto (p. ej. el de copiar, que pasa a palomita). */
+    trailingIcon: (@Composable () -> Unit)? = null,
 ) {
-    BorderedButton(text = text, color = MaterialTheme.colorScheme.onSurface, onClick = onClick, modifier = modifier)
+    BorderedButton(text = text, color = MaterialTheme.colorScheme.onSurface, onClick = onClick, modifier = modifier, trailingIcon = trailingIcon)
 }
 
 /**
@@ -55,6 +58,7 @@ private fun BorderedButton(
     onClick: () -> Unit,
     modifier: Modifier,
     enabled: Boolean = true,
+    trailingIcon: (@Composable () -> Unit)? = null,
 ) {
     Surface(
         onClick = onClick,
@@ -71,12 +75,25 @@ private fun BorderedButton(
                 .padding(horizontal = 24.dp),
             contentAlignment = Alignment.Center,
         ) {
-            Text(
-                text = text,
-                style = MaterialTheme.typography.labelLarge,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+            if (trailingIcon != null) {
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = text,
+                        style = MaterialTheme.typography.labelLarge,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false),
+                    )
+                    trailingIcon()
+                }
+            } else {
+                Text(
+                    text = text,
+                    style = MaterialTheme.typography.labelLarge,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
         }
     }
 }

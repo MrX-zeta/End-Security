@@ -26,6 +26,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.luis.end_security.core.designsystem.component.CopyIcon
+import com.luis.end_security.core.designsystem.component.copiedSemantics
+import com.luis.end_security.core.designsystem.component.rememberCopyConfirmation
 import com.luis.end_security.R
 import com.luis.end_security.core.designsystem.component.DangerButton
 import com.luis.end_security.core.designsystem.component.PrimaryButton
@@ -73,10 +76,15 @@ fun TwoFactorActiveScreen(
         toast = state.copiedSeconds?.let { stringResource(R.string.tf_copied, it) },
         bottom = {
             if (newCodes != null) {
+                val codesCopied = rememberCopyConfirmation()
                 SecondaryButton(
                     text = stringResource(R.string.tf_copy_codes),
-                    onClick = { onAction(ManageAction.CopyCodes) },
-                    modifier = Modifier.fillMaxWidth(),
+                    onClick = {
+                        codesCopied.mark()
+                        onAction(ManageAction.CopyCodes)
+                    },
+                    modifier = Modifier.fillMaxWidth().copiedSemantics(codesCopied),
+                    trailingIcon = { CopyIcon(codesCopied, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface) },
                 )
                 PrimaryButton(
                     text = stringResource(R.string.tf_codes_saved),

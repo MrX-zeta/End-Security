@@ -65,6 +65,12 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.luis.end_security.core.designsystem.component.AppBottomSheet
+import com.luis.end_security.core.designsystem.component.CopyConfirmation
+import com.luis.end_security.core.designsystem.component.CopyIcon
+import com.luis.end_security.core.designsystem.component.SheetMessageSlot
+import com.luis.end_security.core.designsystem.component.copiedSemantics
+import com.luis.end_security.core.designsystem.component.rememberCopyConfirmation
 import com.luis.end_security.R
 import com.luis.end_security.core.designsystem.component.HostedMessage
 import com.luis.end_security.core.designsystem.component.FullWidthPassword
@@ -261,11 +267,17 @@ private fun ResultCard(state: GeneratorUiState, onRegenerate: () -> Unit, onCopy
                 onClick = onRegenerate,
                 rotation = rotation.value,
             )
+            // El ícono pasa a palomita 1,5 s al copiar (además del aviso); tocar otra vez reinicia el tiempo.
+            val copied = rememberCopyConfirmation()
             ResultIconButton(
                 icon = R.drawable.ic_copy_20,
                 contentDescription = stringResource(R.string.generator_copy),
-                onClick = onCopy,
+                onClick = {
+                    copied.mark()
+                    onCopy()
+                },
                 enabled = state.password.isNotEmpty(),
+                confirmation = copied,
             )
         }
     }
@@ -280,23 +292,28 @@ private fun ResultIconButton(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     rotation: Float = 0f,
+    confirmation: CopyConfirmation? = null,
 ) {
     Surface(
         onClick = onClick,
         enabled = enabled,
-        modifier = modifier.alpha(if (enabled) 1f else 0.4f),
+        modifier = modifier.alpha(if (enabled) 1f else 0.4f).then(if (confirmation != null) Modifier.copiedSemantics(confirmation) else Modifier),
         shape = IconButtonShape,
         color = MaterialTheme.colorScheme.primary,
         contentColor = MaterialTheme.colorScheme.onPrimary,
     ) {
         Box(modifier = Modifier.size(48.dp), contentAlignment = Alignment.Center) {
-            Icon(
-                painter = painterResource(icon),
-                contentDescription = contentDescription,
-                modifier = Modifier
-                    .size(22.dp)
-                    .rotate(rotation),
-            )
+            if (confirmation != null) {
+                CopyIcon(confirmation, contentDescription, copyIcon = icon, size = 22.dp)
+            } else {
+                Icon(
+                    painter = painterResource(icon),
+                    contentDescription = contentDescription,
+                    modifier = Modifier
+                        .size(22.dp)
+                        .rotate(rotation),
+                )
+            }
         }
     }
 }
@@ -469,7 +486,7 @@ fun GeneratorSheet(
         }
     }
     DisposableEffect(viewModel) { onDispose { viewModel.onHide() } }
-    ModalBottomSheet(
+    AppBottomSheet(
         onDismissRequest = {
             viewModel.onHide()
             onDismiss()
@@ -527,13 +544,17 @@ fun GeneratorSheetContent(
             onLengthChangeFinished = onLengthChangeFinished,
             onToggle = onToggle,
         )
-        PrimaryButton(
-            text = stringResource(R.string.generator_use),
-            onClick = onUse,
-            showArrow = false,
-            enabled = state.password.isNotEmpty(),
-            modifier = Modifier.fillMaxWidth(),
-        )
+        // El aviso de copiado sale dentro de la hoja, justo encima del botón (12 dp de separación).
+        Column {
+            SheetMessageSlot()
+            PrimaryButton(
+                text = stringResource(R.string.generator_use),
+                onClick = onUse,
+                showArrow = false,
+                enabled = state.password.isNotEmpty(),
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
     }
 }
 

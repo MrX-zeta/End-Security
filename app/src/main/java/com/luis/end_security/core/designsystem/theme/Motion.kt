@@ -80,6 +80,10 @@ object Motion {
     /** Una fila que sale, vuelve o se reacomoda en una lista (eliminar, «Deshacer», buscar). */
     const val RowMove = 200
 
+    /** Confirmación en el botón de copiar (tarea 29): el ícono pasa a palomita con fundido y vuelve a los 1,5 s. */
+    const val CopyIconFade = 150
+    const val CopyConfirmHoldMillis = 1_500L
+
     /** El medidor de fuerza llena sus barras en este tiempo. */
     const val MeterFill = 200
 

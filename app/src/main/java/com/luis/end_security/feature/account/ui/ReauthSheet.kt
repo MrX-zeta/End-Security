@@ -38,6 +38,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.SecureFlagPolicy
+import com.luis.end_security.core.designsystem.component.AppBottomSheet
 import com.luis.end_security.R
 import com.luis.end_security.core.designsystem.component.DangerButton
 import com.luis.end_security.core.designsystem.component.LabeledTextField
@@ -82,7 +83,7 @@ fun ReauthSheet(
     /** `false` si la cuenta no tiene 2FA (Cambiar correo): no hay código de la app que pedir. */
     showCode: Boolean = true,
 ) {
-    ModalBottomSheet(
+    AppBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         // Pide la contraseña maestra: sin capturas ni vista previa.

@@ -55,6 +55,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.SecureFlagPolicy
 import com.luis.end_security.core.designsystem.component.Reveal
 import com.luis.end_security.core.designsystem.component.RevealValue
+import com.luis.end_security.core.designsystem.component.AppBottomSheet
 import com.luis.end_security.R
 import com.luis.end_security.core.designsystem.component.BackTopBar
 import com.luis.end_security.core.designsystem.theme.PreviewSurface
@@ -317,7 +318,7 @@ fun LegalDocumentSheet(
     document: LegalDocument,
     onDismiss: () -> Unit,
 ) {
-    ModalBottomSheet(
+    AppBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         // Explícito para no depender de que la ventana de la hoja herede FLAG_SECURE.

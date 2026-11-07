@@ -42,6 +42,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.SecureFlagPolicy
+import com.luis.end_security.core.designsystem.component.AppBottomSheet
 import com.luis.end_security.R
 import com.luis.end_security.core.designsystem.component.BackTopBar
 import com.luis.end_security.core.designsystem.component.ListCard
@@ -161,7 +162,7 @@ private fun LicenseTextSheet(entry: LicenseEntry, onDismiss: () -> Unit) {
             ""
         }
     }
-    ModalBottomSheet(
+    AppBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         properties = ModalBottomSheetProperties(securePolicy = SecureFlagPolicy.SecureOn),

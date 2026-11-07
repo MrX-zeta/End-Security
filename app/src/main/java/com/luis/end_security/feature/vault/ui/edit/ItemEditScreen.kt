@@ -60,6 +60,7 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.luis.end_security.core.designsystem.component.Reveal
 import com.luis.end_security.core.designsystem.component.RevealValue
+import com.luis.end_security.core.designsystem.component.AppBottomSheet
 import com.luis.end_security.R
 import com.luis.end_security.core.designsystem.component.BackButton
 import com.luis.end_security.core.designsystem.component.DangerButton
@@ -390,7 +391,7 @@ private fun PasswordFieldWithMeter(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun DiscardSheet(onConfirm: () -> Unit, onDismiss: () -> Unit) {
-    ModalBottomSheet(
+    AppBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         properties = ModalBottomSheetProperties(securePolicy = SecureFlagPolicy.SecureOn),

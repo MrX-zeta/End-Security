@@ -30,6 +30,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.luis.end_security.core.designsystem.theme.Motion
 import com.luis.end_security.core.designsystem.theme.rememberReducedMotion
@@ -155,11 +156,15 @@ fun MessageHost(
     state: MessageHostState,
     modifier: Modifier = Modifier,
     reducedMotion: Boolean = rememberReducedMotion(),
+    /** Separación bajo el aviso (solo mientras hay uno): 12 dp entre el aviso y el botón de una hoja. */
+    bottomPadding: Dp = 0.dp,
+    /** Relleno a los lados: 32 dp en la ventana principal; 0 dentro de una hoja cuyo contenido ya lo tiene. */
+    horizontalPadding: Dp = 32.dp,
 ) {
     val density = LocalDensity.current
     val risePx = with(density) { Motion.MessageRiseIn.roundToPx() }
     val dropPx = with(density) { Motion.MessageDropOut.roundToPx() }
-    Box(modifier = modifier.fillMaxWidth().padding(horizontal = 32.dp)) {
+    Box(modifier = modifier.fillMaxWidth().padding(horizontal = horizontalPadding)) {
         AnimatedContent(
             targetState = state.current,
             modifier = Modifier.fillMaxWidth(),
@@ -188,6 +193,7 @@ fun MessageHost(
                     icon = entry.icon,
                     actionLabel = entry.actionLabel,
                     onAction = entry.onAction,
+                    modifier = Modifier.padding(bottom = bottomPadding),
                 )
             }
         }

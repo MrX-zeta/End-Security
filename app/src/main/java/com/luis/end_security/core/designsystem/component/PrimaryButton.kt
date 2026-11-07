@@ -52,6 +52,8 @@ fun PrimaryButton(
     enabled: Boolean = true,
     loading: Boolean = false,
     showArrow: Boolean = true,
+    /** Un ícono propio al final (p. ej. el de copiar, que pasa a palomita); sustituye a la flecha. */
+    trailingIcon: (@Composable () -> Unit)? = null,
 ) {
     val shape = MaterialTheme.shapes.medium
     val loadingDescription = stringResource(R.string.button_loading)
@@ -88,6 +90,10 @@ fun PrimaryButton(
                 modifier = Modifier.weight(1f, fill = false),
             )
             Spacer(Modifier.width(16.dp))
+            if (trailingIcon != null && !loading) {
+                trailingIcon()
+                return@Row
+            }
             if (!showArrow && !loading) return@Row
             if (loading) {
                 CircularProgressIndicator(

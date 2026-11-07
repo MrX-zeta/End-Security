@@ -54,6 +54,10 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.luis.end_security.core.designsystem.component.AppBottomSheet
+import com.luis.end_security.core.designsystem.component.CopyIcon
+import com.luis.end_security.core.designsystem.component.copiedSemantics
+import com.luis.end_security.core.designsystem.component.rememberCopyConfirmation
 import com.luis.end_security.R
 import com.luis.end_security.core.designsystem.component.HostedMessage
 import com.luis.end_security.core.designsystem.component.BackButton
@@ -215,11 +219,16 @@ fun ItemDetailScreen(
                             icon = R.drawable.ic_check_16,
                         )
                     }
+                    val passwordCopied = rememberCopyConfirmation()
                     PrimaryButton(
                         text = stringResource(R.string.item_copy_password),
-                        onClick = onCopyPassword,
+                        onClick = {
+                            passwordCopied.mark()
+                            onCopyPassword()
+                        },
                         showArrow = false,
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth().copiedSemantics(passwordCopied),
+                        trailingIcon = { CopyIcon(passwordCopied, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimary) },
                     )
                 }
             }
@@ -316,10 +325,15 @@ private fun Fields(
             displayText = state.username,
             leadingIcon = R.drawable.ic_user_20,
             action = {
+                val copied = rememberCopyConfirmation()
                 FieldActionButton(
                     icon = R.drawable.ic_copy_20,
                     contentDescription = stringResource(R.string.item_copy_username),
-                    onClick = onCopyUsername,
+                    onClick = {
+                        copied.mark()
+                        onCopyUsername()
+                    },
+                    confirmation = copied,
                 )
             },
         )
@@ -470,7 +484,7 @@ private const val MAX_DOTS = 24
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun DeleteConfirmationSheet(name: String?, onConfirm: () -> Unit, onDismiss: () -> Unit) {
-    ModalBottomSheet(
+    AppBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         // El nombre de la contraseña no debe salir en una captura de la hoja.

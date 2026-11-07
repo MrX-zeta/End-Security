@@ -801,4 +801,5 @@
         <item quantity="one">%1$d filtrada</item>
         <item quantity="other">%1$d filtradas</item>
     </plurals>
+    <string name="copy_done">Copiado</string>
 </resources>

@@ -52,6 +52,7 @@ import androidx.compose.ui.text.withLink
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.luis.end_security.core.designsystem.component.AppBottomSheet
 import com.luis.end_security.R
 import com.luis.end_security.core.designsystem.component.DangerButton
 import com.luis.end_security.core.designsystem.component.ListCard
@@ -294,7 +295,7 @@ private fun noticeText(notice: DevicesNotice): String = when (notice) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun CloseSessionSheet(title: String, body: String, loading: Boolean, onConfirm: () -> Unit, onDismiss: () -> Unit) {
-    ModalBottomSheet(
+    AppBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         sheetGesturesEnabled = !loading,

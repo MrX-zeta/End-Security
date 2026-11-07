@@ -62,6 +62,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.luis.end_security.core.designsystem.component.AppBottomSheet
+import com.luis.end_security.core.designsystem.component.CopyConfirmation
+import com.luis.end_security.core.designsystem.component.CopyIcon
+import com.luis.end_security.core.designsystem.component.copiedSemantics
+import com.luis.end_security.core.designsystem.component.rememberCopyConfirmation
 import com.luis.end_security.R
 import com.luis.end_security.core.designsystem.component.HostedMessage
 import com.luis.end_security.core.designsystem.component.FullWidthGroups
@@ -192,10 +197,15 @@ fun TwoFactorSetupScreen(
                     modifier = Modifier.fillMaxWidth(),
                 )
                 SetupStep.Codes -> {
+                    val codesCopied = rememberCopyConfirmation()
                     SecondaryButton(
                         text = stringResource(R.string.tf_copy_codes),
-                        onClick = { onAction(SetupAction.CopyCodes) },
-                        modifier = Modifier.fillMaxWidth(),
+                        onClick = {
+                            codesCopied.mark()
+                            onAction(SetupAction.CopyCodes)
+                        },
+                        modifier = Modifier.fillMaxWidth().copiedSemantics(codesCopied),
+                        trailingIcon = { CopyIcon(codesCopied, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface) },
                     )
                     PrimaryButton(
                         text = stringResource(R.string.tf_codes_saved),
@@ -243,7 +253,7 @@ fun TwoFactorSetupScreen(
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 private fun ExitCodesSheet(onExit: () -> Unit, onStay: () -> Unit) {
-    androidx.compose.material3.ModalBottomSheet(
+    AppBottomSheet(
         onDismissRequest = onStay,
         sheetState = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true),
         properties = androidx.compose.material3.ModalBottomSheetProperties(
@@ -460,25 +470,30 @@ private fun KeyCard(keyDisplay: String?, loading: Boolean, onCopy: () -> Unit, m
             }
         }
         Spacer(Modifier.size(12.dp))
-        CopyIconButton(enabled = keyDisplay != null, onClick = onCopy, contentDescription = stringResource(R.string.tf_copy_key))
+        val copied = rememberCopyConfirmation()
+        CopyIconButton(
+            enabled = keyDisplay != null,
+            onClick = {
+                copied.mark()
+                onCopy()
+            },
+            contentDescription = stringResource(R.string.tf_copy_key),
+            confirmation = copied,
+        )
     }
 }
 
 @Composable
-private fun CopyIconButton(enabled: Boolean, onClick: () -> Unit, contentDescription: String) {
+private fun CopyIconButton(enabled: Boolean, onClick: () -> Unit, contentDescription: String, confirmation: CopyConfirmation) {
     Box(
         modifier = Modifier
             .size(48.dp)
+            .copiedSemantics(confirmation)
             .background(MaterialTheme.colorScheme.primary.copy(alpha = if (enabled) 1f else 0.4f), RoundedCornerShape(12.dp))
             .clickable(enabled = enabled, role = Role.Button, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        Icon(
-            painter = painterResource(R.drawable.ic_copy_20),
-            contentDescription = contentDescription,
-            tint = MaterialTheme.colorScheme.onPrimary,
-            modifier = Modifier.size(20.dp),
-        )
+        CopyIcon(confirmation, contentDescription, tint = MaterialTheme.colorScheme.onPrimary)
     }
 }
 

@@ -51,7 +51,7 @@ fun SignOutBottomSheet(
     /** Cerrando sesión: el botón queda cargando y la hoja no se puede cerrar hasta cambiar de pantalla. */
     loading: Boolean = false,
 ) {
-    ModalBottomSheet(
+    AppBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         sheetGesturesEnabled = !loading,
