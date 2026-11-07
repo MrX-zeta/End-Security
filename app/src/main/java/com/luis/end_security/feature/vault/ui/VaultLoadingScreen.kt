@@ -35,8 +35,6 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.luis.end_security.R
-import com.luis.end_security.core.designsystem.component.BottomNavBar
-import com.luis.end_security.core.designsystem.component.BottomNavTab
 import com.luis.end_security.core.designsystem.component.OutlinedIconButton
 import com.luis.end_security.core.designsystem.component.SkeletonBlock
 import com.luis.end_security.core.designsystem.component.SkeletonPulse
@@ -59,7 +57,6 @@ private val SkeletonRows: List<Pair<Dp, Dp>> = listOf(
 /** Bóveda · cargando con la descarga inicial real; al terminar, [onDone]. */
 @Composable
 fun VaultLoadingRoute(
-    onTabSelected: (BottomNavTab) -> Unit,
     onDone: () -> Unit,
     viewModel: VaultLoadingViewModel = hiltViewModel(),
 ) {
@@ -67,7 +64,7 @@ fun VaultLoadingRoute(
     LaunchedEffect(viewModel) {
         viewModel.done.collect { currentOnDone() }
     }
-    VaultLoadingScreen(onTabSelected = onTabSelected)
+    VaultLoadingScreen()
 }
 
 /**
@@ -77,7 +74,6 @@ fun VaultLoadingRoute(
  */
 @Composable
 fun VaultLoadingScreen(
-    onTabSelected: (BottomNavTab) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val announcement = stringResource(R.string.vault_loading_announcement)
@@ -133,7 +129,6 @@ fun VaultLoadingScreen(
                 Spacer(Modifier.height(24.dp))
             }
         }
-        BottomNavBar(selected = BottomNavTab.Vault, onTabSelected = onTabSelected)
     }
 }
 
@@ -180,7 +175,7 @@ private fun SkeletonRow(titleWidth: Dp, subtitleWidth: Dp) {
 @Composable
 private fun VaultLoadingPreview() {
     PreviewSurface {
-        VaultLoadingScreen(onTabSelected = {})
+        VaultLoadingScreen()
     }
 }
 
@@ -188,6 +183,6 @@ private fun VaultLoadingPreview() {
 @Composable
 private fun VaultLoadingSmallPreview() {
     PreviewSurface {
-        VaultLoadingScreen(onTabSelected = {})
+        VaultLoadingScreen()
     }
 }

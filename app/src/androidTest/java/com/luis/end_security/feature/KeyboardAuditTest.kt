@@ -384,7 +384,6 @@ class KeyboardAuditTest {
             formReady = true,
             onBack = {},
             onSave = {},
-            onTabSelected = {},
             onDiscardConfirm = {},
             onDiscardDismiss = {},
         )
@@ -395,7 +394,6 @@ class KeyboardAuditTest {
         val rows = (1..12).map { VaultRow.Item(UUID.randomUUID(), "Sitio $it", "usuario$it@correo.com", "S") }
         VaultListScreen(
             state = VaultListUiState(isLoading = false, rows = rows, totalCount = rows.size),
-            onTabSelected = {},
             onQueryChange = {},
             onLockNow = {},
             onItemClick = {},
@@ -421,7 +419,6 @@ class KeyboardAuditTest {
             onSubmit = {},
             onAction = {},
             onBack = {},
-            onTabSelected = {},
         )
     }
 
@@ -430,7 +427,6 @@ class KeyboardAuditTest {
         ChangeEmailScreen(
             state = ChangeEmailUiState(currentEmail = "luis.ruiz@upchiapas.edu.mx", twoFactorRequired = false),
             onAction = {},
-            onTabSelected = {},
         )
     }
 
@@ -441,7 +437,6 @@ class KeyboardAuditTest {
                 currentEmail = "luis.ruiz@upchiapas.edu.mx", newEmail = "luis.ruiz@gmail.com", twoFactorRequired = false, step = EmailStep.Code,
             ),
             onAction = {},
-            onTabSelected = {},
         )
     }
 
@@ -461,7 +456,6 @@ class KeyboardAuditTest {
             onConfirm = {},
             onAction = {},
             onBack = {},
-            onTabSelected = {},
         )
     }
 

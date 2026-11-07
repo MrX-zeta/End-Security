@@ -45,9 +45,8 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.luis.end_security.R
+import com.luis.end_security.core.designsystem.component.HostedMessage
 import com.luis.end_security.core.designsystem.component.BlobShape
-import com.luis.end_security.core.designsystem.component.BottomNavBar
-import com.luis.end_security.core.designsystem.component.BottomNavTab
 import com.luis.end_security.core.designsystem.component.FloatingAddButton
 import com.luis.end_security.core.designsystem.component.LetterTile
 import com.luis.end_security.core.designsystem.component.MessageBar
@@ -70,7 +69,6 @@ private val RowShape = androidx.compose.foundation.shape.RoundedCornerShape(18.d
 
 @Composable
 fun VaultListRoute(
-    onTabSelected: (BottomNavTab) -> Unit,
     onOpenItem: (UUID) -> Unit,
     onOpenNew: () -> Unit,
     onOpenConflict: (UUID) -> Unit,
@@ -99,7 +97,6 @@ fun VaultListRoute(
     SecureScreen()
     VaultListScreen(
         state = state,
-        onTabSelected = onTabSelected,
         onQueryChange = viewModel::onQueryChange,
         onLockNow = viewModel::onLockNow,
         onItemClick = viewModel::onItemClick,
@@ -114,7 +111,6 @@ fun VaultListRoute(
 @Composable
 fun VaultListScreen(
     state: VaultListUiState,
-    onTabSelected: (BottomNavTab) -> Unit,
     onQueryChange: (String) -> Unit,
     onLockNow: () -> Unit,
     onItemClick: (VaultRow) -> Unit,
@@ -162,7 +158,7 @@ fun VaultListScreen(
                     )
                 }
                 state.deleted?.let { notice ->
-                    MessageBar(
+                    HostedMessage(
                         text = notice.name?.let { stringResource(R.string.vault_deleted, it) }
                             ?: stringResource(R.string.vault_deleted_generic),
                         icon = R.drawable.ic_trash_20,
@@ -172,7 +168,6 @@ fun VaultListScreen(
                 }
             }
         }
-        BottomNavBar(selected = BottomNavTab.Vault, onTabSelected = onTabSelected)
     }
 }
 
@@ -471,7 +466,7 @@ private fun VaultListPreview() {
     PreviewSurface {
         VaultListScreen(
             state = VaultListUiState(accountInitial = "L", isLoading = false, rows = PreviewRows, totalCount = 24),
-            onTabSelected = {}, onQueryChange = {}, onLockNow = {}, onItemClick = {}, onAddClick = {}, onUndoDelete = {},
+            onQueryChange = {}, onLockNow = {}, onItemClick = {}, onAddClick = {}, onUndoDelete = {},
         )
     }
 }
@@ -484,7 +479,7 @@ private fun VaultListUndoPreview() {
             state = VaultListUiState(
                 accountInitial = "L", isLoading = false, rows = PreviewRows, totalCount = 23, deleted = DeletedNotice("Gmail"),
             ),
-            onTabSelected = {}, onQueryChange = {}, onLockNow = {}, onItemClick = {}, onAddClick = {}, onUndoDelete = {},
+            onQueryChange = {}, onLockNow = {}, onItemClick = {}, onAddClick = {}, onUndoDelete = {},
         )
     }
 }
@@ -495,7 +490,7 @@ private fun VaultEmptyPreview() {
     PreviewSurface {
         VaultListScreen(
             state = VaultListUiState(accountInitial = "L", isLoading = false),
-            onTabSelected = {}, onQueryChange = {}, onLockNow = {}, onItemClick = {}, onAddClick = {}, onUndoDelete = {},
+            onQueryChange = {}, onLockNow = {}, onItemClick = {}, onAddClick = {}, onUndoDelete = {},
         )
     }
 }

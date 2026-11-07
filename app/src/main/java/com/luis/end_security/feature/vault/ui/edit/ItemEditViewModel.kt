@@ -2,6 +2,10 @@ package com.luis.end_security.feature.vault.ui.edit
 
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
+import com.luis.end_security.R
+import com.luis.end_security.core.common.AppMessage
+import com.luis.end_security.core.common.AppMessages
+import com.luis.end_security.core.sync.SyncStatus
 import androidx.lifecycle.viewModelScope
 import com.luis.end_security.core.common.DefaultDispatcher
 import com.luis.end_security.feature.auth.domain.PasswordStrengthEstimator
@@ -90,6 +94,8 @@ class ItemEditViewModel @Inject constructor(
     private val estimator: PasswordStrengthEstimator,
     private val handoff: PasswordHandoff,
     @param:DefaultDispatcher private val defaultDispatcher: CoroutineDispatcher,
+    private val appMessages: AppMessages,
+    private val syncStatus: SyncStatus,
 ) : ViewModel() {
 
     private val itemId: UUID? = savedStateHandle.get<String>(ID_ARG)?.let { runCatching { UUID.fromString(it) }.getOrNull() }
@@ -209,6 +215,7 @@ class ItemEditViewModel @Inject constructor(
                 // `isSaving` se queda en `true`: un segundo toque no debe guardar un duplicado.
                 is SaveResult.Saved -> if (!closing) {
                     closing = true
+                    postSavedMessage(draft.name.trim())
                     _effects.send(ItemEditEffect.Saved)
                 }
                 SaveResult.Conflict -> _state.update { it.withSaving(false).withErrors(nameError = false, error = SaveError.Conflict) }
@@ -217,6 +224,21 @@ class ItemEditViewModel @Inject constructor(
                 SaveResult.Locked -> _state.update { it.withSaving(false) }
             }
         }
+    }
+
+    /**
+     * El aviso de resultado que se verá al volver a la lista o al detalle: «{Nombre} se guardó» si es nueva (también la que viene del
+     * Generador) y «Cambios guardados» si se editó. Sin conexión añade que se subirá después, porque la escritura queda pendiente.
+     */
+    private fun postSavedMessage(name: String) {
+        val offline = syncStatus.offline.value
+        appMessages.post(
+            if (isNew) {
+                AppMessage(if (offline) R.string.msg_item_saved_offline else R.string.msg_item_saved, listOf(name), R.drawable.ic_check_16)
+            } else {
+                AppMessage(if (offline) R.string.msg_changes_saved_offline else R.string.msg_changes_saved, icon = R.drawable.ic_check_16)
+            },
+        )
     }
 
     /**

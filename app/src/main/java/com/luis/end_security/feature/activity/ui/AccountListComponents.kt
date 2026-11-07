@@ -31,10 +31,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.luis.end_security.R
+import com.luis.end_security.core.designsystem.component.HostedMessage
 import com.luis.end_security.core.designsystem.component.BackButton
-import com.luis.end_security.core.designsystem.component.BottomNavBar
-import com.luis.end_security.core.designsystem.component.BottomNavTab
-import com.luis.end_security.core.designsystem.component.MessageBar
 import com.luis.end_security.core.designsystem.component.NeumorphicDisc
 import com.luis.end_security.core.designsystem.component.SkeletonBlock
 import com.luis.end_security.core.designsystem.component.SkeletonPulse
@@ -51,7 +49,6 @@ internal val ListPagePadding = 32.dp
 internal fun AccountListPage(
     title: String,
     onBack: () -> Unit,
-    onTabSelected: (BottomNavTab) -> Unit,
     modifier: Modifier = Modifier,
     notice: String? = null,
     bottom: (@Composable ColumnScope.() -> Unit)? = null,
@@ -81,14 +78,13 @@ internal fun AccountListPage(
                 }
             }
             if (notice != null) {
-                MessageBar(
+                HostedMessage(
                     text = notice,
                     icon = R.drawable.ic_info_20,
                     modifier = Modifier.align(Alignment.BottomCenter).padding(horizontal = ListPagePadding, vertical = 8.dp),
                 )
             }
         }
-        BottomNavBar(selected = BottomNavTab.Settings, onTabSelected = onTabSelected)
     }
 }
 

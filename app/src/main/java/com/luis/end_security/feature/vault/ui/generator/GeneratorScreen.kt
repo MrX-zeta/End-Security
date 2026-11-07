@@ -66,10 +66,9 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.luis.end_security.R
+import com.luis.end_security.core.designsystem.component.HostedMessage
+import com.luis.end_security.core.designsystem.component.FullWidthPassword
 import com.luis.end_security.core.crypto.GeneratorOptions
-import com.luis.end_security.core.designsystem.component.BottomNavBar
-import com.luis.end_security.core.designsystem.component.BottomNavTab
-import com.luis.end_security.core.designsystem.component.MessageBar
 import com.luis.end_security.core.designsystem.component.PrimaryButton
 import com.luis.end_security.core.designsystem.component.StrengthMeter
 import com.luis.end_security.core.designsystem.component.TwoWeightTitle
@@ -86,7 +85,6 @@ private val IconButtonShape = RoundedCornerShape(14.dp)
 
 @Composable
 fun GeneratorRoute(
-    onTabSelected: (BottomNavTab) -> Unit,
     onOpenNewWithPassword: () -> Unit,
     viewModel: GeneratorViewModel = hiltViewModel(),
 ) {
@@ -108,7 +106,6 @@ fun GeneratorRoute(
 
     GeneratorScreen(
         state = state,
-        onTabSelected = onTabSelected,
         onRegenerate = viewModel::onRegenerate,
         onCopy = viewModel::onCopy,
         onLengthChange = viewModel::onLengthChange,
@@ -122,7 +119,6 @@ fun GeneratorRoute(
 @Composable
 fun GeneratorScreen(
     state: GeneratorUiState,
-    onTabSelected: (BottomNavTab) -> Unit,
     onRegenerate: () -> Unit,
     onCopy: () -> Unit,
     onLengthChange: (Int) -> Unit,
@@ -171,7 +167,6 @@ fun GeneratorScreen(
                 modifier = Modifier.fillMaxWidth(),
             )
         }
-        BottomNavBar(selected = BottomNavTab.Generator, onTabSelected = onTabSelected)
     }
 }
 
@@ -189,7 +184,7 @@ fun GeneratorContent(
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(22.dp)) {
         ResultCard(state = state, onRegenerate = onRegenerate, onCopy = onCopy)
         state.copiedSeconds?.let { seconds ->
-            MessageBar(
+            HostedMessage(
                 text = stringResource(R.string.item_copied_password, seconds),
                 icon = R.drawable.ic_check_16,
             )
@@ -233,8 +228,9 @@ private fun ResultCard(state: GeneratorUiState, onRegenerate: () -> Unit, onCopy
             .padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
-        Text(
-            text = state.password.ifEmpty { " " },
+        // Renglones completos: se reparte carácter por carácter según el ancho (no por símbolos, como haría Android).
+        FullWidthPassword(
+            password = state.password.ifEmpty { " " },
             style = MaterialTheme.typography.titleLarge.copy(
                 fontFamily = FontFamily.Monospace,
                 fontWeight = FontWeight.Bold,
@@ -553,7 +549,7 @@ private fun previewState(options: GeneratorOptions = GeneratorOptions(), copied:
 @Composable
 private fun GeneratorPreview() {
     PreviewSurface {
-        GeneratorScreen(previewState(), {}, {}, {}, {}, {}, {}, {})
+        GeneratorScreen(previewState(), {}, {}, {}, {}, {}, {})
     }
 }
 
@@ -561,7 +557,7 @@ private fun GeneratorPreview() {
 @Composable
 private fun GeneratorCopiedPreview() {
     PreviewSurface {
-        GeneratorScreen(previewState(GeneratorOptions(24, symbols = false, avoidAmbiguous = true), copied = 30), {}, {}, {}, {}, {}, {}, {})
+        GeneratorScreen(previewState(GeneratorOptions(24, symbols = false, avoidAmbiguous = true), copied = 30), {}, {}, {}, {}, {}, {})
     }
 }
 

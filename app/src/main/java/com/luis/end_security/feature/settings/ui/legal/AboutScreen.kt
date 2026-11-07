@@ -42,11 +42,11 @@ import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import com.luis.end_security.BuildConfig
 import com.luis.end_security.R
+import com.luis.end_security.core.designsystem.component.HostedMessage
 import com.luis.end_security.core.designsystem.component.BackTopBar
 import com.luis.end_security.core.designsystem.component.ListCard
 import com.luis.end_security.core.designsystem.component.ListRowDivider
 import com.luis.end_security.core.designsystem.component.ListRowIcon
-import com.luis.end_security.core.designsystem.component.MessageBar
 import com.luis.end_security.core.designsystem.theme.PreviewSurface
 import kotlinx.coroutines.delay
 
@@ -111,7 +111,7 @@ private fun UnavailableBar(token: Int, modifier: Modifier = Modifier) {
             visible = false
         }
     }
-    if (visible) MessageBar(text = stringResource(R.string.about_no_app), icon = R.drawable.ic_info_20, modifier = modifier)
+    if (visible) HostedMessage(text = stringResource(R.string.about_no_app), icon = R.drawable.ic_info_20, modifier = modifier)
 }
 
 /** Lo que se ve, sin estado ni intents: así se prueba y se previsualiza. */

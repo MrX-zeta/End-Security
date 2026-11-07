@@ -52,12 +52,12 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.luis.end_security.R
+import com.luis.end_security.core.designsystem.component.HostedMessage
+import com.luis.end_security.core.designsystem.component.FullWidthGroups
+import com.luis.end_security.core.designsystem.component.InterceptTabSelection
 import com.luis.end_security.core.designsystem.component.BackButton
-import com.luis.end_security.core.designsystem.component.BottomNavBar
-import com.luis.end_security.core.designsystem.component.isKeyboardVisible
 import com.luis.end_security.core.designsystem.component.BottomNavTab
 import com.luis.end_security.core.designsystem.component.CodeField
-import com.luis.end_security.core.designsystem.component.MessageBar
 import com.luis.end_security.core.designsystem.component.PrimaryButton
 import com.luis.end_security.core.designsystem.component.SecondaryButton
 import com.luis.end_security.core.designsystem.component.SkeletonBlock
@@ -78,6 +78,7 @@ private val ContentPadding = 32.dp
 @Composable
 fun TwoFactorSetupRoute(
     onExit: () -> Unit,
+    /** Navega a otra pestaña tras confirmar la salida del Paso 3 (la barra inferior es única y la maneja `AppNavHost`). */
     onTabSelected: (BottomNavTab) -> Unit,
     viewModel: TwoFactorSetupViewModel = hiltViewModel(),
 ) {
@@ -125,9 +126,17 @@ fun TwoFactorSetupScreen(
     }
     // En el Paso 3, salir por una pestaña pide confirmar: los códigos no se podrán volver a ver.
     var pendingTab by remember { mutableStateOf<BottomNavTab?>(null) }
+    // La barra inferior es única: en el Paso 3 esta pantalla se queda con el toque y pide confirmar.
+    InterceptTabSelection { tab ->
+        if (step == SetupStep.Codes) {
+            pendingTab = tab
+            true
+        } else {
+            false
+        }
+    }
     FlowScaffold(
         onBack = { onAction(SetupAction.Back) },
-        onTabSelected = { tab -> if (step == SetupStep.Codes) pendingTab = tab else onTabSelected(tab) },
         modifier = modifier,
         toast = state.copiedSeconds?.let { stringResource(R.string.tf_copied, it) },
         bottom = {
@@ -199,6 +208,8 @@ fun TwoFactorSetupScreen(
         ExitCodesSheet(
             onExit = {
                 pendingTab = null
+                // Vacía la clave y los códigos y avisa que la verificación quedó activa; después navega a la pestaña elegida.
+                onAction(SetupAction.LeaveForTab)
                 onTabSelected(tab)
             },
             onStay = { pendingTab = null },
@@ -264,7 +275,6 @@ internal fun TitleStyle() = MaterialTheme.typography.headlineMedium.copy(fontWei
 @Composable
 fun FlowScaffold(
     onBack: () -> Unit,
-    onTabSelected: (BottomNavTab) -> Unit,
     modifier: Modifier = Modifier,
     toast: String? = null,
     title: String = stringResource(R.string.tf_title),
@@ -299,7 +309,7 @@ fun FlowScaffold(
                 ) { bottom() }
             }
             if (toast != null) {
-                MessageBar(
+                HostedMessage(
                     text = toast,
                     icon = R.drawable.ic_copy_20,
                     modifier = Modifier.align(Alignment.BottomCenter).padding(horizontal = ContentPadding, vertical = 120.dp),
@@ -307,7 +317,6 @@ fun FlowScaffold(
             }
         }
         // Con el teclado abierto la barra de abajo estorba (come altura útil en un teléfono pequeño): se oculta, como en Nueva contraseña.
-        if (!isKeyboardVisible()) BottomNavBar(selected = BottomNavTab.Settings, onTabSelected = onTabSelected)
     }
 }
 
@@ -398,8 +407,9 @@ private fun KeyCard(keyDisplay: String?, loading: Boolean, onCopy: () -> Unit) {
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.background,
                 )
-                Text(
-                    text = keyDisplay,
+                // Grupos de 4 con tantos por renglón como quepan; copiar sigue copiando la clave sin espacios.
+                FullWidthGroups(
+                    raw = keyDisplay,
                     style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold, letterSpacing = 2.sp, lineHeight = 30.sp),
                     color = MaterialTheme.colorScheme.background,
                 )

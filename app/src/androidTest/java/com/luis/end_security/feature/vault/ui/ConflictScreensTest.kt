@@ -84,7 +84,7 @@ class ConflictScreensTest {
                     conflictCount = 2,
                     offline = true,
                 ),
-                onTabSelected = {}, onQueryChange = {}, onLockNow = {}, onItemClick = {}, onAddClick = {}, onUndoDelete = {},
+                onQueryChange = {}, onLockNow = {}, onItemClick = {}, onAddClick = {}, onUndoDelete = {},
             )
         }
         composeRule.onNodeWithText("Sin conexión. Tus cambios se guardan y se subirán al reconectar.").assertIsDisplayed()
@@ -92,7 +92,7 @@ class ConflictScreensTest {
     }
 
     @Test
-    fun por_resolver_lista_los_conflictos_y_su_aviso_de_resuelta() {
+    fun por_resolver_lista_los_conflictos() {
         render("scr19_scr20_por_resolver") {
             ConflictListScreen(
                 state = ConflictListUiState(
@@ -100,14 +100,12 @@ class ConflictScreensTest {
                         ConflictListRow(UUID.randomUUID(), "Spotify", "S", at),
                         ConflictListRow(UUID.randomUUID(), "Amazon", "A", at.minusSeconds(86_400)),
                     ),
-                    resolvedName = "Netflix",
                     isLoading = false,
                 ),
-                onBack = {}, onRowClick = {}, onTabSelected = {},
+                onBack = {}, onRowClick = {},
             )
         }
         composeRule.onNodeWithText("Spotify").assertIsDisplayed()
-        composeRule.onNodeWithText("Netflix quedó resuelta").assertIsDisplayed()
     }
 
     @Test
@@ -121,7 +119,7 @@ class ConflictScreensTest {
                     remote = live("netflix.com/mx", 12, at.plusSeconds(1_800)),
                     selected = KeepVersion.Local,
                 ),
-                onBack = {}, onTabSelected = {}, onSelect = {}, onToggleLocalPassword = {}, onToggleRemotePassword = {},
+                onBack = {}, onSelect = {}, onToggleLocalPassword = {}, onToggleRemotePassword = {},
                 onKeep = {}, onKeepSide = {}, onRetry = {},
             )
         }
@@ -140,7 +138,7 @@ class ConflictScreensTest {
                     remote = VersionCard(SideKind.Deleted, at.plusSeconds(1_800)),
                     selected = KeepVersion.Local,
                 ),
-                onBack = {}, onTabSelected = {}, onSelect = {}, onToggleLocalPassword = {}, onToggleRemotePassword = {},
+                onBack = {}, onSelect = {}, onToggleLocalPassword = {}, onToggleRemotePassword = {},
                 onKeep = {}, onKeepSide = {}, onRetry = {},
             )
         }

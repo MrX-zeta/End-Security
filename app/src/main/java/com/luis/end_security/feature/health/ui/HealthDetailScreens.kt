@@ -37,8 +37,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.luis.end_security.R
-import com.luis.end_security.core.designsystem.component.BottomNavBar
-import com.luis.end_security.core.designsystem.component.BottomNavTab
+import com.luis.end_security.core.designsystem.component.DirectionalContentSwap
 import com.luis.end_security.core.designsystem.component.LetterTile
 import com.luis.end_security.core.designsystem.component.TwoWeightTitle
 import com.luis.end_security.core.designsystem.component.initialOf
@@ -56,7 +55,6 @@ import java.util.UUID
 private fun HealthSubScreen(
     title: String,
     onBack: () -> Unit,
-    onTabSelected: (BottomNavTab) -> Unit,
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
@@ -72,49 +70,50 @@ private fun HealthSubScreen(
         ) {
             content()
         }
-        BottomNavBar(selected = BottomNavTab.Health, onTabSelected = onTabSelected)
     }
 }
 
 // --- Ranking (SCR-24, SCR-25) ---
 
 @Composable
-fun HealthRankingRoute(onBack: () -> Unit, onTabSelected: (BottomNavTab) -> Unit, viewModel: HealthViewModel = hiltViewModel()) {
+fun HealthRankingRoute(onBack: () -> Unit, viewModel: HealthViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     SecureScreen()
-    HealthRankingScreen(state, onBack, onTabSelected, viewModel::onRankingTab)
+    HealthRankingScreen(state, onBack, viewModel::onRankingTab)
 }
 
 @Composable
 fun HealthRankingScreen(
     state: HealthUiState,
     onBack: () -> Unit,
-    onTabSelected: (BottomNavTab) -> Unit,
     onRankingTab: (RankingTab) -> Unit,
 ) {
-    HealthSubScreen(stringResource(R.string.health_ranking_title), onBack, onTabSelected) {
+    HealthSubScreen(stringResource(R.string.health_ranking_title), onBack) {
         SegmentedSelector(
             options = listOf(stringResource(R.string.health_ranking_strongest), stringResource(R.string.health_ranking_weakest)),
             selectedIndex = state.rankingTab.ordinal,
             onSelect = { onRankingTab(RankingTab.entries[it]) },
         )
-        val ranking = state.ranking
-        if (ranking.isEmpty()) {
-            Text(
-                text = stringResource(R.string.health_empty),
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        } else {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(20.dp))
-                    .padding(vertical = 4.dp),
-            ) {
-                ranking.forEachIndexed { index, item ->
-                    if (index > 0) HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.25f))
-                    RankingRow(position = index + 1, item = item)
+        // Cambio entre «Más fuertes» y «Más débiles»: fundido cruzado con desplazamiento en el sentido del selector.
+        DirectionalContentSwap(targetIndex = state.rankingTab.ordinal) { tab ->
+            val ranking = state.rankingFor(RankingTab.entries[tab])
+            if (ranking.isEmpty()) {
+                Text(
+                    text = stringResource(R.string.health_empty),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            } else {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(20.dp))
+                        .padding(vertical = 4.dp),
+                ) {
+                    ranking.forEachIndexed { index, item ->
+                        if (index > 0) HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.25f))
+                        RankingRow(position = index + 1, item = item)
+                    }
                 }
             }
         }
@@ -166,17 +165,17 @@ private fun Modifier.width16(): Modifier = this.then(Modifier.size(width = 16.dp
 // --- Filtradas (SCR-26) ---
 
 @Composable
-fun HealthBreachedRoute(onBack: () -> Unit, onChange: (UUID) -> Unit, onTabSelected: (BottomNavTab) -> Unit, viewModel: HealthViewModel = hiltViewModel()) {
+fun HealthBreachedRoute(onBack: () -> Unit, onChange: (UUID) -> Unit, viewModel: HealthViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     SecureScreen()
-    HealthBreachedScreen(state.report, onBack, onChange, onTabSelected)
+    HealthBreachedScreen(state.report, onBack, onChange)
 }
 
 @Composable
-fun HealthBreachedScreen(report: HealthReport?, onBack: () -> Unit, onOpen: (UUID) -> Unit, onTabSelected: (BottomNavTab) -> Unit) {
+fun HealthBreachedScreen(report: HealthReport?, onBack: () -> Unit, onOpen: (UUID) -> Unit) {
     val colors = MaterialTheme.colorScheme
     val items = report?.breached.orEmpty().sortedByDescending { it.breachCount }
-    HealthSubScreen(stringResource(R.string.health_breached_title), onBack, onTabSelected) {
+    HealthSubScreen(stringResource(R.string.health_breached_title), onBack) {
         if (items.isEmpty()) {
             EmptyList(report?.pendingBreachCount ?: 0)
         } else {
@@ -278,17 +277,17 @@ private fun VaultLikeRow(name: String, subtitle: String, atRisk: Boolean, onClic
 // --- Repetidas (SCR-27) ---
 
 @Composable
-fun HealthRepeatedRoute(onBack: () -> Unit, onChange: (UUID) -> Unit, onTabSelected: (BottomNavTab) -> Unit, viewModel: HealthViewModel = hiltViewModel()) {
+fun HealthRepeatedRoute(onBack: () -> Unit, onChange: (UUID) -> Unit, viewModel: HealthViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     SecureScreen()
-    HealthRepeatedScreen(state.report, onBack, onChange, onTabSelected)
+    HealthRepeatedScreen(state.report, onBack, onChange)
 }
 
 @Composable
-fun HealthRepeatedScreen(report: HealthReport?, onBack: () -> Unit, onChange: (UUID) -> Unit, onTabSelected: (BottomNavTab) -> Unit) {
+fun HealthRepeatedScreen(report: HealthReport?, onBack: () -> Unit, onChange: (UUID) -> Unit) {
     val colors = MaterialTheme.colorScheme
     val groups = report?.repeatGroups.orEmpty()
-    HealthSubScreen(stringResource(R.string.health_repeated_title), onBack, onTabSelected) {
+    HealthSubScreen(stringResource(R.string.health_repeated_title), onBack) {
         if (groups.isEmpty()) {
             EmptyList(0)
         } else {
@@ -377,17 +376,17 @@ private fun ChangeRow(name: String, subtitle: String? = null, onClick: () -> Uni
 // --- Antiguas (SCR-28) ---
 
 @Composable
-fun HealthOldRoute(onBack: () -> Unit, onChange: (UUID) -> Unit, onTabSelected: (BottomNavTab) -> Unit, viewModel: HealthViewModel = hiltViewModel()) {
+fun HealthOldRoute(onBack: () -> Unit, onChange: (UUID) -> Unit, viewModel: HealthViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     SecureScreen()
-    HealthOldScreen(state.report, onBack, onChange, onTabSelected)
+    HealthOldScreen(state.report, onBack, onChange)
 }
 
 @Composable
-fun HealthOldScreen(report: HealthReport?, onBack: () -> Unit, onChange: (UUID) -> Unit, onTabSelected: (BottomNavTab) -> Unit) {
+fun HealthOldScreen(report: HealthReport?, onBack: () -> Unit, onChange: (UUID) -> Unit) {
     val colors = MaterialTheme.colorScheme
     val items = report?.old.orEmpty().sortedBy { it.passwordChangedAt }
-    HealthSubScreen(stringResource(R.string.health_old_title), onBack, onTabSelected) {
+    HealthSubScreen(stringResource(R.string.health_old_title), onBack) {
         if (items.isEmpty()) {
             EmptyList(0)
         } else {
@@ -434,6 +433,6 @@ private fun RankingPreview() {
                 override fun score(password: CharSequence): Int = password.toString().substring(1, 2).toInt()
             },
         )
-        HealthRankingScreen(HealthUiState(isLoading = false, report = report), {}, {}, {})
+        HealthRankingScreen(HealthUiState(isLoading = false, report = report), {}, {})
     }
 }

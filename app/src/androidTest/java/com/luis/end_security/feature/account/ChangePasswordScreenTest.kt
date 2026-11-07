@@ -76,7 +76,6 @@ class ChangePasswordScreenTest {
                         onSubmit = onSubmit,
                         onAction = { actions += it },
                         onBack = {},
-                        onTabSelected = {},
                     )
                 }
             }

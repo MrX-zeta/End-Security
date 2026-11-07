@@ -1,6 +1,9 @@
 package com.luis.end_security.feature.account.ui
 
 import androidx.lifecycle.ViewModel
+import com.luis.end_security.R
+import com.luis.end_security.core.common.AppMessage
+import com.luis.end_security.core.common.AppMessages
 import androidx.lifecycle.viewModelScope
 import com.luis.end_security.core.common.ApiError
 import com.luis.end_security.core.common.ApiResult
@@ -78,6 +81,9 @@ sealed interface SetupAction {
     /** «Ya los guardé» o Atrás del sistema en el Paso 3: sale del flujo. */
     data object Finish : SetupAction
 
+    /** Se salió del Paso 3 por una pestaña (tras confirmar): lo mismo que «Ya los guardé», sin el efecto de salir (la pestaña ya navega). */
+    data object LeaveForTab : SetupAction
+
     /** Atrás en el Paso 2 vuelve al Paso 1; en el Paso 1 sale. */
     data object Back : SetupAction
     data object Retry : SetupAction
@@ -100,6 +106,7 @@ class TwoFactorSetupViewModel @Inject constructor(
     private val clipboard: SecretClipboard,
     private val clock: DeviceClock,
     timeSource: TimeSource,
+    private val appMessages: AppMessages,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(TwoFactorSetupUiState(isLoadingKey = true))
@@ -136,8 +143,13 @@ class TwoFactorSetupViewModel @Inject constructor(
             SetupAction.Confirm -> confirm()
             SetupAction.CopyCodes -> copy(recoveryCodes.joinToString("\n"))
             SetupAction.Finish -> {
+                announceEnabledIfDone()
                 clearSecrets()
                 _effects.trySend(SetupEffect.Exit)
+            }
+            SetupAction.LeaveForTab -> {
+                announceEnabledIfDone()
+                clearSecrets()
             }
             SetupAction.Back -> when (_state.value.step) {
                 SetupStep.Key -> onAction(SetupAction.Finish)
@@ -234,6 +246,16 @@ class TwoFactorSetupViewModel @Inject constructor(
 
     private fun groupKey(secret: String): String =
         secret.chunked(4).chunked(2).joinToString("\n") { it.joinToString(" ") }
+
+    /**
+     * Llegar a los códigos de respaldo significa que el código se confirmó y la verificación ya está activa: se avisa al volver a
+     * Ajustes (antes regresaba sin decir nada). Salir en el Paso 1 o 2 no activó nada y no avisa.
+     */
+    private fun announceEnabledIfDone() {
+        if (_state.value.step == SetupStep.Codes) {
+            appMessages.post(AppMessage(R.string.msg_two_factor_enabled, icon = R.drawable.ic_check_16))
+        }
+    }
 
     private fun clearSecrets() {
         setup = null

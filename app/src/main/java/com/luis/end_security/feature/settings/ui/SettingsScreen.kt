@@ -59,14 +59,12 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.luis.end_security.R
-import com.luis.end_security.core.designsystem.component.BottomNavBar
-import com.luis.end_security.core.designsystem.component.BottomNavTab
+import com.luis.end_security.core.designsystem.component.HostedMessage
 import com.luis.end_security.core.designsystem.component.FieldErrorText
 import com.luis.end_security.core.designsystem.component.LetterTile
 import com.luis.end_security.core.designsystem.component.ListCard
 import com.luis.end_security.core.designsystem.component.ListRowDivider
 import com.luis.end_security.core.designsystem.component.ListRowIcon
-import com.luis.end_security.core.designsystem.component.MessageBar
 import com.luis.end_security.core.designsystem.component.SheetIconDisc
 import com.luis.end_security.core.designsystem.component.SignOutBottomSheet
 import com.luis.end_security.core.designsystem.component.SignOutSheet
@@ -82,7 +80,6 @@ import kotlinx.coroutines.delay
 /** SCR-29 · Ajustes (pestaña). No muestra secretos: no lleva `SecureScreen`. */
 @Composable
 fun SettingsRoute(
-    onTabSelected: (BottomNavTab) -> Unit,
     onNavigateToLogin: () -> Unit,
     onOpenTwoFactorSetup: () -> Unit,
     onOpenTwoFactorActive: () -> Unit,
@@ -166,7 +163,6 @@ fun SettingsRoute(
     SettingsScreen(
         state = state,
         onAction = viewModel::onAction,
-        onTabSelected = onTabSelected,
         onOpenChangePassword = onOpenChangePassword,
         onOpenDevices = onOpenDevices,
         onOpenActivity = onOpenActivity,
@@ -180,7 +176,6 @@ fun SettingsRoute(
 fun SettingsScreen(
     state: SettingsUiState,
     onAction: (SettingsAction) -> Unit,
-    onTabSelected: (BottomNavTab) -> Unit,
     modifier: Modifier = Modifier,
     onOpenChangePassword: () -> Unit = {},
     onOpenDevices: () -> Unit = {},
@@ -344,7 +339,6 @@ fun SettingsScreen(
             }
             NoticeBar(notice = state.notice, modifier = Modifier.align(Alignment.BottomCenter).padding(horizontal = 32.dp, vertical = 8.dp))
         }
-        BottomNavBar(selected = BottomNavTab.Settings, onTabSelected = onTabSelected)
     }
     if (state.showAutoLockSheet) {
         AutoLockSheet(
@@ -375,7 +369,7 @@ private fun NoticeBar(notice: SettingsNotice?, modifier: Modifier = Modifier) {
         }
     }
     shown?.let {
-        MessageBar(
+        HostedMessage(
             text = (if (it.kind == NoticeKind.EmailChanged) stringResource(R.string.settings_email_changed, it.argument.orEmpty()) else null) ?: stringResource(
                 when (it.kind) {
                     NoticeKind.NeedsConnection -> R.string.settings_two_factor_needs_connection

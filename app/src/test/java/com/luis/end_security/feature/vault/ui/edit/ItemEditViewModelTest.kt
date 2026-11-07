@@ -1,6 +1,12 @@
 package com.luis.end_security.feature.vault.ui.edit
 
 import androidx.lifecycle.SavedStateHandle
+import com.luis.end_security.R
+import com.luis.end_security.core.common.AppMessage
+import com.luis.end_security.core.common.AppMessages
+import com.luis.end_security.feature.vault.ui.FakeSyncStatus
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import com.luis.end_security.feature.auth.domain.PasswordStrengthEstimator
 import com.luis.end_security.feature.vault.domain.ItemDraft
 import com.luis.end_security.feature.vault.domain.SaveResult
@@ -44,6 +50,8 @@ class ItemEditViewModelTest {
     private val gmail = readable("Gmail", localSeq = 4, item = item("Gmail", "ana@correo.com", "Tortuga-29", "google.com", "nota"))
     private val repository = FakeVaultRepository(listOf(gmail))
     private val handoff = FakePasswordHandoff()
+    private val appMessages = AppMessages()
+    private val syncStatus = FakeSyncStatus()
 
     @Before
     fun setUp() = Dispatchers.setMain(dispatcher)
@@ -52,13 +60,13 @@ class ItemEditViewModelTest {
     fun tearDown() = Dispatchers.resetMain()
 
     private fun TestScope.newForm(): ItemEditViewModel {
-        val viewModel = ItemEditViewModel(SavedStateHandle(), repository, estimator, handoff, dispatcher)
+        val viewModel = ItemEditViewModel(SavedStateHandle(), repository, estimator, handoff, dispatcher, appMessages, syncStatus)
         runCurrent()
         return viewModel
     }
 
     private fun TestScope.editForm(id: UUID = gmail.id): ItemEditViewModel {
-        val viewModel = ItemEditViewModel(SavedStateHandle(mapOf(ItemEditViewModel.ID_ARG to id.toString())), repository, estimator, handoff, dispatcher)
+        val viewModel = ItemEditViewModel(SavedStateHandle(mapOf(ItemEditViewModel.ID_ARG to id.toString())), repository, estimator, handoff, dispatcher, appMessages, syncStatus)
         // La pantalla pide los valores al armar sus campos.
         viewModel.requestPrefill()
         runCurrent()
@@ -299,7 +307,7 @@ class ItemEditViewModelTest {
     fun `Nueva desde el Generador recibe la contrasena una sola vez`() = runTest(dispatcher) {
         handoff.put("Gen-Contrasena-77".toCharArray())
         val viewModel = ItemEditViewModel(
-            SavedStateHandle(mapOf(ItemEditViewModel.GENERATED_ARG to true)), repository, estimator, handoff, dispatcher,
+            SavedStateHandle(mapOf(ItemEditViewModel.GENERATED_ARG to true)), repository, estimator, handoff, dispatcher, appMessages, syncStatus,
         )
         viewModel.requestPrefill()
         runCurrent()
@@ -324,5 +332,56 @@ class ItemEditViewModelTest {
 
         assertNull(viewModel.state.value.prefill)
         assertTrue(handoff.hasPending)
+    }
+
+    /** Recoge los avisos que pide el ViewModel mientras dura la prueba. */
+    private fun TestScope.collectMessages(): List<AppMessage> {
+        val received = mutableListOf<AppMessage>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { appMessages.messages.collect { received += it } }
+        return received
+    }
+
+    @Test
+    fun `crear avisa que se guardo con el nombre`() = runTest(dispatcher) {
+        val messages = collectMessages()
+        val viewModel = newForm()
+        viewModel.onSave(draft(name = "  Netflix  "))
+        runCurrent()
+
+        val message = messages.single()
+        assertEquals(R.string.msg_item_saved, message.text)
+        assertEquals(listOf<Any>("Netflix"), message.args)
+    }
+
+    @Test
+    fun `editar avisa cambios guardados`() = runTest(dispatcher) {
+        val messages = collectMessages()
+        val viewModel = editForm()
+        viewModel.onSave(draft(name = "Gmail personal"))
+        runCurrent()
+
+        assertEquals(R.string.msg_changes_saved, messages.single().text)
+    }
+
+    @Test
+    fun `sin conexion el aviso dice que se subira despues`() = runTest(dispatcher) {
+        syncStatus.offline.value = true
+        val messages = collectMessages()
+        newForm().also { it.onSave(draft(name = "Netflix")) }
+        runCurrent()
+        editForm().also { it.onSave(draft(name = "Gmail personal")) }
+        runCurrent()
+
+        assertEquals(listOf(R.string.msg_item_saved_offline, R.string.msg_changes_saved_offline), messages.map { it.text })
+    }
+
+    @Test
+    fun `si no se guarda no hay aviso`() = runTest(dispatcher) {
+        val messages = collectMessages()
+        val viewModel = newForm()
+        viewModel.onSave(draft(name = "   "))
+        runCurrent()
+
+        assertTrue(messages.isEmpty())
     }
 }

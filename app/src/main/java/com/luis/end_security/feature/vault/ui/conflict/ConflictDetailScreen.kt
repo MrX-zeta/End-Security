@@ -45,8 +45,6 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.luis.end_security.R
 import com.luis.end_security.core.designsystem.component.BackButton
-import com.luis.end_security.core.designsystem.component.BottomNavBar
-import com.luis.end_security.core.designsystem.component.BottomNavTab
 import com.luis.end_security.core.designsystem.component.InlineErrorMessage
 import com.luis.end_security.core.designsystem.component.PrimaryButton
 import com.luis.end_security.core.designsystem.component.SecondaryButton
@@ -62,7 +60,6 @@ private val CardShape = RoundedCornerShape(20.dp)
 fun ConflictDetailRoute(
     onClose: () -> Unit,
     onBack: () -> Unit,
-    onTabSelected: (BottomNavTab) -> Unit,
     viewModel: ConflictDetailViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -81,7 +78,6 @@ fun ConflictDetailRoute(
     ConflictDetailScreen(
         state = state,
         onBack = onBack,
-        onTabSelected = onTabSelected,
         onSelect = viewModel::onSelect,
         onToggleLocalPassword = viewModel::onToggleLocalPassword,
         onToggleRemotePassword = viewModel::onToggleRemotePassword,
@@ -96,7 +92,6 @@ fun ConflictDetailRoute(
 fun ConflictDetailScreen(
     state: ConflictDetailUiState,
     onBack: () -> Unit,
-    onTabSelected: (BottomNavTab) -> Unit,
     onSelect: (KeepVersion) -> Unit,
     onToggleLocalPassword: () -> Unit,
     onToggleRemotePassword: () -> Unit,
@@ -153,7 +148,6 @@ fun ConflictDetailScreen(
                 ConflictStatus.Loading, ConflictStatus.Gone -> Box(modifier = Modifier.weight(1f))
             }
         }
-        BottomNavBar(selected = BottomNavTab.Vault, onTabSelected = onTabSelected)
     }
 }
 
@@ -398,7 +392,7 @@ private fun previewState(remoteDeleted: Boolean = false) = ConflictDetailUiState
 @Composable
 private fun ConflictDetailPreview() {
     PreviewSurface {
-        ConflictDetailScreen(previewState(), {}, {}, {}, {}, {}, {}, {}, {})
+        ConflictDetailScreen(previewState(), {}, {}, {}, {}, {}, {}, {})
     }
 }
 
@@ -406,6 +400,6 @@ private fun ConflictDetailPreview() {
 @Composable
 private fun ConflictDetailDeletedPreview() {
     PreviewSurface {
-        ConflictDetailScreen(previewState(remoteDeleted = true), {}, {}, {}, {}, {}, {}, {}, {})
+        ConflictDetailScreen(previewState(remoteDeleted = true), {}, {}, {}, {}, {}, {}, {})
     }
 }

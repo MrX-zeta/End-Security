@@ -39,6 +39,18 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.luis.end_security.R
+import androidx.compose.foundation.text.BasicText
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.platform.testTag
+import com.luis.end_security.core.designsystem.component.SlidingSelectionIndicator
+import com.luis.end_security.core.designsystem.component.rememberAnimatedFloat
+import com.luis.end_security.core.designsystem.component.rememberSlidingSelectionState
+import com.luis.end_security.core.designsystem.component.trackSelectionCenter
+import com.luis.end_security.core.designsystem.theme.Motion
+import com.luis.end_security.core.designsystem.theme.rememberReducedMotion
+import kotlin.math.roundToInt
 import com.luis.end_security.core.designsystem.component.BackButton
 import com.luis.end_security.feature.health.domain.HealthMessage
 import java.time.Instant
@@ -48,37 +60,64 @@ import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 import java.util.Locale
 
-/** «Resumen | Progreso», «Más fuertes | Más débiles»: el selector fijo de Salud (Figma 62:2352); no suma pasos al historial. */
+/**
+ * «Resumen | Progreso», «Más fuertes | Más débiles»: el selector fijo de Salud (Figma 62:2352); no suma pasos al historial.
+ *
+ * **Movimiento (tarea 26):** un solo fondo seleccionado que se desliza entre las opciones, el mismo [SlidingSelectionIndicator] y el
+ * mismo resorte sin rebote de la barra inferior. El color del texto sigue al fondo (se lee al dibujar, sin recomponer).
+ */
 @Composable
-fun SegmentedSelector(options: List<String>, selectedIndex: Int, onSelect: (Int) -> Unit, modifier: Modifier = Modifier) {
+fun SegmentedSelector(
+    options: List<String>,
+    selectedIndex: Int,
+    onSelect: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+    reducedMotion: Boolean = rememberReducedMotion(),
+) {
     val colors = MaterialTheme.colorScheme
-    Row(
+    val selection = rememberSlidingSelectionState(selectedIndex, options.size, reducedMotion)
+    val lit = colors.background
+    val dim = colors.onSurfaceVariant
+    Box(
         modifier = modifier
             .fillMaxWidth()
             .background(colors.surface, RoundedCornerShape(16.dp))
-            .padding(4.dp)
-            .selectableGroup(),
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
+            .padding(4.dp),
     ) {
-        options.forEachIndexed { index, label ->
-            val selected = index == selectedIndex
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .height(40.dp)
-                    .background(if (selected) colors.onSurface else colors.surface, RoundedCornerShape(12.dp))
-                    .selectable(selected = selected, role = Role.Tab, onClick = { onSelect(index) }),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = label,
-                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
-                    color = if (selected) colors.background else colors.onSurfaceVariant,
-                )
+        // El fondo va detrás de las opciones; cada opción mide lo mismo, así que ocupa 1/n del ancho.
+        SlidingSelectionIndicator(
+            state = selection,
+            color = colors.onSurface,
+            shape = RoundedCornerShape(12.dp),
+            modifier = Modifier.fillMaxWidth(1f / options.size).height(40.dp).testTag(SegmentedIndicatorTag),
+        )
+        Row(modifier = Modifier.fillMaxWidth().selectableGroup()) {
+            options.forEachIndexed { index, label ->
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(40.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .trackSelectionCenter(selection, index)
+                        .selectable(selected = index == selectedIndex, role = Role.Tab, onClick = { onSelect(index) }),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    BasicText(
+                        text = label,
+                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+                        color = { lerp(dim, lit, selection.reach(index)) },
+                    )
+                }
             }
         }
     }
 }
+
+/** Etiqueta de prueba del número del aro de la puntuación. */
+const val ScoreNumberTag = "ScoreNumber"
+
+/** Etiqueta de prueba del fondo que se desliza en [SegmentedSelector]. */
+const val SegmentedIndicatorTag = "SegmentedIndicator"
 
 /** Barra superior de las pantallas internas de Salud: atrás y título (Figma 62:2501). */
 @Composable
@@ -102,11 +141,18 @@ fun HealthTopBar(title: String, onBack: () -> Unit, modifier: Modifier = Modifie
     }
 }
 
-/** El círculo de la puntuación (Figma 47:1071): pista tenue y arco `on-surface`; «78» en 64 y «de 100». */
+/**
+ * El círculo de la puntuación (Figma 47:1071): pista tenue y arco `on-surface`; «78» en 64 y «de 100».
+ *
+ * Con [animateIn] (primer dibujo con datos de esta vista en la sesión) el arco se dibuja de 0 a su valor y el número cuenta de 0 a
+ * [score] a la par, en [Motion.CountUp]. Si [score] cambia después, van del valor anterior al nuevo en [Motion.ValueChange]. TalkBack
+ * lee siempre el valor final («78 de 100»), nunca los intermedios.
+ */
 @Composable
-fun ScoreRing(score: Int, modifier: Modifier = Modifier, size: Dp = 200.dp) {
+fun ScoreRing(score: Int, modifier: Modifier = Modifier, size: Dp = 200.dp, animateIn: Boolean = false) {
     val colors = MaterialTheme.colorScheme
     val description = stringResource(R.string.health_score_description, score)
+    val shown by rememberAnimatedFloat(score.coerceIn(0, 100).toFloat(), fromZeroFirst = animateIn, firstMillis = Motion.CountUp)
     Box(modifier = modifier.size(size).clearAndSetSemantics { contentDescription = description }, contentAlignment = Alignment.Center) {
         val track = colors.outline.copy(alpha = 0.25f)
         val arc = colors.onSurface
@@ -115,13 +161,14 @@ fun ScoreRing(score: Int, modifier: Modifier = Modifier, size: Dp = 200.dp) {
             val inset = stroke / 2
             val diameter = Size(this.size.width - stroke, this.size.height - stroke)
             drawArc(track, 0f, 360f, false, Offset(inset, inset), diameter, style = Stroke(stroke))
-            drawArc(arc, -90f, 360f * score.coerceIn(0, 100) / 100f, false, Offset(inset, inset), diameter, style = Stroke(stroke, cap = StrokeCap.Round))
+            drawArc(arc, -90f, 360f * shown / 100f, false, Offset(inset, inset), diameter, style = Stroke(stroke, cap = StrokeCap.Round))
         }
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
-                text = score.toString(),
+                text = shown.roundToInt().toString(),
                 style = MaterialTheme.typography.displayLarge.copy(fontWeight = FontWeight.Bold, letterSpacing = (-2.56).sp),
                 color = colors.onSurface,
+                modifier = Modifier.testTag(ScoreNumberTag),
             )
             Text(text = stringResource(R.string.health_score_of), style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)
         }
@@ -162,10 +209,10 @@ fun checkedText(lastChecked: Instant?, now: Instant = Instant.now()): String {
 
 /** Una fila del resumen (Figma 47:1083): ícono, título, descripción, número y flecha; toda la fila es el botón. */
 @Composable
-fun SummaryRow(icon: Int, title: String, hint: String, count: Int, onClick: () -> Unit) {
+fun SummaryRow(icon: Int, title: String, hint: String, count: Int, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val colors = MaterialTheme.colorScheme
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .height(64.dp)
             .clickable(role = Role.Button, onClick = onClick)

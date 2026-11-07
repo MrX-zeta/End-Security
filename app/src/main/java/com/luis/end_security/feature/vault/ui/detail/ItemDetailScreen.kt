@@ -54,13 +54,11 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.luis.end_security.R
+import com.luis.end_security.core.designsystem.component.HostedMessage
 import com.luis.end_security.core.designsystem.component.BackButton
-import com.luis.end_security.core.designsystem.component.BottomNavBar
-import com.luis.end_security.core.designsystem.component.BottomNavTab
 import com.luis.end_security.core.designsystem.component.DangerButton
 import com.luis.end_security.core.designsystem.component.FieldActionButton
 import com.luis.end_security.core.designsystem.component.LetterTile
-import com.luis.end_security.core.designsystem.component.MessageBar
 import com.luis.end_security.core.designsystem.component.OutlinedIconButton
 import com.luis.end_security.core.designsystem.component.PrimaryButton
 import com.luis.end_security.core.designsystem.component.ReadOnlyField
@@ -77,7 +75,6 @@ import java.util.UUID
 fun ItemDetailRoute(
     onBack: () -> Unit,
     onEdit: (UUID) -> Unit,
-    onTabSelected: (BottomNavTab) -> Unit,
     itemId: UUID,
     viewModel: ItemDetailViewModel = hiltViewModel(),
 ) {
@@ -108,7 +105,6 @@ fun ItemDetailRoute(
         state = state,
         onBack = onBack,
         onEdit = { onEdit(itemId) },
-        onTabSelected = onTabSelected,
         onCopyUsername = viewModel::onCopyUsername,
         onCopyPassword = viewModel::onCopyPassword,
         onTogglePassword = viewModel::onTogglePassword,
@@ -125,7 +121,6 @@ fun ItemDetailScreen(
     state: ItemDetailUiState,
     onBack: () -> Unit,
     onEdit: () -> Unit,
-    onTabSelected: (BottomNavTab) -> Unit,
     onCopyUsername: () -> Unit,
     onCopyPassword: () -> Unit,
     onTogglePassword: () -> Unit,
@@ -208,7 +203,7 @@ fun ItemDetailScreen(
                 ) {
                     state.copied?.let { copied ->
                         val seconds = copied.seconds
-                        MessageBar(
+                        HostedMessage(
                             text = stringResource(
                                 if (copied.kind == CopiedKind.Password) R.string.item_copied_password else R.string.item_copied_username,
                                 seconds,
@@ -225,7 +220,6 @@ fun ItemDetailScreen(
                 }
             }
         }
-        BottomNavBar(selected = BottomNavTab.Vault, onTabSelected = onTabSelected)
     }
     if (state.showDeleteSheet) {
         DeleteConfirmationSheet(name = state.name.takeIf { it.isNotEmpty() }, onConfirm = onDeleteConfirm, onDismiss = onDeleteDismiss)
@@ -550,7 +544,7 @@ private fun previewState(copied: CopiedNotice? = null) = ItemDetailUiState(
 @Composable
 private fun ItemDetailPreview() {
     PreviewSurface {
-        ItemDetailScreen(previewState(), {}, {}, {}, {}, {}, {}, {}, {}, {}, {})
+        ItemDetailScreen(previewState(), {}, {}, {}, {}, {}, {}, {}, {}, {})
     }
 }
 
@@ -558,7 +552,7 @@ private fun ItemDetailPreview() {
 @Composable
 private fun ItemDetailCopiedPreview() {
     PreviewSurface {
-        ItemDetailScreen(previewState(CopiedNotice(CopiedKind.Password, 30)), {}, {}, {}, {}, {}, {}, {}, {}, {}, {})
+        ItemDetailScreen(previewState(CopiedNotice(CopiedKind.Password, 30)), {}, {}, {}, {}, {}, {}, {}, {}, {})
     }
 }
 

@@ -100,7 +100,7 @@ class HealthScreensTest {
         var opened = ""
         render("scr22_salud_resumen") {
             HealthScreen(
-                state(), {}, {}, { opened = "check" }, { opened = "breached" }, { opened = "repeated" },
+                state(), {}, { opened = "check" }, { opened = "breached" }, { opened = "repeated" },
                 { opened = "weak" }, { opened = "old" }, {},
             )
         }
@@ -123,7 +123,7 @@ class HealthScreensTest {
     @Test
     fun progreso_muestra_la_grafica_los_indicadores_y_la_distribucion() {
         render("scr23_salud_progreso") {
-            HealthScreen(state(HealthTab.Progress), {}, {}, {}, {}, {}, {}, {}, {})
+            HealthScreen(state(HealthTab.Progress), {}, {}, {}, {}, {}, {}, {})
         }
         composeRule.onNodeWithText("fortalecidas este mes").assertIsDisplayed()
         composeRule.onNodeWithText("filtradas resueltas").assertIsDisplayed()
@@ -134,7 +134,7 @@ class HealthScreensTest {
     @Test
     fun cargando_muestra_Revisando_filtraciones() {
         render("scr40_salud_cargando") {
-            HealthScreen(HealthUiState(isLoading = true, checking = true), {}, {}, {}, {}, {}, {}, {}, {})
+            HealthScreen(HealthUiState(isLoading = true, checking = true), {}, {}, {}, {}, {}, {}, {})
         }
         composeRule.onNodeWithContentDescription("Calculando la salud de tu bóveda").assertIsDisplayed()
     }
@@ -142,21 +142,21 @@ class HealthScreensTest {
     @Test
     fun una_boveda_sin_contrasenas_muestra_el_estado_vacio() {
         render("scr22_salud_vacia") {
-            HealthScreen(HealthUiState(isLoading = false, report = HealthAnalyzer.analyze(emptyList(), Instant.now(), estimator)), {}, {}, {}, {}, {}, {}, {}, {})
+            HealthScreen(HealthUiState(isLoading = false, report = HealthAnalyzer.analyze(emptyList(), Instant.now(), estimator)), {}, {}, {}, {}, {}, {}, {})
         }
         composeRule.onNodeWithText("Agrega contraseñas para ver la salud de tu bóveda").assertIsDisplayed()
     }
 
     @Test
     fun ranking_muestra_mas_fuertes_y_mas_debiles() {
-        render("scr24_ranking_fuertes") { HealthRankingScreen(state(), {}, {}, {}) }
+        render("scr24_ranking_fuertes") { HealthRankingScreen(state(), {}, {}) }
         composeRule.onNodeWithText("Fuerza de tus contraseñas").assertIsDisplayed()
         composeRule.onNodeWithText("La fuerza se calcula en tu teléfono. Tus contraseñas no salen de él.").assertExists()
     }
 
     @Test
     fun ranking_mas_debiles() {
-        render("scr25_ranking_debiles") { HealthRankingScreen(state(ranking = RankingTab.Weakest), {}, {}, {}) }
+        render("scr25_ranking_debiles") { HealthRankingScreen(state(ranking = RankingTab.Weakest), {}, {}) }
         composeRule.onNodeWithText("Más débiles").assertIsDisplayed()
     }
 
@@ -164,7 +164,7 @@ class HealthScreensTest {
     fun filtradas_con_sus_textos_y_abre_Editar() {
         var changed: UUID? = null
         val report = report()
-        render("scr26_filtradas") { HealthBreachedScreen(report, {}, { changed = it }, {}) }
+        render("scr26_filtradas") { HealthBreachedScreen(report, {}, { changed = it }) }
         composeRule.onNodeWithText("Cámbialas cuanto antes.", substring = true).assertIsDisplayed()
         composeRule.onNodeWithText("Datos de Have I Been Pwned").assertIsDisplayed()
         composeRule.onNodeWithText("Instagram", substring = true).performClick()
@@ -175,7 +175,7 @@ class HealthScreensTest {
     fun repetidas_con_sus_textos_y_Cambiar() {
         var changed: UUID? = null
         val report = report()
-        render("scr27_repetidas") { HealthRepeatedScreen(report, {}, { changed = it }, {}) }
+        render("scr27_repetidas") { HealthRepeatedScreen(report, {}, { changed = it }) }
         composeRule.onNodeWithText("Misma contraseña en 3 sitios").assertIsDisplayed()
         composeRule.onNodeWithText("Si una se filtra, quedan expuestos todos los sitios que la comparten.").assertIsDisplayed()
         composeRule.onAllNodesWithText("Cambiar")[0].performClick()
@@ -184,7 +184,7 @@ class HealthScreensTest {
 
     @Test
     fun antiguas_lista_las_de_mas_de_un_anio() {
-        render("scr28_antiguas") { HealthOldScreen(report(), {}, {}, {}) }
+        render("scr28_antiguas") { HealthOldScreen(report(), {}, {}) }
         composeRule.onNodeWithText("Uber", substring = true).assertIsDisplayed()
     }
 
@@ -211,7 +211,7 @@ class HealthScreensTest {
     @Test
     fun sin_conexion_con_letra_grande_Revisar_ahora_queda_debajo_de_la_fecha() {
         renderScaled("tarea23-salud-sin-conexion-1-3x", fontScale = 1.3f) {
-            HealthScreen(offlineState(), {}, {}, {}, {}, {}, {}, {}, {})
+            HealthScreen(offlineState(), {}, {}, {}, {}, {}, {}, {})
         }
         // La línea no dice «sin conexión» (eso lo avisa el mensaje al tocar «Revisar ahora»).
         assertEquals(0, composeRule.onAllNodesWithText("sin conexión", substring = true, ignoreCase = true).fetchSemanticsNodes().size)
@@ -227,7 +227,7 @@ class HealthScreensTest {
     @Test
     fun tocar_Revisar_ahora_sin_conexion_muestra_el_aviso_y_lo_pendiente_sigue() {
         render("tarea23-salud-aviso-sin-conexion") {
-            HealthScreen(offlineState(noticeId = 1), {}, {}, {}, {}, {}, {}, {}, {})
+            HealthScreen(offlineState(noticeId = 1), {}, {}, {}, {}, {}, {}, {})
         }
         composeRule.onNodeWithText("Sin conexión. Te mostramos la última revisión.").assertIsDisplayed()
         // Lo no revisado sigue como pendiente.
@@ -237,7 +237,7 @@ class HealthScreensTest {
     @Test
     fun las_listas_vacias_dicen_Ninguna_bien_hecho() {
         val clean = HealthAnalyzer.analyze(listOf(item("Gmail", "s4-a")), Instant.now(), estimator)
-        render("scr26_filtradas_vacia") { HealthBreachedScreen(clean, {}, {}, {}) }
+        render("scr26_filtradas_vacia") { HealthBreachedScreen(clean, {}, {}) }
         composeRule.onNodeWithText("Ninguna, bien hecho").assertIsDisplayed()
     }
 }

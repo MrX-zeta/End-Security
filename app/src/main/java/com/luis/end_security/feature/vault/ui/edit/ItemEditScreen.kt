@@ -60,8 +60,6 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.luis.end_security.R
 import com.luis.end_security.core.designsystem.component.BackButton
-import com.luis.end_security.core.designsystem.component.BottomNavBar
-import com.luis.end_security.core.designsystem.component.BottomNavTab
 import com.luis.end_security.core.designsystem.component.DangerButton
 import com.luis.end_security.core.designsystem.component.FieldActionButton
 import com.luis.end_security.core.designsystem.component.InlineErrorMessage
@@ -121,7 +119,6 @@ internal class FormFields {
 fun ItemEditRoute(
     onClose: () -> Unit,
     onSaved: () -> Unit,
-    onTabSelected: (BottomNavTab) -> Unit,
     viewModel: ItemEditViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -176,7 +173,6 @@ fun ItemEditRoute(
         formReady = formReady,
         onBack = { viewModel.onBack(fields.hasChanges()) },
         onSave = { viewModel.onSave(fields.toDraft()) },
-        onTabSelected = onTabSelected,
         onDiscardConfirm = viewModel::onDiscardConfirm,
         onDiscardDismiss = viewModel::onDiscardDismiss,
         onReload = viewModel::onReload,
@@ -203,7 +199,6 @@ internal fun ItemEditScreen(
     formReady: Boolean,
     onBack: () -> Unit,
     onSave: () -> Unit,
-    onTabSelected: (BottomNavTab) -> Unit,
     onDiscardConfirm: () -> Unit,
     onDiscardDismiss: () -> Unit,
     modifier: Modifier = Modifier,
@@ -214,8 +209,6 @@ internal fun ItemEditScreen(
     val focusManager = LocalFocusManager.current
     // Con el nombre vacío al tocar «Guardar», el campo se marca y recibe el foco (tarea 15).
     val nameFocus = remember { FocusRequester() }
-    // Con el teclado abierto, la barra de abajo estorba: se oculta.
-    val imeVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -342,7 +335,6 @@ internal fun ItemEditScreen(
                 )
             }
         }
-        if (!imeVisible) BottomNavBar(selected = BottomNavTab.Vault, onTabSelected = onTabSelected)
     }
     if (state.showDiscardSheet) {
         DiscardSheet(onConfirm = onDiscardConfirm, onDismiss = onDiscardDismiss)
@@ -453,7 +445,6 @@ private fun ItemEditPreview() {
             formReady = true,
             onBack = {},
             onSave = {},
-            onTabSelected = {},
             onDiscardConfirm = {},
             onDiscardDismiss = {},
         )

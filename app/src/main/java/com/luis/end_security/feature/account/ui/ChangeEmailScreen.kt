@@ -52,9 +52,9 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.luis.end_security.R
+import com.luis.end_security.core.designsystem.component.InterceptTabSelection
 import com.luis.end_security.core.designsystem.component.isKeyboardVisible
 import com.luis.end_security.core.designsystem.component.BackTopBar
-import com.luis.end_security.core.designsystem.component.BottomNavTab
 import com.luis.end_security.core.designsystem.component.CodeField
 import com.luis.end_security.core.designsystem.component.LabeledTextField
 import com.luis.end_security.core.designsystem.component.NeumorphicDisc
@@ -77,7 +77,6 @@ import androidx.compose.ui.semantics.Role
 fun ChangeEmailRoute(
     onBack: () -> Unit,
     onChanged: (String) -> Unit,
-    onTabSelected: (BottomNavTab) -> Unit,
     viewModel: ChangeEmailViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -93,10 +92,11 @@ fun ChangeEmailRoute(
     }
     // Atrás del sistema: del código vuelve al correo nuevo; con la solicitud en curso no hace nada.
     BackHandler(enabled = state.step == EmailStep.Code || state.isBusy || state.sheetOpen) { viewModel.onAction(ChangeEmailAction.Back) }
+    // Mientras trabaja, la barra inferior no cambia de pestaña.
+    InterceptTabSelection { state.isBusy }
     ChangeEmailScreen(
         state = state,
         onAction = viewModel::onAction,
-        onTabSelected = { tab -> if (!state.isBusy) onTabSelected(tab) },
     )
 }
 
@@ -104,11 +104,10 @@ fun ChangeEmailRoute(
 fun ChangeEmailScreen(
     state: ChangeEmailUiState,
     onAction: (ChangeEmailAction) -> Unit,
-    onTabSelected: (BottomNavTab) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     when (state.step) {
-        EmailStep.Enter -> EnterEmailScreen(state, onAction, onTabSelected, modifier)
+        EmailStep.Enter -> EnterEmailScreen(state, onAction, modifier)
         EmailStep.Code -> EmailCodeScreen(state, onAction, modifier)
     }
 }
@@ -119,7 +118,6 @@ fun ChangeEmailScreen(
 private fun EnterEmailScreen(
     state: ChangeEmailUiState,
     onAction: (ChangeEmailAction) -> Unit,
-    onTabSelected: (BottomNavTab) -> Unit,
     modifier: Modifier,
 ) {
     val emailFocus = remember { FocusRequester() }
@@ -128,7 +126,6 @@ private fun EnterEmailScreen(
     }
     FlowScaffold(
         onBack = { onAction(ChangeEmailAction.Back) },
-        onTabSelected = onTabSelected,
         modifier = modifier,
         title = stringResource(R.string.email_title),
         bottom = {

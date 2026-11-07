@@ -43,7 +43,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.luis.end_security.R
-import com.luis.end_security.core.designsystem.component.BottomNavTab
+import com.luis.end_security.core.designsystem.component.InterceptTabSelection
 import com.luis.end_security.core.designsystem.component.FieldErrorText
 import com.luis.end_security.core.designsystem.component.LabeledTextField
 import com.luis.end_security.core.designsystem.component.PasswordField
@@ -77,7 +77,6 @@ fun ChangePasswordRoute(
     onBack: () -> Unit,
     onFinish: (biometricOff: Boolean) -> Unit,
     onNavigateToLogin: () -> Unit,
-    onTabSelected: (BottomNavTab) -> Unit,
     viewModel: ChangePasswordViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -150,6 +149,8 @@ fun ChangePasswordRoute(
     }
     // Atrás está deshabilitado mientras dura el cambio.
     BackHandler(enabled = state.isBusy) {}
+    // Mientras trabaja, la barra inferior no cambia de pestaña.
+    InterceptTabSelection { state.isBusy }
     ChangePasswordScreen(
         state = state,
         currentState = currentState,
@@ -169,7 +170,6 @@ fun ChangePasswordRoute(
         },
         onAction = viewModel::onAction,
         onBack = { if (!state.isBusy) onBack() },
-        onTabSelected = { tab -> if (!state.isBusy) onTabSelected(tab) },
     )
 }
 
@@ -187,7 +187,6 @@ fun ChangePasswordScreen(
     onSubmit: () -> Unit,
     onAction: (ChangePasswordAction) -> Unit,
     onBack: () -> Unit,
-    onTabSelected: (BottomNavTab) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val currentFocus = remember { FocusRequester() }
@@ -212,7 +211,6 @@ fun ChangePasswordScreen(
     }
     FlowScaffold(
         onBack = onBack,
-        onTabSelected = onTabSelected,
         modifier = modifier,
         title = stringResource(R.string.cp_title),
         bottom = {

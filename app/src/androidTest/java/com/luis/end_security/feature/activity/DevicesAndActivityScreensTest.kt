@@ -97,7 +97,6 @@ class DevicesAndActivityScreensTest {
                         onAction = { actions += it },
                         onBack = {},
                         onChangePassword = onChangePassword,
-                        onTabSelected = {},
                     )
                 }
             }
@@ -269,7 +268,6 @@ class DevicesAndActivityScreensTest {
                         onAction = { actions += it },
                         onBack = {},
                         onChangePassword = {},
-                        onTabSelected = {},
                     )
                 }
             }

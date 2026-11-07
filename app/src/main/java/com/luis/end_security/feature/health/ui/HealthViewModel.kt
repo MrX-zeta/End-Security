@@ -49,15 +49,17 @@ class HealthUiState(
     val hasItems: Boolean get() = report?.items?.isNotEmpty() == true
 
     /** Los 10 primeros del ranking elegido (largo como desempate). */
-    val ranking: List<ItemHealth>
-        get() {
-            val items = report?.items.orEmpty()
-            val sorted = when (rankingTab) {
-                RankingTab.Strongest -> items.sortedWith(compareByDescending<ItemHealth> { it.strengthScore }.thenByDescending { it.passwordLength })
-                RankingTab.Weakest -> items.sortedWith(compareBy<ItemHealth> { it.strengthScore }.thenBy { it.passwordLength })
-            }
-            return sorted.take(RANKING_SIZE)
+    val ranking: List<ItemHealth> get() = rankingFor(rankingTab)
+
+    /** El ranking de [tab]: la pantalla lo pide por pestaña para que el cambio entre «Más fuertes» y «Más débiles» pueda animarse. */
+    fun rankingFor(tab: RankingTab): List<ItemHealth> {
+        val items = report?.items.orEmpty()
+        val sorted = when (tab) {
+            RankingTab.Strongest -> items.sortedWith(compareByDescending<ItemHealth> { it.strengthScore }.thenByDescending { it.passwordLength })
+            RankingTab.Weakest -> items.sortedWith(compareBy<ItemHealth> { it.strengthScore }.thenBy { it.passwordLength })
         }
+        return sorted.take(RANKING_SIZE)
+    }
 
     override fun toString(): String = "HealthUiState(loading=$isLoading, report=$report)"
 

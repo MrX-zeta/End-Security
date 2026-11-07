@@ -60,7 +60,7 @@ class ChangeEmailScreensTest {
         composeRule.setContent {
             EndSecurityTheme {
                 Box(Modifier.size(width = 412.dp, height = 917.dp)) {
-                    ChangeEmailScreen(state = state, onAction = { actions += it }, onTabSelected = {})
+                    ChangeEmailScreen(state = state, onAction = { actions += it })
                 }
             }
         }
@@ -205,7 +205,6 @@ class ChangeEmailScreensTest {
                     SettingsScreen(
                         state = SettingsUiState(profile = AccountProfile("Luis Ruiz", "luis.ruiz@upchiapas.edu.mx")),
                         onAction = { actions += it },
-                        onTabSelected = {},
                     )
                 }
             }

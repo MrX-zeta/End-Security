@@ -73,7 +73,6 @@ class DeleteAccountScreensTest {
                         onConfirm = onConfirm,
                         onAction = { actions += it },
                         onBack = {},
-                        onTabSelected = {},
                     )
                 }
             }

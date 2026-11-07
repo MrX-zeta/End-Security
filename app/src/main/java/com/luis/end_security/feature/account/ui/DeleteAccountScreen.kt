@@ -54,7 +54,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.luis.end_security.R
-import com.luis.end_security.core.designsystem.component.BottomNavTab
+import com.luis.end_security.core.designsystem.component.InterceptTabSelection
 import com.luis.end_security.core.designsystem.component.DangerButton
 import com.luis.end_security.core.designsystem.component.FieldErrorText
 import com.luis.end_security.core.designsystem.component.LabeledTextField
@@ -75,7 +75,6 @@ import com.luis.end_security.feature.auth.ui.lockoutMessage
 @Composable
 fun DeleteAccountRoute(
     onBack: () -> Unit,
-    onTabSelected: (BottomNavTab) -> Unit,
     viewModel: DeleteAccountViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -111,6 +110,8 @@ fun DeleteAccountRoute(
     LifecycleEventEffect(Lifecycle.Event.ON_START) { stoppedWhileBusy = false }
     // Atrás está deshabilitado mientras dura la eliminación; con la hoja abierta, cierra la hoja.
     BackHandler(enabled = state.isLoading) {}
+    // Mientras trabaja, la barra inferior no cambia de pestaña.
+    InterceptTabSelection { state.isLoading }
     DeleteAccountScreen(
         state = state,
         passwordState = passwordState,
@@ -120,7 +121,6 @@ fun DeleteAccountRoute(
         onConfirm = { viewModel.onAction(DeleteAccountAction.Confirm(passwordState.text)) },
         onAction = viewModel::onAction,
         onBack = { if (!state.isLoading) onBack() },
-        onTabSelected = { tab -> if (!state.isLoading) onTabSelected(tab) },
     )
 }
 
@@ -134,7 +134,6 @@ fun DeleteAccountScreen(
     onConfirm: () -> Unit,
     onAction: (DeleteAccountAction) -> Unit,
     onBack: () -> Unit,
-    onTabSelected: (BottomNavTab) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val passwordFocus = remember { FocusRequester() }
@@ -153,7 +152,6 @@ fun DeleteAccountScreen(
     }
     FlowScaffold(
         onBack = onBack,
-        onTabSelected = onTabSelected,
         modifier = modifier,
         title = stringResource(R.string.delete_title),
         bottom = {

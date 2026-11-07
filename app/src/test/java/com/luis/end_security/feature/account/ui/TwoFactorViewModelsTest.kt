@@ -1,6 +1,9 @@
 package com.luis.end_security.feature.account.ui
 
+import com.luis.end_security.R
 import com.luis.end_security.core.common.ApiError
+import com.luis.end_security.core.common.AppMessage
+import com.luis.end_security.core.common.AppMessages
 import com.luis.end_security.core.common.ApiResult
 import com.luis.end_security.core.common.DeviceClock
 import com.luis.end_security.core.security.SecretClipboard
@@ -9,6 +12,8 @@ import com.luis.end_security.feature.account.domain.TwoFactorSetup
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
@@ -89,6 +94,7 @@ class TwoFactorSetupViewModelTest {
     private val scope = TestScope(dispatcher)
     private val repo = FakeTwoFactorRepository()
     private val clipboard = FakeClipboard()
+    private val appMessages = AppMessages()
     private val clock = MutableClock(18_000L) // 18 s dentro del periodo de 30 s
     private lateinit var viewModel: TwoFactorSetupViewModel
 
@@ -114,7 +120,7 @@ class TwoFactorSetupViewModelTest {
     }
 
     private fun TestScope.create() {
-        viewModel = TwoFactorSetupViewModel(repo, clipboard, clock, dispatcher.scheduler.timeSource)
+        viewModel = TwoFactorSetupViewModel(repo, clipboard, clock, dispatcher.scheduler.timeSource, appMessages)
         runCurrent()
     }
 
@@ -135,7 +141,7 @@ class TwoFactorSetupViewModelTest {
 
     @Test
     fun `mientras responde EP-19 esta cargando`() = runVm {
-        viewModel = TwoFactorSetupViewModel(repo, clipboard, clock, dispatcher.scheduler.timeSource)
+        viewModel = TwoFactorSetupViewModel(repo, clipboard, clock, dispatcher.scheduler.timeSource, appMessages)
         assertTrue(state.isLoadingKey)
         assertNull(state.keyDisplay)
         runCurrent()
@@ -306,6 +312,41 @@ class TwoFactorSetupViewModelTest {
         assertEquals(SetupEffect.Exit, viewModel.effects.first())
         assertTrue(state.codes.isEmpty())
         assertNull(state.keyDisplay)
+    }
+
+    @Test
+    fun `terminar el flujo avisa que la verificacion quedo activada`() = runVm {
+        val messages = mutableListOf<AppMessage>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { appMessages.messages.collect { messages += it } }
+        toCodeStep()
+        viewModel.onAction(SetupAction.CodeChanged("482916"))
+        viewModel.onAction(SetupAction.Confirm)
+        runCurrent()
+        viewModel.onAction(SetupAction.Finish)
+        assertEquals(R.string.msg_two_factor_enabled, messages.single().text)
+    }
+
+    @Test
+    fun `salir por una pestana desde los codigos avisa, vacia los secretos y no manda salir`() = runVm {
+        val messages = mutableListOf<AppMessage>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { appMessages.messages.collect { messages += it } }
+        toCodeStep()
+        viewModel.onAction(SetupAction.CodeChanged("482916"))
+        viewModel.onAction(SetupAction.Confirm)
+        runCurrent()
+        viewModel.onAction(SetupAction.LeaveForTab)
+        assertEquals(R.string.msg_two_factor_enabled, messages.single().text)
+        assertTrue(state.codes.isEmpty())
+        assertNull(state.keyDisplay)
+    }
+
+    @Test
+    fun `salir sin confirmar no avisa que se activo`() = runVm {
+        val messages = mutableListOf<AppMessage>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { appMessages.messages.collect { messages += it } }
+        create()
+        viewModel.onAction(SetupAction.Back)
+        assertTrue(messages.isEmpty())
     }
 
     @Test

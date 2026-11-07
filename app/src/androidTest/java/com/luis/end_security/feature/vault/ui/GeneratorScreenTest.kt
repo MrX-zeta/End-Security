@@ -58,7 +58,6 @@ class GeneratorScreenTest {
                 Box(Modifier.size(width = 412.dp, height = 917.dp)) {
                     GeneratorScreen(
                         state = state,
-                        onTabSelected = {},
                         onRegenerate = { regenerated++ },
                         onCopy = { copied++ },
                         onLengthChange = { state = GeneratorUiState(state.options.copy(length = it), state.password, 4, state.generation) },
@@ -83,7 +82,7 @@ class GeneratorScreenTest {
         render()
         capture("scr15_generador")
 
-        composeRule.onNodeWithText("Generador").assertIsDisplayed()
+        composeRule.onNodeWithText("Generador", substring = true).assertIsDisplayed() // el título; la pestaña «Generador» ya no vive en la pantalla (barra persistente)
         composeRule.onNodeWithText("crea una contraseña segura", substring = true).assertIsDisplayed()
         composeRule.onNodeWithText("q7#Vt!m2Lp@9xR4w").assertIsDisplayed()
         composeRule.onNodeWithText("Mayúsculas (A–Z)").assertIsDisplayed()

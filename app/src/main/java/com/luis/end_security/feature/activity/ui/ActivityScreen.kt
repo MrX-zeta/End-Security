@@ -44,7 +44,6 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.luis.end_security.R
-import com.luis.end_security.core.designsystem.component.BottomNavTab
 import com.luis.end_security.core.designsystem.component.ListCard
 import com.luis.end_security.core.designsystem.component.ListRowDivider
 import com.luis.end_security.core.designsystem.component.ListRowIcon
@@ -67,7 +66,6 @@ import java.util.Date
 fun ActivityRoute(
     onBack: () -> Unit,
     onChangePassword: () -> Unit,
-    onTabSelected: (BottomNavTab) -> Unit,
     viewModel: ActivityViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -82,7 +80,6 @@ fun ActivityRoute(
         onAction = viewModel::onAction,
         onBack = onBack,
         onChangePassword = onChangePassword,
-        onTabSelected = onTabSelected,
     )
 }
 
@@ -92,13 +89,11 @@ fun ActivityScreen(
     onAction: (ActivityAction) -> Unit,
     onBack: () -> Unit,
     onChangePassword: () -> Unit,
-    onTabSelected: (BottomNavTab) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     AccountListPage(
         title = stringResource(R.string.activity_title),
         onBack = onBack,
-        onTabSelected = onTabSelected,
         modifier = modifier,
         bottom = if (state.phase == ActivityPhase.Offline) {
             {

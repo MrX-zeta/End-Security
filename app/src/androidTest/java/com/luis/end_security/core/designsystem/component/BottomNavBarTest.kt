@@ -203,32 +203,25 @@ class BottomNavBarTest {
     }
 
     @Test
-    fun una_barra_nueva_que_recibe_el_relevo_parte_de_la_pestana_anterior() {
-        // Simula el cambio de pantalla: la barra vieja anota el relevo al tocar y la nueva lo recoge al crearse.
+    fun la_barra_no_se_vuelve_a_crear_al_cambiar_de_pestana_y_no_se_desvanece() {
+        // La barra es única (tarea 26): al cambiar de pestaña sigue siendo la misma y solo se desliza la píldora.
+        var disposed = 0
         composeRule.mainClock.autoAdvance = false
-        val handoff = TabBarHandoff()
-        var screen by mutableStateOf(0)
+        selectedTab = BottomNavTab.Vault
         composeRule.setContent {
             EndSecurityTheme {
-                androidx.compose.runtime.CompositionLocalProvider(LocalTabBarHandoff provides handoff) {
-                    androidx.compose.runtime.key(screen) {
-                        BottomNavBar(
-                            selected = if (screen == 0) BottomNavTab.Vault else BottomNavTab.Settings,
-                            onTabSelected = { screen = 1 },
-                            reducedMotion = false,
-                        )
-                    }
-                }
+                androidx.compose.runtime.DisposableEffect(Unit) { onDispose { disposed++ } }
+                BottomNavBar(selected = selectedTab, onTabSelected = {}, reducedMotion = false)
             }
         }
         frames(2)
-        composeRule.onNodeWithTag(BottomNavTab.Settings.name).performClick()
-        frames(2)
-        val from = tabX(BottomNavTab.Vault)
-        val to = tabX(BottomNavTab.Settings)
-        val start = pillX()
-        assertTrue("la barra nueva debe arrancar cerca de Bóveda ($start; Bóveda $from, Ajustes $to)", start < (from + to) / 2f)
-        composeRule.mainClock.advanceTimeBy(800)
-        assertEquals(to, pillX(), 1f)
+        val vaultNode = composeRule.onNodeWithTag(BottomNavTab.Vault.name).fetchSemanticsNode().id
+        selectedTab = BottomNavTab.Settings
+        repeat(20) {
+            composeRule.mainClock.advanceTimeByFrame()
+            composeRule.onNodeWithTag(BottomNavTab.Vault.name).assertExists()
+            assertEquals("la pestaña sigue siendo el mismo nodo", vaultNode, composeRule.onNodeWithTag(BottomNavTab.Vault.name).fetchSemanticsNode().id)
+        }
+        assertEquals("la barra no se destruyó al cambiar de pestaña", 0, disposed)
     }
 }

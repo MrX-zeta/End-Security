@@ -64,4 +64,19 @@ private fun NavHostController.removeSecretDestinations() {
  */
 internal fun NavHostController.clearSavedTabStates() {
     for (tab in BottomNavTab.entries) clearBackStack(tab.route())
+    // `saveState` guarda la pila bajo el destino más bajo de lo que se saca, que no siempre es la raíz de la pestaña: también se
+    // limpian las subrutas que pueden quedar en la base (conflictos, subpantallas de Salud, dispositivos y actividad).
+    // Una ruta que no está en el grafo (p. ej. en las pruebas con un grafo reducido) no puede tener nada guardado: se ignora.
+    for (route in SAVED_BASE_ROUTES) runCatching { clearBackStack(route) }
 }
+
+private val SAVED_BASE_ROUTES = listOf(
+    Routes.VAULT_LOADING,
+    Routes.CONFLICTS,
+    Routes.HEALTH_RANKING,
+    Routes.HEALTH_BREACHED,
+    Routes.HEALTH_REPEATED,
+    Routes.HEALTH_OLD,
+    Routes.DEVICES,
+    Routes.ACTIVITY,
+)

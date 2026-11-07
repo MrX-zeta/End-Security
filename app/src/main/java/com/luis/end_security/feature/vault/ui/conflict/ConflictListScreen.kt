@@ -44,10 +44,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.luis.end_security.R
 import com.luis.end_security.core.designsystem.component.BackButton
-import com.luis.end_security.core.designsystem.component.BottomNavBar
-import com.luis.end_security.core.designsystem.component.BottomNavTab
 import com.luis.end_security.core.designsystem.component.LetterTile
-import com.luis.end_security.core.designsystem.component.MessageBar
 import com.luis.end_security.core.designsystem.component.TwoWeightTitle
 import com.luis.end_security.core.designsystem.theme.EndSecurityTheme
 import com.luis.end_security.core.designsystem.theme.PreviewSurface
@@ -66,7 +63,6 @@ private val RowShape = RoundedCornerShape(18.dp)
 fun ConflictListRoute(
     onBack: () -> Unit,
     onOpen: (UUID) -> Unit,
-    onTabSelected: (BottomNavTab) -> Unit,
     viewModel: ConflictListViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -82,7 +78,7 @@ fun ConflictListRoute(
     }
     // Muestra nombres de contraseñas: sin capturas ni vista en Recientes.
     SecureScreen()
-    ConflictListScreen(state = state, onBack = onBack, onRowClick = viewModel::onRowClick, onTabSelected = onTabSelected)
+    ConflictListScreen(state = state, onBack = onBack, onRowClick = viewModel::onRowClick)
 }
 
 /** SCR-19 · Por resolver, y SCR-20 con el aviso «{nombre} quedó resuelta». */
@@ -91,7 +87,6 @@ fun ConflictListScreen(
     state: ConflictListUiState,
     onBack: () -> Unit,
     onRowClick: (ConflictListRow) -> Unit,
-    onTabSelected: (BottomNavTab) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -162,22 +157,7 @@ fun ConflictListScreen(
                     }
                 }
             }
-            state.resolvedName?.let { name ->
-                MessageBar(
-                    text = if (name.isEmpty()) {
-                        stringResource(R.string.conflicts_resolved_generic)
-                    } else {
-                        stringResource(R.string.conflicts_resolved, name)
-                    },
-                    icon = R.drawable.ic_check_16,
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .padding(horizontal = 32.dp)
-                        .padding(bottom = 16.dp),
-                )
-            }
         }
-        BottomNavBar(selected = BottomNavTab.Vault, onTabSelected = onTabSelected)
     }
 }
 
@@ -250,7 +230,7 @@ private val PreviewRows = listOf(
 @Composable
 private fun ConflictListPreview() {
     PreviewSurface {
-        ConflictListScreen(ConflictListUiState(PreviewRows, isLoading = false), {}, {}, {})
+        ConflictListScreen(ConflictListUiState(PreviewRows, isLoading = false), {}, {})
     }
 }
 
@@ -258,6 +238,6 @@ private fun ConflictListPreview() {
 @Composable
 private fun ConflictListResolvedPreview() {
     PreviewSurface {
-        ConflictListScreen(ConflictListUiState(PreviewRows.drop(1), resolvedName = "Netflix", isLoading = false), {}, {}, {})
+        ConflictListScreen(ConflictListUiState(PreviewRows.drop(1), resolvedName = "Netflix", isLoading = false), {}, {})
     }
 }

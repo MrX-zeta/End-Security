@@ -81,7 +81,6 @@ class SettingsScreenTest {
                     SettingsScreen(
                         state = state,
                         onAction = { actions += it },
-                        onTabSelected = {},
                         onOpenLegalDocument = { openedDocuments += it },
                         onOpenLicenses = { licensesOpened++ },
                         onOpenAbout = { aboutOpened++ },

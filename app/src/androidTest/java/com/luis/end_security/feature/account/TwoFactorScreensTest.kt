@@ -83,7 +83,13 @@ class TwoFactorScreensTest {
         composeRule.onNodeWithText("Paso 1 de 3").assertIsDisplayed()
         composeRule.onNodeWithText("Copia tu clave", substring = true).assertIsDisplayed()
         composeRule.onNodeWithText(str(R.string.tf_key_label)).assertIsDisplayed()
-        composeRule.onNodeWithText("JBSW Y3DP\nEHPK 3PXP").assertIsDisplayed()
+        // La clave se reparte en renglones completos (tarea 26): los grupos de 4, en orden, con los saltos que quepan en el ancho.
+        val key = composeRule.onNode(androidx.compose.ui.test.hasText("JBSW", substring = true))
+        key.assertIsDisplayed()
+        org.junit.Assert.assertEquals(
+            "JBSW Y3DP EHPK 3PXP",
+            key.fetchSemanticsNode().config[androidx.compose.ui.semantics.SemanticsProperties.Text].first().text.replace("\n", " "),
+        )
         composeRule.onNodeWithText(str(R.string.tf_instruction_1)).assertIsDisplayed()
         composeRule.onNodeWithText(str(R.string.tf_instruction_2)).assertIsDisplayed()
         composeRule.onNodeWithText(str(R.string.tf_instruction_3)).assertIsDisplayed()
@@ -166,7 +172,7 @@ class TwoFactorScreensTest {
         composeRule.setContent {
             EndSecurityTheme {
                 Box(Modifier.size(width = 412.dp, height = 917.dp)) {
-                    TwoFactorActiveScreen(state = TwoFactorManageUiState(), onAction = { actions += it }, onBack = {}, onTabSelected = {})
+                    TwoFactorActiveScreen(state = TwoFactorManageUiState(), onAction = { actions += it }, onBack = {})
                 }
             }
         }
@@ -191,7 +197,6 @@ class TwoFactorScreensTest {
                         state = TwoFactorManageUiState(newCodes = codes),
                         onAction = {},
                         onBack = {},
-                        onTabSelected = {},
                     )
                 }
             }

@@ -46,7 +46,6 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.luis.end_security.R
-import com.luis.end_security.core.designsystem.component.BottomNavTab
 import com.luis.end_security.core.designsystem.component.DangerButton
 import com.luis.end_security.core.designsystem.component.ListCard
 import com.luis.end_security.core.designsystem.component.ListRowDivider
@@ -68,7 +67,6 @@ import androidx.compose.material3.Icon
 fun DevicesRoute(
     onBack: () -> Unit,
     onChangePassword: () -> Unit,
-    onTabSelected: (BottomNavTab) -> Unit,
     viewModel: DevicesViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -77,7 +75,6 @@ fun DevicesRoute(
         onAction = viewModel::onAction,
         onBack = onBack,
         onChangePassword = onChangePassword,
-        onTabSelected = onTabSelected,
     )
 }
 
@@ -87,7 +84,6 @@ fun DevicesScreen(
     onAction: (DevicesAction) -> Unit,
     onBack: () -> Unit,
     onChangePassword: () -> Unit,
-    onTabSelected: (BottomNavTab) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     // El aviso se ve unos segundos; uno nuevo (otro `id`) reemplaza al anterior.
@@ -101,7 +97,6 @@ fun DevicesScreen(
     AccountListPage(
         title = stringResource(R.string.devices_title),
         onBack = onBack,
-        onTabSelected = onTabSelected,
         modifier = modifier,
         notice = shown?.let { noticeText(it) },
         bottom = when {

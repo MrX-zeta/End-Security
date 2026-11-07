@@ -27,7 +27,6 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.luis.end_security.R
-import com.luis.end_security.core.designsystem.component.BottomNavTab
 import com.luis.end_security.core.designsystem.component.DangerButton
 import com.luis.end_security.core.designsystem.component.PrimaryButton
 import com.luis.end_security.core.designsystem.component.SecondaryButton
@@ -43,7 +42,6 @@ import com.luis.end_security.feature.auth.ui.lockoutMessage
 fun TwoFactorActiveRoute(
     onBack: () -> Unit,
     onDisabled: () -> Unit,
-    onTabSelected: (BottomNavTab) -> Unit,
     viewModel: TwoFactorManageViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -58,7 +56,7 @@ fun TwoFactorActiveRoute(
     }
     // Atrás desde los códigos nuevos cierra esa vista; desde la pantalla activa, vuelve a Ajustes.
     BackHandler(enabled = state.newCodes != null) { viewModel.onAction(ManageAction.CodesClosed) }
-    TwoFactorActiveScreen(state = state, onAction = viewModel::onAction, onBack = onBack, onTabSelected = onTabSelected)
+    TwoFactorActiveScreen(state = state, onAction = viewModel::onAction, onBack = onBack)
 }
 
 @Composable
@@ -66,13 +64,11 @@ fun TwoFactorActiveScreen(
     state: TwoFactorManageUiState,
     onAction: (ManageAction) -> Unit,
     onBack: () -> Unit,
-    onTabSelected: (BottomNavTab) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val newCodes = state.newCodes
     FlowScaffold(
         onBack = { if (newCodes != null) onAction(ManageAction.CodesClosed) else onBack() },
-        onTabSelected = onTabSelected,
         modifier = modifier,
         toast = state.copiedSeconds?.let { stringResource(R.string.tf_copied, it) },
         bottom = {

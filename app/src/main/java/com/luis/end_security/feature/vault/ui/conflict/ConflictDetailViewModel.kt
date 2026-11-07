@@ -2,6 +2,10 @@ package com.luis.end_security.feature.vault.ui.conflict
 
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
+import com.luis.end_security.R
+import com.luis.end_security.core.common.AppMessage
+import com.luis.end_security.core.common.AppMessages
+import com.luis.end_security.core.sync.SyncStatus
 import androidx.lifecycle.viewModelScope
 import com.luis.end_security.core.session.VaultSession
 import com.luis.end_security.core.session.VaultState
@@ -83,6 +87,8 @@ class ConflictDetailViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val conflicts: ConflictRepository,
     private val session: VaultSession,
+    private val appMessages: AppMessages,
+    private val syncStatus: SyncStatus,
 ) : ViewModel() {
 
     private val itemId: UUID? = savedStateHandle.get<String>(ID_ARG)?.let { runCatching { UUID.fromString(it) }.getOrNull() }
@@ -161,6 +167,7 @@ class ConflictDetailViewModel @Inject constructor(
             when (conflicts.resolve(current, keep)) {
                 is ResolveResult.Resolved -> {
                     detail = null
+                    postResolvedMessage(keep)
                     close()
                 }
                 // Cambió algo mientras tanto: se vuelve a cargar con lo nuevo.
@@ -171,6 +178,16 @@ class ConflictDetailViewModel @Inject constructor(
                 ResolveResult.Locked -> _state.update { it.copyWith(isResolving = false) }
             }
         }
+    }
+
+    /** «Listo, se conservó tu versión» o «… la otra versión», según lo elegido; sin conexión añade que se subirá después. */
+    private fun postResolvedMessage(keep: KeepVersion) {
+        val offline = syncStatus.offline.value
+        val text = when (keep) {
+            KeepVersion.Local -> if (offline) R.string.msg_conflict_kept_mine_offline else R.string.msg_conflict_kept_mine
+            KeepVersion.Remote -> if (offline) R.string.msg_conflict_kept_other_offline else R.string.msg_conflict_kept_other
+        }
+        appMessages.post(AppMessage(text, icon = R.drawable.ic_check_16))
     }
 
     private fun close() {

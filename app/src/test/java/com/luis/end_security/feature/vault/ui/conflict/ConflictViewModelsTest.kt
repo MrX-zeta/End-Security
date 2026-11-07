@@ -1,6 +1,12 @@
 package com.luis.end_security.feature.vault.ui.conflict
 
 import androidx.lifecycle.SavedStateHandle
+import com.luis.end_security.R
+import com.luis.end_security.core.common.AppMessage
+import com.luis.end_security.core.common.AppMessages
+import com.luis.end_security.feature.vault.ui.FakeSyncStatus
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import com.luis.end_security.feature.vault.domain.ConflictDetail
 import com.luis.end_security.feature.vault.domain.ConflictLoad
 import com.luis.end_security.feature.vault.domain.ConflictRow
@@ -47,6 +53,8 @@ class ConflictDetailViewModelTest {
     private val dispatcher = StandardTestDispatcher()
     private val session = openedSession(TestClock())
     private val conflicts = FakeConflictRepository()
+    private val appMessages = AppMessages()
+    private val syncStatus = FakeSyncStatus()
     private val id = UUID.randomUUID()
 
     @Before
@@ -60,7 +68,7 @@ class ConflictDetailViewModelTest {
 
     private fun TestScope.viewModel(): ConflictDetailViewModel {
         val viewModel = ConflictDetailViewModel(
-            SavedStateHandle(mapOf(ConflictDetailViewModel.ID_ARG to id.toString())), conflicts, session,
+            SavedStateHandle(mapOf(ConflictDetailViewModel.ID_ARG to id.toString())), conflicts, session, appMessages, syncStatus,
         )
         runCurrent()
         return viewModel
@@ -111,6 +119,35 @@ class ConflictDetailViewModelTest {
         viewModel.onToggleLocalPassword()
         viewModel.onToggleLocalPassword()
         assertNull("segundo toque la oculta", viewModel.state.value.local!!.shownPassword)
+    }
+
+    private fun TestScope.collectMessages(): List<AppMessage> {
+        val received = mutableListOf<AppMessage>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { appMessages.messages.collect { received += it } }
+        return received
+    }
+
+    @Test
+    fun `resolver avisa que se conservo la version elegida`() = runTest(dispatcher) {
+        val messages = collectMessages()
+        conflicts.loadResult = ConflictLoad.Ready(bothLive())
+        val viewModel = viewModel()
+        viewModel.onSelect(KeepVersion.Local)
+        viewModel.onKeep()
+        runCurrent()
+        assertEquals(R.string.msg_conflict_kept_mine, messages.single().text)
+    }
+
+    @Test
+    fun `resolver con la otra version y sin conexion lo dice`() = runTest(dispatcher) {
+        syncStatus.offline.value = true
+        val messages = collectMessages()
+        conflicts.loadResult = ConflictLoad.Ready(bothLive())
+        val viewModel = viewModel()
+        viewModel.onSelect(KeepVersion.Remote)
+        viewModel.onKeep()
+        runCurrent()
+        assertEquals(R.string.msg_conflict_kept_other_offline, messages.single().text)
     }
 
     @Test

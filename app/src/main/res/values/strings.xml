@@ -746,4 +746,15 @@
     <string name="settings_email_needs_connection">Necesitas conexión para cambiar tu correo.</string>
     <string name="settings_email_changed">Tu correo ahora es %1$s</string>
     <string name="settings_profile_change_email">Cambiar correo</string>
+
+    <!-- Avisos de resultado de las operaciones de la bóveda (tarea 26) -->
+    <string name="msg_item_saved">%1$s se guardó</string>
+    <string name="msg_item_saved_offline">%1$s se guardó. Se subirá cuando haya conexión.</string>
+    <string name="msg_two_factor_enabled">Verificación en dos pasos activada</string>
+    <string name="msg_changes_saved">Cambios guardados</string>
+    <string name="msg_changes_saved_offline">Cambios guardados. Se subirán cuando haya conexión.</string>
+    <string name="msg_conflict_kept_mine">Listo, se conservó tu versión</string>
+    <string name="msg_conflict_kept_mine_offline">Listo, se conservó tu versión. Se subirá cuando haya conexión.</string>
+    <string name="msg_conflict_kept_other">Listo, se conservó la otra versión</string>
+    <string name="msg_conflict_kept_other_offline">Listo, se conservó la otra versión. Se subirá cuando haya conexión.</string>
 </resources>

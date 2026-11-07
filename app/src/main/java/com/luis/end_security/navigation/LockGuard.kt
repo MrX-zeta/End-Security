@@ -15,6 +15,10 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -31,10 +35,18 @@ enum class LockDestination { Unlock, Login }
  */
 @HiltViewModel
 class LockGuardViewModel @Inject constructor(
-    session: VaultSession,
+    private val session: VaultSession,
     private val accounts: AccountRepository,
     private val deletion: AccountDeletionGate,
 ) : ViewModel() {
+
+    /**
+     * ¿La bóveda está abierta? La barra inferior y los avisos solo se ven con ella abierta (tarea 26): entre que la bóveda se bloquea
+     * y que se llega a Desbloquear no debe verse ni tocarse la barra.
+     */
+    val unlocked: StateFlow<Boolean> = session.state
+        .map { it is VaultState.Unlocked }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, session.state.value is VaultState.Unlocked)
 
     private val _lockedEvents = Channel<LockDestination>(Channel.CONFLATED)
     val lockedEvents: Flow<LockDestination> = _lockedEvents.receiveAsFlow()

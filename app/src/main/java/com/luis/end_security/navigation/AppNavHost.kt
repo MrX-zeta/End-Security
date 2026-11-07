@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.foundation.layout.Column
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -19,8 +21,22 @@ import com.luis.end_security.core.designsystem.theme.rememberReducedMotion
 import com.luis.end_security.core.designsystem.theme.Motion
 import androidx.compose.ui.platform.LocalDensity
 import com.luis.end_security.core.designsystem.component.BottomNavTab
-import com.luis.end_security.core.designsystem.component.LocalTabBarHandoff
-import com.luis.end_security.core.designsystem.component.TabBarHandoff
+import com.luis.end_security.core.designsystem.component.LocalTabGuard
+import com.luis.end_security.core.designsystem.component.TabGuard
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.union
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.unit.dp
+import com.luis.end_security.core.designsystem.component.LocalMessageHost
+import com.luis.end_security.core.designsystem.component.MessageHost
+import com.luis.end_security.core.designsystem.component.isKeyboardVisible
+import com.luis.end_security.core.designsystem.component.rememberMessageHostState
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -78,11 +94,7 @@ fun AppNavHost(
     var splashFinished by rememberSaveable { mutableStateOf(debugStartRoute != null) }
     Box(modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         // La ruta se arma debajo en cuanto se decide, para que el fundido de salida la revele.
-        // Relevo entre las barras inferiores de cada pestaña: así la píldora se desliza de la pestaña anterior a la nueva.
-        val tabBarHandoff = remember { TabBarHandoff() }
-        if (route != null) {
-            CompositionLocalProvider(LocalTabBarHandoff provides tabBarHandoff) { AppNavigation(route = route) }
-        }
+        if (route != null) AppNavigation(route = route)
         if (!splashFinished) {
             SplashRoute(destinationReady = route != null, onFinished = { splashFinished = true })
         }
@@ -95,14 +107,28 @@ private fun AppNavigation(route: String, modifier: Modifier = Modifier) {
     SystemBarsAppearance(darkBackground = false)
     val navController = rememberNavController()
     val lockGuardViewModel: LockGuardViewModel = hiltViewModel()
-    // Barra inferior (DEC-56): las cuatro pestañas navegan sin sumar historial.
-    val onTabSelected: (BottomNavTab) -> Unit = { tab -> navController.navigateToTab(tab) }
+    val unlocked by lockGuardViewModel.unlocked.collectAsStateWithLifecycle()
+    // Barra inferior (DEC-56): las cuatro pestañas navegan sin sumar historial. La barra es una sola (tarea 26) y la pantalla visible
+    // puede interceptar el toque ([TabGuard]): pedir confirmación o ignorarlo mientras trabaja.
+    val tabGuard = remember { TabGuard() }
+    val navigateToTab: (BottomNavTab) -> Unit = { tab -> navController.navigateToTab(tab) }
+    val onBarTabSelected: (BottomNavTab) -> Unit = { tab -> if (!tabGuard.intercepts(tab)) navigateToTab(tab) }
+    val currentEntry by navController.currentBackStackEntryAsState()
+    // Con la bóveda bloqueada no hay barra aunque la pantalla protegida aún no haya terminado de salir.
+    val barTab = if (unlocked) tabForRoute(currentEntry?.destination?.route) else null
     // Si la bóveda se bloquea: a Desbloquear (o a Iniciar sesión sin cuenta), sin nada debajo.
+    // Avisos de toda la app en un solo lugar (tarea 26): encima de la barra inferior y nunca encima del teclado.
+    val messageHost = rememberMessageHostState()
     LockGuard(
         viewModel = lockGuardViewModel,
         // Cuenta eliminada: sin `RequireUnlocked` (la sesión ya se cerró) y con la pila limpia.
-        onAccountDeleted = { navController.navigateClearingStack(Routes.ACCOUNT_DELETED) },
+        onAccountDeleted = {
+            messageHost.clear()
+            navController.navigateClearingStack(Routes.ACCOUNT_DELETED)
+        },
         onLocked = { destination ->
+            // Un aviso con el nombre de un elemento no debe verse sobre Desbloquear ni Iniciar sesión.
+            messageHost.clear()
             navController.navigateClearingStack(
                 when (destination) {
                     LockDestination.Unlock -> Routes.UNLOCK
@@ -115,10 +141,20 @@ private fun AppNavigation(route: String, modifier: Modifier = Modifier) {
     val slidePx = with(LocalDensity.current) { Motion.Slide.roundToPx() }
     val reducedMotion = rememberReducedMotion()
     val transitions = remember(slidePx, reducedMotion) { NavTransitions(slidePx, reducedMotion) }
+    val messagesViewModel: MessageHostViewModel = hiltViewModel()
+    val resources = LocalResources.current
+    LaunchedEffect(messagesViewModel) {
+        messagesViewModel.messages.collect { message ->
+            messageHost.post(resources.getString(message.text, *message.args.toTypedArray()), message.icon)
+        }
+    }
+    CompositionLocalProvider(LocalTabGuard provides tabGuard, LocalMessageHost provides messageHost) {
+    Column(modifier.fillMaxSize()) {
+    Box(Modifier.weight(1f)) {
     NavHost(
         navController = navController,
         startDestination = route,
-        modifier = modifier,
+        modifier = Modifier,
         enterTransition = { transitions.enter(this) },
         exitTransition = { transitions.exit(this) },
         popEnterTransition = { transitions.popEnter(this) },
@@ -181,7 +217,6 @@ private fun AppNavigation(route: String, modifier: Modifier = Modifier) {
                 val passwordResult by handle.getStateFlow(Routes.RESULT_PASSWORD_CHANGED, 0).collectAsStateWithLifecycle()
                 val emailResult by handle.getStateFlow(Routes.RESULT_EMAIL_CHANGED, "").collectAsStateWithLifecycle()
                 SettingsRoute(
-                    onTabSelected = onTabSelected,
                     onNavigateToLogin = { navController.navigateClearingStack(Routes.LOGIN) },
                     onOpenTwoFactorSetup = { navController.navigate(Routes.TWO_FACTOR_SETUP) { launchSingleTop = true } },
                     onOpenTwoFactorActive = { navController.navigate(Routes.TWO_FACTOR_ACTIVE) { launchSingleTop = true } },
@@ -210,7 +245,6 @@ private fun AppNavigation(route: String, modifier: Modifier = Modifier) {
                         navController.previousBackStackEntry?.savedStateHandle?.set(Routes.RESULT_EMAIL_CHANGED, email)
                         navController.popBackStack()
                     },
-                    onTabSelected = onTabSelected,
                 )
             }
         }
@@ -218,7 +252,6 @@ private fun AppNavigation(route: String, modifier: Modifier = Modifier) {
             RequireUnlocked(onLocked = lockGuardViewModel::onProtectedScreenLocked) {
                 DeleteAccountRoute(
                     onBack = { navController.popBackStack() },
-                    onTabSelected = onTabSelected,
                 )
             }
         }
@@ -231,7 +264,6 @@ private fun AppNavigation(route: String, modifier: Modifier = Modifier) {
                 DevicesRoute(
                     onBack = { navController.popBackStack() },
                     onChangePassword = { navController.navigate(Routes.CHANGE_PASSWORD) { launchSingleTop = true } },
-                    onTabSelected = onTabSelected,
                 )
             }
         }
@@ -240,7 +272,6 @@ private fun AppNavigation(route: String, modifier: Modifier = Modifier) {
                 ActivityRoute(
                     onBack = { navController.popBackStack() },
                     onChangePassword = { navController.navigate(Routes.CHANGE_PASSWORD) { launchSingleTop = true } },
-                    onTabSelected = onTabSelected,
                 )
             }
         }
@@ -256,7 +287,6 @@ private fun AppNavigation(route: String, modifier: Modifier = Modifier) {
                         navController.popBackStack()
                     },
                     onNavigateToLogin = { navController.navigateClearingStack(Routes.LOGIN) },
-                    onTabSelected = onTabSelected,
                 )
             }
         }
@@ -265,7 +295,8 @@ private fun AppNavigation(route: String, modifier: Modifier = Modifier) {
                 TwoFactorSetupRoute(
                     // «Ya los guardé» o Atrás en el Paso 3: fuera todo el flujo, de vuelta a Ajustes.
                     onExit = { navController.popBackStack(Routes.SETTINGS, inclusive = false) },
-                    onTabSelected = onTabSelected,
+                    // Tras confirmar en los códigos de respaldo, la pantalla navega ella misma a la pestaña elegida.
+                    onTabSelected = navigateToTab,
                 )
             }
         }
@@ -277,14 +308,12 @@ private fun AppNavigation(route: String, modifier: Modifier = Modifier) {
                         navController.previousBackStackEntry?.savedStateHandle?.set(Routes.RESULT_TWO_FACTOR_DISABLED, true)
                         navController.popBackStack()
                     },
-                    onTabSelected = onTabSelected,
                 )
             }
         }
         composable(Routes.HEALTH) {
             RequireUnlocked(onLocked = lockGuardViewModel::onProtectedScreenLocked) {
                 HealthRoute(
-                    onTabSelected = onTabSelected,
                     onOpenBreached = { navController.navigate(Routes.HEALTH_BREACHED) { launchSingleTop = true } },
                     onOpenRepeated = { navController.navigate(Routes.HEALTH_REPEATED) { launchSingleTop = true } },
                     onOpenWeak = { navController.navigate(Routes.healthRanking(weakest = true)) { launchSingleTop = true } },
@@ -303,7 +332,7 @@ private fun AppNavigation(route: String, modifier: Modifier = Modifier) {
             ),
         ) {
             RequireUnlocked(onLocked = lockGuardViewModel::onProtectedScreenLocked) {
-                HealthRankingRoute(onBack = { navController.popBackStack() }, onTabSelected = onTabSelected)
+                HealthRankingRoute(onBack = { navController.popBackStack() })
             }
         }
         composable(Routes.HEALTH_BREACHED) {
@@ -311,7 +340,6 @@ private fun AppNavigation(route: String, modifier: Modifier = Modifier) {
                 HealthBreachedRoute(
                     onBack = { navController.popBackStack() },
                     onChange = { id -> navController.navigate(Routes.vaultEdit(id)) { launchSingleTop = true } },
-                    onTabSelected = onTabSelected,
                 )
             }
         }
@@ -320,7 +348,6 @@ private fun AppNavigation(route: String, modifier: Modifier = Modifier) {
                 HealthRepeatedRoute(
                     onBack = { navController.popBackStack() },
                     onChange = { id -> navController.navigate(Routes.vaultEdit(id)) { launchSingleTop = true } },
-                    onTabSelected = onTabSelected,
                 )
             }
         }
@@ -329,14 +356,12 @@ private fun AppNavigation(route: String, modifier: Modifier = Modifier) {
                 HealthOldRoute(
                     onBack = { navController.popBackStack() },
                     onChange = { id -> navController.navigate(Routes.vaultEdit(id)) { launchSingleTop = true } },
-                    onTabSelected = onTabSelected,
                 )
             }
         }
         composable(Routes.GENERATOR) {
             RequireUnlocked(onLocked = lockGuardViewModel::onProtectedScreenLocked) {
                 GeneratorRoute(
-                    onTabSelected = onTabSelected,
                     onOpenNewWithPassword = { navController.navigate(Routes.VAULT_NEW_GENERATED) { launchSingleTop = true } },
                 )
             }
@@ -345,7 +370,6 @@ private fun AppNavigation(route: String, modifier: Modifier = Modifier) {
             RequireUnlocked(onLocked = lockGuardViewModel::onProtectedScreenLocked) {
                 // OP-32: descarga inicial real y después a la Bóveda.
                 VaultLoadingRoute(
-                    onTabSelected = onTabSelected,
                     onDone = {
                         navController.navigate(Routes.VAULT) {
                             popUpTo(Routes.VAULT_LOADING) { inclusive = true }
@@ -357,12 +381,11 @@ private fun AppNavigation(route: String, modifier: Modifier = Modifier) {
         composable(Routes.VAULT) {
             RequireUnlocked(onLocked = lockGuardViewModel::onProtectedScreenLocked) {
                 VaultListRoute(
-                    onTabSelected = onTabSelected,
                     onOpenItem = { id -> navController.navigate(Routes.vaultItem(id)) { launchSingleTop = true } },
                     onOpenNew = { navController.navigate(Routes.VAULT_NEW) { launchSingleTop = true } },
                     onOpenConflict = { id -> navController.navigate(Routes.conflictItem(id)) { launchSingleTop = true } },
                     onOpenConflicts = { navController.navigate(Routes.CONFLICTS) { launchSingleTop = true } },
-                    onOpenHealth = { onTabSelected(BottomNavTab.Health) },
+                    onOpenHealth = { navigateToTab(BottomNavTab.Health) },
                 )
             }
         }
@@ -371,7 +394,6 @@ private fun AppNavigation(route: String, modifier: Modifier = Modifier) {
                 ConflictListRoute(
                     onBack = { navController.popBackStack() },
                     onOpen = { id -> navController.navigate(Routes.conflictItem(id)) { launchSingleTop = true } },
-                    onTabSelected = onTabSelected,
                 )
             }
         }
@@ -383,7 +405,6 @@ private fun AppNavigation(route: String, modifier: Modifier = Modifier) {
                 ConflictDetailRoute(
                     onClose = { navController.popBackStack() },
                     onBack = { navController.popBackStack() },
-                    onTabSelected = onTabSelected,
                 )
             }
         }
@@ -398,7 +419,6 @@ private fun AppNavigation(route: String, modifier: Modifier = Modifier) {
                         itemId = itemId,
                         onBack = { navController.popBackStack() },
                         onEdit = { id -> navController.navigate(Routes.vaultEdit(id)) { launchSingleTop = true } },
-                        onTabSelected = onTabSelected,
                     )
                 }
             }
@@ -423,8 +443,7 @@ private fun AppNavigation(route: String, modifier: Modifier = Modifier) {
             RequireUnlocked(onLocked = lockGuardViewModel::onProtectedScreenLocked) {
                 ItemEditRoute(
                     onClose = { navController.popBackStack() },
-                    onSaved = { if (fromGenerator) onTabSelected(BottomNavTab.Vault) else navController.popBackStack() },
-                    onTabSelected = onTabSelected,
+                    onSaved = { if (fromGenerator) navigateToTab(BottomNavTab.Vault) else navController.popBackStack() },
                 )
             }
         }
@@ -463,6 +482,18 @@ private fun AppNavigation(route: String, modifier: Modifier = Modifier) {
         }
         composable(Routes.LICENSES) { LicensesScreen(onBack = { navController.popBackStack() }) }
         composable(Routes.ABOUT) { AboutScreen(onBack = { navController.popBackStack() }) }
+    }
+    // Con barra, el cuadro termina justo encima de ella; sin barra, encima de la barra de gestos (o del teclado, si está abierto).
+    MessageHost(
+        state = messageHost,
+        modifier = Modifier
+            .align(Alignment.BottomCenter)
+            .then(if (barTab == null || isKeyboardVisible()) Modifier.windowInsetsPadding(WindowInsets.navigationBars.union(WindowInsets.ime)) else Modifier)
+            .padding(bottom = 12.dp),
+    )
+    }
+    PersistentTabBar(tab = barTab, onTabSelected = onBarTabSelected)
+    }
     }
 }
 
