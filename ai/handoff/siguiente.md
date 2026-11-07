@@ -1,51 +1,69 @@
-# Tarea 28 · Correcciones visuales (2FA encimado y selector del ranking)
+# Tarea 29 · Aviso al copiar dentro de las hojas (última del frontend)
 
 **Estado:** hecha
 **Escrita:** 2026-11-07 · sesión de diseño
 
-## Revisión de la tarea 27
-Aprobada. Al equipo le gustaron las animaciones («quedaron como esperaba»):
-- el índice de sanas con el tope derivado de los rangos y los casos a mano;
-- las parecidas, con 1 000 contraseñas en menos de 300 ms;
-- las fotos v2 que leen las viejas;
-- las barras por semana;
-- `security-reviewer` sin hallazgos altos.
+## Revisión de la tarea 28
+Aprobada:
+- `DirectionalContentSwap` envuelve en `Column`, así que los pasos del 2FA ya no se enciman;
+- el selector tiene celdas iguales, el texto centrado y en una línea, y el texto se reduce antes de partirse;
+- «Mejoradas»;
+- los errores de campo se despliegan.
 
-Aprobadas tus desviaciones: «Repetidas y parecidas», las regulares contadas como débiles en las barras y que las repeticiones no sobrevivan al giro.
+Bien la medición de tiempo con el mejor de varias corridas.
 
-Lo probaron en el Redmi y hay **dos defectos visuales**, más lo que dejaste pendiente. **Es una tarea corta.** Sin capturas (como en la tarea 27): solo pruebas que afirman posiciones y tamaños.
+## El problema
+En la **hoja del Generador** que se abre desde Nueva/Editar contraseña («Usar esta contraseña»), al tocar **copiar** no aparece ningún aviso; el equipo tuvo que tocar varias veces para saber si se copió.
+- **Causa probable:** `GeneratorScreen` pide `HostedMessage`, pero el anfitrión de avisos (tarea 26) se dibuja en la ventana principal, y la `ModalBottomSheet` es **otra ventana encima**: el aviso sale, pero detrás de la hoja.
+- En la pestaña Generador sí se ve, porque ahí no hay hoja.
 
-## Paso 1 · 2FA: el contenido de los pasos se encima
-**Qué se ve:**
-- **Paso 1:** el título «Copia tu clave», la tarjeta oscura con la clave y la lista de instrucciones quedan **uno encima del otro**. La nota «La clave solo se muestra ahora…» sale arriba, tapando el texto.
-- **Paso 2:** las seis casillas del código quedan **encima del título** «Escribe el código».
+## Paso 1 · Avisos dentro de las hojas inferiores
+- **Un anfitrión local por hoja:** cada `ModalBottomSheet` de la app provee su propio `MessageHostState` con un `CompositionLocal`. `HostedMessage` usa el **más cercano**, así que lo que se pide dentro de una hoja aparece **dentro de ella**.
+  - **Posición:** encima de su botón inferior («Usar esta contraseña»), con 12 dp de separación.
+  - **Animación:** la misma de la tarea 26: entra subiendo 16 dp en 200 ms y sale en 150 ms.
+  - Al cerrarse la hoja, su anfitrión se limpia.
+- Un componente común (`AppBottomSheet` o un envoltorio de `ModalBottomSheet`) para que ninguna hoja se quede sin él.
+- **Revisa todas las hojas:**
+  - Generador desde Nueva/Editar;
+  - `ReauthSheet`;
+  - las de cerrar sesión, dispositivos, conflictos y eliminar cuenta;
+  - documentos legales y licencias en hoja;
+  - bloqueo automático;
+  - la de «¿Ya guardaste tus códigos?».
 
-**Causa:**
-- `StepSwap` → `DirectionalContentSwap` usa `AnimatedContent`, cuyo contenido se coloca en un **`Box`**;
-- `KeyStep` y `CodeStep` emiten **varios elementos sueltos en la raíz** (título, tarjeta, lista…) pensados para un `Column` padre, así que dentro del `Box` se apilan en la misma posición;
-- el paso 3 funciona porque su contenido ya va en un `Column`.
+  Entrega en el reporte una tabla: hoja · ¿pide avisos? · ¿se ven ahora?
 
-**Arreglo:**
-- **en `DirectionalContentSwap`:** envuelve **siempre** el contenido en un `Column(Modifier.fillMaxWidth())`, para que cualquier pantalla que lo use quede bien sin depender de cada llamada. Cambia la firma a `content: @Composable ColumnScope.(Int) -> Unit`;
-- **revisa todos los usos:** `StepSwap` en 2FA y en Cambiar correo, el cambio de Resumen/Progreso, el ranking y cualquier otro `AnimatedContent`/`Crossfade` agregado en las tareas 26 y 27. Busca el mismo patrón (varios hijos en la raíz) y corrígelo;
-- **prueba de diseño:** en cada paso de 2FA y de Cambiar correo, los elementos principales (título, tarjeta o casillas, lista) están **en orden vertical sin solaparse**. Compara los límites con `onNodeWithTag(...).getBoundsInRoot()`: el `bottom` de cada uno debe ser ≤ el `top` del siguiente. También a la mitad de la transición: el que entra no se encima consigo mismo.
+## Paso 2 · Confirmación en el propio botón
+Además del aviso «Copiada · se borra del portapapeles en 30 s»:
+- **el ícono de copiar** cambia a una **palomita** (fundido cruzado de 150 ms con `Motion.EaseOut`);
+- se queda así **1,5 s** y vuelve al ícono de copiar;
+- tocar otra vez mientras tanto vuelve a copiar y reinicia los 1,5 s.
 
-## Paso 2 · Selector del ranking: «Mejoradas recientemente» se parte y queda a la izquierda
-En `SegmentedSelector`, el texto largo se va a dos renglones, pegado a la izquierda, mientras «Más débiles» queda en uno.
-- **Etiqueta más corta:** «**Mejoradas**». El título de la pantalla, «Fuerza de tus contraseñas», y el texto vacío ya explican qué es. Si quieres, agrega bajo el selector, en pequeño, «Mejoradas recientemente: cambiadas en los últimos 30 días y hoy sanas» solo cuando esa opción está activa.
-- **Regla para todos los selectores** (`SegmentedSelector`):
-  - cada opción ocupa **el mismo ancho** (`weight(1f)`);
-  - texto **centrado** (horizontal y vertical) y en **una sola línea** (`maxLines = 1`, `softWrap = false`);
-  - si aun así no cabe (fuente grande), se reduce el tamaño del texto hasta un mínimo de 12 sp en lugar de partirse; y si tampoco, `Ellipsis`;
-  - el fondo deslizante sigue ocupando la celda completa.
-- **Prueba:** con escala de fuente 1,0 y 1,3, cada etiqueta queda en una línea y su centro horizontal coincide con el centro de su celda (±1 dp), en «Resumen | Progreso» y en «Más débiles | Mejoradas».
+Aplícalo a **todos** los botones de copiar:
+- el Generador (pestaña y hoja);
+- el detalle de una contraseña (usuario y contraseña);
+- la clave y los códigos del 2FA.
 
-## Paso 3 · Lo que quedó pendiente de la tarea 27
-Aplica `Reveal` / `RevealValue` a los errores de campo que quedaron sin animar (los enumeraste en el Paso 2 del reporte), con su prueba.
+**Accesibilidad:** el botón anuncia «Copiado» (`liveRegion` o `stateDescription`) y su descripción no cambia de nombre. Con «Quitar animaciones», el cambio de ícono es instantáneo.
+
+## Paso 3 · Comprobar que la copia es sensible
+El equipo vio que **el teclado sugiere la contraseña copiada**. Que Gboard ofrezca lo copiado es normal; lo que importa es que, con `EXTRA_IS_SENSITIVE` (Android 13+), la sugerencia y la vista previa del sistema la muestren **oculta** (puntos), no en claro.
+- Confirma que **la hoja del Generador** copia por `SecretClipboard` (como la pestaña) y no por otro camino.
+- Comprueba en el emulador (API 33+) que la vista previa del portapapeles del sistema no muestra el texto.
+- Si en algún lugar se copia sin `SecretClipboard`, corrígelo.
+
+Todo esto va al reporte, **sin capturas**: basta con decir qué se vio.
 
 ## Terminado cuando
-- Pasos 1–3 con sus pruebas (sin capturas).
-- `testDebugUnitTest`, lint, `assembleRelease` y las pruebas instrumentadas de `feature.account`, `feature.health` y del sistema de diseño pasan. La suite completa solo si tocaste algo fuera de eso.
+- **Pruebas:**
+  - un aviso pedido dentro de una hoja se muestra dentro de ella, encima de su botón, y no en el anfitrión principal;
+  - al cerrar la hoja, su aviso desaparece;
+  - el ícono pasa a palomita y vuelve a los 1,5 s, y reinicia con otro toque;
+  - con «Quitar animaciones» no hay movimiento;
+  - la hoja del Generador usa `SecretClipboard`.
+- **Sin capturas.**
+- La tabla de hojas.
+- `testDebugUnitTest`, lint, `assembleRelease` y las pruebas instrumentadas de `feature.vault`, `feature.account` y del sistema de diseño pasan.
 - Commits hechos y subidos, sin cambios de finales de línea.
 
 ## Al terminar

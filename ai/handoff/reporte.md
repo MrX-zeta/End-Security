@@ -1,40 +1,57 @@
-# Reporte · Tarea 28 · Correcciones visuales (2FA encimado y selector del ranking)
+# Reporte · Tarea 29 · Aviso al copiar dentro de las hojas (última del frontend)
 
-No se tocó `core/crypto`, `core/session`, autenticación ni SQL: no hace falta revisión de seguridad. Sin capturas: las pruebas afirman posiciones, tamaños y líneas.
+No se tocó `core/crypto`, `core/session`, autenticación ni SQL; el portapapeles (`SecretClipboard`) no se modificó, solo se verificó. Sin capturas.
 
-## Paso 1 · 2FA: el contenido de los pasos se encimaba
-**Causa confirmada:** `AnimatedContent` coloca su contenido en un `Box`; `KeyStep` y `CodeStep` emitían varios elementos sueltos en la raíz y se apilaban en la misma posición (el Paso 3 ya iba en un `Column`).
+## Paso 1 · Avisos dentro de las hojas inferiores
+**Causa confirmada:** una `ModalBottomSheet` es otra ventana encima de la principal; el `HostedMessage` de `GeneratorScreen` iba al anfitrión de `AppNavHost`, que queda detrás de ella.
 
-**Arreglo:** `DirectionalContentSwap` envuelve **siempre** el contenido en `Column(Modifier.fillMaxWidth())`; su firma y la de `StepSwap` ahora son `content: @Composable ColumnScope.(Int) -> Unit`, así que ninguna pantalla depende de poner su propio `Column`.
+**Arreglo:** `AppBottomSheet` (`core/designsystem/component/AppBottomSheet.kt`), un envoltorio de `ModalBottomSheet` con **su propio `MessageHostState`** que provee `LocalMessageHost`; `HostedMessage` usa el más cercano, así que lo pedido dentro de una hoja aparece dentro de ella.
+- **Posición:** `SheetMessageSlot()` se pone justo encima del botón inferior; deja 12 dp entre el aviso y el botón y ocupa 0 de alto mientras no hay aviso. En la hoja del Generador va encima de «Usar esta contraseña». Una hoja que no pone su lugar dibuja el aviso al final de su contenido.
+- **Animación:** la misma del anfitrión (tarea 26): entra subiendo 16 dp en 200 ms y sale en 150 ms.
+- **Al cerrarse la hoja** su anfitrión se limpia (`clear()` y relojes cancelados).
+- Las **11** `ModalBottomSheet` de la app ahora son `AppBottomSheet` (no queda ninguna directa).
 
-**Revisión de todos los usos** (tareas 26 y 27):
-| Uso | ¿Varios hijos en la raíz? | Resultado |
+| Hoja | ¿Pide avisos? | ¿Se ven ahora? |
 |---|---|---|
-| `StepSwap` en 2FA (Pasos 1, 2 y 3) | Sí (Paso 1 y 2) | Corregido por el `Column` del componente |
-| `StepSwap` en Cambiar correo | No: cada paso es una pantalla con una sola raíz | Sin cambio; se probó el orden |
-| `DirectionalContentSwap` en Resumen/Progreso y en el ranking | No (una raíz) | Sin cambio |
-| `LoadingCrossfade` (Salud, Dispositivos, Actividad, clave del 2FA) | No: cada rama tiene una sola raíz (la de la clave ya iba en un `Column`) | Sin cambio |
-| `FadeOnChange` (Revisado hoy, valores de Ajustes) | No (un `Text`) | Sin cambio |
+| Generador (desde Nueva/Editar, «Usar esta contraseña») | **Sí**: «Copiada · se borra del portapapeles en 30 s» | **Sí**, dentro de la hoja y encima del botón (antes salía detrás) |
+| `ReauthSheet` (contraseña maestra) | No | Sí, tiene su anfitrión por si lo pide |
+| Cerrar sesión (`SignOutSheet`) | No | Ídem |
+| Cerrar sesión de un dispositivo / de los demás (Dispositivos) | No (su resultado sale en la pantalla, ya visible al cerrarse la hoja) | Ídem |
+| Eliminar cuenta (confirmación) | No | Ídem |
+| Eliminar contraseña (detalle) | No (el «Deshacer» sale en la lista, tras cerrarse la hoja) | Ídem |
+| Descartar cambios (Nueva/Editar) | No | Ídem |
+| Conflictos | No tienen hoja propia (resolver es una pantalla; su aviso sale en la ventana principal) | — |
+| Documentos legales | No | Ídem |
+| Licencias | No | Ídem |
+| Bloqueo automático (Ajustes) | No (la fila ya muestra el valor nuevo) | Ídem |
+| «¿Ya guardaste tus códigos?» (2FA) | No | Ídem |
 
-**Prueba de diseño** (`StepLayoutTest`, 5 pruebas): en el Paso 1 del 2FA, título → tarjeta de la clave → instrucciones → nota «La clave solo se muestra ahora» quedan en orden vertical (el `bottom` de cada uno ≤ el `top` del siguiente); en el Paso 2, título → casillas → «El código cambia en…»; **a la mitad de la transición** (avanzando y regresando) el paso que entra tampoco se encima consigo mismo; y en Cambiar correo, aviso → correo actual → botón Continuar. Para ello se añadieron etiquetas de prueba en los pasos.
+## Paso 2 · Confirmación en el propio botón
+`CopyConfirmation` + `CopyIcon` + `copiedSemantics` (`CopyConfirmation.kt`): al copiar, el ícono pasa a **palomita** con fundido cruzado de 150 ms (`Motion.EaseOut`), se queda **1,5 s** (`Motion.CopyConfirmHoldMillis`) y vuelve; **tocar otra vez mientras tanto vuelve a copiar y reinicia los 1,5 s**. Accesibilidad: el botón anuncia «Copiado» (`stateDescription` + región viva) y su descripción **no cambia de nombre**. Con «Quitar animaciones» el cambio es instantáneo (un solo ícono, sin fundido).
 
-## Paso 2 · Selector del ranking
-- **Etiqueta:** «Mejoradas recientemente» → «**Mejoradas**»; bajo el selector, solo con esa opción activa, aparece en pequeño «Mejoradas recientemente: cambiadas en los últimos 30 días y hoy sanas» (se despliega con `Reveal`).
-- **Regla de `SegmentedSelector`** (para todos): cada opción ocupa el mismo ancho (`weight(1f)`); texto centrado en una sola línea (`maxLines = 1`, `softWrap = false`); si no cabe, `autoSize` lo achica hasta un mínimo de 12 sp y, si tampoco, termina en «…»; el fondo deslizante sigue ocupando la celda completa.
-- **Prueba** (`SegmentedSelectorLayoutTest`, 5 pruebas): con letra 1,0 y 1,3, en «Resumen | Progreso» y «Más débiles | Mejoradas», cada etiqueta queda en **una línea**, el centro de su línea coincide con el centro de su celda (±1 dp) y las dos opciones miden lo mismo; una etiqueta larga («Mejoradas recientemente») con letra 1,3 tampoco se parte ni se va a la izquierda.
+Aplicado a **todos** los botones de copiar:
+| Botón | Cómo |
+|---|---|
+| Generador, pestaña y hoja (ícono amarillo) | `ResultIconButton` con `confirmation` |
+| Detalle: usuario (ícono) | `FieldActionButton(confirmation)` |
+| Detalle: contraseña (botón «Copiar contraseña») | `PrimaryButton` con `trailingIcon` (el ícono de copiar al final del botón → palomita) |
+| 2FA: clave (ícono) | `CopyIconButton` con `confirmation` |
+| 2FA: códigos de respaldo (Paso 3 y «Generar códigos nuevos») | `SecondaryButton` con `trailingIcon` |
 
-## Paso 3 · Pendiente de la tarea 27
-`Reveal`/`RevealValue` aplicado a: aviso de huella invalidada en Desbloquear, «Necesitas registrar una huella» en Ajustes, los dos errores de Eliminar cuenta, la lista de requisitos de Cambiar contraseña, el error de guardado de Nueva/editar contraseña (genérico y de conflicto, con sus botones) y el error «no disponible» del conflicto. Prueba: `ErrorRevealScreensTest` (el aviso de Desbloquear aparece, está a la vista pasados 300 ms, y al quitarse sigue un momento mientras se pliega y luego se va); la mecánica de posición y tiempos (200/150 ms, el contenido de abajo se desplaza suave) ya la cubre `ContentMotionTest`.
-- **No aplica:** el «Código de tu app» del acceso con 2FA no es un campo dentro de una pantalla sino la ruta `TWO_FACTOR` (ya tiene la transición de navegación). El error completo de «sin conexión» del conflicto reemplaza toda la pantalla y se queda sin animar.
-- *Limitación de la prueba:* en Desbloquear no se pudo medir el desplazamiento de lo de abajo (el campo queda anclado y la etiqueta no expone límites), así que ahí solo se afirma presencia/ausencia en el tiempo.
+*Nota de diseño:* «Copiar contraseña» y «Copiar códigos» eran botones de solo texto; se les añadió un ícono de copiar al final para que la palomita tenga dónde mostrarse (`PrimaryButton`/`SecondaryButton` ganan un parámetro opcional `trailingIcon`).
+
+## Paso 3 · La copia es sensible
+- **Un solo camino:** ninguna pantalla habla con el `ClipboardManager`; todo pasa por `SecretClipboard`, que marca el `ClipData` con `EXTRA_IS_SENSITIVE` **antes** de `setPrimaryClip`. **La hoja del Generador** usa el mismo `GeneratorViewModel` que la pestaña (con otra clave de ViewModel), que copia con `SecretClipboard.copy`. Una prueba nueva (`ClipboardOnlyThroughSecretClipboardTest`) vigila que ningún otro archivo use `setPrimaryClip`/`ClipboardManager`, y `GeneratorViewModelTest` ya comprueba que se copia por `SecretClipboard`. No hubo ninguna copia fuera de `SecretClipboard` que corregir.
+- **Vista previa del sistema (emulador API 36):** lo intenté con una copia por `SecretClipboard` y otra de control sin la marca, con la app en primer plano, leyendo la pantalla con `uiautomator`. **En ninguna de las dos apareció la burbuja de vista previa del sistema** (ni el texto en claro ni los puntos), así que esta comprobación **no es concluyente en el emulador**. Lo que sí se vio: `ClipboardDeviceTest` (E3) pasó en la corrida de `core` tras reiniciar el emulador (111/111), es decir, la marca `EXTRA_IS_SENSITIVE` queda en la descripción del portapapeles. **Pendiente en el Redmi:** copiar una contraseña y mirar la sugerencia del teclado y la vista previa (en MIUI/HyperOS la presentación es del fabricante).
 
 ## Pruebas (salida real)
-- `testDebugUnitTest`, `lintDebug` y `assembleRelease`: OK. Las dos pruebas de tiempo de `PasswordSimilarityTest` fallaron una vez porque la máquina estaba ocupada (462 ms contra el límite de 300): ahora toman el mejor de varias medidas.
-- Instrumentadas: `feature.account` (incluye `StepLayoutTest`), `feature.health` (incluye `SegmentedSelectorLayoutTest`), `ErrorRevealScreensTest` y `core`: pasan, salvo `ClipboardDeviceTest` (E3, pendiente del equipo). `ChangeEmailScreensTest.laEsperaDeHorasMuestraElMensajeGris` falló una vez con «Compose not idle» en la pasada completa y pasó al repetir (25/25 con `HealthMetricsScreenTest`).
-- Pruebas existentes ajustadas: `HealthMetricsScreenTest` (el ranking ahora dice «Mejoradas»).
+- Nuevas, sin capturas: `AppBottomSheetTest` (6: el aviso pedido dentro de la hoja se ve dentro de ella y no en el anfitrión principal, encima de su botón, entra subiendo y sale más rápido, **al cerrar la hoja su aviso desaparece** y su anfitrión queda limpio, una hoja sin lugar propio lo dibuja al final, y la **hoja real del Generador** muestra «Copiada…» encima de «Usar esta contraseña»), `CopyConfirmationTest` (5: palomita y vuelta a los 1,5 s con «Copiado» anunciado, fundido cruzado de 150 ms con los dos íconos a la mitad, otro toque reinicia, con «Quitar animaciones» no hay movimiento, el nombre del botón no cambia) y `ClipboardOnlyThroughSecretClipboardTest` (JVM).
+- `testDebugUnitTest`, `lintDebug` y `assembleRelease`: OK. Instrumentadas: `core` 111/111 (incluye E3), `feature.vault` 14/14, `feature.account` 62/62.
+- Antes de las pruebas el emulador se cayó y hubo que reiniciarlo en frío (ruido del entorno, no del código).
 
 ## Pendiente
-- Probar en el Redmi el selector con letra grande y los pasos del 2FA.
+- Confirmar en el Redmi la vista previa/sugerencia del portapapeles con la copia marcada como sensible.
+- Probar a mano que el aviso y la palomita se vean bien al copiar en la hoja del Generador.
 
 ## Vistas / cambios (cómo llegar)
-No hay vistas nuevas. **2FA:** Ajustes → Verificación en dos pasos (Pasos 1 y 2, que ya no se encima). **Selector:** Salud → Progreso → «Ver ranking de fuerza» (Más débiles | Mejoradas). **Errores animados:** Desbloquear con la huella invalidada, Ajustes (huella sin registrar), Eliminar cuenta, Cambiar contraseña y Nueva/editar contraseña (error al guardar).
+No hay vistas nuevas. **Hoja del Generador:** Bóveda → «+» (Nueva contraseña) → generar/«Usar» desde el campo de contraseña → copiar (aviso dentro de la hoja y palomita). **Botones de copiar:** Generador (pestaña), detalle de una contraseña (usuario y «Copiar contraseña») y Ajustes → Verificación en dos pasos (clave y códigos).
