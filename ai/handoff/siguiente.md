@@ -1,111 +1,167 @@
-# Tarea 26 · Movimiento en Salud, contraseñas que aprovechan el ancho y avisos de guardado
+# Tarea 27 · Movimiento dentro de las pantallas y métricas de salud nuevas
 
 **Estado:** hecha
-**Escrita:** 2026-11-06 · sesión de diseño
+**Escrita:** 2026-11-07 · sesión de diseño
 
-## Revisión de la tarea 25
-Aprobada. Al equipo le gustó la píldora («le da un toque premium»):
-- posición en espacio de índice, leída solo en `graphicsLayer`;
-- resorte sin rebote que cambia de rumbo sin saltos;
-- el color del ícono que sigue a la píldora (desviación aprobada: era la forma correcta);
-- el pulso con 80 ms de retraso;
-- las hojas de contacto cuadro por cuadro.
+## Revisión de la tarea 26
+Aprobada:
+- barra persistente con `TabGuard`;
+- `SlidingSelectionIndicator` compartido;
+- `DirectionalContentSwap`;
+- datos que van del valor anterior al nuevo;
+- renglones completos sin tocar lo que se copia;
+- anfitrión de avisos con buzón y `clear()` al bloquear;
+- la tabla de la auditoría.
 
-`security-reviewer`: 0 altos y 0 medios. Bien corregidos BAJO-2 y BAJO-3.
+Correcciones de `security-reviewer` bien hechas (M1, M2 y B1–B3).
 
-**Una cosa de arquitectura a corregir aquí (Paso 0):** «cada pantalla dibuja su propia barra». Por eso hace falta `TabBarHandoff`, y la barra vieja se desvanece mientras la nueva aparece. Una barra persistente es más simple y más fluida.
+**Desviaciones aprobadas:**
+- el aviso de conflictos resuelto que dice qué se eligió (reemplaza el de Figma);
+- los avisos fijos de la Bóveda en línea;
+- la barra sin `onTabSelected`.
 
-## Criterio de movimiento (igual que en las tareas 24 y 25)
-Apple (*Designing Fluid Interfaces*) y Emil Kowalski:
-- menos de 300 ms en lo frecuente;
-- curva `Motion.EaseOut`;
-- resortes sin rebote si no hay un gesto que lance algo;
-- interrumpible;
-- solo `alpha`/`translation`/`scale` en `graphicsLayer`;
-- con «Quitar animaciones» (`rememberReducedMotion()`) no hay movimiento, solo el estado final.
+**B4** se acepta como riesgo: la contraseña del Generador va en la `contentDescription`. Documéntalo en `SecureScreen` y lo anoto en el grafo.
 
-Lo que se ve pocas veces puede darse un pequeño momento de «deleite»; lo que se usa muchas veces, lo mínimo.
+## Criterio de movimiento
+Igual que las tareas 24–26: `Motion.EaseOut`, menos de 300 ms en lo frecuente, `graphicsLayer`, interrumpible y nada con «Quitar animaciones».
 
-**Nuevas constantes en `Motion.kt`, sin repetir números en las pantallas:**
-- `EnterRise = 8.dp`
-- `Stagger = 30` ms
-- `ChartDraw = 600` ms
-- `CountUp = 600` ms
-- `MessageIn = 200` ms
-- `MessageOut = 150` ms
+## Paso 1 · Salud: las animaciones se repiten al cambiar de vista
+El equipo quiere verlas **cada vez que se cambia entre Resumen y Progreso** (y entre «Más fuertes | Más débiles» / «Mejoradas recientemente», Paso 5), no solo la primera vez.
+- **Al cambiar con el selector**, la vista que entra repite su animación completa:
+  - tarjetas escalonadas;
+  - el aro de 0 al valor;
+  - la gráfica trazándose;
+  - las barras creciendo.
+- **Para que no canse**, en las repeticiones `CountUp` y `ChartDraw` bajan a **400 ms** (constante `Motion.ChartReplay`) y la escalera de tarjetas se queda en 30 ms. La primera vez de la sesión siguen en 600 ms.
+- **También al entrar a Salud desde otra pestaña** la vista visible repite su animación (400 ms), para que sea coherente con el selector.
+- **No se repite:**
+  - al recomponer;
+  - al volver de una pantalla de detalle de Salud (Filtradas, Repetidas…) con Atrás;
+  - con «Revisar ahora»: ahí sigue «del valor anterior al nuevo» en 300 ms.
+- **Interrumpible:** si se cambia de vista a mitad, la nueva arranca su animación y la anterior se descarta sin saltos.
+- Quita `summaryPlayed`/`progressPlayed` de `rememberSaveable` o cambia su regla.
 
-## Paso 0 · Barra inferior persistente
-- **Una sola `BottomNavBar` fuera del `NavHost`** (en el `Scaffold` raíz o un `Box` que lo envuelve):
-  - se muestra cuando el destino actual es una de las cuatro raíces de pestaña o una pantalla que hoy la lleva (revisa cuáles: en Figma la llevan los flujos de Ajustes);
-  - se oculta en el acceso, en Desbloquear, en «Cuenta eliminada» y con el teclado abierto.
-- **Al mostrarse u ocultarse:** desliza hacia abajo y se desvanece en 200 ms con `Motion.EaseOut`.
-- **Al cambiar de pestaña** la barra **no** se vuelve a crear: la píldora se desliza sobre la misma barra.
-- **Quita `TabBarHandoff` / `LocalTabBarHandoff`.** Las pantallas reservan el alto de la barra con `contentPadding` o `WindowInsets` propios, para que el contenido no quede debajo.
-- **Pruebas:** la píldora se desliza sin que la barra se desvanezca; la barra se oculta y aparece donde corresponde; las pruebas de `BottomNavBarTest` y `TabNavigationTest` siguen pasando.
+## Paso 2 · Movimiento dentro de las pantallas (lo que todavía cambia de golpe)
+Las **transiciones entre pantallas ya están en todas**: crear contraseña, detalle, editar y cada opción de Ajustes usan el desplazamiento de 60 dp (tarea 25). Lo que el equipo ve «brusco» es lo que cambia **dentro** de una misma pantalla:
+1. **Pasos dentro de un flujo:**
+   - los 3 pasos de activar la 2FA;
+   - correo nuevo → código en Cambiar correo;
+   - la verificación de correo y 2FA del acceso.
 
-## Paso 1 · Salud: selector, tarjetas y gráfica
-1. **Selector «Resumen | Progreso» y «Más fuertes | Más débiles»** (`SegmentedSelector`):
-   - mismo comportamiento que la píldora de la barra: **un solo fondo seleccionado que se desliza** entre opciones con `spring(dampingRatio = 1f, stiffness = 440f)`, en espacio de índice, leído en `graphicsLayer`;
-   - el color del texto sigue al fondo, igual que el ícono de la barra;
-   - extrae la lógica común de la barra a un componente o modificador compartido (`SlidingSelectionIndicator`), para no tenerla dos veces.
-2. **Cambio de contenido entre «Resumen» y «Progreso»:**
-   - fundido cruzado de 150 ms con desplazamiento de 16 dp en el sentido del selector: de izquierda a derecha al ir a «Progreso» y al revés al volver (mismo camino);
-   - el de «Más fuertes | Más débiles», igual.
-3. **Entrada de las tarjetas** (Resumen: el aro y las cuatro filas; Progreso: la tarjeta de puntos, los indicadores y «Por fuerza»):
-   - suben `EnterRise` (8 dp) y aparecen, 200 ms con `Motion.EaseOut`;
-   - escalonadas `Stagger` (30 ms) entre una y otra; **máximo 6 elementos escalonados**, el resto entra con el último;
-   - **solo la primera vez** que se muestra cada vista en la sesión desbloqueada; al volver a la pestaña o recomponer, ya están en su lugar.
-4. **Datos:**
-   - **aro de la puntuación:** el arco se dibuja de 0 a su valor y el número cuenta de 0 a «78» a la par, en `CountUp` (600 ms) con `Motion.EaseOut`;
-   - **gráfica de 12 semanas:** la línea se traza de izquierda a derecha en `ChartDraw` (600 ms), recortando el trazo con `PathMeasure` o un `clipRect` que avanza; los puntos aparecen cuando la línea llega a ellos;
-   - **barras de «Por fuerza»:** crecen desde cero a su ancho en 300 ms, escalonadas 30 ms;
-   - **cuándo:** solo al **primer** dibujo con datos de cada vista en la sesión. Si los datos cambian después («Revisar ahora»), el arco, el número y las barras van **del valor anterior al nuevo** en 300 ms, sin volver a cero.
-   - Son 600 ms porque Salud se visita pocas veces y es el «momento» de la app. **No bloquean nada:** se puede tocar todo mientras se animan.
-5. **TalkBack** lee el valor final desde el principio («78 de 100»), nunca los números intermedios.
+   Usa `AnimatedContent` con la misma transición de avanzar y regresar de `NavMotion`: 60 dp + fundido, 260/220 ms, al revés al volver. **Mismo camino:** avanzar desde la derecha y regresar desde la izquierda. La barra «Paso N de 3» llena su segmento con `Motion.EaseOut` en 260 ms.
+2. **De «cargando» al contenido** (esqueletos de Bóveda, Dispositivos, Actividad, 2FA y Salud):
+   - **fundido cruzado de 200 ms** del esqueleto al contenido;
+   - **las filas de la lista entran escalonadas:** suben 8 dp y aparecen en 200 ms, 30 ms entre filas, **máximo 8 escalonadas**; las demás aparecen con la octava;
+   - solo cuando llegan los datos, no al desplazar la lista.
 
-## Paso 2 · Contraseñas largas que aprovechan el ancho
-**Generador** (tarjeta oscura) y **2FA, paso 1** (la clave): hoy el texto se corta en 3 o 4 renglones dejando huecos, porque Android parte las líneas en los símbolos (`=`, `}`, `$`) como si fueran palabras.
-- **Generador:** reparte la contraseña **carácter por carácter, renglones completos**.
-  - La fuente es monoespaciada: mide el ancho de un carácter con `rememberTextMeasurer`, calcula cuántos caben por renglón en el ancho disponible y divide el texto en esos trozos (cada uno un renglón).
-  - El último renglón puede quedar corto.
-  - Funciona al girar la pantalla y con la escala de fuente del sistema (prueba con 1,3).
-- **Clave del 2FA:** grupos de 4 separados por espacio, con **tantos grupos por renglón como quepan** (sin partir un grupo). Por ejemplo, «YRHL PYJN Z4BT» en un renglón si caben tres.
-- **Importante:**
-  - copiar sigue copiando el valor **original**, sin saltos de línea ni espacios añadidos (la clave del 2FA se copia sin espacios, como ahora);
-  - el texto mostrado tampoco se guarda en ningún estado nuevo: se calcula al dibujar;
-  - TalkBack lee el valor como hoy.
-- **Pruebas:** con 16, 33 y 64 caracteres y anchos de 360 y 412 dp, ningún renglón (salvo el último) deja espacio para otro carácter; el portapapeles recibe el valor original.
+   Aplica a Dispositivos, Actividad (también las páginas nuevas: sus filas entran con el mismo efecto, sin mover las anteriores), la lista de la Bóveda, conflictos y las listas de Salud.
+3. **Cambios dentro de una lista:**
+   - **eliminar una contraseña:** la fila se encoge y se desvanece (200 ms);
+   - **«Deshacer»:** la fila vuelve a aparecer en su lugar;
+   - **cerrar sesión en un dispositivo:** su fila sale igual;
+   - **buscar en la Bóveda:** las filas que se quedan se reacomodan con `Modifier.animateItem()` (200 ms);
+   - todo con `LazyColumn` y claves estables por id.
+4. **Lo que aparece o desaparece dentro de una pantalla:**
+   - errores de los campos (tarea 15);
+   - la lista de requisitos;
+   - el campo «Código de tu app» cuando hay 2FA;
+   - los acordeones de los documentos legales;
+   - el bloque de salud del detalle.
 
-## Paso 3 · Avisos: posición, animación y los que faltan
-1. **Un solo lugar para los avisos (`MessageBar`):**
-   - un anfitrión en el `Scaffold` raíz (junto a la barra persistente del Paso 0) que los muestra **encima de la barra inferior** con 12 dp de separación, o encima del borde inferior si no hay barra;
-   - nunca encima de la barra ni del teclado;
-   - las pantallas piden el aviso a ese anfitrión en lugar de dibujar el suyo. Hoy son 11 usos de `MessageBar(`.
-2. **Animación del aviso:**
-   - entra subiendo 16 dp y apareciendo en `MessageIn` (200 ms) con `Motion.EaseOut`;
-   - sale bajando 8 dp y desvaneciéndose en `MessageOut` (150 ms): la salida es más rápida que la entrada;
-   - si llega otro aviso mientras hay uno, el actual sale y el nuevo entra, sin amontonarse;
-   - TalkBack lo anuncia (`liveRegion = Polite`), como ahora.
-3. **Feedback de las operaciones de la bóveda** (hoy solo eliminar avisa):
-   - **crear** → al volver a la lista: «{Nombre} se guardó»;
-   - **editar** → al volver al detalle: «Cambios guardados»;
-   - **guardar desde el generador** → «{Nombre} se guardó»;
-   - **eliminar** → el aviso de siempre con «Deshacer», ahora en el lugar nuevo y animado;
-   - **resolver un conflicto** → «Listo, se conservó tu versión» o «… la otra versión», según lo elegido.
-   - **Sin conexión:** el texto añade «Se subirá cuando haya conexión», porque la escritura queda pendiente.
-4. **Auditoría:** revisa **todas** las acciones que crean, cambian o borran algo y entrega en el reporte una tabla: acción · ¿tenía aviso? · aviso que queda. Incluye bóveda, conflictos, generador, 2FA, contraseña maestra, correo, dispositivos, huella, bloqueo automático, «Novedades y encuestas», copiar al portapapeles y cerrar sesión.
-   - Donde falte, agrégalo con el mismo estilo.
-   - **Donde no tenga sentido** (por ejemplo, el bloqueo automático, que ya muestra el valor nuevo en la fila), no lo agregues y dilo en la tabla.
+   Usa `AnimatedVisibility` con `expandVertically` + fundido en 200 ms y `shrinkVertically` + fundido en 150 ms, para que el contenido de abajo **se desplace suave** y no salte.
+5. **Elementos que cambian de valor:**
+   - el medidor de fuerza: las barras se llenan en 200 ms;
+   - el «Revisado hoy a las…» de Salud: fundido de 150 ms al cambiar el texto;
+   - el número de dispositivos en Ajustes: fundido de 150 ms.
+
+**Entrega en el reporte una tabla:** pantalla · qué cambiaba de golpe · qué movimiento tiene ahora. Si en algún lugar el movimiento estorba, déjalo sin animar y justifícalo; por ejemplo, el campo de contraseña al escribir: **nunca** animes el texto que se escribe.
+
+## Paso 3 · Índice de salud nuevo (cambia DEC-20)
+Lo pidió Diego y lo aprobó el equipo:
+- **Contraseña sana:** cumple **las cuatro** condiciones: no filtrada, no repetida **ni parecida** (Paso 4), fuerte (zxcvbn 3–4) y con menos de 365 días desde `passwordChangedAt`.
+- **Índice:** `round(100 × sanas / total)`, solo con los elementos legibles. Sin elementos no hay índice (estado vacío, como ahora).
+- **Tope por filtradas:** si hay **al menos una filtrada**, el índice se limita al **máximo del rango «En riesgo»**. Hoy ese máximo es **49**, porque «En riesgo» es menos de 50. Escríbelo como **regla**, no como número fijo: una constante derivada de los rangos de los mensajes, para que si cambian los rangos, el tope cambie solo.
+- **Los mensajes no cambian:**
+  - 90 o más: «Excelente»;
+  - 70–89: «Bien, pero puedes mejorar»;
+  - 50–69: «Necesita atención»;
+  - menos de 50: «En riesgo».
+- **Texto nuevo bajo el aro:** «**N de M** contraseñas están sanas». Con filtradas, debajo: «Cambia las filtradas para subir tu índice».
+- **Los niveles por elemento** (Crítico / Alto / Medio / Bajo, los triángulos y el aviso de la Bóveda) se quedan como están: sirven para ordenar qué atender primero. Solo cambia el cálculo del número global.
+- **Fotos diarias:** guarda también `healthy` (número de sanas) en `health_snapshots`.
+  - Sube la versión del formato del JSON cifrado y lee las fotos viejas sin `healthy`, con el índice de entonces.
+  - En la gráfica, las semanas viejas usan su `score` guardado. **No recalcules el pasado.**
+
+**Pruebas con casos hechos a mano** (tabla de la sesión de diseño):
+
+| Caso | Índice |
+|---|---|
+| 10 de 10 sanas | 100 |
+| 8 de 10 sanas (2 débiles) | 80 |
+| 9 de 10 sanas y 1 filtrada | 49 |
+| 6 de 10 sanas (1 filtrada y 3 repetidas) | 49 |
+| 5 de 10 sanas (5 antiguas) | 50 |
+
+Más casos para 0 elementos, una sola contraseña filtrada (0), redondeo (2 de 3 = 67) y que una «regular» (zxcvbn 2) no cuenta como sana.
+
+## Paso 4 · Contraseñas parecidas (reutilización disfrazada)
+**Hoy** solo se agrupan las idénticas (SHA-256 en memoria). **Agrega las parecidas**, también solo en memoria durante el análisis:
+1. **Forma reducida** de cada contraseña:
+   - NFKC y minúsculas (`Locale.ROOT`);
+   - sustituciones comunes (`@→a`, `4→a`, `3→e`, `1→i`, `!→i`, `0→o`, `$→s`, `5→s`, `7→t`);
+   - quitar los dígitos y símbolos **del final**.
+2. **Dos contraseñas son parecidas si:**
+   - (a) sus formas reducidas son iguales y tienen al menos **4 caracteres**, o
+   - (b) la distancia de Levenshtein entre las **originales** es **≤ 2** y las dos miden al menos **8 caracteres**.
+
+   Así `Gato2024!` y `Gato2025!` son parecidas, y `abc` y `abd` no.
+3. **Grupos:** las parecidas se agrupan por componentes conectados (unión de conjuntos). Las idénticas siguen siendo su propio caso.
+4. **Nivel:** «Parecida» cuenta igual que «Repetida» (nivel **Alto**, no sana).
+5. **Pantalla Repetidas:** se llama ahora «Repetidas y parecidas». Cada grupo dice «Misma contraseña en N sitios» o «Contraseñas parecidas en N sitios». En el detalle de un elemento: «Parecida a la de {Nombre}».
+6. **Rendimiento:** la comparación por pares es O(n²). Hasta 1 000 elementos debe tardar menos de 300 ms en `Dispatchers.Default`; con más, compara solo dentro de cubetas por forma reducida y por longitud ±2. Mídelo con una prueba de 1 000 contraseñas.
+7. **Memoria:** las formas reducidas y las distancias **nunca** se guardan, se registran ni salen del análisis. Se sobrescriben o se descartan como las contraseñas descifradas (tarea 14).
+
+**Pruebas:** `Gato2024!`/`Gato2025!`, `P@ssw0rd`/`password`, `Netflix#2023`/`Netflix#2024`, falsos positivos que **no** deben agruparse (`abc12345`/`xyz12345`, contraseñas de 6 caracteres a distancia 1), grupos transitivos y el tiempo con 1 000.
+
+## Paso 5 · Filtradas, ranking y gráfica
+1. **Filtradas:**
+   - ya van de más a menos apariciones;
+   - agrega el número en cada fila: «Apareció en 52 341 filtraciones», con separador de miles del idioma del teléfono.
+2. **Ranking:** «Más fuertes | Más débiles» cambia a **«Más débiles | Mejoradas recientemente»**.
+   - **Mejoradas recientemente:** `passwordChangedAt` en los **últimos 30 días** y **hoy sana**, ordenadas de la más reciente a la más antigua;
+   - **vacío:** «Todavía no hay contraseñas mejoradas este mes. Cambia una débil y aparecerá aquí.»;
+   - «Débiles» del Resumen sigue abriendo «Más débiles».
+3. **Gráfica de Progreso:**
+   - arriba, la **línea del índice** (como ahora);
+   - **debajo**, **barras apiladas por semana** con cuántas contraseñas hay en cada categoría, de la última foto de esa semana:
+     - sanas (`success`);
+     - antiguas (gris);
+     - débiles (amarillo `primary`);
+     - repetidas o parecidas (naranja de advertencia; si no existe un token, usa `primary` con más opacidad);
+     - filtradas (`danger`).
+   - Una contraseña cuenta **solo en su categoría más grave** (filtrada > repetida/parecida > débil > antigua > sana), para que la altura de cada barra sea el total.
+   - Leyenda pequeña debajo.
+   - Las semanas con fotos viejas sin el desglose completo muestran solo el total en gris.
+   - **Animación:** las barras crecen desde abajo, escalonadas 30 ms, con las reglas del Paso 1.
+   - **TalkBack:** cada semana se lee como «Semana del 2 de noviembre: 15 sanas, 2 débiles, 1 filtrada».
+   - No hay Figma para las barras: usa el estilo de la gráfica actual (mismos márgenes, ejes y tipografía).
+
+## No entra
+El aviso de sitios que admiten 2FA (2fa.directory) queda como **trabajo futuro**.
+
+## Capturas: no hacen falta
+El equipo revisa la sensación en su teléfono.
+- **No tomes capturas**, ni hojas de contacto, ni grabaciones con `screenrecord`, ni pruebas que solo guarden imágenes (como `Tarea26FramesTest`).
+- Comprueba el movimiento con **pruebas que afirman valores** con el reloj de Compose controlado: posición, alfa, escala, orden y tiempos.
+- **No uses `captureToImage`** en las pruebas nuevas.
+- Si una prueba existente falla solo por `PixelCopy` o una captura, dilo en el reporte y sigue.
 
 ## Terminado cuando
-- **Paso 0:** la barra persistente, sin `TabBarHandoff`, con sus pruebas.
-- **Paso 1:**
-  - pruebas con reloj controlado: el selector se desliza y cambia de rumbo sin saltos; las tarjetas entran escalonadas solo la primera vez; el arco y la gráfica se dibujan al primer dibujo y van del valor anterior al nuevo al refrescar; con «Quitar animaciones» todo aparece en su estado final;
-  - hojas de contacto cuadro por cuadro en `ai/handoff/capturas/tarea-26/`.
-- **Paso 2** con sus pruebas.
-- **Paso 3:**
-  - pruebas del anfitrión (posición encima de la barra, entrada y salida, reemplazo) y de cada aviso nuevo;
-  - la tabla de la auditoría.
+- **Pasos 1 y 2:**
+  - pruebas con reloj controlado: Salud repite al cambiar de vista y al entrar a la pestaña, y no al volver de un detalle; pasos de los flujos con su dirección; listas escalonadas solo al llegar los datos; filas que salen y vuelven;
+  - la tabla del Paso 2.
+- **Pasos 3–5:** todas las pruebas descritas y `HealthAnalyzerTest` actualizado.
+- `security-reviewer` revisa el Paso 4 (contraseñas en memoria). **REQUIERE REVISIÓN HUMANA.**
 - `testDebugUnitTest`, la suite completa de `connectedDebugAndroidTest` (salvo E3, en tandas), lint y `assembleRelease` pasan. Commits hechos y subidos, sin cambios de finales de línea.
 
 ## Al terminar
