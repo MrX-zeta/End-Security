@@ -81,6 +81,8 @@ class NavTransitionsTest {
                 exitTransition = { transitions.exit(this) },
                 popEnterTransition = { transitions.popEnter(this) },
                 popExitTransition = { transitions.popExit(this) },
+                predictivePopEnterTransition = { transitions.popEnter(this) },
+                predictivePopExitTransition = { transitions.popExit(this) },
             ) {
                 for (route in listOf(Routes.VAULT, Routes.HEALTH, Routes.GENERATOR, Routes.SETTINGS, Routes.DEVICES, Routes.ACTIVITY)) {
                     composable(route) { Screen(route) }
@@ -226,7 +228,7 @@ class NavTransitionsTest {
         val devicesLeft = leftDp(Routes.DEVICES)
         onUi { popBackStack() }
         composeRule.mainClock.advanceTimeByFrame()
-        // Sin salto: Dispositivos sigue desde donde iba (no vuelve a +30 dp ni se teletransporta).
+        // Sin salto: Dispositivos sigue desde donde iba (no vuelve a +60 dp ni se teletransporta).
         val after = leftDp(Routes.DEVICES)
         assertTrue("saltó de $devicesLeft a $after dp", kotlin.math.abs(after - devicesLeft) < 12f)
         composeRule.mainClock.autoAdvance = true
@@ -242,7 +244,7 @@ class NavTransitionsTest {
         onUi { navigateToTab(BottomNavTab.Settings) }
         composeRule.waitForIdle()
         composeRule.mainClock.autoAdvance = false
-        // Avanzar: la nueva entra desde +30 dp (a la derecha) y la anterior sale hacia −30 dp.
+        // Avanzar: la nueva entra desde +60 dp (a la derecha) y la anterior sale hacia −60 dp.
         onUi { navigate(Routes.DEVICES) { launchSingleTop = true } }
         composeRule.mainClock.advanceTimeByFrame()
         composeRule.mainClock.advanceTimeBy(32)
@@ -253,7 +255,7 @@ class NavTransitionsTest {
         composeRule.mainClock.autoAdvance = true
         composeRule.waitForIdle()
         composeRule.mainClock.autoAdvance = false
-        // Regresar: el mismo camino al revés. La actual sale hacia +30 dp y la anterior vuelve desde −30 dp.
+        // Regresar: el mismo camino al revés. La actual sale hacia +60 dp y la anterior vuelve desde −60 dp.
         onUi { popBackStack() }
         composeRule.mainClock.advanceTimeByFrame()
         composeRule.mainClock.advanceTimeBy(32)

@@ -109,8 +109,17 @@ fun UnlockRoute(
     LaunchedEffect(viewModel) {
         viewModel.effects.collect { effect ->
             when (effect) {
-                UnlockEffect.NavigateToVault -> currentOnNavigateToVault()
-                UnlockEffect.NavigateToLogin -> currentOnNavigateToLogin()
+                // Se vacía el campo y se oculta el ojo antes de navegar: la pantalla sigue visible durante el fundido de salida.
+                UnlockEffect.NavigateToVault -> {
+                    passwordState.clearText()
+                    passwordVisible = false
+                    currentOnNavigateToVault()
+                }
+                UnlockEffect.NavigateToLogin -> {
+                    passwordState.clearText()
+                    passwordVisible = false
+                    currentOnNavigateToLogin()
+                }
                 is UnlockEffect.ShowBiometricPrompt -> {
                     val activity = context.findFragmentActivity()
                     if (activity == null) {

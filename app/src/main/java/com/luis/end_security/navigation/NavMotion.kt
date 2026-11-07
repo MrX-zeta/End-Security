@@ -18,7 +18,7 @@ internal enum class NavMotionKind {
     /** Entre pestañas hermanas: fundido cruzado corto, sin desplazamiento. */
     TabSwitch,
 
-    /** Avanzar y regresar dentro de una pestaña (o de un flujo): eje horizontal compartido de 30 dp. */
+    /** Avanzar y regresar dentro de una pestaña (o de un flujo): eje horizontal compartido de 60 dp. */
     Push,
 
     /** Bloquear, entrar o salir de sesión: fundido, sin desplazamiento. */
@@ -57,7 +57,7 @@ private fun leavesSecureZoneToAccess(from: String?, to: String?): Boolean =
     isSignedOut(from) == false && (to == Routes.UNLOCK || to == Routes.LOGIN || to == Routes.ACCOUNT_DELETED)
 
 /**
- * Las cuatro transiciones del `NavHost` (tarea 24). [slidePx] son los 30 dp en píxeles; [reduced] es «Quitar animaciones».
+ * Las cuatro transiciones del `NavHost` (tarea 24). [slidePx] son los 60 dp en píxeles; [reduced] es «Quitar animaciones».
  * Se aplican a todas las rutas: ninguna pantalla debe poner las suyas (las hojas inferiores y los diálogos traen su animación).
  */
 internal class NavTransitions(private val slidePx: Int, private val reduced: Boolean) {
@@ -72,14 +72,16 @@ internal class NavTransitions(private val slidePx: Int, private val reduced: Boo
         return when (kind(scope)) {
             NavMotionKind.TabSwitch -> fadeIn(fade(Motion.TabFade))
             NavMotionKind.StateChange -> fadeIn(fade(Motion.StateFade))
-            // Entra desde +30 dp hasta 0, con fundido.
+            // Entra desde +60 dp hasta 0, con fundido.
             NavMotionKind.Push -> slideInHorizontally(tween(Motion.Push, easing = Motion.EaseOut)) { slidePx } +
                 fadeIn(fade(Motion.Push))
         }
     }
 
     fun exit(scope: AnimatedContentTransitionScope<NavBackStackEntry>): ExitTransition {
-        if (reduced) return ExitTransition.None
+        // Con «Quitar animaciones» no hay movimiento, pero al bloquear la pantalla con secretos igual se apaga al instante: no se
+        // depende de que la de destino tenga el fondo opaco mientras Navigation conserva la anterior unos cuadros.
+        if (reduced) return if (leavesSecureZoneToAccess(scope.initialState.destination.route, scope.targetState.destination.route)) fadeOut(snap()) else ExitTransition.None
         return when (kind(scope)) {
             NavMotionKind.TabSwitch -> fadeOut(fade(Motion.TabFadeOut))
             NavMotionKind.StateChange ->
@@ -90,13 +92,13 @@ internal class NavTransitions(private val slidePx: Int, private val reduced: Boo
                 } else {
                     fadeOut(fade(Motion.StateFade))
                 }
-            // Sale de 0 a −30 dp, con fundido.
+            // Sale de 0 a −60 dp, con fundido.
             NavMotionKind.Push -> slideOutHorizontally(tween(Motion.PushExit, easing = Motion.EaseOut)) { -slidePx } +
                 fadeOut(fade(Motion.PushExit))
         }
     }
 
-    /** Regresar: el mismo camino al revés. La anterior vuelve desde −30 dp. */
+    /** Regresar: el mismo camino al revés. La anterior vuelve desde −60 dp. */
     fun popEnter(scope: AnimatedContentTransitionScope<NavBackStackEntry>): EnterTransition {
         if (reduced) return EnterTransition.None
         return when (kind(scope)) {
@@ -107,9 +109,11 @@ internal class NavTransitions(private val slidePx: Int, private val reduced: Boo
         }
     }
 
-    /** Regresar: la actual sale hacia +30 dp. */
+    /** Regresar: la actual sale hacia +60 dp. */
     fun popExit(scope: AnimatedContentTransitionScope<NavBackStackEntry>): ExitTransition {
-        if (reduced) return ExitTransition.None
+        // Con «Quitar animaciones» no hay movimiento, pero al bloquear la pantalla con secretos igual se apaga al instante: no se
+        // depende de que la de destino tenga el fondo opaco mientras Navigation conserva la anterior unos cuadros.
+        if (reduced) return if (leavesSecureZoneToAccess(scope.initialState.destination.route, scope.targetState.destination.route)) fadeOut(snap()) else ExitTransition.None
         return when (kind(scope)) {
             NavMotionKind.TabSwitch -> fadeOut(fade(Motion.TabFadeOut))
             NavMotionKind.StateChange ->

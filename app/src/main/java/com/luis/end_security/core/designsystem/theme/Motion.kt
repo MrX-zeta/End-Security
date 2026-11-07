@@ -26,18 +26,18 @@ object Motion {
     const val TabFadeOut = 90
 
     /** Avanzar o regresar dentro de una pestaña: la pantalla que entra… */
-    const val Push = 240
+    const val Push = 260
 
     /** …y la que sale. */
-    const val PushExit = 200
+    const val PushExit = 220
 
     /** Bloquear, entrar y salir de sesión: un cambio de estado, no de jerarquía. Fundido sin desplazamiento. */
     const val StateFade = 200
 
-    /** Cuánto se desplazan las pantallas al avanzar y regresar: lo justo para indicar dirección. */
-    val Slide = 30.dp
+    /** Cuánto se desplazan las pantallas al avanzar y regresar: se nota la dirección sin alargar la duración (tarea 25: 30 → 60 dp). */
+    val Slide = 60.dp
 
     // Topes que las pruebas de tiempo exigen (duración + un cuadro de margen).
     const val TabSwitchLimitMillis = 200L
-    const val PushLimitMillis = 260L
+    const val PushLimitMillis = 280L
 }

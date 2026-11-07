@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -18,6 +19,8 @@ import com.luis.end_security.core.designsystem.theme.rememberReducedMotion
 import com.luis.end_security.core.designsystem.theme.Motion
 import androidx.compose.ui.platform.LocalDensity
 import com.luis.end_security.core.designsystem.component.BottomNavTab
+import com.luis.end_security.core.designsystem.component.LocalTabBarHandoff
+import com.luis.end_security.core.designsystem.component.TabBarHandoff
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -75,7 +78,11 @@ fun AppNavHost(
     var splashFinished by rememberSaveable { mutableStateOf(debugStartRoute != null) }
     Box(modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         // La ruta se arma debajo en cuanto se decide, para que el fundido de salida la revele.
-        if (route != null) AppNavigation(route = route)
+        // Relevo entre las barras inferiores de cada pestaña: así la píldora se desliza de la pestaña anterior a la nueva.
+        val tabBarHandoff = remember { TabBarHandoff() }
+        if (route != null) {
+            CompositionLocalProvider(LocalTabBarHandoff provides tabBarHandoff) { AppNavigation(route = route) }
+        }
         if (!splashFinished) {
             SplashRoute(destinationReady = route != null, onFinished = { splashFinished = true })
         }
