@@ -1,77 +1,111 @@
-# Tarea 25 · Transiciones más notorias y barra inferior animada
+# Tarea 26 · Movimiento en Salud, contraseñas que aprovechan el ancho y avisos de guardado
 
 **Estado:** hecha
 **Escrita:** 2026-11-06 · sesión de diseño
 
-## Revisión de la tarea 24
-Aprobada:
-- `KeyboardAwareLayout` lee el IME en la fase de colocación, así que sube con el teclado cuadro por cuadro;
-- la fila de Desbloquear coincide con Figma y queda a 16 dp del teclado;
-- Iniciar sesión cumple la misma regla;
-- `Motion` y `NavMotion` aplican una sola política;
-- regreso predictivo;
-- «Quitar animaciones»;
-- tiempos medidos;
-- diff limpio, sin CRLF.
+## Revisión de la tarea 25
+Aprobada. Al equipo le gustó la píldora («le da un toque premium»):
+- posición en espacio de índice, leída solo en `graphicsLayer`;
+- resorte sin rebote que cambia de rumbo sin saltos;
+- el color del ícono que sigue a la píldora (desviación aprobada: era la forma correcta);
+- el pulso con 80 ms de retraso;
+- las hojas de contacto cuadro por cuadro.
 
-Aprobadas tus desviaciones, incluida la salida instantánea (`fadeOut(snap())`) al bloquear. Tenías razón: la escala 5× no afecta a Compose.
+`security-reviewer`: 0 altos y 0 medios. Bien corregidos BAJO-2 y BAJO-3.
 
-El equipo ya vio las transiciones en el teléfono y las quiere **un poco más notorias, sin que se sientan lentas**. También quiere animar la barra inferior.
+**Una cosa de arquitectura a corregir aquí (Paso 0):** «cada pantalla dibuja su propia barra». Por eso hace falta `TabBarHandoff`, y la barra vieja se desvanece mientras la nueva aparece. Una barra persistente es más simple y más fluida.
 
-## Paso 0 · `security-reviewer` de la tarea 24
-Pásale lo que no se revisó:
-- `UnlockScreen` con `KeyboardAwareLayout`: el campo de la contraseña maestra, `ExcludeFromAutofill` y que nada se mida o registre con el contenido;
-- el orden de `FLAG_SECURE` respecto a las transiciones. Al entrar a una pantalla con `SecureScreen`, la bandera debe estar puesta **antes** del primer cuadro de la transición. Al salir hacia una pantalla sin ella, debe quitarse **después** del último cuadro, para que ni la vista de recientes ni una captura alcance un cuadro intermedio con secretos.
+## Criterio de movimiento (igual que en las tareas 24 y 25)
+Apple (*Designing Fluid Interfaces*) y Emil Kowalski:
+- menos de 300 ms en lo frecuente;
+- curva `Motion.EaseOut`;
+- resortes sin rebote si no hay un gesto que lance algo;
+- interrumpible;
+- solo `alpha`/`translation`/`scale` en `graphicsLayer`;
+- con «Quitar animaciones» (`rememberReducedMotion()`) no hay movimiento, solo el estado final.
 
-Corrige lo que encuentre.
+Lo que se ve pocas veces puede darse un pequeño momento de «deleite»; lo que se usa muchas veces, lo mínimo.
 
-## Paso 1 · Transiciones al avanzar y regresar, un poco más notorias
-Solo cambian valores en `Motion.kt`; la política (`NavMotion`) y las pantallas no se tocan.
+**Nuevas constantes en `Motion.kt`, sin repetir números en las pantallas:**
+- `EnterRise = 8.dp`
+- `Stagger = 30` ms
+- `ChartDraw = 600` ms
+- `CountUp = 600` ms
+- `MessageIn = 200` ms
+- `MessageOut = 150` ms
 
-| Constante | Antes | Ahora |
-|---|---|---|
-| `Slide` | 30 dp | **60 dp** |
-| `Push` (la que entra) | 240 ms | **260 ms** |
-| `PushExit` (la que sale) | 200 ms | **220 ms** |
-| `PushLimitMillis` (prueba) | 260 | **280** |
-| `TabFade` / `TabFadeOut` / `StateFade` | 150 / 90 / 200 | **sin cambio** |
+## Paso 0 · Barra inferior persistente
+- **Una sola `BottomNavBar` fuera del `NavHost`** (en el `Scaffold` raíz o un `Box` que lo envuelve):
+  - se muestra cuando el destino actual es una de las cuatro raíces de pestaña o una pantalla que hoy la lleva (revisa cuáles: en Figma la llevan los flujos de Ajustes);
+  - se oculta en el acceso, en Desbloquear, en «Cuenta eliminada» y con el teclado abierto.
+- **Al mostrarse u ocultarse:** desliza hacia abajo y se desvanece en 200 ms con `Motion.EaseOut`.
+- **Al cambiar de pestaña** la barra **no** se vuelve a crear: la píldora se desliza sobre la misma barra.
+- **Quita `TabBarHandoff` / `LocalTabBarHandoff`.** Las pantallas reservan el alto de la barra con `contentPadding` o `WindowInsets` propios, para que el contenido no quede debajo.
+- **Pruebas:** la píldora se desliza sin que la barra se desvanezca; la barra se oculta y aparece donde corresponde; las pruebas de `BottomNavBarTest` y `TabNavigationTest` siguen pasando.
 
-Misma curva `EaseOut`. Actualiza los comentarios y las pruebas de tiempo. Revisa a ojo que regresar con el gesto predictivo siga viéndose bien con 60 dp.
+## Paso 1 · Salud: selector, tarjetas y gráfica
+1. **Selector «Resumen | Progreso» y «Más fuertes | Más débiles»** (`SegmentedSelector`):
+   - mismo comportamiento que la píldora de la barra: **un solo fondo seleccionado que se desliza** entre opciones con `spring(dampingRatio = 1f, stiffness = 440f)`, en espacio de índice, leído en `graphicsLayer`;
+   - el color del texto sigue al fondo, igual que el ícono de la barra;
+   - extrae la lógica común de la barra a un componente o modificador compartido (`SlidingSelectionIndicator`), para no tenerla dos veces.
+2. **Cambio de contenido entre «Resumen» y «Progreso»:**
+   - fundido cruzado de 150 ms con desplazamiento de 16 dp en el sentido del selector: de izquierda a derecha al ir a «Progreso» y al revés al volver (mismo camino);
+   - el de «Más fuertes | Más débiles», igual.
+3. **Entrada de las tarjetas** (Resumen: el aro y las cuatro filas; Progreso: la tarjeta de puntos, los indicadores y «Por fuerza»):
+   - suben `EnterRise` (8 dp) y aparecen, 200 ms con `Motion.EaseOut`;
+   - escalonadas `Stagger` (30 ms) entre una y otra; **máximo 6 elementos escalonados**, el resto entra con el último;
+   - **solo la primera vez** que se muestra cada vista en la sesión desbloqueada; al volver a la pestaña o recomponer, ya están en su lugar.
+4. **Datos:**
+   - **aro de la puntuación:** el arco se dibuja de 0 a su valor y el número cuenta de 0 a «78» a la par, en `CountUp` (600 ms) con `Motion.EaseOut`;
+   - **gráfica de 12 semanas:** la línea se traza de izquierda a derecha en `ChartDraw` (600 ms), recortando el trazo con `PathMeasure` o un `clipRect` que avanza; los puntos aparecen cuando la línea llega a ellos;
+   - **barras de «Por fuerza»:** crecen desde cero a su ancho en 300 ms, escalonadas 30 ms;
+   - **cuándo:** solo al **primer** dibujo con datos de cada vista en la sesión. Si los datos cambian después («Revisar ahora»), el arco, el número y las barras van **del valor anterior al nuevo** en 300 ms, sin volver a cero.
+   - Son 600 ms porque Salud se visita pocas veces y es el «momento» de la app. **No bloquean nada:** se puede tocar todo mientras se animan.
+5. **TalkBack** lee el valor final desde el principio («78 de 100»), nunca los números intermedios.
 
-## Paso 2 · Barra inferior: la píldora se desliza
-Hoy la píldora negra de la pestaña activa aparece de golpe en la nueva. Debe **deslizarse** desde la pestaña anterior hasta la nueva.
-- **Una sola píldora** (44 × 36, `ActiveIconShape`, `colorScheme.onSurface`) dibujada **detrás** de la fila de pestañas, en lugar de un fondo por pestaña. Su posición horizontal se anima al centro del ícono de la pestaña seleccionada. Mide la posición de cada ícono con `onGloballyPositioned` o con un `Layout` propio; no la calcules con números fijos.
-- **Animación:**
-  - resorte **sin rebote**: `spring(dampingRatio = 1f, stiffness = 440f)`, que llega en unos 250 ms (Apple usa *damping 1.0, response 0.3* para mover algo de un lugar a otro sin un gesto que lo lance);
-  - con `Animatable` y `animateTo`: si se toca otra pestaña a la mitad, cambia de rumbo **desde donde va**, sin saltos y conservando la velocidad;
-  - solo `translationX` (`graphicsLayer` u `offset { }` en la fase de colocación), sin cambiar el layout.
-- **Color del ícono:**
-  - con `animateColorAsState`, de `onSurfaceVariant` a `background` (blanco sobre la píldora) en **150 ms** con `Motion.EaseOut`;
-  - el de la pestaña que se deja hace lo inverso.
+## Paso 2 · Contraseñas largas que aprovechan el ancho
+**Generador** (tarjeta oscura) y **2FA, paso 1** (la clave): hoy el texto se corta en 3 o 4 renglones dejando huecos, porque Android parte las líneas en los símbolos (`=`, `}`, `$`) como si fueran palabras.
+- **Generador:** reparte la contraseña **carácter por carácter, renglones completos**.
+  - La fuente es monoespaciada: mide el ancho de un carácter con `rememberTextMeasurer`, calcula cuántos caben por renglón en el ancho disponible y divide el texto en esos trozos (cada uno un renglón).
+  - El último renglón puede quedar corto.
+  - Funciona al girar la pantalla y con la escala de fuente del sistema (prueba con 1,3).
+- **Clave del 2FA:** grupos de 4 separados por espacio, con **tantos grupos por renglón como quepan** (sin partir un grupo). Por ejemplo, «YRHL PYJN Z4BT» en un renglón si caben tres.
+- **Importante:**
+  - copiar sigue copiando el valor **original**, sin saltos de línea ni espacios añadidos (la clave del 2FA se copia sin espacios, como ahora);
+  - el texto mostrado tampoco se guarda en ningún estado nuevo: se calcula al dibujar;
+  - TalkBack lee el valor como hoy.
+- **Pruebas:** con 16, 33 y 64 caracteres y anchos de 360 y 412 dp, ningún renglón (salvo el último) deja espacio para otro carácter; el portapapeles recibe el valor original.
 
-  Así el ícono «se enciende» cuando la píldora llega, en lugar de verse blanco sobre fondo claro mientras la píldora aún viene.
-- **La etiqueta** de abajo no se mueve. Su peso y color cambian como ahora; el color también con 150 ms.
-- **Primer dibujo y regreso desde otra pantalla:** la píldora aparece **ya en su lugar**, sin deslizarse (por ejemplo, al abrir la app o al volver de Desbloquear). Solo se desliza cuando cambia la pestaña con la barra visible.
-
-## Paso 3 · Barra inferior: «pulso» del ícono seleccionado
-- Cuando una pestaña **pasa a estar seleccionada**, su ícono hace un pulso de escala **0,92 → 1,0** en **200 ms** con `Motion.EaseOut` (`graphicsLayer { scaleX; scaleY }`), a la par de la llegada de la píldora.
-- No pulsa en el primer dibujo ni al volver a la misma pestaña. Es igual para las cuatro pestañas; sin giros.
-
-## Reglas
-- **«Quitar animaciones»** (`rememberReducedMotion()`): la píldora salta a su lugar, el color cambia al instante y no hay pulso.
-- **Accesibilidad:** no cambian `Role.Tab`, el estado seleccionado, el área táctil de 76 × 54, ni que no haya onda al tocar.
-- **Rendimiento:** la barra no debe recomponer las cuatro pestañas en cada cuadro de la animación. La posición se lee en la fase de colocación o de dibujo, no en la composición.
-- La navegación sigue igual: tocar una pestaña navega en el mismo momento. La animación de la barra corre en paralelo con el fundido de 150 ms del contenido; no se espera una a la otra.
+## Paso 3 · Avisos: posición, animación y los que faltan
+1. **Un solo lugar para los avisos (`MessageBar`):**
+   - un anfitrión en el `Scaffold` raíz (junto a la barra persistente del Paso 0) que los muestra **encima de la barra inferior** con 12 dp de separación, o encima del borde inferior si no hay barra;
+   - nunca encima de la barra ni del teclado;
+   - las pantallas piden el aviso a ese anfitrión en lugar de dibujar el suyo. Hoy son 11 usos de `MessageBar(`.
+2. **Animación del aviso:**
+   - entra subiendo 16 dp y apareciendo en `MessageIn` (200 ms) con `Motion.EaseOut`;
+   - sale bajando 8 dp y desvaneciéndose en `MessageOut` (150 ms): la salida es más rápida que la entrada;
+   - si llega otro aviso mientras hay uno, el actual sale y el nuevo entra, sin amontonarse;
+   - TalkBack lo anuncia (`liveRegion = Polite`), como ahora.
+3. **Feedback de las operaciones de la bóveda** (hoy solo eliminar avisa):
+   - **crear** → al volver a la lista: «{Nombre} se guardó»;
+   - **editar** → al volver al detalle: «Cambios guardados»;
+   - **guardar desde el generador** → «{Nombre} se guardó»;
+   - **eliminar** → el aviso de siempre con «Deshacer», ahora en el lugar nuevo y animado;
+   - **resolver un conflicto** → «Listo, se conservó tu versión» o «… la otra versión», según lo elegido.
+   - **Sin conexión:** el texto añade «Se subirá cuando haya conexión», porque la escritura queda pendiente.
+4. **Auditoría:** revisa **todas** las acciones que crean, cambian o borran algo y entrega en el reporte una tabla: acción · ¿tenía aviso? · aviso que queda. Incluye bóveda, conflictos, generador, 2FA, contraseña maestra, correo, dispositivos, huella, bloqueo automático, «Novedades y encuestas», copiar al portapapeles y cerrar sesión.
+   - Donde falte, agrégalo con el mismo estilo.
+   - **Donde no tenga sentido** (por ejemplo, el bloqueo automático, que ya muestra el valor nuevo en la fila), no lo agregues y dilo en la tabla.
 
 ## Terminado cuando
-- **Paso 0** con los hallazgos corregidos.
-- **Pruebas** (reloj de Compose controlado):
-  - las transiciones con los nuevos valores (≤ 280 ms al avanzar y regresar; ≤ 200 ms al cambiar de pestaña);
-  - **la píldora:** termina centrada en la pestaña nueva; a la mitad está entre las dos; al tocar otra a la mitad, sigue sin saltar (comprobar que la posición es continua entre dos cuadros); en el primer dibujo ya está en su lugar;
-  - **el pulso:** ocurre al seleccionar y no en el primer dibujo;
-  - con «Quitar animaciones» no hay movimiento;
-  - las pruebas existentes de `BottomNavBarTest` siguen pasando.
-- **Grabación** con `adb shell screenrecord` de Bóveda → Salud → Generador → Ajustes y de toques rápidos seguidos. Revísala cuadro por cuadro y descríbela en el reporte.
+- **Paso 0:** la barra persistente, sin `TabBarHandoff`, con sus pruebas.
+- **Paso 1:**
+  - pruebas con reloj controlado: el selector se desliza y cambia de rumbo sin saltos; las tarjetas entran escalonadas solo la primera vez; el arco y la gráfica se dibujan al primer dibujo y van del valor anterior al nuevo al refrescar; con «Quitar animaciones» todo aparece en su estado final;
+  - hojas de contacto cuadro por cuadro en `ai/handoff/capturas/tarea-26/`.
+- **Paso 2** con sus pruebas.
+- **Paso 3:**
+  - pruebas del anfitrión (posición encima de la barra, entrada y salida, reemplazo) y de cada aviso nuevo;
+  - la tabla de la auditoría.
 - `testDebugUnitTest`, la suite completa de `connectedDebugAndroidTest` (salvo E3, en tandas), lint y `assembleRelease` pasan. Commits hechos y subidos, sin cambios de finales de línea.
 
 ## Al terminar
