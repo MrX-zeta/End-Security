@@ -22,8 +22,8 @@ memoria y no se escribe en logcat. Desaparece al unir el backend real.
 
 ## Cuentas con verificación en dos pasos
 
-En las compilaciones de **depuración**, cualquier correo con `+2fa` en la parte de antes de la `@` se crea con 2FA activo, por
-ejemplo `ana+2fa@correo.com`. En release no existe.
+En la variante **`demo`** (debug o release; `BuildConfig.DEMO_MODE`), cualquier correo con `+2fa` en la parte de antes de la `@` se crea con 2FA activo, por
+ejemplo `ana+2fa@correo.com`. En la variante `prod` no existe.
 Al iniciar sesión con esa cuenta, la app pide el código de 6 dígitos.
 
 1. En la app autenticadora (Google Authenticator, Aegis, 2FAS…), agrega una cuenta **con clave de configuración**:
@@ -55,10 +55,10 @@ No aplica el límite por IP (no hay IP) y el cambio de correo es mínimo. Lo dem
 ## Sincronización y conflictos (tarea 12)
 
 - El backend falso responde también `GET /vault/items/{id}` (EP-26, contrato 1.2.0): la versión actual de un elemento, lápida incluida, o `404 not_found` si no existe. La app lo usa para «Elegir versión».
-- Con la app en depuración se puede simular al **otro dispositivo** sin un segundo teléfono: el receptor `app/src/debug/.../OtherDeviceReceiver` (solo existe en `debug`; el permiso `DUMP` lo limita a `adb shell`) escribe en el backend falso una versión distinta de un elemento, cifrada con la `vault_key` de la sesión abierta. La bóveda debe estar desbloqueada.
+- Con la app en depuración se puede simular al **otro dispositivo** sin un segundo teléfono: el receptor `app/src/demoDebug/.../OtherDeviceReceiver` (solo existe en `demoDebug`; el permiso `DUMP` lo limita a `adb shell`) escribe en el backend falso una versión distinta de un elemento, cifrada con la `vault_key` de la sesión abierta. La bóveda debe estar desbloqueada.
 
   ```
-  adb -s emulator-5554 shell am broadcast -a com.luis.end_security.debug.OTHER_DEVICE -n com.luis.end_security/.debug.OtherDeviceReceiver --es name "Netflix" --es new_name "Netflix (otro)"
+  adb -s emulator-5554 shell am broadcast -a com.luis.end_security.debug.OTHER_DEVICE -n com.luis.end_security.demo/com.luis.end_security.debug.OtherDeviceReceiver --es name "Netflix" --es new_name "Netflix (otro)"
   ```
 
   Extras: `name` (nombre actual del elemento), `new_name` y `new_password` (opcionales), o `--ez delete true` para dejar una lápida. El resultado sale en logcat con la etiqueta `OtherDevice` (`ok` o el motivo del fallo, nunca datos).

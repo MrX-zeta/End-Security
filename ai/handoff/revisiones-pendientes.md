@@ -24,6 +24,10 @@
 | M16 | Eliminar una cuenta de prueba en el Redmi: vuelve al inicio y ya no se puede entrar con ella | Tarea 20 | ☐ |
 | M17 | Cambiar el correo en el Redmi con el código de demostración; entrar con el nuevo; ver la espera de 24 h | Tarea 21 | ☐ |
 | M18 | Leer el aviso y los términos en el Redmi: resumen, secciones plegables, enlaces desde Crear cuenta | Tarea 22 | ☐ |
+| M19 | Desbloquear en el Redmi con la huella activa: huella a la izquierda de «Desbloquear», y al abrir el teclado los dos suben juntos y quedan justo encima | Tarea 24 | ☐ |
+| M20 | Transiciones en el Redmi: cambiar de pestaña (la píldora se desliza y el ícono pulsa), avanzar y regresar con el gesto Atrás (incluido el gesto cancelado a medias) | Tareas 24–25 | ☐ |
+| M21 | Salud en el Redmi: selector deslizante, entrada de tarjetas, aro y gráfica al primer dibujo; avisos al crear, editar y eliminar, encima de la barra | Tarea 26 | ☐ |
+| M22 | Salud en el Redmi con contraseñas de prueba (Gato2024!/Gato2025!, una filtrada): índice con el tope, «Parecida a…», barras apiladas y animaciones al cambiar de vista | Tarea 27 | ☐ |
 
 ## Lectura del código marcado «REQUIERE REVISIÓN HUMANA»
 Hay que leerlo y entenderlo para poder explicarlo en la presentación.
@@ -44,11 +48,12 @@ Hay que leerlo y entenderlo para poder explicarlo en la presentación.
 | R13 | Recuperación de cuenta con sal nueva en `login()` (tres condiciones) | 19 | ☐ |
 | R14 | Eliminar cuenta: EP-18 con `NonCancellable` y limpieza local completa | 20 | ☐ |
 | R15 | Cambio de correo: `EmailNormalizer`, límites de DEC-63 y actualización del correo local | 21 | ☐ |
+| R16 | Salud: índice de sanas con tope, contraseñas parecidas (forma reducida y Levenshtein en memoria) | 27 | ☐ |
 
 ## Antes de unir el backend real o de entregar
 | # | Qué | Hecho |
 |---|---|---|
-| E1 | `USE_FAKE_BACKEND = false` en release (el código de correo no debe verse) | ☐ |
+| E1 | ~~`USE_FAKE_BACKEND = false` en release~~ **Resuelto por diseño (tarea 31):** el backend falso solo existe en la variante `demo`; `prod` no lo contiene (prueba `ProdFlavorTest` y verificación en el APK `prodRelease`) y `DEMO_MODE` es `false` allí | ☑ |
 | E2 | Pines SPKI del servidor en `network_security_config.xml` (DEC-22) | ☐ |
 | E3 | Volver a correr `ClipboardDeviceTest` con «Enable clipboard sharing» desactivado en el emulador (Android Studio → emulador → ⋯ Extended controls → Settings → General) | ☐ |
 | E4 | Marcadores legales: nombres y correo ✔ (2026-11-04); falta el proveedor de hosting; confirmar domicilio (UPChiapas) y respaldos de la BD con Diego | ☐ |
