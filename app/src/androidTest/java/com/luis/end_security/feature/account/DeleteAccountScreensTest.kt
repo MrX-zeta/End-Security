@@ -145,7 +145,7 @@ class DeleteAccountScreensTest {
         render(withTwoFactor.copy(confirmCount = 24), actions, onConfirm = { confirmed = true })
         composeRule.onNodeWithText("¿Eliminar tu cuenta para siempre?").assertIsDisplayed()
         composeRule.onNodeWithText(
-            "Se borrarán tus 24 contraseñas de nuestros servidores y se cerrará la sesión en todos tus dispositivos. No podrás recuperarlas.",
+            "Se borrarán tus 24 contraseñas cifradas y se cerrará tu sesión en todos tus dispositivos.",
         ).assertIsDisplayed()
         composeRule.onNodeWithText("Sí, eliminar mi cuenta").assertIsDisplayed()
         composeRule.onNodeWithText("Cancelar").assertIsDisplayed()
@@ -159,7 +159,7 @@ class DeleteAccountScreensTest {
     fun laHojaConUnaContrasenaUsaElSingular() {
         render(withTwoFactor.copy(confirmCount = 1))
         composeRule.onNodeWithText(
-            "Se borrará tu 1 contraseña de nuestros servidores y se cerrará la sesión en todos tus dispositivos. No podrás recuperarla.",
+            "Se borrará tu 1 contraseña cifrada y se cerrará tu sesión en todos tus dispositivos.",
         ).assertIsDisplayed()
     }
 
@@ -211,7 +211,7 @@ class DeleteAccountScreensTest {
             }
         }
         composeRule.onNodeWithText("Tu cuenta fue eliminada").assertIsDisplayed()
-        composeRule.onNodeWithText("Borramos tus contraseñas de nuestros servidores. Gracias por haber usado End Security.").assertIsDisplayed()
+        composeRule.onNodeWithText("Borramos tus contraseñas cifradas. Gracias por usar End Security.").assertIsDisplayed()
         capture("tarea20-cuenta-eliminada")
         composeRule.onNodeWithText("Ir al inicio").performClick()
         assertEquals(1, home)

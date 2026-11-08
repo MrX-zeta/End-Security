@@ -519,7 +519,7 @@
     <string name="settings_autolock_value_15">15 min</string>
     <string name="settings_autolock_value_30">30 min</string>
     <string name="settings_sign_out_title">¿Cerrar sesión?</string>
-    <string name="settings_sign_out_body">Para volver necesitarás tu correo y tu contraseña maestra. Tu bóveda sigue guardada en tu cuenta.</string>
+    <string name="settings_sign_out_body">Para volver necesitarás tu correo y tu contraseña maestra. Tu bóveda cifrada sigue guardada en tu cuenta.</string>
     <string name="settings_sign_out_confirm">Cerrar sesión</string>
     <string name="settings_sign_out_cancel">Cancelar</string>
     <plurals name="settings_sign_out_unsynced_title">
@@ -706,22 +706,22 @@
     <string name="delete_title">Eliminar cuenta</string>
     <string name="delete_heading_bold">Eliminar tu cuenta</string>
     <string name="delete_heading_regular">no se puede deshacer</string>
-    <string name="delete_consequence_passwords">Se borrarán todas tus contraseñas de nuestros servidores.</string>
+    <string name="delete_consequence_passwords">Se borrarán tus contraseñas cifradas.</string>
     <string name="delete_consequence_sessions">Se cerrará la sesión en todos tus dispositivos.</string>
     <string name="delete_consequence_history">Tu historial quedará anónimo.</string>
     <string name="delete_password_label">Contraseña maestra</string>
     <string name="delete_submit">Eliminar mi cuenta</string>
     <string name="delete_sheet_title">¿Eliminar tu cuenta para siempre?</string>
     <plurals name="delete_sheet_body">
-        <item quantity="one">Se borrará tu %d contraseña de nuestros servidores y se cerrará la sesión en todos tus dispositivos. No podrás recuperarla.</item>
-        <item quantity="many">Se borrarán tus %d contraseñas de nuestros servidores y se cerrará la sesión en todos tus dispositivos. No podrás recuperarlas.</item>
-        <item quantity="other">Se borrarán tus %d contraseñas de nuestros servidores y se cerrará la sesión en todos tus dispositivos. No podrás recuperarlas.</item>
+        <item quantity="one">Se borrará tu %d contraseña cifrada y se cerrará tu sesión en todos tus dispositivos.</item>
+        <item quantity="many">Se borrarán tus %d contraseñas cifradas y se cerrará tu sesión en todos tus dispositivos.</item>
+        <item quantity="other">Se borrarán tus %d contraseñas cifradas y se cerrará tu sesión en todos tus dispositivos.</item>
     </plurals>
-    <string name="delete_sheet_body_empty">Se borrará tu cuenta de nuestros servidores y se cerrará la sesión en todos tus dispositivos. No podrás recuperarla.</string>
+    <string name="delete_sheet_body_empty">Se borrará tu cuenta y se cerrará tu sesión en todos tus dispositivos.</string>
     <string name="delete_sheet_confirm">Sí, eliminar mi cuenta</string>
     <string name="settings_delete_needs_connection">Necesitas conexión para eliminar tu cuenta.</string>
     <string name="deleted_title">Tu cuenta fue eliminada</string>
-    <string name="deleted_body">Borramos tus contraseñas de nuestros servidores. Gracias por haber usado End Security.</string>
+    <string name="deleted_body">Borramos tus contraseñas cifradas. Gracias por usar End Security.</string>
     <string name="deleted_go_home">Ir al inicio</string>
 
     <!-- Cambiar el correo (OP-26; Figma 227:4534, 227:4726, 227:4802, 229:4852) -->
