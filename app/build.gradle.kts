@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -16,17 +18,48 @@ android {
         minSdk = 28
         targetSdk = 36
         versionCode = 1
-        versionName = "1.0"
+        versionName = "1.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
 
-        // DEC-61: mientras no exista el backend, la app habla con el backend falso
-        // (core/network/fake). Cuando exista, se cambia a false en las compilaciones que lo usen.
-        buildConfigField("boolean", "USE_FAKE_BACKEND", "true")
+    // Variantes (tarea 31): `demo` lleva el backend falso (DEC-61) y es la que se publica; `prod` no lo contiene
+    // y queda a la espera del transporte real (`docs/api/brechas-backend.md`).
+    flavorDimensions += "backend"
+    productFlavors {
+        create("demo") {
+            dimension = "backend"
+            applicationIdSuffix = ".demo"
+            versionNameSuffix = "-demo"
+            buildConfigField("boolean", "USE_FAKE_BACKEND", "true")
+            // «Modo demostración»: muestra el código de verificación en pantalla. Solo en `demo`, también en release.
+            buildConfigField("boolean", "DEMO_MODE", "true")
+        }
+        create("prod") {
+            dimension = "backend"
+            buildConfigField("boolean", "USE_FAKE_BACKEND", "false")
+            buildConfigField("boolean", "DEMO_MODE", "false")
+        }
+    }
+
+    // Firma de release (tarea 31): lee `keystore.properties` de la raíz (storeFile, storePassword, keyAlias, keyPassword).
+    // Si no existe, release queda sin firmar y la compilación no falla. Nunca se imprimen sus valores.
+    val keystoreFile = rootProject.file("keystore.properties")
+    if (keystoreFile.exists()) {
+        val keystoreProps = Properties().apply { keystoreFile.inputStream().use { load(it) } }
+        signingConfigs {
+            create("release") {
+                storeFile = rootProject.file(keystoreProps.getProperty("storeFile"))
+                storePassword = keystoreProps.getProperty("storePassword")
+                keyAlias = keystoreProps.getProperty("keyAlias")
+                keyPassword = keystoreProps.getProperty("keyPassword")
+            }
+        }
     }
 
     buildTypes {
         release {
+            if (keystoreFile.exists()) signingConfig = signingConfigs.getByName("release")
             // DEC-37: R8 (minificación, ofuscación y recorte de recursos) en release.
             optimization {
                 enable = true

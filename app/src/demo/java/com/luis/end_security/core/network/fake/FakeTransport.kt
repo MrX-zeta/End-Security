@@ -31,12 +31,12 @@ object FakeBackendDebug {
     val RECOVERY_CODES = (1..10).map { "DBGA" + it.toString().padStart(4, '0') }
 
     /** Un correo con `+2fa` en la parte local (p. ej. `ana+2fa@correo.com`) se crea con 2FA activo. */
-    fun isTwoFactorDebugEmail(email: String): Boolean = BuildConfig.DEBUG && email.substringBefore('@').contains("+2fa")
+    fun isTwoFactorDebugEmail(email: String): Boolean = BuildConfig.DEMO_MODE && email.substringBefore('@').contains("+2fa")
 }
 
 /**
- * Último código de verificación de cada correo, solo en memoria y solo mientras `USE_FAKE_BACKEND`
- * sea `true` (también en release): Verificar correo lo muestra como «Modo demostración · Código».
+ * Último código de verificación de cada correo, solo en memoria y solo mientras `DEMO_MODE`
+ * sea `true` (variante `demo`, también en release): Verificar correo lo muestra como «Modo demostración · Código».
  * Nunca va a logcat ni a disco.
  */
 @Singleton
@@ -45,12 +45,12 @@ class FakeVerificationCodes @Inject constructor() : DebugVerificationCodes {
 
     @Synchronized
     fun remember(email: String, code: String) {
-        if (BuildConfig.USE_FAKE_BACKEND) codes[email] = code
+        if (BuildConfig.DEMO_MODE) codes[email] = code
     }
 
     @Synchronized
     override fun latestCode(email: String): String? =
-        if (BuildConfig.USE_FAKE_BACKEND) codes[email.trim().lowercase()] else null
+        if (BuildConfig.DEMO_MODE) codes[email.trim().lowercase()] else null
 }
 
 /**
