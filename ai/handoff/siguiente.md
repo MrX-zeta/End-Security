@@ -1,6 +1,6 @@
 # Tarea 31 · README, variantes demo/prod, release v1.0.0-demo y merge a `main`
 
-**Estado:** esperando firma
+**Estado:** hecha
 **Escrita:** 2026-11-07 · sesión de diseño
 
 ## Revisión de la tarea 30
