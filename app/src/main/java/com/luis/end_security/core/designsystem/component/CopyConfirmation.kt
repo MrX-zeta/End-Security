@@ -6,6 +6,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
@@ -74,7 +75,8 @@ fun CopyIcon(
     modifier: Modifier = Modifier,
     @DrawableRes copyIcon: Int = R.drawable.ic_copy_20,
     size: Dp = 20.dp,
-    tint: Color = Color.Unspecified,
+    // Los íconos de la app son negros sobre el amarillo (`onPrimary`); los vectores son blancos, así que sin tinte se verían blancos.
+    tint: Color = MaterialTheme.colorScheme.onPrimary,
     reducedMotion: Boolean = rememberReducedMotion(),
 ) {
     @Composable
