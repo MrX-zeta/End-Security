@@ -1,69 +1,43 @@
-# Tarea 29 · Aviso al copiar dentro de las hojas (última del frontend)
+# Tarea 30 · Textos de Eliminar cuenta sin contradecir el conocimiento cero
 
 **Estado:** hecha
 **Escrita:** 2026-11-07 · sesión de diseño
 
-## Revisión de la tarea 28
+## Revisión de la tarea 29
 Aprobada:
-- `DirectionalContentSwap` envuelve en `Column`, así que los pasos del 2FA ya no se enciman;
-- el selector tiene celdas iguales, el texto centrado y en una línea, y el texto se reduce antes de partirse;
-- «Mejoradas»;
-- los errores de campo se despliegan.
+- `AppBottomSheet` con su propio anfitrión de avisos (las 11 hojas migradas);
+- `SheetMessageSlot` encima del botón;
+- la palomita en todos los botones de copiar (aprobado el `trailingIcon` en «Copiar contraseña» y «Copiar códigos»);
+- un solo camino al portapapeles por `SecretClipboard`;
+- el arreglo del ícono negro.
 
-Bien la medición de tiempo con el mejor de varias corridas.
+La vista previa del portapapeles queda para el Redmi.
 
 ## El problema
-En la **hoja del Generador** que se abre desde Nueva/Editar contraseña («Usar esta contraseña»), al tocar **copiar** no aparece ningún aviso; el equipo tuvo que tocar varias veces para saber si se copió.
-- **Causa probable:** `GeneratorScreen` pide `HostedMessage`, pero el anfitrión de avisos (tarea 26) se dibuja en la ventana principal, y la `ModalBottomSheet` es **otra ventana encima**: el aviso sale, pero detrás de la hoja.
-- En la pestaña Generador sí se ve, porque ahí no hay hoja.
+Los textos de Eliminar cuenta dicen que se borran «tus contraseñas de nuestros servidores». Un lector atento (el profesor) puede entender que el servidor **guarda las contraseñas**, lo que contradice el conocimiento cero. El servidor solo tiene la **copia cifrada**, que no puede leer. El texto debe seguir avisando que se borra, pero decir **qué** se borra.
 
-## Paso 1 · Avisos dentro de las hojas inferiores
-- **Un anfitrión local por hoja:** cada `ModalBottomSheet` de la app provee su propio `MessageHostState` con un `CompositionLocal`. `HostedMessage` usa el **más cercano**, así que lo que se pide dentro de una hoja aparece **dentro de ella**.
-  - **Posición:** encima de su botón inferior («Usar esta contraseña»), con 12 dp de separación.
-  - **Animación:** la misma de la tarea 26: entra subiendo 16 dp en 200 ms y sale en 150 ms.
-  - Al cerrarse la hoja, su anfitrión se limpia.
-- Un componente común (`AppBottomSheet` o un envoltorio de `ModalBottomSheet`) para que ninguna hoja se quede sin él.
-- **Revisa todas las hojas:**
-  - Generador desde Nueva/Editar;
-  - `ReauthSheet`;
-  - las de cerrar sesión, dispositivos, conflictos y eliminar cuenta;
-  - documentos legales y licencias en hoja;
-  - bloqueo automático;
-  - la de «¿Ya guardaste tus códigos?».
+## Paso 1 · Textos nuevos (`strings.xml`)
+Cortos a propósito: la palabra «cifradas» basta. Se quitó «de nuestros servidores» y no se agregan explicaciones.
 
-  Entrega en el reporte una tabla: hoja · ¿pide avisos? · ¿se ven ahora?
+| Recurso | Texto nuevo |
+|---|---|
+| `delete_consequence_passwords` | Se borrarán tus contraseñas cifradas. |
+| `delete_sheet_body` (plural `one`) | Se borrará tu %d contraseña cifrada y se cerrará tu sesión en todos tus dispositivos. |
+| `delete_sheet_body` (`many` / `other`) | Se borrarán tus %d contraseñas cifradas y se cerrará tu sesión en todos tus dispositivos. |
+| `delete_sheet_body_empty` | Se borrará tu cuenta y se cerrará tu sesión en todos tus dispositivos. |
+| `deleted_body` | Borramos tus contraseñas cifradas. Gracias por usar End Security. |
 
-## Paso 2 · Confirmación en el propio botón
-Además del aviso «Copiada · se borra del portapapeles en 30 s»:
-- **el ícono de copiar** cambia a una **palomita** (fundido cruzado de 150 ms con `Motion.EaseOut`);
-- se queda así **1,5 s** y vuelve al ícono de copiar;
-- tocar otra vez mientras tanto vuelve a copiar y reinicia los 1,5 s.
+Figma ya está actualizado (`47:2290`, `62:3233`, `62:3270`).
 
-Aplícalo a **todos** los botones de copiar:
-- el Generador (pestaña y hoja);
-- el detalle de una contraseña (usuario y contraseña);
-- la clave y los códigos del 2FA.
-
-**Accesibilidad:** el botón anuncia «Copiado» (`liveRegion` o `stateDescription`) y su descripción no cambia de nombre. Con «Quitar animaciones», el cambio de ícono es instantáneo.
-
-## Paso 3 · Comprobar que la copia es sensible
-El equipo vio que **el teclado sugiere la contraseña copiada**. Que Gboard ofrezca lo copiado es normal; lo que importa es que, con `EXTRA_IS_SENSITIVE` (Android 13+), la sugerencia y la vista previa del sistema la muestren **oculta** (puntos), no en claro.
-- Confirma que **la hoja del Generador** copia por `SecretClipboard` (como la pestaña) y no por otro camino.
-- Comprueba en el emulador (API 33+) que la vista previa del portapapeles del sistema no muestra el texto.
-- Si en algún lugar se copia sin `SecretClipboard`, corrígelo.
-
-Todo esto va al reporte, **sin capturas**: basta con decir qué se vio.
+## Paso 2 · Revisar el resto de los textos
+Busca en `strings.xml` (y en los textos de las pantallas que no estén ahí) cualquier frase que pueda leerse como «el servidor tiene o ve tus contraseñas»: «contraseñas … servidor», «guardamos tus contraseñas», «subir tus contraseñas», etc.
+- Corrígela con la misma idea, igual de corta: basta decir «cifradas»; no agregues explicaciones.
+- **No toques** los textos legales (`docs/legal`): ya lo dicen bien.
+- Entrega en el reporte la lista de los que cambiaste, o «ninguno más».
 
 ## Terminado cuando
-- **Pruebas:**
-  - un aviso pedido dentro de una hoja se muestra dentro de ella, encima de su botón, y no en el anfitrión principal;
-  - al cerrar la hoja, su aviso desaparece;
-  - el ícono pasa a palomita y vuelve a los 1,5 s, y reinicia con otro toque;
-  - con «Quitar animaciones» no hay movimiento;
-  - la hoja del Generador usa `SecretClipboard`.
-- **Sin capturas.**
-- La tabla de hojas.
-- `testDebugUnitTest`, lint, `assembleRelease` y las pruebas instrumentadas de `feature.vault`, `feature.account` y del sistema de diseño pasan.
+- Los textos cambiados y las pruebas de pantalla que comparan esos textos (`DeleteAccountScreensTest` y las que salgan) actualizadas y pasando.
+- `testDebugUnitTest`, lint y `assembleRelease` pasan.
 - Commits hechos y subidos, sin cambios de finales de línea.
 
 ## Al terminar
