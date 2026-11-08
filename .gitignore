@@ -26,3 +26,25 @@ captures/
 # OS generated files
 .DS_Store
 Thumbs.db
+
+# Secretos y variables de entorno
+.env
+.env.*
+*.p12
+*.pem
+keystore.properties
+
+# Claude Code: archivos personales (no se versionan)
+CLAUDE.local.md
+.claude/settings.local.json
+
+# Backend (cuando exista)
+node_modules/
+
+# Respaldos del editor de draw.io (el .drawio sí se versiona)
+*.bkp
+.$*
+
+# Copia de docs/legal generada por la tarea copyLegalDocs (tarea 22)
+app/src/main/assets/legal/
+release-keys/

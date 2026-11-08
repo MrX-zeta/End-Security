@@ -1,0 +1,103 @@
+package com.luis.end_security.feature.auth.domain
+
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+class MasterPasswordNormalizerTest {
+
+    // «contraseña» con la «ñ» compuesta (NFC) y como «n» + tilde combinante (NFD). Van como
+    // escapes para que un editor que normalice el archivo no borre la diferencia.
+    private val nfc = "contrase\u00F1a"
+    private val nfd = "contrasen\u0303a"
+
+    @Test
+    fun `NFC y NFD dan el mismo texto normalizado`() {
+        assertEquals(MasterPasswordNormalizer.normalize(nfc), MasterPasswordNormalizer.normalize(nfd))
+    }
+
+    @Test
+    fun `NFC y NFD tienen la misma longitud`() {
+        val nfcLength = MasterPasswordNormalizer.codePointLength(MasterPasswordNormalizer.normalize(nfc))
+        val nfdLength = MasterPasswordNormalizer.codePointLength(MasterPasswordNormalizer.normalize(nfd))
+        assertEquals(10, nfcLength)
+        assertEquals(nfcLength, nfdLength)
+    }
+
+    @Test
+    fun `un emoji cuenta como 1`() {
+        val emoji = "🔐" // 🔐: dos unidades UTF-16, un punto de código
+        assertEquals(2, emoji.length)
+        assertEquals(1, MasterPasswordNormalizer.codePointLength(MasterPasswordNormalizer.normalize(emoji)))
+    }
+
+    @Test
+    fun `11 caracteres con uno compuesto no cumplen el minimo`() {
+        val elevenWithCombining = "contrasen\u0303a1" // 12 unidades UTF-16, 11 caracteres
+        assertEquals(12, elevenWithCombining.length)
+        val length = MasterPasswordNormalizer.codePointLength(MasterPasswordNormalizer.normalize(elevenWithCombining))
+        assertEquals(11, length)
+        assertFalse(MasterPasswordPolicy.meetsLength(length))
+    }
+
+    @Test
+    fun `12 caracteres con uno compuesto si cumplen el minimo`() {
+        val twelve = "contrasen\u0303a12"
+        val length = MasterPasswordNormalizer.codePointLength(MasterPasswordNormalizer.normalize(twelve))
+        assertTrue(MasterPasswordPolicy.meetsLength(length))
+    }
+
+    @Test
+    fun `NFKC puede expandir un caracter y pasar el maximo`() {
+        val expanding = "\uFDFA".repeat(MasterPasswordPolicy.MAX_LENGTH) // «\uFDFA»: 1 unidad, 18 tras NFKC
+        assertEquals(MasterPasswordPolicy.MAX_LENGTH, expanding.length)
+        val length = MasterPasswordNormalizer.codePointLength(MasterPasswordNormalizer.normalize(expanding))
+        assertTrue(MasterPasswordPolicy.exceedsMaxLength(length))
+        assertFalse(MasterPasswordPolicy.isAcceptable(length, score = 4))
+    }
+
+    @Test
+    fun `128 emojis caben y 129 se pasan`() {
+        val emoji = "🔐"
+        val ok = MasterPasswordNormalizer.codePointLength(MasterPasswordNormalizer.normalize(emoji.repeat(128)))
+        val tooLong = MasterPasswordNormalizer.codePointLength(MasterPasswordNormalizer.normalize(emoji.repeat(129)))
+        assertFalse(MasterPasswordPolicy.exceedsMaxLength(ok))
+        assertTrue(MasterPasswordPolicy.isAcceptable(ok, score = 4))
+        assertTrue(MasterPasswordPolicy.exceedsMaxLength(tooLong))
+        assertTrue("el campo deja escribir 128 emojis", emoji.repeat(128).length <= MasterPasswordPolicy.MAX_FIELD_LENGTH)
+    }
+
+    @Test
+    fun `NFKC unifica variantes de compatibilidad como los digitos de ancho completo`() {
+        assertEquals("2026", MasterPasswordNormalizer.normalize("\uFF12\uFF10\uFF12\uFF16"))
+    }
+
+    @Test
+    fun `el corazon con y sin selector de emoji normaliza igual`() {
+        val plain = "te quiero " + String(Character.toChars(0x2764)) + " mucho"
+        val emojiStyle = "te quiero " + String(intArrayOf(0x2764, 0xFE0F), 0, 2) + " mucho"
+        val textStyle = "te quiero " + String(intArrayOf(0x2764, 0xFE0E), 0, 2) + " mucho"
+        assertEquals(MasterPasswordNormalizer.normalize(plain), MasterPasswordNormalizer.normalize(emojiStyle))
+        assertEquals(MasterPasswordNormalizer.normalize(plain), MasterPasswordNormalizer.normalize(textStyle))
+    }
+
+    @Test
+    fun `el selector se quita antes de NFKC y A con anillo queda compuesta`() {
+        val withSelector = "A" + String(intArrayOf(0xFE0F, 0x030A), 0, 2)
+        assertEquals(String(Character.toChars(0x00C5)), MasterPasswordNormalizer.normalize(withSelector))
+    }
+
+    @Test
+    fun `normalizar dos veces da lo mismo`() {
+        val samples = listOf(
+            "A" + String(intArrayOf(0xFE0F, 0x030A), 0, 2),
+            "te quiero " + String(intArrayOf(0x2764, 0xFE0F), 0, 2),
+            "contrasen" + String(Character.toChars(0x0303)) + "a",
+        )
+        samples.forEach { sample ->
+            val once = MasterPasswordNormalizer.normalize(sample)
+            assertEquals(once, MasterPasswordNormalizer.normalize(once))
+        }
+    }
+}

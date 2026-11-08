@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Figma: Icono/mail (38 px en el disco de Verificar correo). El color se aplica con tint desde el tema. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="38dp"
+    android:height="38dp"
+    android:viewportWidth="38"
+    android:viewportHeight="38">
+    <path
+        android:pathData="M6.33333,6.33333H31.6667C33.4156,6.33333 34.8333,7.7511 34.8333,9.5V28.5C34.8333,30.2489 33.4156,31.6667 31.6667,31.6667H6.33333C4.58443,31.6667 3.16667,30.2489 3.16667,28.5V9.5C3.16667,7.7511 4.58443,6.33333 6.33333,6.33333Z"
+        android:strokeWidth="3.16667"
+        android:strokeColor="@android:color/white"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <path
+        android:pathData="M34.8333,11.0833L20.6308,20.1083C20.142,20.4146 19.5768,20.577 19,20.577C18.4232,20.577 17.858,20.4146 17.3692,20.1083L3.16667,11.0833"
+        android:strokeWidth="3.16667"
+        android:strokeColor="@android:color/white"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+</vector>

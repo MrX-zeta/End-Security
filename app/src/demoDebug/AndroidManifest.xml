@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application>
+        <!-- Solo depuración: simula al «otro dispositivo» (tarea 12). El permiso DUMP solo lo tiene `adb shell`. -->
+        <receiver
+            android:name=".debug.OtherDeviceReceiver"
+            android:exported="true"
+            android:permission="android.permission.DUMP">
+            <intent-filter>
+                <action android:name="com.luis.end_security.debug.OTHER_DEVICE" />
+            </intent-filter>
+        </receiver>
+    </application>
+
+</manifest>

@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Figma: Icono/vault (22 px en la barra inferior). El color se aplica con tint desde el tema. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="22dp"
+    android:height="22dp"
+    android:viewportWidth="22"
+    android:viewportHeight="22">
+    <path
+        android:pathData="M4.58333 9.16667H17.4167C18.4292 9.16667 19.25 9.98748 19.25 11V18.3333C19.25 19.3459 18.4292 20.1667 17.4167 20.1667H4.58333C3.57081 20.1667 2.75 19.3459 2.75 18.3333V11C2.75 9.98748 3.57081 9.16667 4.58333 9.16667Z"
+        android:strokeWidth="1.83333"
+        android:strokeColor="@android:color/white"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <path
+        android:pathData="M6.41667 9.16667V6.41667C6.41667 5.20109 6.89955 4.0353 7.75909 3.17576C8.61864 2.31622 9.78442 1.83333 11 1.83333C12.2156 1.83333 13.3814 2.31622 14.2409 3.17576C15.1004 4.0353 15.5833 5.20109 15.5833 6.41667V9.16667"
+        android:strokeWidth="1.83333"
+        android:strokeColor="@android:color/white"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <path
+        android:pathData="M11 13.75V16.5"
+        android:strokeWidth="1.83333"
+        android:strokeColor="@android:color/white"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+</vector>

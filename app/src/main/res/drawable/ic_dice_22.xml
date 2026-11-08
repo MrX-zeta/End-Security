@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Figma: Icono/dado (22 px en la barra inferior, DEC-59). El color se aplica con tint desde el tema. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="22dp"
+    android:height="22dp"
+    android:viewportWidth="22"
+    android:viewportHeight="22">
+    <path
+        android:pathData="M11 2.29167L18.7917 6.69167V15.3083L11 19.7083L3.20833 15.3083V6.69167L11 2.29167Z"
+        android:strokeWidth="1.83333"
+        android:strokeColor="@android:color/white"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <path
+        android:pathData="M3.20833 6.69167L11 11M11 11L18.7917 6.69167M11 11V19.7083"
+        android:strokeWidth="1.83333"
+        android:strokeColor="@android:color/white"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <path
+        android:pathData="M11 7.74583C11.6328 7.74583 12.1458 7.23283 12.1458 6.6C12.1458 5.96717 11.6328 5.45417 11 5.45417C10.3672 5.45417 9.85417 5.96717 9.85417 6.6C9.85417 7.23283 10.3672 7.74583 11 7.74583Z"
+        android:fillColor="@android:color/white" />
+    <path
+        android:pathData="M5.59167 11.6875C6.17387 11.6875 6.64583 11.2155 6.64583 10.6333C6.64583 10.0511 6.17387 9.57917 5.59167 9.57917C5.00947 9.57917 4.5375 10.0511 4.5375 10.6333C4.5375 11.2155 5.00947 11.6875 5.59167 11.6875Z"
+        android:fillColor="@android:color/white" />
+    <path
+        android:pathData="M8.61667 16.8208C9.19887 16.8208 9.67083 16.3489 9.67083 15.7667C9.67083 15.1845 9.19887 14.7125 8.61667 14.7125C8.03447 14.7125 7.5625 15.1845 7.5625 15.7667C7.5625 16.3489 8.03447 16.8208 8.61667 16.8208Z"
+        android:fillColor="@android:color/white" />
+    <path
+        android:pathData="M12.925 13.5208C13.5072 13.5208 13.9792 13.0489 13.9792 12.4667C13.9792 11.8845 13.5072 11.4125 12.925 11.4125C12.3428 11.4125 11.8708 11.8845 11.8708 12.4667C11.8708 13.0489 12.3428 13.5208 12.925 13.5208Z"
+        android:fillColor="@android:color/white" />
+    <path
+        android:pathData="M14.8958 14.2542C15.478 14.2542 15.95 13.7822 15.95 13.2C15.95 12.6178 15.478 12.1458 14.8958 12.1458C14.3136 12.1458 13.8417 12.6178 13.8417 13.2C13.8417 13.7822 14.3136 14.2542 14.8958 14.2542Z"
+        android:fillColor="@android:color/white" />
+    <path
+        android:pathData="M16.8667 14.9875C17.4489 14.9875 17.9208 14.5155 17.9208 13.9333C17.9208 13.3511 17.4489 12.8792 16.8667 12.8792C16.2845 12.8792 15.8125 13.3511 15.8125 13.9333C15.8125 14.5155 16.2845 14.9875 16.8667 14.9875Z"
+        android:fillColor="@android:color/white" />
+</vector>

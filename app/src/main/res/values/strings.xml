@@ -1,3 +1,805 @@
-<resources>
-    <string name="app_name">End-Security</string>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <string name="app_name">End Security</string>
+
+    <!-- Sistema de diseño -->
+    <string name="page_indicator_description">Página %1$d de %2$d</string>
+    <string name="password_show">Mostrar contraseña</string>
+    <string name="password_hide">Ocultar contraseña</string>
+    <string name="navigate_back">Regresar</string>
+    <string name="code_field_description">Código de verificación, %1$d de %2$d dígitos</string>
+
+    <!-- Onboarding (SCR-01, SCR-02, SCR-03). Textos exactos de Figma. -->
+    <string name="onboarding_skip">Omitir</string>
+    <string name="onboarding_next">Siguiente</string>
+    <string name="onboarding_start">Comenzar</string>
+    <string name="onboarding_have_account">Ya tengo una cuenta</string>
+
+    <string name="onboarding_page1_title_bold">Tus contraseñas</string>
+    <string name="onboarding_page1_title_regular">en un solo lugar</string>
+    <string name="onboarding_page1_body">Guárdalas una vez y úsalas cuando las necesites, desde tu teléfono.</string>
+    <string name="onboarding_page1_illustration">Llave</string>
+
+    <string name="onboarding_page2_title_bold">Solo tú</string>
+    <string name="onboarding_page2_title_regular">puedes verlas</string>
+    <string name="onboarding_page2_body">Las protegemos con una contraseña maestra que solo tú conoces. Ni siquiera nosotros podemos abrirlas.</string>
+    <string name="onboarding_page2_illustration">Candado</string>
+
+    <string name="onboarding_page3_title_bold">Te avisamos</string>
+    <string name="onboarding_page3_title_regular">si una está en riesgo</string>
+    <string name="onboarding_page3_body">Revisamos si alguna es débil, si la repites o si apareció en una filtración en internet.</string>
+    <string name="onboarding_page3_illustration">Escudo con una palomita</string>
+
+    <!-- Iniciar sesión (SCR-04). Textos exactos de Figma (nodo 19:144). -->
+    <string name="login_title_bold">Hola</string>
+    <string name="login_title_regular">de nuevo</string>
+    <string name="login_subtitle">Entra con tu correo y tu contraseña maestra.</string>
+    <string name="login_email_label">Correo</string>
+    <string name="login_password_label">Contraseña maestra</string>
+    <string name="login_password_help">Si la olvidas, no podremos recuperarla.</string>
+    <string name="login_submit">Entrar</string>
+    <string name="login_first_time">¿Primera vez?</string>
+    <string name="login_create_account">Crea tu cuenta</string>
+    <!-- Mismo texto para correo y contraseña: no revela si el correo tiene cuenta. -->
+    <string name="login_error_invalid_credentials">Correo o contraseña incorrectos.</string>
+
+    <!-- Crear cuenta (SCR-05). Textos exactos de Figma (nodo 36:119). -->
+    <string name="signup_title_bold">Crea tu cuenta</string>
+    <string name="signup_title_regular">en un minuto</string>
+    <string name="signup_subtitle">Solo necesitas tu correo y una contraseña maestra.</string>
+    <string name="signup_email_label">Correo</string>
+    <string name="signup_password_label">Contraseña maestra</string>
+    <string name="signup_confirm_label">Confirma tu contraseña maestra</string>
+    <string name="signup_min_length">Usa al menos 12 caracteres</string>
+    <string name="signup_max_length">Usa como máximo 128 caracteres</string>
+    <string name="signup_forbidden_characters">Tu contraseña tiene caracteres que no se pueden usar (invisibles o emojis muy nuevos)</string>
+    <string name="signup_mismatch">Las contraseñas no coinciden.</string>
+    <string name="signup_notice">Es la única llave de tu bóveda. Si la olvidas, no podremos recuperarla.</string>
+    <!-- %1$s = «Términos», %2$s = «Aviso de privacidad»; los dos son enlaces. -->
+    <string name="signup_marketing">Quiero recibir novedades y encuestas de End Security (opcional)</string>
+    <string name="signup_terms_sentence">Acepto los %1$s y el %2$s</string>
+    <string name="signup_submit">Crear cuenta</string>
+
+    <!-- Verificar correo (SCR-06). Textos de Figma (nodo 36:268); los errores no están en Figma. -->
+    <string name="verify_title_bold">Revisa</string>
+    <string name="verify_title_regular">tu correo</string>
+    <string name="verify_body">Te enviamos un código de 6 dígitos a %1$s</string>
+    <string name="verify_resend_wait">Puedes pedir otro código en %1$s</string>
+    <string name="verify_resend">Reenviar código</string>
+    <string name="verify_submit">Verificar</string>
+    <plurals name="verify_error_wrong_code">
+        <item quantity="one">Código incorrecto. Te queda %d intento.</item>
+        <item quantity="many">Código incorrecto. Te quedan %d intentos.</item>
+        <item quantity="other">Código incorrecto. Te quedan %d intentos.</item>
+    </plurals>
+    <string name="verify_error_expired">Este código ya no sirve. Pide uno nuevo.</string>
+
+    <!-- Bloqueo por intentos (DEC-32): Iniciar sesión, 2FA y código de respaldo. No está en Figma. -->
+    <string name="auth_lockout">Demasiados intentos. Vuelve a intentarlo en %1$d min.</string>
+    <string name="auth_lockout_seconds">Demasiados intentos. Vuelve a intentarlo en %1$d s.</string>
+
+    <!-- Verificación en dos pasos al entrar (SCR-07). Textos de Figma (nodo 36:341). -->
+    <string name="two_factor_title_bold">Confirma</string>
+    <string name="two_factor_title_regular">que eres tú</string>
+    <string name="two_factor_body">Abre tu app de códigos (como Google Authenticator) y escribe el número de 6 dígitos que aparece para End Security.</string>
+    <string name="two_factor_submit">Continuar</string>
+    <string name="two_factor_no_phone">¿Sin tu teléfono?</string>
+    <string name="two_factor_use_backup_code">Usa un código de respaldo</string>
+    <string name="two_factor_error_wrong_code">Código incorrecto. Revisa que la hora de tu teléfono sea automática.</string>
+
+    <!-- Código de respaldo (SCR-08). Textos de Figma (nodo 36:413). -->
+    <string name="backup_code_title_bold">Usa un código</string>
+    <string name="backup_code_title_regular">de respaldo</string>
+    <string name="backup_code_body">Escribe uno de los códigos que guardaste cuando activaste la verificación en dos pasos. Cada código sirve una sola vez.</string>
+    <string name="backup_code_label">Código de respaldo</string>
+    <string name="backup_code_submit">Entrar</string>
+    <string name="backup_code_error_invalid">Ese código no es válido o ya se usó.</string>
+
+    <!-- Medidor de fuerza (DEC-31) -->
+    <string name="strength_weak">Débil</string>
+    <string name="strength_fair">Regular</string>
+    <string name="strength_strong">Fuerte</string>
+    <string name="strength_very_strong">Muy fuerte</string>
+
+    <!-- Documentos legales (PEND-12). Marcador hasta que exista el texto. -->
+    <string name="legal_terms_title">Términos</string>
+    <string name="legal_privacy_title">Aviso de privacidad</string>
+    <string name="legal_load_error">No pudimos abrir el documento.</string>
+    <string name="legal_summary_title">Resumen</string>
+    <string name="legal_open_all">Abrir todo</string>
+    <string name="legal_close_all">Cerrar todo</string>
+    <string name="legal_expanded">Expandido</string>
+    <string name="legal_collapsed">Contraído</string>
+
+    <!-- Desbloquear (SCR-09). Textos de Figma (nodo 36:491); la hoja de cerrar sesión no está en Figma. -->
+    <string name="unlock_title_bold">Tu bóveda</string>
+    <string name="unlock_title_regular">está bloqueada</string>
+    <string name="unlock_body">Escribe tu contraseña maestra para abrirla.</string>
+    <string name="unlock_password_label">Contraseña maestra</string>
+    <string name="unlock_submit">Desbloquear</string>
+    <string name="unlock_biometric">Desbloquear con huella</string>
+    <string name="unlock_error_wrong_password">Contraseña incorrecta.</string>
+    <string name="unlock_not_you">¿No eres %1$s?</string>
+    <string name="unlock_not_you_unknown">¿No eres tú?</string>
+    <string name="unlock_sign_out">Cerrar sesión</string>
+
+    <!-- Barra inferior (DEC-56). -->
+    <string name="nav_vault">Bóveda</string>
+    <string name="nav_health">Salud</string>
+    <string name="nav_generator">Generador</string>
+    <string name="nav_settings">Ajustes</string>
+
+    <!-- Bóveda · cargando (SCR-39). Textos de Figma (nodo 69:3207). -->
+    <string name="vault_title">Tu bóveda</string>
+    <string name="vault_loading">Descargando tu bóveda…</string>
+    <string name="vault_loading_announcement">Descargando tu bóveda</string>
+    <string name="vault_lock_now">Bloquear ahora</string>
+    <!-- Marcador de la Bóveda (SCR-10) hasta que se implemente. -->
+
+    <!-- Acceso con el backend (tarea 10). Textos del README de docs/api. -->
+    <string name="button_loading">Cargando</string>
+    <!-- Splash (SCR-46) -->
+    <string name="splash_tagline">TUS CONTRASEÑAS, SOLO TUYAS</string>
+    <string name="auth_error_generic">No pudimos conectar. Intenta de nuevo.</string>
+    <string name="verify_debug_code">Modo demostración · Código: %1$s</string>
+    <plurals name="vault_recovery_codes_left">
+        <item quantity="one">Te queda %d código de respaldo.</item>
+        <item quantity="many">Te quedan %d códigos de respaldo.</item>
+        <item quantity="other">Te quedan %d códigos de respaldo.</item>
+    </plurals>
+
+    <!-- Bóveda · lista y vacía (SCR-10, SCR-11) -->
+    <plurals name="vault_count">
+        <item quantity="one">%d contraseña guardada</item>
+        <item quantity="many">%d contraseñas guardadas</item>
+        <item quantity="other">%d contraseñas guardadas</item>
+    </plurals>
+    <string name="vault_empty_title_regular">todavía está vacía</string>
+    <string name="vault_empty_heading">Guarda tu primera contraseña</string>
+    <string name="vault_empty_body">Solo tú podrás verla. Se protege con tu contraseña maestra antes de salir de tu teléfono.</string>
+    <string name="vault_add_password">Agregar contraseña</string>
+    <string name="vault_new_password">Nueva contraseña</string>
+    <string name="vault_search_hint">Buscar por nombre o sitio</string>
+    <string name="vault_all">Todas</string>
+    <string name="vault_sort_az">A–Z</string>
+    <string name="vault_no_results">Sin resultados</string>
+    <string name="vault_item_open">Abrir %1$s</string>
+    <string name="vault_item_damaged">Elemento dañado</string>
+    <string name="vault_item_damaged_hint">No se pudo abrir</string>
+    <string name="vault_item_newer">Elemento de una versión más nueva</string>
+    <string name="vault_item_newer_hint">Actualiza la app para editarla</string>
+    <string name="vault_deleted">%1$s se eliminó</string>
+    <string name="vault_undo">Deshacer</string>
+
+    <!-- Detalle (SCR-12, SCR-13) -->
+    <string name="item_detail_title">Detalle</string>
+    <string name="item_edit">Editar</string>
+    <string name="item_edited_now" tools:ignore="Typos">editada hace un momento</string>
+    <plurals name="item_edited_minutes">
+        <item quantity="one">editada hace %d minuto</item>
+        <item quantity="many">editada hace %d minutos</item>
+        <item quantity="other">editada hace %d minutos</item>
+    </plurals>
+    <plurals name="item_edited_hours">
+        <item quantity="one">editada hace %d hora</item>
+        <item quantity="many">editada hace %d horas</item>
+        <item quantity="other">editada hace %d horas</item>
+    </plurals>
+    <plurals name="item_edited_days">
+        <item quantity="one">editada hace %d día</item>
+        <item quantity="many">editada hace %d días</item>
+        <item quantity="other">editada hace %d días</item>
+    </plurals>
+    <plurals name="item_edited_months">
+        <item quantity="one">editada hace %d mes</item>
+        <item quantity="many">editada hace %d meses</item>
+        <item quantity="other">editada hace %d meses</item>
+    </plurals>
+    <plurals name="item_edited_years">
+        <item quantity="one">editada hace %d año</item>
+        <item quantity="many">editada hace %d años</item>
+        <item quantity="other">editada hace %d años</item>
+    </plurals>
+    <string name="item_field_username">Usuario</string>
+    <string name="item_field_password">Contraseña</string>
+    <string name="item_field_site">Sitio web</string>
+    <string name="item_field_notes">Notas</string>
+    <string name="item_copy_username">Copiar usuario</string>
+    <string name="item_copy_password">Copiar contraseña</string>
+    <string name="item_open_site">Abrir sitio web</string>
+    <string name="item_delete">Eliminar contraseña</string>
+    <string name="item_copied_password">Copiada · se borra del portapapeles en %1$d s</string>
+    <string name="item_copied_username">Copiado · se borra del portapapeles en %1$d s</string>
+    <plurals name="item_password_dots">
+        <item quantity="one">Contraseña oculta, %d carácter</item>
+        <item quantity="many">Contraseña oculta, %d caracteres</item>
+        <item quantity="other">Contraseña oculta, %d caracteres</item>
+    </plurals>
+    <string name="item_delete_title">¿Eliminar %1$s?</string>
+    <string name="item_delete_body">Se quitará de todos tus dispositivos. No podrás recuperarla después.</string>
+    <string name="item_delete_confirm">Eliminar</string>
+    <string name="item_delete_cancel">Cancelar</string>
+
+    <!-- Nueva / editar (SCR-14) -->
+    <string name="item_form_new_title">Nueva contraseña</string>
+    <string name="item_form_edit_title">Editar contraseña</string>
+    <string name="item_form_name">Nombre</string>
+    <string name="item_form_username">Usuario o correo</string>
+    <string name="item_form_password">Contraseña</string>
+    <string name="item_form_site">Sitio web</string>
+    <string name="item_form_notes">Notas</string>
+    <string name="item_form_optional">Opcional</string>
+    <string name="item_form_name_required">Escribe un nombre.</string>
+    <string name="item_form_generate">Generar contraseña</string>
+    <string name="item_form_save">Guardar</string>
+    <string name="item_form_error_generic">No pudimos guardar. Intenta de nuevo.</string>
+    <string name="item_form_error_conflict">Esta contraseña cambió mientras la editabas. Recárgala o conserva lo que escribiste.</string>
+    <string name="item_discard_title">¿Descartar cambios?</string>
+    <string name="item_discard_body">Lo que escribiste todavía no se ha guardado.</string>
+    <string name="item_discard_confirm">Descartar</string>
+    <string name="item_discard_keep">Seguir editando</string>
+
+    <!-- Sincronización y conflictos (tarea 12; SCR-18…21, SCR-44) -->
+    <string name="vault_offline_notice">Sin conexión. Tus cambios se guardan y se subirán al reconectar.</string>
+    <plurals name="vault_conflicts_notice">
+        <item quantity="one">%d contraseña cambió en dos dispositivos</item>
+        <item quantity="many">%d contraseñas cambiaron en dos dispositivos</item>
+        <item quantity="other">%d contraseñas cambiaron en dos dispositivos</item>
+    </plurals>
+    <string name="vault_resolve">Resolver</string>
+    <string name="vault_deleted_generic">Se eliminó la contraseña</string>
+    <string name="item_damaged_title">No se puede abrir esta contraseña</string>
+    <string name="item_damaged_body">Su contenido no se pudo leer en este teléfono. Puedes eliminarla.</string>
+    <string name="item_newer_title">Actualiza la app para ver esta contraseña</string>
+    <string name="item_newer_body">Se guardó con una versión más nueva de End Security.</string>
+    <string name="item_delete_title_generic">¿Eliminar esta contraseña?</string>
+    <string name="item_form_reload">Recargar</string>
+    <string name="item_form_keep_mine">Conservar lo mío</string>
+
+    <string name="conflicts_title">Por resolver</string>
+    <plurals name="conflicts_heading_bold">
+        <item quantity="one">%d contraseña</item>
+        <item quantity="many">%d contraseñas</item>
+        <item quantity="other">%d contraseñas</item>
+    </plurals>
+    <plurals name="conflicts_heading_regular">
+        <item quantity="one">cambió en dos lugares</item>
+        <item quantity="many">cambiaron en dos lugares</item>
+        <item quantity="other">cambiaron en dos lugares</item>
+    </plurals>
+    <string name="conflicts_body">Se editaron en este teléfono y en otro dispositivo sin conexión. Elige qué versión conservar de cada una.</string>
+    <string name="conflicts_row_when">En este teléfono · %1$s</string>
+    <string name="conflicts_hint">Mientras tanto puedes seguir usándolas: se muestra la versión de este teléfono.</string>
+    <string name="conflicts_resolved">%1$s quedó resuelta</string>
+    <string name="conflicts_resolved_generic">La contraseña quedó resuelta</string>
+    <string name="conflicts_unnamed">Contraseña eliminada</string>
+    <string name="conflicts_when_today">hoy, %1$s</string>
+    <string name="conflicts_when_yesterday">ayer, %1$s</string>
+    <string name="conflicts_when_date">%1$s, %2$s</string>
+
+    <string name="conflict_title">Elige una versión</string>
+    <string name="conflict_heading_bold">%1$s cambió</string>
+    <string name="conflict_heading_bold_generic">Esta contraseña cambió</string>
+    <string name="conflict_heading_regular">en dos lugares a la vez</string>
+    <string name="conflict_body">Editaste esta contraseña en dos dispositivos sin conexión. Elige cuál conservar; la otra se descartará.</string>
+    <string name="conflict_here">En este teléfono</string>
+    <string name="conflict_there">En otro dispositivo</string>
+    <string name="conflict_field_name">Nombre</string>
+    <string name="conflict_field_username">Usuario</string>
+    <string name="conflict_field_password">Contraseña</string>
+    <string name="conflict_field_site">Sitio web</string>
+    <string name="conflict_field_notes">Notas</string>
+    <string name="conflict_empty_value">—</string>
+    <string name="conflict_deleted_here">Se eliminó en este teléfono</string>
+    <string name="conflict_deleted_there">Se eliminó en otro dispositivo</string>
+    <string name="conflict_unreadable">No se pudo abrir esta versión</string>
+    <string name="conflict_keep">Conservar esta versión</string>
+    <string name="conflict_keep_mine">Conservar la mía</string>
+    <string name="conflict_keep_other">Conservar la del otro dispositivo</string>
+    <string name="conflict_delete">Eliminarla</string>
+    <string name="conflict_error_offline">Necesitamos conexión para ver la otra versión.</string>
+    <string name="conflict_error_generic">No pudimos cargar la otra versión.</string>
+    <string name="conflict_error_unavailable">Esa versión no se puede conservar.</string>
+    <string name="conflict_retry">Reintentar</string>
+    <string name="conflict_selected">Seleccionada</string>
+
+    <!-- Generador (SCR-15, DEC-24) -->
+    <string name="generator_title_bold">Generador</string>
+    <string name="generator_title_regular">crea una contraseña segura</string>
+    <string name="generator_regenerate">Generar otra</string>
+    <string name="generator_copy">Copiar contraseña</string>
+    <string name="generator_length">Longitud</string>
+    <plurals name="generator_length_value">
+        <item quantity="one">%1$d carácter</item>
+        <item quantity="other">%1$d caracteres</item>
+    </plurals>
+    <string name="generator_upper">Mayúsculas (A–Z)</string>
+    <string name="generator_digits">Números (0–9)</string>
+    <string name="generator_symbols">Símbolos (!@#)</string>
+    <string name="generator_avoid">Evitar parecidos</string>
+    <string name="generator_avoid_hint">Como l, 1, O y 0</string>
+    <string name="generator_save">Guardar en la bóveda</string>
+    <string name="generator_use">Usar esta contraseña</string>
+    <string name="generator_password_description">Contraseña generada: %1$s</string>
+
+    <!-- Salud (SCR-22…28, SCR-40; DEC-20, DEC-21, DEC-54) -->
+    <string name="health_title_bold">Salud</string>
+    <string name="health_title_regular">de tu bóveda</string>
+    <string name="health_tab_summary">Resumen</string>
+    <string name="health_tab_progress">Progreso</string>
+    <string name="health_score_of">de 100</string>
+    <plurals name="health_healthy_count">
+        <item quantity="one">%1$d de %2$d contraseña está sana</item>
+        <item quantity="other">%1$d de %2$d contraseñas están sanas</item>
+    </plurals>
+    <string name="health_breached_cap_hint">Cambia las filtradas para subir tu índice</string>
+    <string name="health_score_description">Puntuación de salud: %1$d de 100</string>
+    <string name="health_message_excellent">Excelente</string>
+    <string name="health_message_good">Bien, pero puedes mejorar</string>
+    <string name="health_message_attention">Necesita atención</string>
+    <string name="health_message_risk">En riesgo</string>
+    <string name="health_checked_today">Revisado hoy a las %1$s</string>
+    <string name="health_checked_yesterday">Revisado ayer a las %1$s</string>
+    <string name="health_checked_date">Revisado el %1$s a las %2$s</string>
+    <string name="health_not_checked">Sin revisar</string>
+    <string name="health_offline_notice">Sin conexión. Te mostramos la última revisión.</string>
+    <string name="health_check_now">Revisar ahora</string>
+    <string name="health_checking">Revisando filtraciones…</string>
+    <string name="health_loading_description">Calculando la salud de tu bóveda</string>
+    <string name="health_row_breached">Filtradas</string>
+    <string name="health_row_breached_hint">Aparecen en filtraciones</string>
+    <string name="health_row_repeated">Repetidas y parecidas</string>
+    <string name="health_row_repeated_hint">La misma o muy parecidas en varios sitios</string>
+    <string name="health_row_weak">Débiles</string>
+    <string name="health_row_weak_hint">Son fáciles de adivinar</string>
+    <string name="health_row_old">Antiguas</string>
+    <string name="health_row_old_hint">Más de un año sin cambio</string>
+    <string name="health_empty">Agrega contraseñas para ver la salud de tu bóveda</string>
+    <string name="health_delta_same">Sin cambios</string>
+    <plurals name="health_delta_up">
+        <item quantity="one">+%1$d punto</item>
+        <item quantity="other">+%1$d puntos</item>
+    </plurals>
+    <plurals name="health_delta_down">
+        <item quantity="one">−%1$d punto</item>
+        <item quantity="other">−%1$d puntos</item>
+    </plurals>
+    <string name="health_delta_sub">en las últimas 12 semanas · de %1$d a %2$d</string>
+    <string name="health_no_history_title">Aún sin historial</string>
+    <string name="health_no_history_sub">Hoy tu puntuación es %1$d. Vuelve en unos días para ver cómo evoluciona.</string>
+    <string name="health_chart_description">Puntuación por semana, de %1$d a %2$d</string>
+    <string name="health_strengthened">fortalecidas este mes</string>
+    <string name="health_resolved">filtradas resueltas</string>
+    <string name="health_by_strength">Por fuerza</string>
+    <plurals name="health_total">
+        <item quantity="one">%1$d en total</item>
+        <item quantity="other">%1$d en total</item>
+    </plurals>
+    <string name="health_legend_weak">Débiles · %1$d</string>
+    <string name="health_legend_fair">Regulares · %1$d</string>
+    <string name="health_legend_strong">Fuertes · %1$d</string>
+    <string name="health_see_ranking">Ver ranking de fuerza</string>
+    <string name="health_ranking_title">Fuerza de tus contraseñas</string>
+    <string name="health_ranking_improved">Mejoradas</string>
+    <string name="health_ranking_improved_hint">Mejoradas recientemente: cambiadas en los últimos 30 días y hoy sanas</string>
+    <string name="health_improved_empty">Todavía no hay contraseñas mejoradas este mes. Cambia una débil y aparecerá aquí.</string>
+    <string name="health_ranking_weakest">Más débiles</string>
+    <plurals name="health_chars">
+        <item quantity="one">%1$d carácter</item>
+        <item quantity="other">%1$d caracteres</item>
+    </plurals>
+    <string name="health_ranking_footnote">La fuerza se calcula en tu teléfono. Tus contraseñas no salen de él.</string>
+    <string name="health_ranking_row">Puesto %1$d, %2$s, %3$s, %4$s</string>
+    <string name="health_breached_title">Filtradas</string>
+    <plurals name="health_breached_heading_bold">
+        <item quantity="one">%1$d contraseña</item>
+        <item quantity="other">%1$d contraseñas</item>
+    </plurals>
+    <plurals name="health_breached_heading_regular">
+        <item quantity="one">apareció en filtraciones</item>
+        <item quantity="other">aparecieron en filtraciones</item>
+    </plurals>
+    <string name="health_breached_notice">Otros sitios sufrieron robos de datos y estas contraseñas quedaron expuestas. Cámbialas cuanto antes.</string>
+    <plurals name="health_breached_seen">
+        <item quantity="one">Apareció en %1$s filtración</item>
+        <item quantity="other">Apareció en %1$s filtraciones</item>
+    </plurals>
+    <string name="health_breached_footnote">Para revisarlas no enviamos tus contraseñas: solo un fragmento que no permite reconstruirlas.</string>
+    <string name="health_hibp_attribution">Datos de Have I Been Pwned</string>
+    <plurals name="health_pending_breach">
+        <item quantity="one">%1$d contraseña sin revisar todavía</item>
+        <item quantity="other">%1$d contraseñas sin revisar todavía</item>
+    </plurals>
+    <string name="health_none_good_job">Ninguna, bien hecho</string>
+    <string name="health_repeated_title">Repetidas y parecidas</string>
+    <plurals name="health_repeated_heading_bold">
+        <item quantity="one">%1$d contraseña</item>
+        <item quantity="other">%1$d contraseñas</item>
+    </plurals>
+    <string name="health_repeated_heading_one">se repite en %1$d sitios</string>
+    <string name="health_repeated_heading_many">se repiten en %1$d sitios</string>
+    <string name="health_repeated_notice">Si una se filtra, quedan expuestos todos los sitios que la comparten.</string>
+    <string name="health_repeated_group">Misma contraseña en %1$d sitios</string>
+    <string name="health_repeated_group_similar">Contraseñas parecidas en %1$d sitios</string>
+    <string name="health_review_badge">Revisar</string>
+    <string name="health_change">Cambiar</string>
+    <string name="health_change_description">Cambiar la contraseña de %1$s</string>
+    <string name="health_old_title">Antiguas</string>
+    <plurals name="health_old_heading_bold">
+        <item quantity="one">%1$d contraseña</item>
+        <item quantity="other">%1$d contraseñas</item>
+    </plurals>
+    <plurals name="health_old_heading_regular">
+        <item quantity="one">lleva más de un año sin cambio</item>
+        <item quantity="other">llevan más de un año sin cambio</item>
+    </plurals>
+    <plurals name="vault_attention_notice">
+        <item quantity="one">%1$d contraseña necesita atención</item>
+        <item quantity="other">%1$d contraseñas necesitan atención</item>
+    </plurals>
+    <string name="vault_attention_action">Ver</string>
+    <string name="vault_row_at_risk">En riesgo</string>
+    <string name="health_detail_safe_title">Segura</string>
+    <string name="health_detail_safe_body">Fuerte, única y sin filtraciones</string>
+    <string name="health_detail_breached_title">Filtrada</string>
+    <plurals name="health_detail_breached_body">
+        <item quantity="one">Apareció en %1$d filtración</item>
+        <item quantity="other">Apareció en %1$d filtraciones</item>
+    </plurals>
+    <string name="health_detail_repeated_title">Repetida</string>
+    <string name="health_detail_similar_title">Parecida</string>
+    <string name="health_detail_similar_body">Parecida a la de %1$s</string>
+    <string name="health_detail_repeated_body">Usas la misma en %1$d sitios</string>
+    <string name="health_detail_weak_title">Débil</string>
+    <string name="health_detail_weak_body">Es fácil de adivinar</string>
+    <string name="health_detail_old_title">Antigua</string>
+    <string name="health_detail_old_body">Más de un año sin cambio</string>
+    <string name="health_detail_fair_title">Regular</string>
+    <string name="health_detail_fair_body">Podría ser más fuerte</string>
+
+    <!-- Mensajes de error en los formularios (tarea 15) -->
+    <string name="auth_error_email_invalid">Escribe un correo válido, por ejemplo nombre@correo.com</string>
+    <string name="auth_error_password_required">Escribe tu contraseña maestra.</string>
+    <string name="signup_req_length">12 caracteres o más</string>
+    <string name="signup_req_upper">Una mayúscula</string>
+    <string name="signup_req_lower">Una minúscula</string>
+    <string name="signup_req_digit">Un número</string>
+    <string name="signup_weak_password">Elige una contraseña más difícil de adivinar.</string>
+    <string name="signup_req_match">Las contraseñas coinciden</string>
+    <string name="signup_terms_error">Acepta los Términos y el Aviso de privacidad para continuar.</string>
+    <string name="requirement_met">cumplido</string>
+    <string name="requirement_unmet">falta</string>
+    <string name="requirement_pending">pendiente</string>
+    <string name="code_error_incomplete">Escribe los 6 dígitos del código.</string>
+    <string name="backup_code_error_incomplete">Escribe el código completo (XXXX-XXXX).</string>
+
+    <!-- Ajustes (tarea 16) -->
+    <string name="settings_title_bold">Ajustes</string>
+    <string name="settings_title_regular">y seguridad</string>
+    <string name="settings_section_security">Seguridad</string>
+    <string name="settings_section_account">Cuenta</string>
+    <string name="settings_two_factor">Verificación en 2 pasos</string>
+    <string name="settings_two_factor_active">Activa</string>
+    <string name="settings_two_factor_inactive">Inactiva</string>
+    <string name="settings_biometric">Desbloquear con huella</string>
+    <string name="settings_biometric_needs_enrollment">Agrega una huella en los ajustes del teléfono para usar esta opción.</string>
+    <string name="settings_autolock">Bloqueo automático</string>
+    <string name="settings_master_password">Contraseña maestra</string>
+    <string name="settings_devices">Dispositivos</string>
+    <string name="settings_activity">Actividad reciente</string>
+    <string name="settings_marketing">Novedades y encuestas</string>
+    <string name="settings_section_legal">Legal y ayuda</string>
+    <string name="settings_legal_terms">Términos y condiciones</string>
+    <string name="settings_legal_privacy">Aviso de privacidad</string>
+    <string name="settings_legal_licenses">Licencias</string>
+    <string name="settings_legal_about">Acerca de</string>
+    <string name="licenses_title">Licencias</string>
+    <string name="licenses_intro">End Security usa estos componentes de código abierto y recursos con licencia. Toca uno para leer el texto de su licencia.</string>
+    <string name="licenses_open_text">Ver el texto de la licencia</string>
+    <string name="licenses_load_error">No pudimos abrir el texto de la licencia.</string>
+    <string name="about_title">Acerca de</string>
+    <string name="about_version">Versión %1$s</string>
+    <string name="about_academic">Proyecto académico de Seguridad Informática, Universidad Politécnica de Chiapas.</string>
+    <string name="about_hibp">Las contraseñas filtradas se comprueban con Pwned Passwords, de Have I Been Pwned, bajo licencia CC BY 4.0.</string>
+    <string name="about_report_security">Reportar un problema de seguridad</string>
+    <string name="about_support">Soporte</string>
+    <string name="about_repository">Código fuente</string>
+    <string name="about_no_app">No hay una app para abrirlo en este teléfono.</string>
+    <string name="settings_sign_out">Cerrar sesión</string>
+    <string name="settings_delete_account">Eliminar cuenta</string>
+    <string name="settings_autolock_title">Bloqueo automático</string>
+    <string name="settings_autolock_body">Tu bóveda se bloquea cuando la app pasa este tiempo en segundo plano.</string>
+    <string name="settings_autolock_option_0">Al salir de la app</string>
+    <string name="settings_autolock_option_1">1 minuto</string>
+    <string name="settings_autolock_option_5">5 minutos (recomendado)</string>
+    <string name="settings_autolock_option_15">15 minutos</string>
+    <string name="settings_autolock_option_30">30 minutos</string>
+    <string name="settings_autolock_value_0">Al salir</string>
+    <string name="settings_autolock_value_1">1 min</string>
+    <string name="settings_autolock_value_5">5 min</string>
+    <string name="settings_autolock_value_15">15 min</string>
+    <string name="settings_autolock_value_30">30 min</string>
+    <string name="settings_sign_out_title">¿Cerrar sesión?</string>
+    <string name="settings_sign_out_body">Para volver necesitarás tu correo y tu contraseña maestra. Tu bóveda cifrada sigue guardada en tu cuenta.</string>
+    <string name="settings_sign_out_confirm">Cerrar sesión</string>
+    <string name="settings_sign_out_cancel">Cancelar</string>
+    <plurals name="settings_sign_out_unsynced_title">
+        <item quantity="one">Tienes %d cambio sin subir</item>
+        <item quantity="other">Tienes %d cambios sin subir</item>
+    </plurals>
+    <string name="settings_sign_out_unsynced_body">Si cierras sesión ahora se perderán. Conéctate a internet y espera a que se suban, o ciérrala de todos modos.</string>
+    <string name="settings_sign_out_unsynced_body_locked">Si cierras sesión ahora se perderán. Desbloquea tu bóveda y espera a que se suban, o ciérrala de todos modos.</string>
+    <string name="settings_sign_out_anyway">Cerrar sesión de todos modos</string>
+    <string name="biometric_enable_title">Activar desbloqueo con huella</string>
+    <string name="biometric_enable_subtitle">Confirma que eres tú</string>
+    <string name="biometric_cancel">Cancelar</string>
+    <string name="biometric_unlock_title">Desbloquear End Security</string>
+    <string name="biometric_use_password">Usar contraseña</string>
+    <string name="unlock_biometric_invalidated">Tu huella cambió. Entra con tu contraseña maestra y vuelve a activarla en Ajustes.</string>
+
+    <!-- Verificación en dos pasos (tarea 17) -->
+    <string name="tf_title">Verificación en dos pasos</string>
+    <string name="tf_step_label">Paso %1$d de 3</string>
+    <string name="tf_step1_title_bold">Copia tu clave</string>
+    <string name="tf_step1_title_regular">y agrégala a tu app</string>
+    <string name="tf_key_label">Tu clave</string>
+    <string name="tf_key_generating">Generando tu clave…</string>
+    <string name="tf_key_error">No pudimos generar tu clave. Revisa tu conexión e intenta de nuevo.</string>
+    <string name="tf_key_retry">Reintentar</string>
+    <string name="tf_copy_key">Copiar clave</string>
+    <string name="tf_instruction_1">Abre tu app de autenticación (Google Authenticator, Microsoft Authenticator u otra).</string>
+    <string name="tf_instruction_2">Elige «Agregar cuenta» y luego «Ingresar una clave».</string>
+    <string name="tf_instruction_3">Pega la clave, ponle de nombre End Security y guarda.</string>
+    <string name="tf_key_warning">La clave solo se muestra ahora. No la compartas con nadie.</string>
+    <string name="tf_open_authenticator">Abrir app de autenticación</string>
+    <string name="tf_continue">Continuar</string>
+    <string name="tf_step2_title_bold">Escribe el código</string>
+    <string name="tf_step2_title_regular">que muestra tu app</string>
+    <string name="tf_code_changes_in">El código cambia en %1$d s</string>
+    <string name="tf_confirm">Confirmar</string>
+    <string name="tf_step3_title_bold">Guarda estos códigos</string>
+    <string name="tf_step3_title_regular">en un lugar seguro</string>
+    <string name="tf_codes_notice">Cada código funciona una sola vez. Te servirán para entrar si pierdes tu teléfono.</string>
+    <string name="tf_copy_codes">Copiar códigos</string>
+    <string name="tf_codes_saved">Ya los guardé</string>
+    <string name="tf_exit_title">¿Ya guardaste tus códigos?</string>
+    <string name="tf_exit_body">No podrás volver a verlos. Si los pierdes, genera unos nuevos en Ajustes.</string>
+    <string name="tf_exit_confirm">Salir</string>
+    <string name="tf_exit_back">Volver a los códigos</string>
+    <string name="tf_copied">Copiado · se borra del portapapeles en %1$d s</string>
+    <string name="tf_active_title_bold">Verificación en dos pasos</string>
+    <string name="tf_active_title_regular">está activa</string>
+    <string name="tf_protected_label">Protegida</string>
+    <string name="tf_protected_body">Al entrar en otro teléfono te pediremos un código de tu app de autenticación.</string>
+    <string name="tf_active_codes_hint">Si pierdes tu teléfono, entra con uno de tus códigos de respaldo. Si ya usaste varios, genera códigos nuevos: los anteriores dejarán de funcionar.</string>
+    <string name="tf_regenerate">Generar códigos de respaldo nuevos</string>
+    <string name="tf_disable">Desactivar</string>
+    <string name="tf_new_codes_title_bold">Guarda tus códigos nuevos</string>
+    <string name="tf_new_codes_title_regular">en un lugar seguro</string>
+    <string name="tf_new_codes_notice">Los códigos anteriores ya no funcionan.</string>
+    <string name="tf_reauth_title">Confirma que eres tú</string>
+    <string name="tf_reauth_body_disable">Para desactivar la verificación en dos pasos escribe tu contraseña maestra y el código de tu app.</string>
+    <string name="tf_reauth_body_regenerate">Para generar códigos nuevos escribe tu contraseña maestra y el código de tu app.</string>
+    <string name="tf_reauth_password_label">Contraseña maestra</string>
+    <string name="tf_reauth_code_label">Código de tu app</string>
+    <string name="tf_reauth_code_placeholder">6 dígitos</string>
+    <string name="tf_reauth_generate">Generar</string>
+    <string name="tf_reauth_cancel">Cancelar</string>
+    <string name="tf_reauth_wrong">Contraseña o código incorrectos.</string>
+    <string name="settings_two_factor_needs_connection">Necesitas conexión para cambiar la verificación en dos pasos.</string>
+    <string name="settings_two_factor_disabled">Verificación en dos pasos desactivada</string>
+
+    <!-- Cambiar la contraseña maestra (tarea 18) -->
+    <string name="cp_title">Contraseña maestra</string>
+    <string name="cp_notice">Te la pediremos en todos tus dispositivos. Si la olvidas, nadie podrá recuperar tu bóveda.</string>
+    <string name="cp_current_label">Contraseña actual</string>
+    <string name="cp_new_label">Nueva contraseña</string>
+    <string name="cp_confirm_label">Confírmala</string>
+    <string name="cp_submit">Cambiar contraseña</string>
+    <string name="cp_req_breach">No aparece en filtraciones</string>
+    <string name="cp_req_breach_offline">No se pudo revisar (sin conexión)</string>
+    <string name="cp_breach_found">Esta contraseña apareció en filtraciones. Elige otra.</string>
+    <string name="cp_same">Debe ser distinta de la actual.</string>
+    <string name="cp_wrong">Contraseña o código incorrectos.</string>
+    <string name="cp_conflict">Tu contraseña maestra cambió en otro dispositivo. Cierra sesión y entra con la nueva.</string>
+    <string name="cp_biometric_prompt_title">Confirma tu huella para seguir usándola</string>
+    <string name="cp_biometric_off">Desbloqueo con huella desactivado. Actívalo de nuevo en Ajustes.</string>
+    <string name="cp_changed">Contraseña cambiada. Cerramos la sesión en tus otros dispositivos.</string>
+    <string name="login_password_changed_notice">Tu contraseña cambió. Entra con la nueva.</string>
+
+    <!-- Dispositivos (SCR-33, SCR-41; Figma 47:1817) -->
+    <string name="devices_title">Dispositivos</string>
+    <plurals name="devices_heading_bold">
+        <item quantity="one">%d dispositivo</item>
+        <item quantity="many">%d dispositivos</item>
+        <item quantity="other">%d dispositivos</item>
+    </plurals>
+    <string name="devices_heading_regular">con tu sesión abierta</string>
+    <string name="devices_this">Este</string>
+    <string name="devices_this_description">Este dispositivo</string>
+    <string name="devices_active_now">Activo ahora</string>
+    <plurals name="devices_ago_minutes">
+        <item quantity="one">Hace %d min</item>
+        <item quantity="many">Hace %d min</item>
+        <item quantity="other">Hace %d min</item>
+    </plurals>
+    <plurals name="devices_ago_hours">
+        <item quantity="one">Hace %d h</item>
+        <item quantity="many">Hace %d h</item>
+        <item quantity="other">Hace %d h</item>
+    </plurals>
+    <plurals name="devices_ago_days">
+        <item quantity="one">Hace %d día</item>
+        <item quantity="many">Hace %d días</item>
+        <item quantity="other">Hace %d días</item>
+    </plurals>
+    <plurals name="devices_ago_weeks">
+        <item quantity="one">Hace %d semana</item>
+        <item quantity="many">Hace %d semanas</item>
+        <item quantity="other">Hace %d semanas</item>
+    </plurals>
+    <string name="devices_row_close_label">Cerrar sesión en este dispositivo</string>
+    <string name="devices_hint_before">"Toca un dispositivo para cerrar su sesión. Si no reconoces alguno, "</string>
+    <string name="devices_hint_link">cambia tu contraseña maestra</string>
+    <string name="devices_hint_after">.</string>
+    <string name="devices_close_others">Cerrar sesión en los demás</string>
+    <string name="devices_loading_description">Cargando tus dispositivos…</string>
+    <string name="devices_offline_title">No pudimos cargar tus dispositivos</string>
+    <string name="devices_offline_body">Revisa tu conexión a internet. Esta información está en nuestros servidores, así que necesita conexión para mostrarse.</string>
+    <string name="devices_retry">Reintentar</string>
+
+    <!-- Hojas de confirmación (diseño de Cerrar sesión, Figma 215:3811) -->
+    <string name="devices_close_one_title">¿Cerrar sesión en %1$s?</string>
+    <string name="devices_close_one_body">Tendrá que volver a entrar con tu correo y tu contraseña maestra.</string>
+    <string name="devices_close_confirm">Cerrar sesión</string>
+    <string name="devices_close_others_title">¿Cerrar sesión en los demás dispositivos?</string>
+    <string name="devices_close_others_body">Solo este teléfono seguirá con tu sesión abierta.</string>
+
+    <!-- Avisos -->
+    <string name="devices_closed">Cerraste la sesión en %1$s</string>
+    <string name="devices_others_closed">Cerraste la sesión en los demás dispositivos</string>
+    <string name="devices_close_one_failed">No pudimos cerrar la sesión en %1$s. Intenta de nuevo.</string>
+    <plurals name="devices_close_failed">
+        <item quantity="one">No pudimos cerrar la sesión en %d dispositivo. Intenta de nuevo.</item>
+        <item quantity="many">No pudimos cerrar la sesión en %d dispositivos. Intenta de nuevo.</item>
+        <item quantity="other">No pudimos cerrar la sesión en %d dispositivos. Intenta de nuevo.</item>
+    </plurals>
+
+    <!-- Actividad reciente (SCR-34, SCR-42; Figma 47:1938) -->
+    <string name="activity_title">Actividad reciente</string>
+    <string name="activity_today">Hoy</string>
+    <string name="activity_yesterday">Ayer</string>
+    <string name="activity_unknown_device">Dispositivo desconocido</string>
+    <string name="activity_footer_before">¿No reconoces algo?</string>
+    <string name="activity_footer_link">Cambia tu contraseña</string>
+    <string name="activity_loading_description">Cargando tu actividad…</string>
+    <string name="activity_loading_more_description">Cargando más actividad</string>
+    <string name="activity_load_more_failed">No pudimos cargar más.</string>
+    <string name="activity_load_more_retry">Reintentar</string>
+    <string name="activity_offline_title">No pudimos cargar tu actividad</string>
+    <string name="activity_offline_body">Revisa tu conexión a internet. Esta información está en nuestros servidores, así que necesita conexión para mostrarse.</string>
+    <string name="activity_failed_suffix">, fallido</string>
+    <string name="activity_time_description">a las %1$s</string>
+
+    <!-- Un título por `eventType` del contrato -->
+    <string name="activity_kind_account_registered">Cuenta creada</string>
+    <string name="activity_kind_email_verification_sent">Código de verificación enviado</string>
+    <string name="activity_kind_email_verified">Correo verificado</string>
+    <string name="activity_kind_login">Inicio de sesión</string>
+    <string name="activity_kind_login_failed">Acceso fallido</string>
+    <string name="activity_kind_totp_verification">Código de verificación usado</string>
+    <string name="activity_kind_recovery_code_login">Entrada con código de respaldo</string>
+    <string name="activity_kind_account_locked">Cuenta bloqueada por intentos</string>
+    <string name="activity_kind_token_reuse_detected">Sesión cerrada por seguridad</string>
+    <string name="activity_kind_logout">Cierre de sesión</string>
+    <string name="activity_kind_session_revoked">Sesión cerrada en un dispositivo</string>
+    <string name="activity_kind_master_password_changed">Contraseña maestra cambiada</string>
+    <string name="activity_kind_email_change_requested">Cambio de correo solicitado</string>
+    <string name="activity_kind_email_changed">Correo cambiado</string>
+    <string name="activity_kind_two_factor_enabled">Verificación activada</string>
+    <string name="activity_kind_two_factor_disabled">Verificación desactivada</string>
+    <string name="activity_kind_recovery_codes_regenerated">Códigos de respaldo nuevos</string>
+    <string name="activity_kind_account_deleted">Eliminación de cuenta solicitada</string>
+    <string name="activity_kind_account_anonymized">Cuenta anonimizada</string>
+    <string name="activity_kind_unknown">Actividad en tu cuenta</string>
+
+    <!-- Eliminar cuenta (SCR-36, SCR-37, SCR-38; Figma 47:2290, 62:3233, 62:3270) -->
+    <string name="delete_title">Eliminar cuenta</string>
+    <string name="delete_heading_bold">Eliminar tu cuenta</string>
+    <string name="delete_heading_regular">no se puede deshacer</string>
+    <string name="delete_consequence_passwords">Se borrarán tus contraseñas cifradas.</string>
+    <string name="delete_consequence_sessions">Se cerrará la sesión en todos tus dispositivos.</string>
+    <string name="delete_consequence_history">Tu historial quedará anónimo.</string>
+    <string name="delete_password_label">Contraseña maestra</string>
+    <string name="delete_submit">Eliminar mi cuenta</string>
+    <string name="delete_sheet_title">¿Eliminar tu cuenta para siempre?</string>
+    <plurals name="delete_sheet_body">
+        <item quantity="one">Se borrará tu %d contraseña cifrada y se cerrará tu sesión en todos tus dispositivos.</item>
+        <item quantity="many">Se borrarán tus %d contraseñas cifradas y se cerrará tu sesión en todos tus dispositivos.</item>
+        <item quantity="other">Se borrarán tus %d contraseñas cifradas y se cerrará tu sesión en todos tus dispositivos.</item>
+    </plurals>
+    <string name="delete_sheet_body_empty">Se borrará tu cuenta y se cerrará tu sesión en todos tus dispositivos.</string>
+    <string name="delete_sheet_confirm">Sí, eliminar mi cuenta</string>
+    <string name="settings_delete_needs_connection">Necesitas conexión para eliminar tu cuenta.</string>
+    <string name="deleted_title">Tu cuenta fue eliminada</string>
+    <string name="deleted_body">Borramos tus contraseñas cifradas. Gracias por usar End Security.</string>
+    <string name="deleted_go_home">Ir al inicio</string>
+
+    <!-- Cambiar el correo (OP-26; Figma 227:4534, 227:4726, 227:4802, 229:4852) -->
+    <string name="email_title">Correo</string>
+    <string name="email_notice">Te enviaremos un código al correo nuevo para confirmarlo. También avisaremos a tu correo actual.</string>
+    <string name="email_current_label">Correo actual</string>
+    <string name="email_new_label">Correo nuevo</string>
+    <string name="email_continue">Continuar</string>
+    <string name="email_same">Es tu correo actual. Escribe uno distinto.</string>
+    <plurals name="email_wait_hours">
+        <item quantity="one">Podrás cambiar tu correo de nuevo en %d h.</item>
+        <item quantity="many">Podrás cambiar tu correo de nuevo en %d h.</item>
+        <item quantity="other">Podrás cambiar tu correo de nuevo en %d h.</item>
+    </plurals>
+    <plurals name="email_wait_minutes">
+        <item quantity="one">Podrás cambiar tu correo de nuevo en %d min.</item>
+        <item quantity="many">Podrás cambiar tu correo de nuevo en %d min.</item>
+        <item quantity="other">Podrás cambiar tu correo de nuevo en %d min.</item>
+    </plurals>
+    <plurals name="email_wait_seconds">
+        <item quantity="one">Podrás cambiar tu correo de nuevo en %d s.</item>
+        <item quantity="many">Podrás cambiar tu correo de nuevo en %d s.</item>
+        <item quantity="other">Podrás cambiar tu correo de nuevo en %d s.</item>
+    </plurals>
+    <string name="email_reauth_body">Para cambiar tu correo escribe tu contraseña maestra y el código de tu app.</string>
+    <string name="email_reauth_body_no_totp">Para cambiar tu correo escribe tu contraseña maestra.</string>
+    <string name="email_reauth_send">Enviar código</string>
+    <string name="email_code_body">Te enviamos un código de 6 dígitos a %1$s. Tu correo cambia cuando lo confirmes.</string>
+    <string name="email_code_submit">Confirmar correo</string>
+    <string name="email_code_resend_before">¿No te llegó?</string>
+    <string name="email_code_resend_link">Pide otro código</string>
+    <string name="settings_email_needs_connection">Necesitas conexión para cambiar tu correo.</string>
+    <string name="settings_email_changed">Tu correo ahora es %1$s</string>
+    <string name="settings_profile_change_email">Cambiar correo</string>
+
+    <!-- Avisos de resultado de las operaciones de la bóveda (tarea 26) -->
+    <string name="msg_item_saved">%1$s se guardó</string>
+    <string name="msg_item_saved_offline">%1$s se guardó. Se subirá cuando haya conexión.</string>
+    <string name="msg_two_factor_enabled">Verificación en dos pasos activada</string>
+    <string name="msg_changes_saved">Cambios guardados</string>
+    <string name="msg_changes_saved_offline">Cambios guardados. Se subirán cuando haya conexión.</string>
+    <string name="msg_conflict_kept_mine">Listo, se conservó tu versión</string>
+    <string name="msg_conflict_kept_mine_offline">Listo, se conservó tu versión. Se subirá cuando haya conexión.</string>
+    <string name="msg_conflict_kept_other">Listo, se conservó la otra versión</string>
+    <string name="msg_conflict_kept_other_offline">Listo, se conservó la otra versión. Se subirá cuando haya conexión.</string>
+
+    <!-- Barras por semana de Progreso (tarea 27) -->
+    <string name="health_mix_title">Contraseñas por semana</string>
+    <string name="health_mix_healthy">Sanas</string>
+    <string name="health_mix_old">Antiguas</string>
+    <string name="health_mix_weak">Débiles</string>
+    <string name="health_mix_reused">Repetidas o parecidas</string>
+    <string name="health_mix_breached">Filtradas</string>
+    <string name="health_week_date_pattern">d \'de\' MMMM</string>
+    <string name="health_week_description">Semana del %1$s: %2$s</string>
+    <plurals name="health_week_total">
+        <item quantity="one">%1$d contraseña</item>
+        <item quantity="other">%1$d contraseñas</item>
+    </plurals>
+    <plurals name="health_week_healthy">
+        <item quantity="one">%1$d sana</item>
+        <item quantity="other">%1$d sanas</item>
+    </plurals>
+    <plurals name="health_week_old">
+        <item quantity="one">%1$d antigua</item>
+        <item quantity="other">%1$d antiguas</item>
+    </plurals>
+    <plurals name="health_week_weak">
+        <item quantity="one">%1$d débil</item>
+        <item quantity="other">%1$d débiles</item>
+    </plurals>
+    <plurals name="health_week_reused">
+        <item quantity="one">%1$d repetida o parecida</item>
+        <item quantity="other">%1$d repetidas o parecidas</item>
+    </plurals>
+    <plurals name="health_week_breached">
+        <item quantity="one">%1$d filtrada</item>
+        <item quantity="other">%1$d filtradas</item>
+    </plurals>
+    <string name="copy_done">Copiado</string>
 </resources>

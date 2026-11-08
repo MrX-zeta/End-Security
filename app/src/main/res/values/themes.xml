@@ -2,4 +2,15 @@
 <resources>
 
     <style name="Theme.EndSecurity" parent="android:Theme.Material.Light.NoActionBar" />
+
+    <!--
+        Tema de arranque (SCR-46, A): el splash del sistema. Fondo oscuro con la capa frontal del ícono,
+        ajustada a 240 dp en ic_splash_icon (donde empieza el escudo de Compose). Sin imagen de marca
+        y sin fondo de ícono (con él, el lienzo del sistema cambia de tamaño según el fabricante).
+    -->
+    <style name="Theme.EndSecurity.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/splash_background</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_splash_icon</item>
+        <item name="postSplashScreenTheme">@style/Theme.EndSecurity</item>
+    </style>
 </resources>

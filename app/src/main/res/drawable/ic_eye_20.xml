@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Figma: icon/eye (20 px, trazo 2). El color se aplica con tint desde el tema. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="20dp"
+    android:height="20dp"
+    android:viewportWidth="20"
+    android:viewportHeight="20">
+    <path
+        android:pathData="M1.71833,10.29C1.64888,10.1029 1.64888,9.8971 1.71833,9.71C2.39475,8.06988 3.54293,6.66753 5.01731,5.68075C6.49169,4.69396 8.22587,4.16718 10,4.16718C11.7741,4.16718 13.5083,4.69396 14.9827,5.68075C16.4571,6.66753 17.6052,8.06988 18.2817,9.71C18.3511,9.8971 18.3511,10.1029 18.2817,10.29C17.6052,11.9301 16.4571,13.3325 14.9827,14.3193C13.5083,15.306 11.7741,15.8328 10,15.8328C8.22587,15.8328 6.49169,15.306 5.01731,14.3193C3.54293,13.3325 2.39475,11.9301 1.71833,10.29Z"
+        android:strokeWidth="2"
+        android:strokeColor="@android:color/white"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <path
+        android:pathData="M12.5,10C12.5,11.3807 11.3807,12.5 10,12.5C8.61929,12.5 7.5,11.3807 7.5,10C7.5,8.61929 8.61929,7.5 10,7.5C11.3807,7.5 12.5,8.61929 12.5,10Z"
+        android:strokeWidth="2"
+        android:strokeColor="@android:color/white"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+</vector>

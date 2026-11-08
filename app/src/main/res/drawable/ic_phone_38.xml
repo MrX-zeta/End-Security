@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Figma: Icono/smartphone (38 px en el disco de 2FA). El color se aplica con tint desde el tema. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="38dp"
+    android:height="38dp"
+    android:viewportWidth="38"
+    android:viewportHeight="38">
+    <path
+        android:pathData="M11.0833 3.16667H26.9167C28.6656 3.16667 30.0833 4.58443 30.0833 6.33333V31.6667C30.0833 33.4156 28.6656 34.8333 26.9167 34.8333H11.0833C9.33443 34.8333 7.91667 33.4156 7.91667 31.6667V6.33333C7.91667 4.58443 9.33443 3.16667 11.0833 3.16667Z"
+        android:strokeWidth="3.16667"
+        android:strokeColor="@android:color/white"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <path
+        android:pathData="M19 28.5H19.0158"
+        android:strokeWidth="3.16667"
+        android:strokeColor="@android:color/white"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+</vector>

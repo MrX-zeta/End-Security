@@ -1,0 +1,280 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 1,
+    "identityHash": "cd96fa14f3473af741c0cdcbb96438f5",
+    "entities": [
+      {
+        "tableName": "account",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`user_id` TEXT NOT NULL, `email` TEXT NOT NULL, `display_name` TEXT, `kdf_salt` BLOB NOT NULL, `kdf_memory_kib` INTEGER NOT NULL, `kdf_iterations` INTEGER NOT NULL, `kdf_parallelism` INTEGER NOT NULL, `pvk_nonce` BLOB NOT NULL, `pvk_ciphertext` BLOB NOT NULL, `key_version` INTEGER NOT NULL, `sync_cursor` INTEGER NOT NULL, `last_sync_at` INTEGER, `bio_iv` BLOB, `bio_wrapped_vault_key` BLOB, PRIMARY KEY(`user_id`))",
+        "fields": [
+          {
+            "fieldPath": "userId",
+            "columnName": "user_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "email",
+            "columnName": "email",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "displayName",
+            "columnName": "display_name",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "kdfSalt",
+            "columnName": "kdf_salt",
+            "affinity": "BLOB",
+            "notNull": true
+          },
+          {
+            "fieldPath": "kdfMemoryKiB",
+            "columnName": "kdf_memory_kib",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "kdfIterations",
+            "columnName": "kdf_iterations",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "kdfParallelism",
+            "columnName": "kdf_parallelism",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "pvkNonce",
+            "columnName": "pvk_nonce",
+            "affinity": "BLOB",
+            "notNull": true
+          },
+          {
+            "fieldPath": "pvkCiphertext",
+            "columnName": "pvk_ciphertext",
+            "affinity": "BLOB",
+            "notNull": true
+          },
+          {
+            "fieldPath": "keyVersion",
+            "columnName": "key_version",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "syncCursor",
+            "columnName": "sync_cursor",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastSyncAt",
+            "columnName": "last_sync_at",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "bioIv",
+            "columnName": "bio_iv",
+            "affinity": "BLOB"
+          },
+          {
+            "fieldPath": "bioWrappedVaultKey",
+            "columnName": "bio_wrapped_vault_key",
+            "affinity": "BLOB"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "user_id"
+          ]
+        }
+      },
+      {
+        "tableName": "vault_items",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `format_version` INTEGER NOT NULL, `nonce` BLOB, `ciphertext` BLOB, `server_version` INTEGER, `server_revision` INTEGER, `local_seq` INTEGER NOT NULL, `sync_state` TEXT NOT NULL, `deleted_at` INTEGER, `updated_at` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "formatVersion",
+            "columnName": "format_version",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "nonce",
+            "columnName": "nonce",
+            "affinity": "BLOB"
+          },
+          {
+            "fieldPath": "ciphertext",
+            "columnName": "ciphertext",
+            "affinity": "BLOB"
+          },
+          {
+            "fieldPath": "serverVersion",
+            "columnName": "server_version",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "serverRevision",
+            "columnName": "server_revision",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "localSeq",
+            "columnName": "local_seq",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "syncState",
+            "columnName": "sync_state",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deletedAt",
+            "columnName": "deleted_at",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updated_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_vault_items_sync_state",
+            "unique": false,
+            "columnNames": [
+              "sync_state"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_vault_items_sync_state` ON `${TABLE_NAME}` (`sync_state`)"
+          }
+        ]
+      },
+      {
+        "tableName": "breach_checks",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`item_id` TEXT NOT NULL, `checked_local_seq` INTEGER NOT NULL, `nonce` BLOB NOT NULL, `ciphertext` BLOB NOT NULL, `checked_at` INTEGER NOT NULL, PRIMARY KEY(`item_id`), FOREIGN KEY(`item_id`) REFERENCES `vault_items`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "itemId",
+            "columnName": "item_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "checkedLocalSeq",
+            "columnName": "checked_local_seq",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "nonce",
+            "columnName": "nonce",
+            "affinity": "BLOB",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ciphertext",
+            "columnName": "ciphertext",
+            "affinity": "BLOB",
+            "notNull": true
+          },
+          {
+            "fieldPath": "checkedAt",
+            "columnName": "checked_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "item_id"
+          ]
+        },
+        "foreignKeys": [
+          {
+            "table": "vault_items",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "item_id"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "health_snapshots",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`day` TEXT NOT NULL, `format_version` INTEGER NOT NULL, `nonce` BLOB NOT NULL, `ciphertext` BLOB NOT NULL, `created_at` INTEGER NOT NULL, PRIMARY KEY(`day`))",
+        "fields": [
+          {
+            "fieldPath": "day",
+            "columnName": "day",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "formatVersion",
+            "columnName": "format_version",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "nonce",
+            "columnName": "nonce",
+            "affinity": "BLOB",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ciphertext",
+            "columnName": "ciphertext",
+            "affinity": "BLOB",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "created_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "day"
+          ]
+        }
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'cd96fa14f3473af741c0cdcbb96438f5')"
+    ]
+  }
+}

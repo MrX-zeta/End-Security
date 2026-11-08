@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Ícono del splash del sistema (SCR-46, A). Sin fondo de ícono el sistema dibuja la capa frontal en un
+    lienzo de 288 dp; Figma lo mide en 240 dp. El inset (1 − 240/288) / 2 = 8,333 % por lado lo deja en
+    240 dp, que es donde el splash propio (Compose) empieza el escudo, así que no hay salto entre A y B.
+-->
+<inset xmlns:android="http://schemas.android.com/apk/res/android"
+    android:drawable="@drawable/ic_launcher_foreground"
+    android:insetLeft="8.3333%"
+    android:insetTop="8.3333%"
+    android:insetRight="8.3333%"
+    android:insetBottom="8.3333%" />

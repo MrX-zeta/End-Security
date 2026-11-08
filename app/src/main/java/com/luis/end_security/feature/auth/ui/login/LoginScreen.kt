@@ -1,0 +1,354 @@
+package com.luis.end_security.feature.auth.ui.login
+
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredSize
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.input.TextFieldState
+import androidx.compose.foundation.text.input.clearText
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.autofill.ContentType
+import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.unit.dp
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.luis.end_security.R
+import com.luis.end_security.core.designsystem.component.KeyboardAwareLayout
+import com.luis.end_security.core.designsystem.component.BlobShape
+import com.luis.end_security.core.designsystem.component.LabeledTextField
+import com.luis.end_security.core.designsystem.component.OrganicBlob
+import com.luis.end_security.core.designsystem.component.PasswordField
+import com.luis.end_security.core.designsystem.component.PrimaryButton
+import com.luis.end_security.core.designsystem.component.onFocusLost
+import com.luis.end_security.core.designsystem.component.PromptLink
+import com.luis.end_security.core.designsystem.component.TwoWeightTitle
+import com.luis.end_security.core.designsystem.theme.PreviewSurface
+import com.luis.end_security.core.security.ExcludeFromAutofill
+import com.luis.end_security.core.security.SecureScreen
+import com.luis.end_security.feature.auth.domain.MasterPasswordPolicy
+import com.luis.end_security.feature.auth.ui.lockoutMessage
+
+// Medidas de Figma (nodo 19:144). La cabecera ocupa hasta y = 300 del frame (260 bajo la
+// barra de estado) y deja espacio a las manchas de arriba a la derecha.
+private val HeaderAreaHeight = 260.dp
+private val ContentHorizontalPadding = 32.dp
+
+@Composable
+fun LoginRoute(
+    onCreateAccount: () -> Unit,
+    onNavigateToTwoFactor: () -> Unit,
+    onNavigateToVault: () -> Unit,
+    onNavigateToVerifyEmail: (email: String) -> Unit,
+    viewModel: LoginViewModel = hiltViewModel(),
+) {
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    // La contraseña maestra solo vive aquí, en memoria: sin rememberSaveable ni
+    // rememberTextFieldState, que la escribirían en el Bundle (regla no negociable 6).
+    val passwordState = remember { TextFieldState() }
+    var passwordVisible by remember { mutableStateOf(false) }
+    val currentOnAction by rememberUpdatedState(viewModel::onAction)
+    val currentOnNavigateToTwoFactor by rememberUpdatedState(onNavigateToTwoFactor)
+    val currentOnNavigateToVault by rememberUpdatedState(onNavigateToVault)
+    val currentOnNavigateToVerifyEmail by rememberUpdatedState(onNavigateToVerifyEmail)
+    LaunchedEffect(viewModel) {
+        viewModel.effects.collect { effect ->
+            when (effect) {
+                LoginEffect.NavigateToTwoFactor -> currentOnNavigateToTwoFactor()
+                LoginEffect.NavigateToVault -> currentOnNavigateToVault()
+                is LoginEffect.NavigateToVerifyEmail -> currentOnNavigateToVerifyEmail(effect.email)
+            }
+        }
+    }
+
+    SecureScreen()
+    ExcludeFromAutofill()
+    LaunchedEffect(passwordState) {
+        snapshotFlow { passwordState.text.isEmpty() }.collect { isEmpty ->
+            currentOnAction(LoginAction.PasswordEmptinessChanged(isEmpty))
+        }
+    }
+    // Al salir de la pantalla se vacía el campo. TextFieldState no permite sobrescribir su
+    // memoria; cuando exista el envío, la copia en CharArray sí se llenará de ceros.
+    DisposableEffect(passwordState) {
+        onDispose { passwordState.clearText() }
+    }
+    // Lo mismo al pasar a segundo plano (DEC-26): quien tome el teléfono y vuelva a la app no
+    // encuentra la contraseña escrita ni a la vista.
+    LifecycleEventEffect(Lifecycle.Event.ON_STOP) {
+        passwordState.clearText()
+        passwordVisible = false
+    }
+
+    LoginScreen(
+        state = state,
+        passwordState = passwordState,
+        passwordVisible = passwordVisible,
+        onPasswordVisibleChange = { passwordVisible = it },
+        onAction = viewModel::onAction,
+        onSubmit = { viewModel.onAction(LoginAction.Submit(passwordState.text)) },
+        onCreateAccount = onCreateAccount,
+    )
+}
+
+/** SCR-04 · Iniciar sesión. Tema claro (DEC-51). */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun LoginScreen(
+    state: LoginUiState,
+    passwordState: TextFieldState,
+    passwordVisible: Boolean,
+    onPasswordVisibleChange: (Boolean) -> Unit,
+    onAction: (LoginAction) -> Unit,
+    onSubmit: () -> Unit,
+    onCreateAccount: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val focusManager = LocalFocusManager.current
+    val submit = {
+        focusManager.clearFocus()
+        onSubmit()
+    }
+    // Con errores al tocar «Entrar», se da el foco al primer campo con error (tarea 15).
+    val emailFocus = remember { FocusRequester() }
+    val passwordFocus = remember { FocusRequester() }
+    LaunchedEffect(state.focusRequest) {
+        val request = state.focusRequest ?: return@LaunchedEffect
+        (if (request.field == LoginField.Email) emailFocus else passwordFocus).requestFocus()
+    }
+    val credentialsWrong = state.error == LoginError.InvalidCredentials
+
+    // Sin `imePadding` ni desplazamiento: [KeyboardAwareLayout] coloca todo a la par del teclado y deja «Entrar» a 16 dp de él.
+    Box(modifier = modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+        KeyboardAwareLayout(
+            header = { LoginHeader() },
+            pinFooterToBottom = false,
+            main = {
+                Column(modifier = Modifier.padding(horizontal = ContentHorizontalPadding)) {
+                    TwoWeightTitle(
+                        boldLine = stringResource(R.string.login_title_bold),
+                        regularLine = stringResource(R.string.login_title_regular),
+                        style = MaterialTheme.typography.displaySmall,
+                    )
+                    Spacer(Modifier.height(10.dp))
+                    Text(
+                        text = stringResource(R.string.login_subtitle),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    if (state.passwordChangedNotice) {
+                        Spacer(Modifier.height(12.dp))
+                        Text(
+                            text = stringResource(R.string.login_password_changed_notice),
+                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.semantics { liveRegion = androidx.compose.ui.semantics.LiveRegionMode.Polite },
+                        )
+                    }
+                    Spacer(Modifier.height(28.dp))
+                    LabeledTextField(
+                        value = state.email,
+                        onValueChange = { onAction(LoginAction.EmailChanged(it)) },
+                        label = stringResource(R.string.login_email_label),
+                        leadingIcon = R.drawable.ic_mail_20,
+                        // Correo con formato inválido, o credenciales incorrectas: el campo se marca; el mensaje de las
+                        // credenciales va una sola vez, bajo la contraseña (no revela si el correo tiene cuenta).
+                        errorText = if (state.showEmailError) stringResource(R.string.auth_error_email_invalid) else null,
+                        isError = credentialsWrong,
+                        modifier = Modifier
+                            .focusRequester(emailFocus)
+                            .onFocusLost { onAction(LoginAction.EmailFocusLost) },
+                        contentType = ContentType.EmailAddress,
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Email,
+                            capitalization = KeyboardCapitalization.None,
+                            autoCorrectEnabled = false,
+                            imeAction = ImeAction.Next,
+                        ),
+                        keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) }),
+                    )
+                    Spacer(Modifier.height(20.dp))
+                    PasswordField(
+                        state = passwordState,
+                        label = stringResource(R.string.login_password_label),
+                        visible = passwordVisible,
+                        onVisibleChange = onPasswordVisibleChange,
+                        // Prioridad: bloqueo por intentos (DEC-32) > credenciales incorrectas > falta la contraseña > ayuda.
+                        // El texto de ayuda «Si la olvidas…» se oculta mientras se ve un error.
+                        errorText = when {
+                            state.isLockedOut -> lockoutMessage(state.lockoutSecondsLeft)
+                            credentialsWrong -> stringResource(R.string.login_error_invalid_credentials)
+                            state.error == LoginError.Generic -> stringResource(R.string.auth_error_generic)
+                            state.showPasswordRequired -> stringResource(R.string.auth_error_password_required)
+                            else -> null
+                        },
+                        supportingText = stringResource(R.string.login_password_help),
+                        modifier = Modifier.focusRequester(passwordFocus),
+                        imeAction = ImeAction.Done,
+                        onKeyboardAction = { submit() },
+                        maxLength = MasterPasswordPolicy.MAX_FIELD_LENGTH,
+                    )
+                    Spacer(Modifier.height(32.dp))
+                    PrimaryButton(
+                        text = stringResource(R.string.login_submit),
+                        onClick = submit,
+                        // Siempre activo (salvo cargando o bloqueado por intentos, que muestra su cuenta regresiva).
+                        enabled = !state.isLockedOut,
+                        loading = state.isLoading,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            },
+            footer = {
+                Box(modifier = Modifier.padding(horizontal = ContentHorizontalPadding)) {
+                    PromptLink(
+                        prompt = stringResource(R.string.login_first_time),
+                        action = stringResource(R.string.login_create_account),
+                        onClick = onCreateAccount,
+                    )
+                }
+            },
+        )
+    }
+}
+
+/** Marca y manchas de arriba a la derecha (la grande con grano y una pequeña `primary`). */
+@Composable
+private fun LoginHeader() {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .statusBarsPadding()
+            .height(HeaderAreaHeight),
+    ) {
+        // En Figma la mancha grande sale 68 por la derecha y la pequeña queda a 72 del borde.
+        OrganicBlob(
+            shape = BlobShape.B,
+            grain = true,
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .offset(x = 68.dp, y = 24.dp)
+                .requiredSize(width = 230.dp, height = 210.dp),
+        )
+        OrganicBlob(
+            shape = BlobShape.C,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .offset(x = (-72).dp, y = 156.dp)
+                .requiredSize(width = 108.dp, height = 94.dp),
+        )
+        Text(
+            text = stringResource(R.string.app_name),
+            style = MaterialTheme.typography.titleLarge,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.padding(start = 28.dp, top = 22.dp),
+        )
+    }
+}
+
+@Composable
+private fun LoginPreviewContent(
+    state: LoginUiState,
+    password: String = "",
+    passwordVisible: Boolean = false,
+) {
+    val passwordState = remember { TextFieldState(password) }
+    PreviewSurface {
+        LoginScreen(
+            state = state,
+            passwordState = passwordState,
+            passwordVisible = passwordVisible,
+            onPasswordVisibleChange = {},
+            onAction = {},
+            onSubmit = {},
+            onCreateAccount = {},
+        )
+    }
+}
+
+private val FilledState = LoginUiState(email = "ana.lopez@correo.com", isEmailValid = true, canSubmit = true)
+
+@Preview(name = "Iniciar sesión · vacía", device = "spec:width=412dp,height=917dp")
+@Composable
+private fun LoginEmptyPreview() {
+    LoginPreviewContent(state = LoginUiState())
+}
+
+@Preview(name = "Iniciar sesión · llena", device = "spec:width=412dp,height=917dp")
+@Composable
+private fun LoginFilledPreview() {
+    LoginPreviewContent(state = FilledState, password = "contraseña de ejemplo")
+}
+
+@Preview(name = "Iniciar sesión · contraseña visible", device = "spec:width=412dp,height=917dp")
+@Composable
+private fun LoginPasswordVisiblePreview() {
+    LoginPreviewContent(state = FilledState, password = "contraseña de ejemplo", passwordVisible = true)
+}
+
+@Preview(name = "Iniciar sesión · error", device = "spec:width=412dp,height=917dp")
+@Composable
+private fun LoginErrorPreview() {
+    LoginPreviewContent(
+        state = FilledState.copy(error = LoginError.InvalidCredentials),
+        password = "contraseña de ejemplo",
+    )
+}
+
+@Preview(name = "Iniciar sesión · pantalla baja", device = "spec:width=360dp,height=740dp")
+@Composable
+private fun LoginSmallScreenPreview() {
+    LoginPreviewContent(state = FilledState, password = "contraseña de ejemplo")
+}
+
+@Preview(name = "Iniciar sesión · bloqueo por intentos", device = "spec:width=412dp,height=917dp")
+@Composable
+private fun LoginLockedOutPreview() {
+    LoginPreviewContent(
+        state = FilledState.copy(canSubmit = false, lockoutSecondsLeft = 14 * 60),
+        password = "contraseña de ejemplo",
+    )
+}

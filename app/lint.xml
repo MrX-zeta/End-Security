@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<lint>
+    <!-- core/crypto: AesGcm.sealWithNonce, Argon2idKdf.argon2id y Hkdf.sha256 solo se llaman desde
+         las pruebas (un nonce elegido por el llamador rompe DEC-29). Fuera de ellas es error. -->
+    <issue id="VisibleForTests" severity="error" />
+</lint>
