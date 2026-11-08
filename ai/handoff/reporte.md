@@ -46,3 +46,10 @@ Tocó configuración de build e inyección del transporte (no `core/crypto`, ses
 ## Bloqueo de la Parte B
 - En la raíz **no existe `keystore.properties`**, así que `assembleDemoRelease` solo produce `app-demo-release-unsigned.apk`; `apksigner verify` responde «DOES NOT VERIFY: Missing META-INF/MANIFEST.MF». Repetir con `--rerun-tasks` daría el mismo resultado.
 - Para seguir: crear `keystore.properties` en la raíz (cuatro claves) y correr `.\gradlew :app:assembleDemoRelease`; avisar y continúo con PR, merge, etiqueta, release y About.
+
+## Parte B · Hecha
+- APK `app-demo-release.apk` firmado: `apksigner verify` correcto; certificado público CN=Luis, OU=End-Security, O=UPCH, L=San Cristobal de las Casas, ST=Chiapas, C=MX; SHA-256 `B5:BA:83:BB:97:15:44:B2:41:B4:7B:BF:A4:1B:D8:3A:76:80:BB:FB:AB:96:31:06:BC:8F:74:48:30:F8:A9:DD`. `aapt2`: `com.luis.end_security.demo`, versionName `1.0.0-demo`, versionCode 1. Copiado como `End-Security-1.0.0-demo.apk` (ignorado por git).
+- PR: https://github.com/MrX-zeta/End-Security/pull/1, fusionado con merge commit (`8df0768`), sin squash.
+- Release (prerrelease) con el APK y la huella en las notas: https://github.com/MrX-zeta/End-Security/releases/tag/v1.0.0-demo
+- About: descripción y 12 tópicos aplicados con `gh repo edit`.
+- Licencia: «Todos los derechos reservados (proyecto académico)», sin cambios.
