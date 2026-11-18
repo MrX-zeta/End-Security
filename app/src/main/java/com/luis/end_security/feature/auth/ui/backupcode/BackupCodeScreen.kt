@@ -195,7 +195,7 @@ fun BackupCodeScreen(
                             // ahí (con Ascii lo guardaban en su diccionario). Las mayúsculas las pone el filtro.
                             keyboardOptions = KeyboardOptions(
                                 keyboardType = KeyboardType.Password,
-                                capitalization = KeyboardCapitalization.Characters,
+                                capitalization = if (ActiveBackupCodeFormat.usesUppercase) KeyboardCapitalization.Characters else KeyboardCapitalization.None,
                                 autoCorrectEnabled = false,
                                 imeAction = ImeAction.Done,
                             ),
