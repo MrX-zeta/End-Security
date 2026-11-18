@@ -239,7 +239,7 @@
     <string name="item_discard_keep">Seguir editando</string>
 
     <!-- Sincronización y conflictos (tarea 12; SCR-18…21, SCR-44) -->
-    <string name="vault_offline_notice">Sin conexión. Tus cambios se guardan y se subirán al reconectar.</string>
+    <string name="vault_offline_toast">Sin conexión. Tus cambios se subirán al reconectar.</string>
     <plurals name="vault_conflicts_notice">
         <item quantity="one">%d contraseña cambió en dos dispositivos</item>
         <item quantity="many">%d contraseñas cambiaron en dos dispositivos</item>

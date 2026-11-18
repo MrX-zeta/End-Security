@@ -1,6 +1,7 @@
 package com.luis.end_security.core.sync
 
 import com.luis.end_security.core.common.ApiResult
+import com.luis.end_security.core.common.AppMessages
 import com.luis.end_security.core.common.DeviceClock
 import com.luis.end_security.core.crypto.RandomBytes
 import com.luis.end_security.core.crypto.SecureBytes
@@ -63,6 +64,9 @@ class SyncWorld {
         }
     }
 
+    /** Los avisos que pide el motor (p. ej. «Sin conexión»). */
+    val messages = AppMessages()
+
     private val authKey = SecureBytes.copyOf(ByteArray(32) { 7 })
     private val email = "ana@correo.com"
     val userId: UUID = UUID.randomUUID()
@@ -95,7 +99,7 @@ class SyncWorld {
             ),
         )
         val dao = FakeVaultItemDao(accounts)
-        val engine = SyncEngine(api, dao, accounts, deviceClock)
+        val engine = SyncEngine(api, dao, accounts, deviceClock, messages)
 
         /** Inicia sesión en el servidor con la cuenta de la prueba. */
         fun signIn() = runBlocking {

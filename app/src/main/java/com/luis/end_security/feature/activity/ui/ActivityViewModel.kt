@@ -37,10 +37,15 @@ data class ActivityUiState(
     val loadingMore: Boolean = false,
     /** La página siguiente falló: no se vuelve a pedir sola; el pie ofrece reintentar. */
     val loadMoreFailed: Boolean = false,
+    /** Deslizar para actualizar con la lista a la vista: se conserva y solo gira el indicador. */
+    val isRefreshing: Boolean = false,
 )
 
 sealed interface ActivityAction {
     data object Retry : ActivityAction
+
+    /** Deslizar para actualizar: vuelve a pedir la primera página sin quitar la lista (Retry con la lista a la vista pide la siguiente). */
+    data object Refresh : ActivityAction
 
     /** Se llegó al final de la lista. */
     data object LoadMore : ActivityAction
@@ -69,13 +74,21 @@ class ActivityViewModel @Inject constructor(
 
     private fun loadFirstPage() {
         job?.cancel()
-        _state.update { it.copy(phase = ActivityPhase.Loading, loadMoreFailed = false, loadingMore = false) }
+        val refreshing = _state.value.phase == ActivityPhase.Loaded
+        _state.update {
+            if (refreshing) it.copy(isRefreshing = true) else it.copy(phase = ActivityPhase.Loading, loadMoreFailed = false, loadingMore = false)
+        }
         job = viewModelScope.launch {
             when (val result = api.listActivity(before = null, limit = ActivityRules.PAGE_SIZE)) {
                 is ApiResult.Success -> _state.update {
-                    withEvents(it.copy(phase = ActivityPhase.Loaded, hasMore = result.value.hasMore), result.value.events)
+                    withEvents(
+                        it.copy(phase = ActivityPhase.Loaded, isRefreshing = false, loadMoreFailed = false, loadingMore = false, hasMore = result.value.hasMore),
+                        result.value.events,
+                    )
                 }
-                is ApiResult.Failure -> _state.update { it.copy(phase = ActivityPhase.Offline) }
+                is ApiResult.Failure -> _state.update {
+                    if (refreshing) it.copy(isRefreshing = false) else it.copy(phase = ActivityPhase.Offline)
+                }
             }
         }
     }
@@ -118,6 +131,7 @@ class ActivityViewModel @Inject constructor(
                     loadFirstPage()
                 }
             }
+            ActivityAction.Refresh -> loadFirstPage()
             ActivityAction.LoadMore -> loadMore()
             ActivityAction.DayChanged -> _state.update {
                 it.copy(today = today(), days = ActivityRules.groupByDay(it.events, timeZone.zone()))

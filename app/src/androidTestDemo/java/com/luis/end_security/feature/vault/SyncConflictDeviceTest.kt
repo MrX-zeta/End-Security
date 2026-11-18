@@ -4,6 +4,7 @@ import androidx.room.Room
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.luis.end_security.core.common.ApiResult
+import com.luis.end_security.core.common.AppMessages
 import com.luis.end_security.core.common.DeviceClock
 import com.luis.end_security.core.crypto.Sealed
 import com.luis.end_security.core.crypto.SecureBytes
@@ -116,7 +117,7 @@ class SyncConflictDeviceTest {
                     AccountEntity(accountId.toString(), email, null, ByteArray(16), 65_536, 3, 1, ByteArray(12), ByteArray(48), 1, 0, null, null, null),
                 )
             }
-            engine = SyncEngine(api, database.vaultItemDao(), database.accountDao(), clock)
+            engine = SyncEngine(api, database.vaultItemDao(), database.accountDao(), clock, AppMessages())
             phones += this
         }
 

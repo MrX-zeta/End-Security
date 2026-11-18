@@ -107,6 +107,30 @@ class DevicesViewModelTest {
         assertEquals(2, state.devices.size)
     }
 
+    @Test
+    fun `deslizar para actualizar con la lista a la vista la conserva y la renueva`() = scope.runTest {
+        create(galaxy)
+        api.sessions = ApiResult.Success(listOf(galaxy, pixel))
+        viewModel.onAction(DevicesAction.Retry)
+        assertEquals("no vuelve al esqueleto", DevicesPhase.Loaded, state.phase)
+        assertTrue(state.isRefreshing)
+        assertEquals(1, state.devices.size)
+        runCurrent()
+        assertFalse(state.isRefreshing)
+        assertEquals(2, state.devices.size)
+    }
+
+    @Test
+    fun `si falla al deslizar para actualizar la lista se queda y el indicador se apaga`() = scope.runTest {
+        create(galaxy, pixel)
+        api.sessions = ApiResult.Failure(ApiError.NetworkUnavailable)
+        viewModel.onAction(DevicesAction.Retry)
+        runCurrent()
+        assertEquals(DevicesPhase.Loaded, state.phase)
+        assertFalse(state.isRefreshing)
+        assertEquals(2, state.devices.size)
+    }
+
     // --- Cerrar uno ---
 
     @Test

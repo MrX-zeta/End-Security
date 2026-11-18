@@ -6,7 +6,6 @@ import com.luis.end_security.core.designsystem.component.initialOf
 import com.luis.end_security.core.session.VaultSession
 import com.luis.end_security.core.session.VaultState
 import com.luis.end_security.feature.auth.domain.AuthRepository
-import com.luis.end_security.core.sync.SyncStatus
 import com.luis.end_security.feature.health.domain.HealthRepository
 import com.luis.end_security.feature.vault.domain.DeletionUndo
 import com.luis.end_security.feature.vault.domain.ItemSearch
@@ -58,7 +57,7 @@ class DeletedNotice(val name: String?) {
     override fun toString(): String = "DeletedNotice(***)"
 }
 
-/** Estado de Bóveda · Lista y vacía (SCR-10, SCR-11) y sus avisos (SCR-18, SCR-44). */
+/** Estado de Bóveda · Lista y vacía (SCR-10, SCR-11) y sus avisos (SCR-18). */
 class VaultListUiState(
     /** Inicial del avatar de la cuenta. */
     val accountInitial: String = "?",
@@ -73,8 +72,6 @@ class VaultListUiState(
     val deleted: DeletedNotice? = null,
     /** Contraseñas que cambiaron en dos dispositivos y esperan que se elija una versión (SCR-18). */
     val conflictCount: Int = 0,
-    /** La última sincronización falló por falta de red (SCR-44). */
-    val offline: Boolean = false,
     /** Contraseñas de nivel Crítico o Alto: «N contraseñas necesitan atención» (Salud). */
     val attentionCount: Int = 0,
 ) {
@@ -115,7 +112,6 @@ class VaultListViewModel @Inject constructor(
     private val session: VaultSession,
     private val deletion: DeletionUndo,
     private val auth: AuthRepository,
-    syncStatus: SyncStatus,
     private val health: HealthRepository,
 ) : ViewModel() {
 
@@ -127,11 +123,11 @@ class VaultListViewModel @Inject constructor(
     private val _effects = Channel<VaultListEffect>(Channel.BUFFERED)
     val effects: Flow<VaultListEffect> = _effects.receiveAsFlow()
 
-    private class Extras(val codesLeft: Int?, val initial: String, val conflicts: List<UUID>, val offline: Boolean)
+    private class Extras(val codesLeft: Int?, val initial: String, val conflicts: List<UUID>)
 
     private val extras = combine(
-        recoveryCodesLeft, accountInitial, repository.observeConflictIds(), syncStatus.offline,
-    ) { codes, initial, conflicts, offline -> Extras(codes, initial, conflicts, offline) }
+        recoveryCodesLeft, accountInitial, repository.observeConflictIds(),
+    ) { codes, initial, conflicts -> Extras(codes, initial, conflicts) }
 
     val state: StateFlow<VaultListUiState> = combine(
         repository.observeSummaries(),
@@ -152,7 +148,6 @@ class VaultListViewModel @Inject constructor(
             recoveryCodesLeft = extras.codesLeft,
             deleted = pending?.let { DeletedNotice(it.name) },
             conflictCount = extras.conflicts.size,
-            offline = extras.offline,
             attentionCount = risky.size,
         )
     // `Lazily`: arranca al primer uso y sigue mientras el ViewModel viva (la bóveda abierta). Con `WhileSubscribed(5 s)` la lista se

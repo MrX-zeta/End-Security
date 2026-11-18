@@ -205,6 +205,32 @@ class ActivityViewModelTest {
         assertEquals(100, state.events.size)
     }
 
+    @Test
+    fun `deslizar para actualizar con la lista a la vista la conserva y la renueva`() = scope.runTest {
+        api.events = manyEvents(3)
+        create()
+        api.events = manyEvents(5)
+        viewModel.onAction(ActivityAction.Refresh)
+        assertEquals("no vuelve al esqueleto", ActivityPhase.Loaded, state.phase)
+        assertTrue(state.isRefreshing)
+        assertEquals(3, state.events.size)
+        runCurrent()
+        assertFalse(state.isRefreshing)
+        assertEquals(5, state.events.size)
+    }
+
+    @Test
+    fun `si falla al deslizar para actualizar la lista se queda y el indicador se apaga`() = scope.runTest {
+        api.events = manyEvents(3)
+        create()
+        api.activityError = ApiError.NetworkUnavailable
+        viewModel.onAction(ActivityAction.Refresh)
+        runCurrent()
+        assertEquals(ActivityPhase.Loaded, state.phase)
+        assertFalse(state.isRefreshing)
+        assertEquals(3, state.events.size)
+    }
+
     // --- Sin conexión ---
 
     @Test

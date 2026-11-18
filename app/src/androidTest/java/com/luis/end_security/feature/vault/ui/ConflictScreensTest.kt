@@ -73,7 +73,7 @@ class ConflictScreensTest {
     )
 
     @Test
-    fun la_boveda_muestra_sin_conexion_y_el_aviso_de_conflictos() {
+    fun la_boveda_no_lleva_aviso_fijo_de_conexion_y_si_el_de_conflictos() {
         render("scr18_scr44_boveda") {
             VaultListScreen(
                 state = VaultListUiState(
@@ -82,12 +82,11 @@ class ConflictScreensTest {
                     rows = listOf(VaultRow.Item(UUID.randomUUID(), "Netflix", "luis.ruiz@gmail.com", "N")),
                     totalCount = 24,
                     conflictCount = 2,
-                    offline = true,
                 ),
                 onQueryChange = {}, onLockNow = {}, onItemClick = {}, onAddClick = {}, onUndoDelete = {},
             )
         }
-        composeRule.onNodeWithText("Sin conexión. Tus cambios se guardan y se subirán al reconectar.").assertIsDisplayed()
+        composeRule.onNodeWithText("Sin conexión. Tus cambios se guardan y se subirán al reconectar.").assertDoesNotExist()
         composeRule.onNodeWithText("Resolver").assertIsDisplayed()
     }
 
