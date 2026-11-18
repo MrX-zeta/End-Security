@@ -532,7 +532,8 @@ class BackendTranslator(
         accessToken = accessToken,
         accessTokenExpiresIn = expiresIn,
         refreshToken = refreshToken,
-        // shortcut: el backend no devuelve el vencimiento; se usa su valor por defecto (7 días desde esta renovación).
+        // shortcut: el backend no devuelve el vencimiento; se usa su valor por defecto (7 días desde esta renovación). Upgrade si cambia
+        // JWT_REFRESH_EXPIRES_IN en el servidor o si el backend agrega el vencimiento a la respuesta.
         refreshTokenExpiresAt = now().plus(REFRESH_TTL).toString(),
         // El refresh token es `<sessionId>.<secreto>` (TokenService del backend).
         sessionId = refreshToken.substringBefore('.'),
@@ -614,7 +615,7 @@ class BackendTranslator(
         )
 
         private fun parseQuery(query: String): Map<String, String> = query.split('&').filter { '=' in it }.associate {
-            URLDecoder.decode(it.substringBefore('='), Charsets.UTF_8) to URLDecoder.decode(it.substringAfter('='), Charsets.UTF_8)
+            URLDecoder.decode(it.substringBefore('='), "UTF-8") to URLDecoder.decode(it.substringAfter('='), "UTF-8")
         }
 
         /** BR-21: evento del backend → `ActivityKind.wire` de la app; `null` = se oculta. Sin IP ni agente. */

@@ -20,18 +20,18 @@
 
 ## Phase 1: Setup (Shared Infrastructure)
 
-- [ ] T001 Agregar `okhttp = "4.12.0"` y la librería `okhttp` a `gradle/libs.versions.toml`, y `prodImplementation(libs.okhttp)` en `app/build.gradle.kts` (research R1)
-- [ ] T002 Agregar `buildConfigField("String", "API_BASE_URL", …)`: `http://127.0.0.1:3000/api/` en `prod` + `debug`, `""` en `release` con `TODO(BR-26)`, en `app/build.gradle.kts` (research R10)
-- [ ] T003 [P] Crear `app/src/debug/res/xml/network_security_config.xml` con texto plano solo para `127.0.0.1` y `10.0.2.2`, conservando el bloque de HIBP; release sigue con `app/src/main/res/xml/network_security_config.xml` (FR-016)
+- [X] T001 Agregar `okhttp = "4.12.0"` y la librería `okhttp` a `gradle/libs.versions.toml`, y `prodImplementation(libs.okhttp)` en `app/build.gradle.kts` (research R1)
+- [X] T002 Agregar `buildConfigField("String", "API_BASE_URL", …)`: `http://127.0.0.1:3000/api/` en `prod` + `debug`, `""` en `release` con `TODO(BR-26)`, en `app/build.gradle.kts` (research R10)
+- [X] T003 [P] Crear `app/src/debug/res/xml/network_security_config.xml` con texto plano solo para `127.0.0.1` y `10.0.2.2`, conservando el bloque de HIBP; release sigue con `app/src/main/res/xml/network_security_config.xml` (FR-016)
 
 ---
 
 ## Phase 2: Foundational (Blocking Prerequisites)
 
-- [ ] T004 Crear los DTO del backend (envoltura `{success,data}`, error `{statusCode,error,message,details}`, `kdf`, `pvk`, tokens, usuario, sync, auditoría, sesiones, 2FA) en `app/src/prod/java/com/luis/end_security/core/network/backend/BackendDtos.kt`
-- [ ] T005 Crear `BackendTranslator` con: tipo `BackendCall`/`BackendReply`, función `send` inyectada, conversión Base64url ↔ Base64, respuesta *problem+json* con `code` y la tabla de errores de `contracts/translation.md`, en `.../backend/BackendTranslator.kt`
-- [ ] T006 Crear `BackendTransport` (OkHttp, `API_BASE_URL`, sin URL → `IOException`, sin logs) y enlazarlo en `app/src/prod/java/com/luis/end_security/core/di/ProdNetworkModule.kt`
-- [ ] T007 [P] Prueba base del traductor (Base64, envoltura, errores 400/401/404/429/5xx) en `app/src/testProd/java/com/luis/end_security/core/network/backend/BackendTranslatorTest.kt`
+- [X] T004 Crear los DTO del backend (envoltura `{success,data}`, error `{statusCode,error,message,details}`, `kdf`, `pvk`, tokens, usuario, sync, auditoría, sesiones, 2FA) en `app/src/prod/java/com/luis/end_security/core/network/backend/BackendDtos.kt`
+- [X] T005 Crear `BackendTranslator` con: tipo `BackendCall`/`BackendReply`, función `send` inyectada, conversión Base64url ↔ Base64, respuesta *problem+json* con `code` y la tabla de errores de `contracts/translation.md`, en `.../backend/BackendTranslator.kt`
+- [X] T006 Crear `BackendTransport` (OkHttp, `API_BASE_URL`, sin URL → `IOException`, sin logs) y enlazarlo en `app/src/prod/java/com/luis/end_security/core/di/ProdNetworkModule.kt`
+- [X] T007 [P] Prueba base del traductor (Base64, envoltura, errores 400/401/404/429/5xx) en `app/src/testProd/java/com/luis/end_security/core/network/backend/BackendTranslatorTest.kt`
 
 **Checkpoint**: la app `prod` compila y cada ruta desconocida responde `server_error`.
 
@@ -44,13 +44,13 @@
 
 ### Tests for User Story 1
 
-- [ ] T008 [P] [US1] Pruebas: prelogin, registro (`userId`, `deviceName`, 202), verificación con el desafío guardado y sin él (`challenge_expired`), login → `authenticated` / `two_factor_required` / `email_not_verified`, 2FA TOTP y respaldo (`recoveryCodesRemaining`), refresh 401 → `session_revoked`, 401 con sesión → `token_expired`, en `BackendTranslatorTest.kt`
+- [X] T008 [P] [US1] Pruebas: prelogin, registro (`userId`, `deviceName`, 202), verificación con el desafío guardado y sin él (`challenge_expired`), login → `authenticated` / `two_factor_required` / `email_not_verified`, 2FA TOTP y respaldo (`recoveryCodesRemaining`), refresh 401 → `session_revoked`, 401 con sesión → `token_expired`, en `BackendTranslatorTest.kt`
 
 ### Implementation for User Story 1
 
-- [ ] T009 [US1] Rutas `/auth/*` del contrato y el mapa en memoria «correo normalizado (trim, minúsculas, NFC) → challengeToken» (data-model.md) en `BackendTranslator.kt`
-- [ ] T010 [US1] Llaves conocidas (`userId`, `kdf`, `protectedVaultKey`, `keyVersion`) en memoria al recibir un acceso; se borran en logout (data-model.md) en `BackendTranslator.kt`
-- [ ] T011 [US1] Formato de códigos de respaldo por variante (Crockford `XXXX-XXXX` en demo; `xxxxx-xxxxx` con `abcdefghjkmnpqrstuvwxyz23456789` en prod) en `app/src/main/java/com/luis/end_security/feature/auth/domain/BackupCodeFormat.kt` y sus usos en `feature/auth/ui/backupcode/` (BR-10)
+- [X] T009 [US1] Rutas `/auth/*` del contrato y el mapa en memoria «correo normalizado (trim, minúsculas, NFC) → challengeToken» (data-model.md) en `BackendTranslator.kt`
+- [X] T010 [US1] Llaves conocidas (`userId`, `kdf`, `protectedVaultKey`, `keyVersion`) en memoria al recibir un acceso; se borran en logout (data-model.md) en `BackendTranslator.kt`
+- [X] T011 [US1] Formato de códigos de respaldo por variante (Crockford `XXXX-XXXX` en demo; `xxxxx-xxxxx` con `abcdefghjkmnpqrstuvwxyz23456789` en prod) en `app/src/main/java/com/luis/end_security/feature/auth/domain/BackupCodeFormat.kt` y sus usos en `feature/auth/ui/backupcode/` (BR-10)
 
 **Checkpoint**: se puede crear una cuenta y entrar en `prod`.
 
@@ -63,11 +63,11 @@
 
 ### Tests for User Story 2
 
-- [ ] T012 [P] [US2] Pruebas: `since=0`, `fullResync` con `since>0` → 410, PUT nuevo/edición → `created`/`updated`, DELETE → `deleted`, 409 `version_mismatch` → `version_conflict`, `not_found` → 404, GET de un elemento borrado vía `since=1`, en `BackendTranslatorTest.kt`
+- [X] T012 [P] [US2] Pruebas: `since=0`, `fullResync` con `since>0` → 410, PUT nuevo/edición → `created`/`updated`, DELETE → `deleted`, 409 `version_mismatch` → `version_conflict`, `not_found` → 404, GET de un elemento borrado vía `since=1`, en `BackendTranslatorTest.kt`
 
 ### Implementation for User Story 2
 
-- [ ] T013 [US2] Rutas `/vault/items*` (lotes de 1, BR-13; `getItem` por `sync`, BR-14) y cursor en memoria en `BackendTranslator.kt`
+- [X] T013 [US2] Rutas `/vault/items*` (lotes de 1, BR-13; `getItem` por `sync`, BR-14) y cursor en memoria en `BackendTranslator.kt`
 
 ---
 
@@ -78,25 +78,25 @@
 
 ### Tests for User Story 3
 
-- [ ] T014 [P] [US3] Pruebas: `GET /account` con `keyVersion` de `/vault/sync`, cambio de contraseña (409 `KeyVersionMismatch` → `key_version_conflict`), 403 de reautenticación → `reauth_required`, setup de 2FA desde `otpauthUrl`, sesiones con `lastUsedAt` nulo, actividad con eventos ocultos y sin IP, en `BackendTranslatorTest.kt`
+- [X] T014 [P] [US3] Pruebas: `GET /account` con `keyVersion` de `/vault/sync`, cambio de contraseña (409 `KeyVersionMismatch` → `key_version_conflict`), 403 de reautenticación → `reauth_required`, setup de 2FA desde `otpauthUrl`, sesiones con `lastUsedAt` nulo, actividad con eventos ocultos y sin IP, en `BackendTranslatorTest.kt`
 
 ### Implementation for User Story 3
 
-- [ ] T015 [US3] Rutas `/account*`, `/sessions*` y `/activity` (tabla de eventos de contracts/translation.md) en `BackendTranslator.kt`
-- [ ] T016 [US3] `AccountApi.startTwoFactorSetup(reauth: Reauth)` en `feature/account/domain/AccountApi.kt`, `core/network/api/AccountApiImpl.kt` (cuerpo `ReauthRequestDto`), `feature/account/domain/TwoFactorRepository.kt` y `feature/account/data/TwoFactorRepositoryImpl.kt` (BR-20)
-- [ ] T017 [US3] Hoja `ReauthSheet` antes de pedir la clave en `feature/account/ui/TwoFactorSetupViewModel.kt` y su pantalla, con textos en `res/values/strings.xml` (BR-20)
+- [X] T015 [US3] Rutas `/account*`, `/sessions*` y `/activity` (tabla de eventos de contracts/translation.md) en `BackendTranslator.kt`
+- [X] T016 [US3] `AccountApi.startTwoFactorSetup(reauth: Reauth)` en `feature/account/domain/AccountApi.kt`, `core/network/api/AccountApiImpl.kt` (cuerpo `ReauthRequestDto`), `feature/account/domain/TwoFactorRepository.kt` y `feature/account/data/TwoFactorRepositoryImpl.kt` (BR-20)
+- [X] T017 [US3] Hoja `ReauthSheet` antes de pedir la clave en `feature/account/ui/TwoFactorSetupViewModel.kt` y su pantalla, con textos en `res/values/strings.xml` (BR-20)
 
 ---
 
 ## Phase 6: User Story 4 - La demo no cambia (Priority: P1)
 
-- [ ] T018 [US4] Ajustar las pruebas de demo que llamen a `startTwoFactorSetup()` o usen `BackupCodeFormat` directamente, sin cambiar el comportamiento del servidor falso, en `app/src/testDemo/` y `app/src/test/`
+- [X] T018 [US4] Ajustar las pruebas de demo que llamen a `startTwoFactorSetup()` o usen `BackupCodeFormat` directamente, sin cambiar el comportamiento del servidor falso, en `app/src/testDemo/` y `app/src/test/`
 
 ---
 
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-- [ ] T019 Correr `./gradlew assembleProdDebug testProdDebugUnitTest testDemoDebugUnitTest lintProdDebug` y anotar el resultado real
+- [X] T019 Correr `./gradlew assembleProdDebug testProdDebugUnitTest testDemoDebugUnitTest lintProdDebug` y anotar el resultado real
 - [ ] T020 Revisión con el subagente `security-reviewer` (toca autenticación y red) y «REQUIERE REVISIÓN HUMANA» en el reporte
 
 ---
