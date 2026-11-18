@@ -577,6 +577,8 @@
     <string name="tf_new_codes_title_regular">en un lugar seguro</string>
     <string name="tf_new_codes_notice">Los códigos anteriores ya no funcionan.</string>
     <string name="tf_reauth_title">Confirma que eres tú</string>
+    <!-- BR-20 (tarea 32): antes de mostrar la clave el servidor real pide la contraseña maestra. Pendiente de pasar a Figma. -->
+    <string name="tf_setup_reauth_body">Para activar la verificación en dos pasos escribe tu contraseña maestra.</string>
     <string name="tf_reauth_body_disable">Para desactivar la verificación en dos pasos escribe tu contraseña maestra y el código de tu app.</string>
     <string name="tf_reauth_body_regenerate">Para generar códigos nuevos escribe tu contraseña maestra y el código de tu app.</string>
     <string name="tf_reauth_password_label">Contraseña maestra</string>

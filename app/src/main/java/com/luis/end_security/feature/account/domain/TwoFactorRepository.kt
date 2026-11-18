@@ -10,8 +10,8 @@ interface TwoFactorRepository {
     /** `twoFactorEnabled` de la cuenta; `null` sin red o con error. */
     suspend fun isEnabled(): Boolean?
 
-    /** EP-19: clave pendiente (una nueva en cada llamada si aún no se confirmó). */
-    suspend fun startSetup(): ApiResult<TwoFactorSetup>
+    /** EP-19: clave pendiente (una nueva en cada llamada si aún no se confirmó); reautentica con la contraseña (BR-20). */
+    suspend fun startSetup(password: CharSequence): ApiResult<TwoFactorSetup>
 
     /** EP-20: confirma con el primer código y devuelve los 10 códigos de respaldo (`XXXX-XXXX`). */
     suspend fun confirm(code: String): ApiResult<List<String>>

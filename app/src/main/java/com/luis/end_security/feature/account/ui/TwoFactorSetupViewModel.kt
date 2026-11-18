@@ -39,6 +39,12 @@ enum class SetupStep { Key, Code, Codes }
  */
 data class TwoFactorSetupUiState(
     val step: SetupStep = SetupStep.Key,
+    /** Antes de pedir la clave se confirma la contraseña maestra (BR-20): hoja «Confirma que eres tú». */
+    val askPassword: Boolean = true,
+    /** «Escribe tu contraseña maestra.» bajo el campo vacío. */
+    val showPasswordRequired: Boolean = false,
+    /** `reauth_required`: la contraseña no es correcta. */
+    val credentialsWrong: Boolean = false,
     /** Pidiendo la clave (EP-19): SCR-43. */
     val isLoadingKey: Boolean = false,
     /** La clave en grupos de 4, dos grupos por línea; `null` mientras carga o si falló. */
@@ -68,6 +74,16 @@ data class TwoFactorSetupUiState(
 }
 
 sealed interface SetupAction {
+    data class PasswordEmptinessChanged(val empty: Boolean) : SetupAction
+
+    /** Confirmar la hoja de contraseña: pide la clave (EP-19) reautenticando. */
+    class SubmitPassword(val password: CharSequence) : SetupAction {
+        override fun toString(): String = "SubmitPassword(***)"
+    }
+
+    /** Cancelar la hoja de contraseña: sale del flujo sin activar nada. */
+    data object PasswordDismissed : SetupAction
+
     data object Continue : SetupAction
     data object CopyKey : SetupAction
     data object OpenAuthenticator : SetupAction
@@ -109,7 +125,7 @@ class TwoFactorSetupViewModel @Inject constructor(
     private val appMessages: AppMessages,
 ) : ViewModel() {
 
-    private val _state = MutableStateFlow(TwoFactorSetupUiState(isLoadingKey = true))
+    private val _state = MutableStateFlow(TwoFactorSetupUiState())
     val state: StateFlow<TwoFactorSetupUiState> = _state.asStateFlow()
 
     private val _effects = Channel<SetupEffect>(Channel.BUFFERED)
@@ -120,14 +136,18 @@ class TwoFactorSetupViewModel @Inject constructor(
     private var ticker: Job? = null
     private var copiedJob: Job? = null
     private val lockoutCountdown = Countdown(timeSource)
+    private var passwordEmpty = true
 
-    init {
-        // Cada entrada pide una clave nueva: si se salió antes de confirmar, la anterior ya no sirve.
-        loadKey()
-    }
+    // Cada entrada pide una clave nueva (si se salió antes de confirmar, la anterior ya no sirve), después de la contraseña.
 
     fun onAction(action: SetupAction) {
         when (action) {
+            is SetupAction.PasswordEmptinessChanged -> {
+                passwordEmpty = action.empty
+                _state.update { it.copy(showPasswordRequired = it.showPasswordRequired && action.empty, credentialsWrong = false) }
+            }
+            is SetupAction.SubmitPassword -> loadKey(action.password)
+            SetupAction.PasswordDismissed -> onAction(SetupAction.Finish)
             SetupAction.Continue -> goToCode()
             SetupAction.CopyKey -> copy(setup?.secret)
             SetupAction.OpenAuthenticator -> setup?.let { _effects.trySend(SetupEffect.OpenUri(OtpAuthUri.build(it))) }
@@ -160,21 +180,39 @@ class TwoFactorSetupViewModel @Inject constructor(
                 // Atrás en el Paso 3 hace lo mismo que «Ya los guardé»: nunca regresa al Paso 2.
                 SetupStep.Codes -> onAction(SetupAction.Finish)
             }
-            SetupAction.Retry -> loadKey()
+            SetupAction.Retry -> _state.update { it.copy(askPassword = true, keyError = false) }
             is SetupAction.AuthenticatorAvailable -> _state.update { it.copy(canOpenAuthenticator = action.available) }
         }
     }
 
-    /** OP-22: pide la clave pendiente (EP-19). */
-    private fun loadKey() {
-        _state.update { it.copy(isLoadingKey = true, keyError = false, keyDisplay = null) }
+    /** OP-22: pide la clave pendiente (EP-19) con la contraseña maestra (BR-20). */
+    private fun loadKey(password: CharSequence) {
+        val current = _state.value
+        if (current.isLoadingKey || current.isLockedOut) return
+        if (passwordEmpty || password.isEmpty()) {
+            _state.update { it.copy(showPasswordRequired = true) }
+            return
+        }
+        _state.update { it.copy(isLoadingKey = true, keyError = false, keyDisplay = null, credentialsWrong = false) }
         viewModelScope.launch {
-            when (val result = repository.startSetup()) {
+            when (val result = repository.startSetup(password)) {
                 is ApiResult.Success -> {
                     setup = result.value
-                    _state.update { it.copy(isLoadingKey = false, keyDisplay = groupKey(result.value.secret)) }
+                    _state.update {
+                        it.copy(isLoadingKey = false, askPassword = false, keyDisplay = groupKey(result.value.secret))
+                    }
                 }
-                is ApiResult.Failure -> _state.update { it.copy(isLoadingKey = false, keyError = true) }
+                is ApiResult.Failure -> when (val error = result.error) {
+                    ApiError.ReauthRequired, ApiError.InvalidCredentials ->
+                        _state.update { it.copy(isLoadingKey = false, credentialsWrong = true) }
+                    is ApiError.RateLimited -> {
+                        _state.update { it.copy(isLoadingKey = false) }
+                        lockoutCountdown.start(viewModelScope, error.retryAfterSeconds.seconds) { left ->
+                            _state.update { it.copy(lockoutSecondsLeft = left) }
+                        }
+                    }
+                    else -> _state.update { it.copy(isLoadingKey = false, askPassword = false, keyError = true) }
+                }
             }
         }
     }

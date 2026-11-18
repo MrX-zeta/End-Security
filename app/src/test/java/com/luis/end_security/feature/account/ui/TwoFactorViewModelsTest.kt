@@ -49,7 +49,7 @@ private class FakeTwoFactorRepository : TwoFactorRepository {
 
     override suspend fun isEnabled() = enabled
 
-    override suspend fun startSetup(): ApiResult<TwoFactorSetup> {
+    override suspend fun startSetup(password: CharSequence): ApiResult<TwoFactorSetup> {
         setupCalls++
         return setupResult
     }
@@ -122,6 +122,14 @@ class TwoFactorSetupViewModelTest {
     private fun TestScope.create() {
         viewModel = TwoFactorSetupViewModel(repo, clipboard, clock, dispatcher.scheduler.timeSource, appMessages)
         runCurrent()
+        submitPassword()
+    }
+
+    /** BR-20: la hoja de contraseña va antes de la clave. */
+    private fun TestScope.submitPassword(password: String = "contraseña maestra") {
+        viewModel.onAction(SetupAction.PasswordEmptinessChanged(password.isEmpty()))
+        viewModel.onAction(SetupAction.SubmitPassword(password))
+        runCurrent()
     }
 
     private fun TestScope.toCodeStep() {
@@ -140,12 +148,40 @@ class TwoFactorSetupViewModelTest {
     }
 
     @Test
-    fun `mientras responde EP-19 esta cargando`() = runVm {
+    fun `primero pide la contrasena y mientras responde EP-19 esta cargando`() = runVm {
         viewModel = TwoFactorSetupViewModel(repo, clipboard, clock, dispatcher.scheduler.timeSource, appMessages)
+        runCurrent()
+        assertTrue(state.askPassword)
+        assertEquals(0, repo.setupCalls)
+        viewModel.onAction(SetupAction.PasswordEmptinessChanged(false))
+        viewModel.onAction(SetupAction.SubmitPassword("contraseña maestra"))
         assertTrue(state.isLoadingKey)
         assertNull(state.keyDisplay)
         runCurrent()
         assertFalse(state.isLoadingKey)
+        assertFalse(state.askPassword)
+    }
+
+    @Test
+    fun `contrasena vacia o incorrecta no muestra la clave (BR-20)`() = runVm {
+        viewModel = TwoFactorSetupViewModel(repo, clipboard, clock, dispatcher.scheduler.timeSource, appMessages)
+        runCurrent()
+        submitPassword("")
+        assertTrue(state.showPasswordRequired)
+        assertEquals(0, repo.setupCalls)
+        repo.setupResult = ApiResult.Failure(ApiError.ReauthRequired)
+        submitPassword()
+        assertTrue(state.credentialsWrong)
+        assertTrue(state.askPassword)
+        assertNull(state.keyDisplay)
+    }
+
+    @Test
+    fun `cancelar la hoja de contrasena sale del flujo`() = runVm {
+        viewModel = TwoFactorSetupViewModel(repo, clipboard, clock, dispatcher.scheduler.timeSource, appMessages)
+        runCurrent()
+        viewModel.onAction(SetupAction.PasswordDismissed)
+        assertEquals(SetupEffect.Exit, viewModel.effects.first())
     }
 
     @Test
@@ -156,7 +192,8 @@ class TwoFactorSetupViewModelTest {
         assertNull(state.keyDisplay)
         repo.setupResult = ApiResult.Success(TwoFactorSetup(SECRET, "End Security", "a@b.c", "SHA1", 6, 30))
         viewModel.onAction(SetupAction.Retry)
-        runCurrent()
+        assertTrue("reintentar vuelve a pedir la contraseña", state.askPassword)
+        submitPassword()
         assertFalse(state.keyError)
         assertEquals(2, repo.setupCalls)
     }
