@@ -1,88 +1,81 @@
-# Tarea 33 · Ajustes tras las pruebas en el teléfono, endurecimiento del backend y grafos
+# Tarea 34 · Sin conexión: la bóveda deja de mostrar el aviso fijo
 
 **Estado:** hecha
 **Escrita:** 2026-11-18 · sesión de diseño
 
-## Revisión de la tarea 32
-Aprobada. Backend e integración probados por la persona en el teléfono con el backend local: registro, verificación, desbloqueo, contraseñas, 2FA, cambio de contraseña y borrado funcionan.
-Decisiones de la revisión:
-- **BR-22** (bloqueo por cuenta que un tercero puede provocar): riesgo aceptado.
-- **Cambio de correo con Resend** (se puede inferir por tiempo si el correo nuevo existe): riesgo aceptado hasta tener dominio.
-- `docs/bd/end_security_db.jpg`: **no lo versiones** y no lo toques.
+## Revisión de la tarea 33
+Aprobada. Probado en el teléfono contra el backend local:
+- «Más débiles» funciona;
+- el tope de reenvíos del código funciona.
 
-**Ramas (igual que la tarea 32):**
-- App: `integracion/backend`. Backend: `integracion/app`.
-- Los commits nuevos van a esas ramas y a sus PR (#2 app, #1 backend). Nada en `develop`, `development` ni `main`. Tú no haces merge.
-- El `siguiente.md` y el `reporte.md` de esta tarea los commiteas en `integracion/backend`.
-- Sin capturas de pantalla. No leas `.env*`, `keystore.properties` ni claves.
-- ponytail en `full`; no te detengas entre pasos salvo bloqueo real.
+Tú no tienes pendientes de esa tarea: la carpeta original ya la restauró la persona.
+
+**Ramas:** solo la app, en `integracion/backend` (PR #2). No toques el backend. Sin merge.
+**Reglas:**
+- sin capturas;
+- no leas `.env*` ni llaves;
+- ponytail en `full`;
+- no te detengas entre pasos salvo un bloqueo real.
+**Carpeta:** trabaja en la carpeta original de la app (la persona instala desde ahí). Si un comando de git te bloquea, anótalo y sigue.
 
 ---
 
-## Paso 0 · Estado del árbol (app)
-La carpeta de la app tuvo un cambio de rama interrumpido: varios archivos de `app/` aparecían distintos de `HEAD`, como si fueran de una versión anterior de la rama (BR-10 y BR-20 deshechos).
-- Comprueba que `HEAD` es `integracion/backend` y que `git status` no muestra más que `docs/bd/end_security_db.jpg` y los archivos de esta tarea.
-- Si aparecen otros, restáuralos con `git restore -- <archivos>`; no hay trabajo de la persona en ellos.
-- Anota en el reporte qué encontraste.
+## Problema visto en el teléfono
+Con la red débil, la bóveda muestra «Sin conexión. Tus cambios se guardan y se subirán al reconectar.». Cuando la red vuelve, el aviso se queda.
 
-## Paso 1 · «Más débiles» solo por fuerza (app)
-**Error visto en el teléfono:** una contraseña `admin123` aparece en «Más débiles»; se cambia por una robusta y sigue ahí con «muy fuerte», y además aparece en «Mejoradas».
+Causa (`core/sync/SyncScheduler.kt` y `SyncEngine.kt`):
+- el aviso solo se apaga cuando una sincronización termina bien;
+- con red débil, el reintento de `onAvailable` falla y no hay otro hasta desbloquear, guardar o volver a primer plano después de 5 min;
+- el reintento con espera solo existe para `RetryLater` (5xx), no para `Offline`.
 
-**Causa:** `HealthUiState.rankingFor(RankingTab.Weakest)` en `feature/health/ui/HealthViewModel.kt` ordena todos los elementos por fuerza y toma 10, sin filtrar. Con una bóveda chica, las fuertes también entran.
+## Decisiones (aprobadas por la persona; cambian DEC-58)
+1. **La bóveda es offline: sin aviso fijo.** Quita el `OfflineNotice` de `VaultListScreen` (y lo que solo existía para él en `VaultListViewModel`).
+2. **Aviso temporal, una vez por corte.** Usa `AppMessages`/`MessageHost`, que ya existen; no crees un componente nuevo.
+   - Se muestra cuando la sincronización pasa de «con conexión» a `Offline` **y** hay cambios locales sin subir.
+   - Texto nuevo `vault_offline_toast` = «Sin conexión. Tus cambios se subirán al reconectar.». Dura unos 4 s; si `MessageHost` ya tiene una duración estándar, úsala.
+   - No se repite en cada reintento, ni con el mismo corte. No hay mensaje al volver la red.
+   - Si no hay cambios pendientes, no se dice nada.
+3. **Reintento automático mientras esté `Offline`.** En `runSyncs`, trata `Offline` con espera creciente, como `RetryLater`, pero corta: 15 s, 30 s, 1 min, hasta 2 min.
+   - Se detiene al sincronizar bien, al bloquear la bóveda o al cerrar sesión (`closing`).
+   - No debe correr con la app en segundo plano; eso lo cubre `SyncWorker`.
+4. **Reintentar cuando la red ya es usable.** Además de `onAvailable`, usa `onCapabilitiesChanged` con `NET_CAPABILITY_VALIDATED`.
+   - Si está `Offline`, `requestNow()`.
+   - Sin pedir permisos nuevos.
+5. **Deslizar para actualizar solo en Dispositivos y Actividad.**
+   - Usa `PullToRefreshBox` de Material 3: ya viene en la dependencia de Material 3; si no, anótalo y no agregues librerías.
+   - Lanza la misma acción `Retry` que ya existe.
+   - Funciona también cuando la lista se muestra bien (para actualizarla).
+   - El botón «Reintentar» del estado de error se queda.
+   - En la bóveda y en Salud **no** se agrega (Salud ya tiene «Revisar ahora»).
 
-**Decisión (la persona la aprobó):** «Más débiles» se guía por el título, solo por la fuerza.
-- Excluye los de `StrengthClass.Strong` antes de ordenar y tomar los 10.
-- Las repetidas o filtradas no entran por eso: ya tienen sus pantallas.
-- Estado vacío para la pestaña «Más débiles», con texto nuevo en `strings.xml`: `health_ranking_weakest_empty` = «No tienes contraseñas débiles. Buen trabajo.». Reutiliza el componente del estado vacío de «Mejoradas».
-- Anota la regla en el nodo de la pantalla del ranking (`SCR-*`) del grafo.
+## Pruebas (unitarias, sin dispositivo)
+- **Programador de sincronización**, con reloj y motor falsos:
+  - con `Offline` reintenta a 15 s, 30 s y 1 min, y no pasa de 2 min;
+  - se detiene al recibir `Synced`, y al cerrar sesión.
+- **Aviso:**
+  - sale una sola vez por corte y solo con pendientes;
+  - con dos fallos seguidos, solo un mensaje;
+  - online → offline → online → offline: dos mensajes.
+- **`VaultListViewModel`:** ya no expone el estado de aviso fijo. Ajusta las pruebas que lo usaban.
+- **Dispositivos y Actividad:** deslizar lanza `Retry` (ViewModel o prueba de UI JVM, lo que ya use el proyecto).
 
-**Pruebas** (unitarias del ViewModel o de `HealthUiState`, sin dispositivo):
-1. Tres elementos (débil, regular, fuerte): la fuerte no sale en «Más débiles».
-2. El flujo de la persona: `admin` / `admin123` → está en «Más débiles» y no en «Mejoradas». Se cambia por una contraseña fuerte → ya no está en «Más débiles», sí en «Mejoradas», y «Más débiles» queda vacío.
-3. Con 12 débiles, salen solo 10.
+## Grafo y documentos
+- **`knowledge-graph.json`:**
+  - DEC-58 ya no dice que la Bóveda muestra un aviso fijo. Describe el aviso temporal, el reintento sin conexión y el deslizar en Dispositivos y Actividad.
+  - SCR-44 «Bóveda · sin conexión» pasa a `descartado`, con una nota.
+  - Sube la versión y agrega una línea a `historial`.
+- **`docs/arquitectura.md`:** actualiza la parte de sincronización, si habla del aviso.
 
-## Paso 2 · Backend: dos hallazgos de la auditoría (`integracion/app`)
-Son los dos que la persona quiere cerrar antes de desplegar. **REQUIERE REVISIÓN HUMANA** (auth y SQL).
-Escribe el plan en el reporte antes del código (sin esperar aprobación) y elige lo más simple que cumpla.
-
-**a) Reenvío del código de registro sin tope.** Quien conozca un correo puede pedir códigos sin fin y llenarle la bandeja. Hoy solo hay una espera entre reenvíos.
-- Agrega un tope por correo (por ejemplo 5 envíos por hora y 10 por día) contado en la BD, como ya se hace con el cambio de correo.
-- Al pasarse: 429 con `retryAfterSeconds`, igual que DEC-63.
-- La respuesta no debe revelar si el correo existe.
-
-**b) Cuentas sin verificar que no vencen.** Un registro sin verificar aparta el correo para siempre.
-- Define un plazo (por ejemplo 24 h). Pasado ese plazo, un registro nuevo con el mismo correo reemplaza a la cuenta sin verificar y sin bóveda.
-- El reemplazo respeta la cadena de auditoría y las FK, igual que `deleteAccount` (anonimizar, no borrar la fila).
-- Una cuenta ya verificada nunca se toca.
-- Si ves una forma más sencilla (por ejemplo, purga periódica), explícala en el plan y elige una.
-
-**Pruebas:** Jest para el tope (por correo y la respuesta 429) y para el reemplazo (vencida sí, vigente no, verificada nunca). Añade los casos a `scripts/e2e/flujo-completo.mjs` si caben. Reporta `npm run build`, `npm test` y lint con el resultado real.
-
-## Paso 3 · Grafos y documentos
-Parchea el JSON directamente (el generador de la app no existe). Sube la versión y `actualizado` en `meta`, y agrega una línea a `historial`.
-
-**`ai/context/backend-graph.json`:**
-- Marca como resueltas, con su commit, las brechas BR-06, 07, 16, 17, 18, 22, 23, 25 y 27.
-- BR-10, 20 y 21 quedan «adaptadas en la app» (tarea 32).
-- BR-24 (dominio de correo) y BR-26 (URL pública y pines SPKI) siguen abiertas.
-- Agrega los dos hallazgos nuevos del Paso 2 como brechas con su estado.
-
-**`ai/context/knowledge-graph.json` (app):**
-- Dos riesgos aceptados nuevos (los de la revisión de arriba), con sus aristas.
-- La regla del Paso 1.
-- Agrega el flujo de código para las pantallas de Cambio de correo (DEC-63), si no está.
-
-**Documentos:**
-- `docs/api/brechas-backend.md`: una línea al principio que diga «Reemplazado por `ai/context/backend-graph.json`; no se mantiene».
-- `README.md` de la app: sección corta «Probar con el backend local».
-  1. Las pasos del reporte de la tarea 32.
-  2. `adb -s <serie> reverse tcp:3000 tcp:3000`, porque con un emulador abierto `adb` pide elegir dispositivo.
-  3. Que `.env` lo escribe cada persona y que las migraciones se aplican con `npx prisma migrate deploy` desde la rama `integracion/app`.
-- `ai/context/estado-actual.md`: ponlo al día.
-
-## Paso 4 · Cierre
-1. `/ponytail-review` en las dos ramas; corrige lo importante.
-2. App: `./gradlew testProdDebugUnitTest testDemoDebugUnitTest lintProdDebug assembleProdDebug`.
-3. Push de las dos ramas (los PR #1 y #2 se actualizan solos).
-4. Reporte en `ai/handoff/reporte.md`: Paso 0 (qué había), cada paso con sus commits, resultados reales, y lo que quedó pendiente.
-5. Estado `hecha`, commit en `integracion/backend` y **detente**.
+## Cierre
+1. `./gradlew testProdDebugUnitTest testDemoDebugUnitTest lintProdDebug assembleProdDebug`, con el resultado real.
+2. `/ponytail-review`.
+3. Commits en `integracion/backend` y push.
+4. **Instala en el teléfono:**
+   - `adb -s YTVSGUPBVGLBNVNJ shell true`;
+   - si está, `./gradlew :app:installProdDebug` y `adb -s YTVSGUPBVGLBNVNJ reverse tcp:3000 tcp:3000`;
+   - si no está conectado, anótalo y sigue.
+5. Reporte en `ai/handoff/reporte.md`:
+   - commits y resultados;
+   - cómo probar el aviso en el teléfono (con el modo avión o apagando el backend);
+   - qué quedó pendiente.
+6. Estado `hecha`, commit y **detente**.

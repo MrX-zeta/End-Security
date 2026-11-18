@@ -1,50 +1,60 @@
-# Reporte · Tarea 33
+# Reporte · Tarea 34
 
-**Estado:** hecha, con un pendiente de la carpeta original de la app (Paso 0).
-**Ramas:** app `integracion/backend` (PR MrX-zeta/End-Security#2), backend `integracion/app` (PR Diego-Zarate18/end-security-backend#1). Sin merge, nada en `develop`, `development` ni `main`.
+**Estado:** hecha, salvo la instalación en el teléfono (no estaba conectado).
+**Rama:** app `integracion/backend` (PR MrX-zeta/End-Security#2). Backend sin tocar. Sin merge.
 
-## Paso 0 · Estado del árbol (app)
-La carpeta original de la app estaba en `integracion/backend` (`HEAD` 2eff6d2) y `app/` estaba limpio. Lo que mostraba `git status`:
-- `ai/handoff/siguiente.md` y `ai/handoff/reporte.md`: la tarea 33 y su versión anterior; son los archivos de esta tarea.
-- `ai/handoff/README.md`: sin la sección «Herramientas (DEC-66)» (versión vieja).
-- `gradle/libs.versions.toml`: sin `okhttp` (versión vieja; con ese archivo `prod` no compila).
-- `docs/bd/end_security_db.jpg`: modificado; **no lo toqué ni lo versioné**.
+## Commits
+| Commit | Qué |
+|---|---|
+| `1b6caba` | Código: sin aviso fijo, aviso temporal por corte, reintento sin conexión, `VALIDATED`, deslizar para actualizar, pruebas. |
+| `e84da21` | Grafo (DEC-58, SCR-44 descartado, versión 1.11.0) y `docs/arquitectura.md`. |
+| este | Reporte y `siguiente.md` hecha. |
 
-**Pendiente:** intenté `git restore -- gradle/libs.versions.toml` y el clasificador de permisos lo bloqueó, así que no restauré nada en esa carpeta. Hice todo el trabajo de la app en el worktree (misma rama, limpio y con el toml correcto). Para dejar la carpeta original limpia, ejecuta ahí: `git restore -- gradle/libs.versions.toml ai/handoff/README.md`.
+## Qué cambió
+1. **Bóveda sin aviso fijo:** se quitó `OfflineNotice` de `VaultListScreen` (y el componente, que no usaba nadie más), el campo `offline` de `VaultListUiState` y `SyncStatus` del constructor de `VaultListViewModel`.
+2. **Aviso temporal, una vez por corte** (`SyncEngine`): cuando una sincronización termina `Offline`, no se ha avisado en este corte y hay filas `pending`, publica en `AppMessages` el texto `vault_offline_toast` («Sin conexión. Tus cambios se subirán al reconectar.», con `ic_wifi_off_20`; dura los 4 s estándar del `MessageHost`). Se rearma solo cuando una sincronización termina bien. Sin pendientes no dice nada; si el corte empezó sin pendientes y luego se guarda algo, avisa al siguiente intento. No hay mensaje al volver la red. `SyncEngine` recibe `AppMessages` por constructor.
+3. **Reintento mientras esté `Offline`** (`SyncLoop`, nuevo, sin Android): 15 s, 30 s, 1 min y luego cada 2 min. Se detiene al sincronizar bien, al cerrar sesión (`closing`), al bloquear y con la app en segundo plano (`SyncScheduler` ahora guarda `foreground` con `onStart`/`onStop`; en segundo plano lo cubre `SyncWorker`). Un cambio guardado o el regreso de la red **cortan la espera** (canal `wake`), para no esperar hasta 2 min. El `5xx` conserva su espera de 30 s a 15 min.
+4. **`onCapabilitiesChanged` con `NET_CAPABILITY_VALIDATED`:** si está `Offline`, `requestNow()`. Sin permisos nuevos.
+5. **Deslizar para actualizar** en Dispositivos y Actividad con `PullToRefreshBox` (ya viene en Material 3; sin librerías nuevas), por un parámetro opcional de `AccountListPage`. Con la lista a la vista se conserva y solo gira el indicador (`isRefreshing`); si falla, la lista se queda. El botón «Reintentar» del error sigue. No se agregó en la Bóveda ni en Salud.
 
-## Plan del Paso 2 (escrito antes del código, REQUIERE REVISIÓN HUMANA: auth y SQL)
+**Desviación a la tarea:** en Dispositivos, deslizar lanza `Retry`, como pedía. En Actividad lancé una acción nueva, `Refresh`, porque `Retry` con la lista a la vista significa «pedir la página siguiente» y no habría actualizado nada.
 
-**a) Tope de reenvíos del código de registro.** En `EmailCodeService.issue`, para `verify_email`, se cuentan en la BD las filas de `email_verifications` del usuario de las últimas 24 h: máximo 5 por hora y 10 por día (misma lógica que DEC-63, una función pura `resendCapAllowedAt`). Pasado el tope: 429 `TooManyRequests` con `details.retryAfterSeconds`. Cada envío real crea una fila, así que contar filas es contar envíos; no hay tabla ni columna nuevas. El desafío señuelo (correo con cuenta ajena) lleva el mismo conteo en memoria, para que el 429 no revele si el correo existe.
-
-**b) Cuentas sin verificar que no vencen.** Lo más simple: reemplazo al registrar, sin tarea periódica. En `register`, si el correo ya existe, se intenta anonimizar esa fila con un solo `UPDATE ... WHERE` condicionado (sin verificar, no eliminada, creada hace más de 24 h, sin elementos de bóveda); si afecta una fila, se borran sus hijas (sesiones, códigos, PII de auditoría), se registra el evento en la cadena y el registro sigue como un correo libre. Una cuenta verificada nunca cumple el `WHERE`. Un verificado en paralelo tampoco: el `UPDATE` toma el candado de `users` primero (INV-20). Los datos de anonimizado se comparten con `deleteAccount` (una sola función). Una purga periódica exigiría un planificador que el proyecto no tiene.
-
-## Pasos y commits
-
-| Paso | Commit | Qué |
-|---|---|---|
-| 1 | `988e2d1` (app) | «Más débiles» excluye `StrengthClass.Strong` antes de ordenar y tomar 10; estado vacío `health_ranking_weakest_empty`; 3 pruebas nuevas del ViewModel (fuerte fuera; flujo `admin123` → cambiada → «Más débiles» vacío y «Mejoradas» con ella; 12 débiles → 10) y 2 ajustadas (usaban puntajes 0–4 y 12 elementos: solo 8 no eran fuertes). |
-| 2 | `bd27953` (backend) | Tope de reenvíos (BR-28) y reemplazo de cuentas sin verificar de más de 24 h (BR-29). Función `anonymizedUserData` compartida con `deleteAccount`. |
-| 3 | `320ef92` (app) | Grafos 1.1.0 (backend) y 1.10.0 (app), `docs/api/brechas-backend.md`, sección «Probar con el backend local» del README y `estado-actual.md`. |
-| 4 | este commit | Conteos del README, `siguiente.md` hecha y este reporte. |
-
-**Paso 3, lo que cambió en los grafos:** BR-06, 07, 16, 17, 18, 22, 23, 25 y 27 «resuelta» con su commit; BR-10, 20 y 21 «adaptada en la app»; **también marqué como «adaptada en la app» (e9a7e9c) BR-01…05, 08, 09 y 11…15**, que eran del adaptador y estaban «abierta» aunque ya están hechas (no lo pedía la tarea; es reversible). BR-19, 24 y 26 siguen abiertas. Nuevas: BR-28 y BR-29. En la app: RSG-16 (bloqueo de cuenta provocable, BR-22) y RSG-17 (cambio de correo por tiempo), la regla de «Más débiles» en SCR-25, y **SCR-47 y SCR-48** (cambio de correo: correo nuevo y código; no existían como pantallas, y no tienen nodo en Figma, queda anotado). Aristas validadas: ninguna huérfana.
+## Pruebas nuevas o ajustadas
+- `SyncLoopTest` (6, ambas variantes): reintenta a 15 s, 30 s, 1 min y no pasa de 2 min; se detiene al `Synced`, al cerrar o bloquear y en segundo plano; el `5xx` sigue igual; un cambio pedido durante la pasada hace otra.
+- `SyncEngineTest` (4, variante demo, motor real contra el backend falso): un aviso con dos fallos seguidos; sin pendientes no avisa; conectado → desconectado → conectado → desconectado da dos avisos y ninguno al volver; corte sin pendientes y luego un cambio avisa.
+- `VaultListViewModelTest`: se quitó la prueba del aviso fijo.
+- `DevicesViewModelTest` y `ActivityViewModelTest` (2 cada uno): deslizar conserva y renueva la lista; si falla, la lista se queda.
+- `ConflictScreensTest` (instrumentada): ahora comprueba que el aviso fijo **no** aparece. Las instrumentadas solo las compilé (`compileDemoDebugAndroidTestKotlin` y la de prod); no las corrí, no hay dispositivo conectado.
+- `SyncEngine(...)` en `SyncWorld` y `SyncConflictDeviceTest` recibe `AppMessages`.
 
 ## Resultados reales
-- Backend: `npm run build` bien; `npm test` **38/38** (eran 25); `eslint src` sin salida (0 errores).
-- Backend, prueba de punta a punta contra PostgreSQL local: **12/12** pasos (`node scripts/e2e/flujo-completo.mjs`). Los pasos 11 y 12 envejecen la fila con Prisma y prueban en la base real que una cuenta sin verificar de más de 24 h se reemplaza, que una vigente no se toca y que una verificada nunca se toca. El script carga `.env` con `process.loadEnvFile` (no lo leí ni lo imprimí).
-- App: `testProdDebugUnitTest` **941/0**, `testDemoDebugUnitTest` **1069/0**, `lintProdDebug` **0 errores** (30 avisos, 2 sugerencias, los de antes), `assembleProdDebug` bien.
-- Push de ambas ramas.
+- `testProdDebugUnitTest` **950/0**, `testDemoDebugUnitTest` **1082/0**, `lintProdDebug` **0 errores** (31 avisos, 2 sugerencias), `assembleProdDebug` bien.
+- Push hecho.
 
-## `/ponytail-review`
-Lo hice sobre el diff de las dos ramas, sin subagente. Sin hallazgos que arreglar. Lo que revisé y por qué no lo toqué:
-- El tope cuenta con «leer y luego escribir»: dos reenvíos en paralelo podrían pasarse por uno. Es el mismo margen que ya tiene la espera de 60 s; aceptable.
-- Con el tope alcanzado en login con cuenta sin verificar, `emailVerificationRequired` traga el error y responde `codeSent: false` con `resendAvailableInSeconds: 0`; la app ofrece reenviar y entonces recibe el 429. Correcto, solo poco elegante.
-- Reemplazar una cuenta sin verificar tras 24 h hace perder el registro pendiente a quien tardó en verificar; es el comportamiento pedido.
+## `/ponytail-review` (inline, sin subagente)
+Sin hallazgos que arreglar. Revisé:
+- Si cierra sesión o bloquea mientras espera, el ciclo sale en la comprobación posterior a la espera; no hace una pasada de más.
+- Si pidieron otra pasada (`rerun`) justo cuando se corta el reintento por segundo plano, esa pasada se pierde; la cubre `SyncWorker` y el próximo `onStart`.
+- Con la bóveda bloqueada el reintento corto no corre; el único reintento sin conexión con bóveda cerrada es el del `SyncWorker`.
+
+## Instalación en el teléfono
+**No instalé.** `adb -s YTVSGUPBVGLBNVNJ shell true` falló («device not found»); `adb devices` solo muestra el emulador, offline. Cuando lo conectes:
+
+```powershell
+./gradlew :app:installProdDebug
+adb -s YTVSGUPBVGLBNVNJ reverse tcp:3000 tcp:3000
+```
+
+## Cómo probar el aviso en el teléfono
+1. Con el backend corriendo y la sesión abierta, desbloquea la bóveda y espera a que sincronice.
+2. Activa el **modo avión** (o apaga el backend).
+3. Crea o edita una contraseña: aparece una sola vez «Sin conexión. Tus cambios se subirán al reconectar.» unos 4 s y no queda nada fijo en la lista. Guardar otra no repite el aviso.
+4. Mantén la app a la vista: reintenta a los 15 s, 30 s, 1 min, luego cada 2 min.
+5. Quita el modo avión (o enciende el backend): en cuanto Android valide la red, sube solo, sin avisar. Corta otra vez con un cambio nuevo: sale un segundo aviso.
+6. En Ajustes → Dispositivos y Actividad reciente, desliza hacia abajo para actualizar; con la lista a la vista no vuelve al esqueleto.
 
 ## Pendiente
-- Paso 0: restaurar `gradle/libs.versions.toml` y `ai/handoff/README.md` en la carpeta original (arriba).
-- El backend de integración que dejé corriendo en el puerto 3001 sigue con el código anterior en memoria; reinícialo para probar el tope y el reemplazo en el teléfono.
-- Figma: SCR-47 y SCR-48, la hoja de contraseña antes de la clave de 2FA y el código de respaldo `xxxxx-xxxxx` en `prod`.
-- Siguen abiertas BR-19, BR-24 y BR-26.
-
-**REQUIERE REVISIÓN HUMANA:** autenticación y SQL (tope de reenvíos y reemplazo de cuentas sin verificar).
+- Instalar y probar en el teléfono (arriba).
+- Correr las instrumentadas de `ConflictScreensTest` y de Dispositivos/Actividad en un dispositivo.
+- Figma: SCR-44 ya no se implementa; SCR-47 y SCR-48 (de la tarea 33) siguen sin nodo.
+- En la carpeta original queda `docs/bd/end_security_db.jpg` modificado (no se versiona).
