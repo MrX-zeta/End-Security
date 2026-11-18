@@ -58,7 +58,13 @@ android {
     }
 
     buildTypes {
+        // Servidor real de la variante `prod` (tarea 32). En el teléfono: `adb reverse tcp:3000 tcp:3000`.
+        debug {
+            buildConfigField("String", "API_BASE_URL", "\"http://127.0.0.1:3000/api/\"")
+        }
         release {
+            // TODO(BR-26): URL HTTPS de producción y pines SPKI. Vacía = sin conexión.
+            buildConfigField("String", "API_BASE_URL", "\"\"")
             if (keystoreFile.exists()) signingConfig = signingConfigs.getByName("release")
             // DEC-37: R8 (minificación, ofuscación y recorte de recursos) en release.
             optimization {
@@ -124,6 +130,8 @@ dependencies {
     implementation(libs.bouncycastle.bcprov)
     implementation(libs.androidx.lifecycle.process)
     implementation(libs.kotlinx.serialization.json)
+    // Transporte al servidor real, solo en `prod` (PATCH y DELETE con cuerpo; research R1 de specs/001).
+    "prodImplementation"(libs.okhttp)
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)
