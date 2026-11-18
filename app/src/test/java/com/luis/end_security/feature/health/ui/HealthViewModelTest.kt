@@ -151,7 +151,7 @@ class HealthViewModelTest {
 
     @Test
     fun `el ranking de Mas debiles trae las 10 primeras`() = runTest(dispatcher) {
-        val items = (0..11).map { it.toString() to "s${it % 5}-" + "x".repeat(it + 3) }
+        val items = (0..11).map { it.toString() to "s${it % 2}-" + "x".repeat(it + 3) }
         health.set(HealthState(report(*items.toTypedArray())))
         val viewModel = viewModel()
 
@@ -232,10 +232,31 @@ class HealthViewModelTest {
 
     @Test
     fun `Mas debiles son las 10 de menor fuerza`() = runTest(dispatcher) {
-        val items = (0..11).map { itemChangedDaysAgo("P$it", "s${it % 5}-clave-numero-$it", 400) }
+        // 12 débiles o regulares (puntajes 0, 1 y 2): salen solo 10.
+        val items = (0..11).map { itemChangedDaysAgo("P$it", "s${it % 3}-clave-numero-$it", 400) }
         health.set(HealthState(reportOf(*items.toTypedArray()), lastCheckedAt = Instant.ofEpochMilli(clock.now)))
         val ranking = viewModel().state.value.rankingFor(RankingTab.Weakest)
         assertEquals(10, ranking.size)
         assertTrue("de menor a mayor fuerza", ranking.zipWithNext().all { (a, b) -> a.strengthScore <= b.strengthScore })
+    }
+
+    @Test
+    fun `Mas debiles no trae las fuertes, aunque la boveda sea chica`() = runTest(dispatcher) {
+        health.set(HealthState(report("Debil" to "s0-a", "Regular" to "s2-b", "Fuerte" to "s4-c"), lastCheckedAt = Instant.ofEpochMilli(clock.now)))
+        assertEquals(listOf("Debil", "Regular"), viewModel().state.value.rankingFor(RankingTab.Weakest).map { it.name })
+    }
+
+    @Test
+    fun `admin123 esta en Mas debiles y no en Mejoradas, y al cambiarla se invierte`() = runTest(dispatcher) {
+        health.set(HealthState(report("admin" to "s0-admin123"), lastCheckedAt = Instant.ofEpochMilli(clock.now)))
+        val viewModel = viewModel()
+        assertEquals(listOf("admin"), viewModel.state.value.rankingFor(RankingTab.Weakest).map { it.name })
+        assertTrue(viewModel.state.value.rankingFor(RankingTab.Improved).isEmpty())
+
+        // La persona la cambia por una robusta.
+        health.set(HealthState(report("admin" to "s4-Tortuga-Verde-2026"), lastCheckedAt = Instant.ofEpochMilli(clock.now)))
+        runCurrent()
+        assertTrue("ya no es débil", viewModel.state.value.rankingFor(RankingTab.Weakest).isEmpty())
+        assertEquals(listOf("admin"), viewModel.state.value.rankingFor(RankingTab.Improved).map { it.name })
     }
 }

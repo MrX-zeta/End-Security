@@ -382,6 +382,7 @@
     <string name="health_ranking_improved">Mejoradas</string>
     <string name="health_ranking_improved_hint">Mejoradas recientemente: cambiadas en los últimos 30 días y hoy sanas</string>
     <string name="health_improved_empty">Todavía no hay contraseñas mejoradas este mes. Cambia una débil y aparecerá aquí.</string>
+    <string name="health_ranking_weakest_empty">No tienes contraseñas débiles. Buen trabajo.</string>
     <string name="health_ranking_weakest">Más débiles</string>
     <plurals name="health_chars">
         <item quantity="one">%1$d carácter</item>

@@ -114,7 +114,13 @@ fun HealthRankingScreen(
             val ranking = state.rankingFor(RankingTab.entries[tab])
             if (ranking.isEmpty()) {
                 Text(
-                    text = stringResource(if (tab == RankingTab.Improved.ordinal) R.string.health_improved_empty else R.string.health_empty),
+                    text = stringResource(
+                        when {
+                            tab == RankingTab.Improved.ordinal -> R.string.health_improved_empty
+                            state.hasItems -> R.string.health_ranking_weakest_empty
+                            else -> R.string.health_empty
+                        },
+                    ),
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
