@@ -1,9 +1,9 @@
 {
   "meta": {
     "nombre": "Grafo de conocimiento — End Security",
-    "version": "1.7.0",
-    "actualizado": "2026-10-19",
-    "fase": "Implementación de la app (acceso y núcleo criptográfico listos) y contrato de la API v1.0.0 para el backend.",
+    "version": "1.9.0",
+    "actualizado": "2026-11-18",
+    "fase": "App completa con backend falso (release v1.0.0-demo); integración con el backend real.",
     "historial": [
       {
         "version": "1.0.0",
@@ -149,6 +149,16 @@
         "version": "1.7.0",
         "fecha": "2026-11-04",
         "cambio": "DEC-64: aviso de privacidad y términos redactados, finalidades secundarias con marketingOptIn (contrato 1.4.0)."
+      },
+      {
+        "version": "1.8.0",
+        "fecha": "2026-11-07",
+        "cambio": "DEC-20: índice de salud como porcentaje de sanas con tope por filtradas y contraseñas parecidas; RSG-15 (contraseña generada en accesibilidad)."
+      },
+      {
+        "version": "1.9.0",
+        "fecha": "2026-11-18",
+        "cambio": "DEC-65 integración con el backend real (brechas en backend-graph.json, ramas integracion/*); DEC-61 permite a Claude Code corregir el backend en su rama; DEC-66 Spec Kit y ponytail; DEC-64 anonimización inmediata."
       }
     ],
     "proposito": "Fuente de verdad del contexto, decisiones técnicas y huecos resueltos del proyecto, para personas y agentes de IA.",
@@ -161,7 +171,7 @@
       "Nada de lo que esté en 'fuera_de_alcance' se implementa sin aprobación.",
       "Al tomar una decisión nueva, agregar el nodo y sus relaciones, subir la versión y actualizar 'actualizado'.",
       "Para implementar una vista, buscar su nodo 'pantalla' (SCR-xx): trae el id del nodo en Figma, la pestaña activa, si requiere red, qué operaciones invoca y a qué pantallas navega.",
-      "Para hablar con el servidor, buscar el nodo 'endpoint' (EP-xx) de la operación y seguir docs/api/: el contrato manda sobre cualquier suposición. El backend no se implementa en este repositorio de la app (DEC-61)."
+      "Para hablar con el servidor, buscar el nodo 'endpoint' (EP-xx) y su equivalente BEP-xx en ai/context/backend-graph.json; las diferencias están en las brechas BR-xx (DEC-65)."
     ],
     "tipos_de_nodo": {
       "proyecto": "Raíz del grafo",
@@ -232,18 +242,18 @@
       "implementa": "endpoint → operación"
     },
     "estadisticas": {
-      "nodos": 387,
-      "aristas": 1090,
+      "nodos": 390,
+      "aristas": 1097,
       "por_tipo": {
         "proyecto": 1,
         "objetivo": 6,
         "restriccion": 5,
         "actor": 3,
         "tecnologia": 28,
-        "decision": 64,
+        "decision": 66,
         "hueco": 37,
         "amenaza": 13,
-        "riesgo_aceptado": 14,
+        "riesgo_aceptado": 15,
         "modulo": 10,
         "operacion": 47,
         "tabla": 12,
@@ -792,7 +802,7 @@
       "id": "DEC-20",
       "tipo": "decision",
       "nombre": "Análisis compuesto",
-      "descripcion": "Puntaje por elemento (Crítico/Alto/Medio/Bajo) y salud global del almacén, calculados en el dispositivo. Los resultados nunca se envían al servidor. Nivel por elemento: Crítico = filtrada (HIBP > 0); Alto = repetida (misma contraseña en 2+ elementos) o débil (zxcvbn 0–1); Medio = regular (zxcvbn 2) o antigua (password_changed_at hace más de 365 días); Bajo = el resto. Puntuación global 0–100 = redondeo de 100 × promedio de pesos (Bajo 1,0 · Medio 0,7 · Alto 0,35 · Crítico 0); sin elementos no hay puntuación. Mensajes: ≥ 90 «Excelente», 70–89 «Bien, pero puedes mejorar», 50–69 «Necesita atención», < 50 «En riesgo». Distribución: débiles 0–1, regulares 2, fuertes 3–4 (igual que el medidor de DEC-31). Las repetidas se agrupan con un hash en memoria que nunca se guarda.",
+      "descripcion": "Puntaje por elemento (Crítico/Alto/Medio/Bajo) y salud global del almacén, calculados en el dispositivo. Los resultados nunca se envían al servidor. Nivel por elemento: Crítico = filtrada (HIBP > 0); Alto = repetida (misma contraseña en 2+ elementos) o débil (zxcvbn 0–1); Medio = regular (zxcvbn 2) o antigua (password_changed_at hace más de 365 días); Bajo = el resto. Índice global 0–100 (cambiado el 2026-11-07, propuesta de Diego): porcentaje de contraseñas sanas = no filtrada, no repetida ni parecida, fuerte (zxcvbn 3–4) y con menos de 365 días; con al menos una filtrada se limita al máximo del rango «En riesgo» (hoy 49) para que nada la compense. Antes era el promedio de pesos (Bajo 1,0 · Medio 0,7 · Alto 0,35 · Crítico 0); las fotos viejas conservan ese valor. Sin elementos no hay índice. Parecidas (reutilización disfrazada): forma reducida (NFKC, minúsculas, sustituciones leet, sin dígitos ni símbolos finales) igual con ≥ 4 caracteres, o Levenshtein ≤ 2 entre originales de ≥ 8; nivel Alto como las repetidas; solo en memoria. Mensajes: ≥ 90 «Excelente», 70–89 «Bien, pero puedes mejorar», 50–69 «Necesita atención», < 50 «En riesgo». Distribución: débiles 0–1, regulares 2, fuertes 3–4 (igual que el medidor de DEC-31). Las repetidas se agrupan con un hash en memoria que nunca se guarda.",
       "estado": "decidido",
       "detalles": {
         "senales": {
@@ -1686,6 +1696,13 @@
       "tipo": "riesgo_aceptado",
       "nombre": "Eliminación sin limpieza local si el proceso muere tras el 204",
       "descripcion": "Si la app muere (o se pierde la respuesta) entre el 204 de EP-18 y escribir la marca de limpieza pendiente, el teléfono conserva la fila local; el primer session_revoked la borra y quedan solo preferencias no secretas. Marcar antes de EP-18 podría borrar una cuenta que sigue viva.",
+      "estado": "riesgo_aceptado"
+    },
+    {
+      "id": "RSG-15",
+      "tipo": "riesgo_aceptado",
+      "nombre": "Contraseña generada en la descripción de accesibilidad",
+      "descripcion": "El Generador expone la contraseña completa en la contentDescription para que TalkBack pueda leerla (tarea 8). Un servicio de accesibilidad malicioso con permiso podría leerla y FLAG_SECURE no lo impide. Aceptado por accesibilidad; documentado en SecureScreen.",
       "estado": "riesgo_aceptado"
     },
     {
@@ -3982,14 +3999,16 @@
       "id": "DEC-61",
       "tipo": "decision",
       "nombre": "Contrato de API y división del trabajo",
-      "descripcion": "El backend (NestJS + PostgreSQL + Redis) lo desarrolla una persona del equipo; la app y sus procesos locales, la otra con Claude Code. El límite entre ambos es el contrato docs/api/openapi.yaml (OpenAPI 3.1) + docs/api/README.md: se cambia primero ahí, con versión. Mientras no exista el backend, la app usa implementaciones falsas de AuthApi, VaultApi, AccountApi y SessionApi que responden según el contrato. Claude Code no escribe código del backend. Convenciones: bytes en Base64url sin relleno, UUID canónicos, errores RFC 9457 con code estable, userId generado por la app (forma parte de la AAD de la pvk).",
+      "descripcion": "El backend (NestJS + PostgreSQL + Redis) lo desarrolla una persona del equipo; la app y sus procesos locales, la otra con Claude Code. El límite entre ambos es el contrato docs/api/openapi.yaml (OpenAPI 3.1) + docs/api/README.md: se cambia primero ahí, con versión. Mientras no exista el backend, la app usa implementaciones falsas de AuthApi, VaultApi, AccountApi y SessionApi que responden según el contrato. Desde 2026-11-18 (v1.9.0) Claude Code sí puede corregir el backend real, solo en la rama integracion/app del repositorio end-security-backend y con PR a develop que revisa Diego; nunca en develop ni main (DEC-65). Convenciones: bytes en Base64url sin relleno, UUID canónicos, errores RFC 9457 con code estable, userId generado por la app (forma parte de la AAD de la pvk).",
       "estado": "decidido",
       "detalles": {
         "archivos": [
           "docs/api/openapi.yaml",
           "docs/api/README.md"
         ],
-        "version_contrato": "1.4.0"
+        "version_contrato": "1.4.0",
+        "repositorio_backend": "https://github.com/Diego-Zarate18/end-security-backend",
+        "grafo_backend": "ai/context/backend-graph.json"
       }
     },
     {
@@ -4010,7 +4029,7 @@
       "id": "DEC-64",
       "tipo": "decision",
       "nombre": "Aviso de privacidad, términos y finalidades secundarias",
-      "descripcion": "Redactados con la rúbrica de Ética y Legislación en TI (2026-11-04): docs/legal/aviso-de-privacidad.md (9 apartados: responsable, datos, finalidades primarias y secundarias, encargados, ARCO con 20 días hábiles, cookies, seguridad, menores, cambios) y docs/legal/terminos-y-condiciones.md (8 apartados). Diseño en la página «Legal» de Figma. Finalidades secundarias (novedades y encuestas) con casilla opcional desmarcada en Crear cuenta y un interruptor en Ajustes para retirarla: marketingOptIn en register, Account y PATCH /account (contrato 1.4.0). En la app se muestran con un resumen al inicio y secciones plegables. Faltan datos del equipo: nombres, correo de privacidad, proveedor de hosting y confirmar los respaldos.",
+      "descripcion": "Redactados con la rúbrica de Ética y Legislación en TI (2026-11-04): docs/legal/aviso-de-privacidad.md (9 apartados: responsable, datos, finalidades primarias y secundarias, encargados, ARCO con 20 días hábiles, cookies, seguridad, menores, cambios) y docs/legal/terminos-y-condiciones.md (8 apartados). Diseño en la página «Legal» de Figma. Finalidades secundarias (novedades y encuestas) con casilla opcional desmarcada en Crear cuenta y un interruptor en Ajustes para retirarla: marketingOptIn en register, Account y PATCH /account (contrato 1.4.0). En la app se muestran con un resumen al inicio y secciones plegables. Faltan datos del equipo: nombres, correo de privacidad, proveedor de hosting y confirmar los respaldos. Al eliminar la cuenta el servidor borra bóveda, 2FA, sesiones e IP del historial y anonimiza la cuenta en el mismo momento (así lo hace el backend; aviso actualizado el 2026-11-18).",
       "estado": "decidido",
       "detalles": {
         "archivos": [
@@ -4346,6 +4365,35 @@
         "metodo": "GET",
         "ruta": "/v1/vault/items/{id}",
         "requiere_sesion": true
+      }
+    },
+    {
+      "id": "DEC-65",
+      "tipo": "decision",
+      "nombre": "Integración con el backend real",
+      "descripcion": "El backend real (NestJS 11 + Prisma, develop f2b5732) difiere del contrato 1.4.0; sus diferencias están en ai/context/backend-graph.json como brechas BR-01..27. Reparto: (1) en el backend, rama integracion/app con PR a develop: userId generado por la app (BR-06), KDF p=1 y piso 65536/t3 (BR-23), displayName opcional (BR-07), marketingOptIn (BR-16), cambio de correo con los límites de DEC-63 (BR-17), expectedKeyVersion opcional en cambio de contraseña (BR-18), límite de intentos por cuenta (BR-22), syslog RFC 5424 (BR-25, DEC-62) y pruebas (BR-27). (2) En la app, rama integracion/backend: un adaptador en la variante prod traduce el resto (prefijo /api, envoltura {success,data}, errores, base64 estándar, challengeToken, sync por lotes; D-4 se resuelve con lotes de 1, BR-13). Dominio de correo (BR-24), URL de despliegue y pines SPKI (BR-26) los aporta el equipo.",
+      "estado": "decidido",
+      "detalles": {
+        "rama_backend": "integracion/app",
+        "rama_app": "integracion/backend",
+        "grafo_backend": "ai/context/backend-graph.json",
+        "pendiente_del_equipo": [
+          "dominio de Resend (BR-24)",
+          "URL de despliegue y pines SPKI (BR-26)"
+        ]
+      }
+    },
+    {
+      "id": "DEC-66",
+      "tipo": "decision",
+      "nombre": "Metodología: Spec Kit y ponytail",
+      "descripcion": "Se suman dos herramientas al flujo con Claude Code. Spec Kit (github/spec-kit, CLI specify): desarrollo guiado por especificación; skills /speckit-constitution, -specify, -plan, -tasks, -implement en .claude/skills/ y carpeta .specify/. La constitución se arma con los invariantes (INV-*), CLAUDE.md y el grafo, sin reglas nuevas; el grafo sigue siendo la fuente de verdad y spec-kit se usa para funcionalidades grandes (la integración). ponytail (DietrichGebert/ponytail): plugin de Claude Code que pide el cambio más pequeño completo y marca atajos con comentarios shortcut:; /ponytail-audit para auditar el backend y /ponytail-review antes de cada PR. El relevo por ai/handoff/ se mantiene.",
+      "estado": "decidido",
+      "detalles": {
+        "herramientas": {
+          "spec-kit": "https://github.com/github/spec-kit",
+          "ponytail": "https://github.com/DietrichGebert/ponytail"
+        }
       }
     }
   ],
@@ -4847,6 +4895,11 @@
     },
     {
       "de": "RSG-14",
+      "a": "AMZ-05",
+      "relacion": "residual_de"
+    },
+    {
+      "de": "RSG-15",
       "a": "AMZ-05",
       "relacion": "residual_de"
     },
@@ -9890,6 +9943,36 @@
       "de": "EP-26",
       "a": "OP-46",
       "relacion": "implementa"
+    },
+    {
+      "de": "DEC-65",
+      "a": "DEC-61",
+      "relacion": "depende_de"
+    },
+    {
+      "de": "DEC-65",
+      "a": "DEC-63",
+      "relacion": "depende_de"
+    },
+    {
+      "de": "DEC-65",
+      "a": "DEC-62",
+      "relacion": "depende_de"
+    },
+    {
+      "de": "DEC-65",
+      "a": "DEC-64",
+      "relacion": "depende_de"
+    },
+    {
+      "de": "DEC-66",
+      "a": "DEC-38",
+      "relacion": "depende_de"
+    },
+    {
+      "de": "DEC-65",
+      "a": "DEC-66",
+      "relacion": "depende_de"
     }
   ]
 }
