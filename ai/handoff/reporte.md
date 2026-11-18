@@ -1,55 +1,50 @@
-# Reporte · Tarea 31 · Parte A · Variantes demo/prod, firma por configuración y README
+# Reporte · Tarea 33
 
-**Estado:** esperando firma (Parte B pendiente). No toqué `keystore.properties`, llaves ni contraseñas; la firma solo la lee Gradle.
-Tocó configuración de build e inyección del transporte (no `core/crypto`, sesión, autenticación ni SQL). No hace falta «REQUIERE REVISIÓN HUMANA» por código sensible, pero conviene revisar el Paso 1 (qué queda fuera de `prod`).
+**Estado:** hecha, con un pendiente de la carpeta original de la app (Paso 0).
+**Ramas:** app `integracion/backend` (PR MrX-zeta/End-Security#2), backend `integracion/app` (PR Diego-Zarate18/end-security-backend#1). Sin merge, nada en `develop`, `development` ni `main`.
 
-## Paso 1 · Variantes
-- `flavorDimensions += "backend"`.
-  - `demo`: `USE_FAKE_BACKEND=true`, `DEMO_MODE=true`, `applicationIdSuffix=.demo`, `versionNameSuffix=-demo`, nombre «End Security Demo» (`src/demo/res/values/strings.xml`).
-  - `prod`: ambas banderas en `false`.
-  - `versionName="1.0.0"`, `versionCode=1` (el APK demo queda `1.0.0-demo`).
-- Movido a `src/demo`: `core/network/fake/*` y el módulo Hilt (`DemoNetworkModule`: `FakeTransport` como `ApiTransport` y `FakeVerificationCodes` como `DebugVerificationCodes`).
-- `src/prod/.../ProdNetworkModule`: `ApiTransport` que lanza `IOException("Sin conexión…")` con `TODO(T-integración)` y `DebugVerificationCodes` que siempre devuelve `null`.
-- `OtherDeviceReceiver` y su manifiesto pasaron de `debug` a `src/demoDebug`.
-- «Modo demostración» y `+2fa` ahora dependen de `BuildConfig.DEMO_MODE` (antes `DEBUG`/`USE_FAKE_BACKEND`): se ven en `demoRelease`, nunca en `prod`.
-- `NetworkModule` (main) ya no conoce el backend falso.
-- Pruebas que usan el backend falso movidas a `src/testDemo` (11 archivos) y `src/androidTestDemo` (3). Nuevas: `DemoFlavorTest` (banderas true, id y versión) y `ProdFlavorTest` (banderas false, `FakeTransport`/`FakeServer`/`FakeVerificationCodes` ausentes del classpath, sin sufijo demo).
-- Comprobado en los APK sin firmar: el `classes.dex` de `prod` no contiene `network/fake` ni `fake_server`; el de `demo` sí. El `BuildConfig` generado de `prodRelease` tiene las dos banderas en `false`.
-- E1 en `revisiones-pendientes.md`: marcado como resuelto por diseño.
-- `docs/api/backend-falso.md` actualizado (`+2fa` y el receptor de «otro dispositivo» viven en `demo`/`demoDebug`; el comando `adb` usa `com.luis.end_security.demo`).
-- Nota: `./gradlew testReleaseUnitTest` no existe en este proyecto (no hay pruebas unitarias de release); la comprobación de `prodRelease` es por el `BuildConfig` generado y el APK.
+## Paso 0 · Estado del árbol (app)
+La carpeta original de la app estaba en `integracion/backend` (`HEAD` 2eff6d2) y `app/` estaba limpio. Lo que mostraba `git status`:
+- `ai/handoff/siguiente.md` y `ai/handoff/reporte.md`: la tarea 33 y su versión anterior; son los archivos de esta tarea.
+- `ai/handoff/README.md`: sin la sección «Herramientas (DEC-66)» (versión vieja).
+- `gradle/libs.versions.toml`: sin `okhttp` (versión vieja; con ese archivo `prod` no compila).
+- `docs/bd/end_security_db.jpg`: modificado; **no lo toqué ni lo versioné**.
 
-## Paso 2 · Firma
-- `signingConfigs.release` lee `keystore.properties` de la raíz con `java.util.Properties` solo si existe; sin él, `release` queda sin firmar y compila (verificado: `app-demo-release-unsigned.apk`, `app-prod-release-unsigned.apk`). No se imprime ningún valor.
-- `.gitignore`: añadido `release-keys/` (el resto ya estaba).
+**Pendiente:** intenté `git restore -- gradle/libs.versions.toml` y el clasificador de permisos lo bloqueó, así que no restauré nada en esa carpeta. Hice todo el trabajo de la app en el worktree (misma rama, limpio y con el toml correcto). Para dejar la carpeta original limpia, ejecuta ahí: `git restore -- gradle/libs.versions.toml ai/handoff/README.md`.
 
-## Paso 3 y 4 · Documentos
-- `README.md` en la raíz, con las 15 secciones en el orden pedido, Mermaid, imágenes de `docs/readme/` y enlaces relativos a archivos que existen (`docs/api/*`, `docs/bd/modelo-datos.md`, `docs/legal/*`, `docs/arquitectura.md`, `ai/handoff/revisiones-pendientes.md`).
-- Dos enlaces apuntan a algo que solo existirá tras la Parte B: la release `v1.0.0-demo` y, dentro de las notas, `docs/api/backend-falso.md` en `main`.
-- `docs/releases/v1.0.0-demo.md`, con la huella SHA-256 como `PENDIENTE` hasta la Parte B.
+## Plan del Paso 2 (escrito antes del código, REQUIERE REVISIÓN HUMANA: auth y SQL)
 
-## Comprobaciones reales
-- `testDemoDebugUnitTest`: **1064 / 0 fallas**. `testProdDebugUnitTest`: **920 / 0 fallas** (incluye las 3 de `ProdFlavorTest`).
-- `lintDemoDebug`: 0 errores, 28 avisos, 2 sugerencias.
-- `assembleDemoRelease` y `assembleProdRelease`: OK (sin firmar).
-- `compileDemoDebugAndroidTestKotlin` y `compileProdDebugAndroidTestKotlin`: OK. Las 3 clases movidas a `androidTestDemo` (`AccountWipeIntegrationTest`, `LoginRecoveryIntegrationTest`, `SyncConflictDeviceTest`) corridas en `emulator-5554` con `connectedDemoDebugAndroidTest`: **16 pruebas, 0 fallas**.
-- 365 métodos `@Test` instrumentados (conteo del código, README lo cita así).
-- `git ls-files`: sin `local.properties`, `.env`, `keystore.properties`, `.jks`, `.p12` (solo coinciden archivos fuente de `core/crypto/keystore/`).
+**a) Tope de reenvíos del código de registro.** En `EmailCodeService.issue`, para `verify_email`, se cuentan en la BD las filas de `email_verifications` del usuario de las últimas 24 h: máximo 5 por hora y 10 por día (misma lógica que DEC-63, una función pura `resendCapAllowedAt`). Pasado el tope: 429 `TooManyRequests` con `details.retryAfterSeconds`. Cada envío real crea una fila, así que contar filas es contar envíos; no hay tabla ni columna nuevas. El desafío señuelo (correo con cuenta ajena) lleva el mismo conteo en memoria, para que el 429 no revele si el correo existe.
 
-## Para el equipo
-1. **Firmar:** crear la llave y el `keystore.properties` (cuatro claves) y correr `.\gradlew :app:assembleDemoRelease`; avisarme para la Parte B.
-2. **Licencia:** ¿cuál prefieren (MIT, Apache-2.0, GPL-3.0…)? Mientras tanto el README dice «Todos los derechos reservados (proyecto académico)».
-3. **Commits:** hechos y subidos a `development` (`60496fe` código, `2a26499` documentos); `keystore.properties` no está versionado y está ignorado por `.gitignore`.
-4. **About (descripción, 214 caracteres):** «Gestor de contraseñas para Android con cifrado de conocimiento cero: el servidor solo ve bloques cifrados. Bóveda sin conexión, 2FA TOTP y detección de filtraciones con Have I Been Pwned (k-anonimato).»
-5. **Tópicos:** `android`, `kotlin`, `jetpack-compose`, `material3`, `password-manager`, `zero-knowledge`, `end-to-end-encryption`, `argon2`, `aes-gcm`, `offline-first`, `haveibeenpwned`, `totp`.
+**b) Cuentas sin verificar que no vencen.** Lo más simple: reemplazo al registrar, sin tarea periódica. En `register`, si el correo ya existe, se intenta anonimizar esa fila con un solo `UPDATE ... WHERE` condicionado (sin verificar, no eliminada, creada hace más de 24 h, sin elementos de bóveda); si afecta una fila, se borran sus hijas (sesiones, códigos, PII de auditoría), se registra el evento en la cadena y el registro sigue como un correo libre. Una cuenta verificada nunca cumple el `WHERE`. Un verificado en paralelo tampoco: el `UPDATE` toma el candado de `users` primero (INV-20). Los datos de anonimizado se comparten con `deleteAccount` (una sola función). Una purga periódica exigiría un planificador que el proyecto no tiene.
 
-## Bloqueo de la Parte B
-- En la raíz **no existe `keystore.properties`**, así que `assembleDemoRelease` solo produce `app-demo-release-unsigned.apk`; `apksigner verify` responde «DOES NOT VERIFY: Missing META-INF/MANIFEST.MF». Repetir con `--rerun-tasks` daría el mismo resultado.
-- Para seguir: crear `keystore.properties` en la raíz (cuatro claves) y correr `.\gradlew :app:assembleDemoRelease`; avisar y continúo con PR, merge, etiqueta, release y About.
+## Pasos y commits
 
-## Parte B · Hecha
-- APK `app-demo-release.apk` firmado: `apksigner verify` correcto; certificado público CN=Luis, OU=End-Security, O=UPCH, L=San Cristobal de las Casas, ST=Chiapas, C=MX; SHA-256 `B5:BA:83:BB:97:15:44:B2:41:B4:7B:BF:A4:1B:D8:3A:76:80:BB:FB:AB:96:31:06:BC:8F:74:48:30:F8:A9:DD`. `aapt2`: `com.luis.end_security.demo`, versionName `1.0.0-demo`, versionCode 1. Copiado como `End-Security-1.0.0-demo.apk` (ignorado por git).
-- PR: https://github.com/MrX-zeta/End-Security/pull/1, fusionado con merge commit (`8df0768`), sin squash.
-- Release (prerrelease) con el APK y la huella en las notas: https://github.com/MrX-zeta/End-Security/releases/tag/v1.0.0-demo
-- About: descripción y 12 tópicos aplicados con `gh repo edit`.
-- Licencia: «Todos los derechos reservados (proyecto académico)», sin cambios.
+| Paso | Commit | Qué |
+|---|---|---|
+| 1 | `988e2d1` (app) | «Más débiles» excluye `StrengthClass.Strong` antes de ordenar y tomar 10; estado vacío `health_ranking_weakest_empty`; 3 pruebas nuevas del ViewModel (fuerte fuera; flujo `admin123` → cambiada → «Más débiles» vacío y «Mejoradas» con ella; 12 débiles → 10) y 2 ajustadas (usaban puntajes 0–4 y 12 elementos: solo 8 no eran fuertes). |
+| 2 | `bd27953` (backend) | Tope de reenvíos (BR-28) y reemplazo de cuentas sin verificar de más de 24 h (BR-29). Función `anonymizedUserData` compartida con `deleteAccount`. |
+| 3 | `320ef92` (app) | Grafos 1.1.0 (backend) y 1.10.0 (app), `docs/api/brechas-backend.md`, sección «Probar con el backend local» del README y `estado-actual.md`. |
+| 4 | este commit | Conteos del README, `siguiente.md` hecha y este reporte. |
+
+**Paso 3, lo que cambió en los grafos:** BR-06, 07, 16, 17, 18, 22, 23, 25 y 27 «resuelta» con su commit; BR-10, 20 y 21 «adaptada en la app»; **también marqué como «adaptada en la app» (e9a7e9c) BR-01…05, 08, 09 y 11…15**, que eran del adaptador y estaban «abierta» aunque ya están hechas (no lo pedía la tarea; es reversible). BR-19, 24 y 26 siguen abiertas. Nuevas: BR-28 y BR-29. En la app: RSG-16 (bloqueo de cuenta provocable, BR-22) y RSG-17 (cambio de correo por tiempo), la regla de «Más débiles» en SCR-25, y **SCR-47 y SCR-48** (cambio de correo: correo nuevo y código; no existían como pantallas, y no tienen nodo en Figma, queda anotado). Aristas validadas: ninguna huérfana.
+
+## Resultados reales
+- Backend: `npm run build` bien; `npm test` **38/38** (eran 25); `eslint src` sin salida (0 errores).
+- Backend, prueba de punta a punta contra PostgreSQL local: **12/12** pasos (`node scripts/e2e/flujo-completo.mjs`). Los pasos 11 y 12 envejecen la fila con Prisma y prueban en la base real que una cuenta sin verificar de más de 24 h se reemplaza, que una vigente no se toca y que una verificada nunca se toca. El script carga `.env` con `process.loadEnvFile` (no lo leí ni lo imprimí).
+- App: `testProdDebugUnitTest` **941/0**, `testDemoDebugUnitTest` **1069/0**, `lintProdDebug` **0 errores** (30 avisos, 2 sugerencias, los de antes), `assembleProdDebug` bien.
+- Push de ambas ramas.
+
+## `/ponytail-review`
+Lo hice sobre el diff de las dos ramas, sin subagente. Sin hallazgos que arreglar. Lo que revisé y por qué no lo toqué:
+- El tope cuenta con «leer y luego escribir»: dos reenvíos en paralelo podrían pasarse por uno. Es el mismo margen que ya tiene la espera de 60 s; aceptable.
+- Con el tope alcanzado en login con cuenta sin verificar, `emailVerificationRequired` traga el error y responde `codeSent: false` con `resendAvailableInSeconds: 0`; la app ofrece reenviar y entonces recibe el 429. Correcto, solo poco elegante.
+- Reemplazar una cuenta sin verificar tras 24 h hace perder el registro pendiente a quien tardó en verificar; es el comportamiento pedido.
+
+## Pendiente
+- Paso 0: restaurar `gradle/libs.versions.toml` y `ai/handoff/README.md` en la carpeta original (arriba).
+- El backend de integración que dejé corriendo en el puerto 3001 sigue con el código anterior en memoria; reinícialo para probar el tope y el reemplazo en el teléfono.
+- Figma: SCR-47 y SCR-48, la hoja de contraseña antes de la clave de 2FA y el código de respaldo `xxxxx-xxxxx` en `prod`.
+- Siguen abiertas BR-19, BR-24 y BR-26.
+
+**REQUIERE REVISIÓN HUMANA:** autenticación y SQL (tope de reenvíos y reemplazo de cuentas sin verificar).

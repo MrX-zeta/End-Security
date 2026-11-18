@@ -212,7 +212,7 @@ Si el puerto 3000 ya lo usa otro proceso, arranca el backend con `PORT=3001` y u
 
 ## Pruebas
 
-- **Unitarias: 1064** (variante `demo`; la variante `prod` corre 920 más 3 propias que comprueban que no lleva el backend falso).
+- **Unitarias: 1069** (variante `demo`) y **941** (variante `prod`, con las del adaptador al backend real).
 - **Instrumentadas (Compose y dispositivo): 365**, en un emulador.
 - Las pruebas de la UI usan reloj controlado y comprueban posiciones y tamaños, no capturas.
 
