@@ -1,7 +1,7 @@
 {
   "meta": {
     "nombre": "Grafo de conocimiento — End Security",
-    "version": "1.10.0",
+    "version": "1.11.0",
     "actualizado": "2026-11-18",
     "fase": "App completa con backend falso (release v1.0.0-demo); integración con el backend real.",
     "historial": [
@@ -164,6 +164,11 @@
         "version": "1.10.0",
         "fecha": "2026-11-18",
         "cambio": "Tarea 33: «Más débiles» solo por fuerza (SCR-25); RSG-16 (bloqueo de cuenta provocable) y RSG-17 (cambio de correo por tiempo); SCR-47 y SCR-48 (cambio de correo, DEC-63); backend-graph.json 1.1.0 con las brechas resueltas."
+      },
+      {
+        "version": "1.11.0",
+        "fecha": "2026-11-18",
+        "cambio": "Tarea 34 (DEC-58): sin aviso fijo en la Bóveda, aviso temporal una vez por corte con pendientes, reintento sin conexión 15 s a 2 min y al validarse la red, deslizar para actualizar en Dispositivos y Actividad; SCR-44 descartado."
       }
     ],
     "proposito": "Fuente de verdad del contexto, decisiones técnicas y huecos resueltos del proyecto, para personas y agentes de IA.",
@@ -1217,7 +1222,7 @@
       "id": "DEC-58",
       "tipo": "decision",
       "nombre": "Estados de carga y sin conexión",
-      "descripcion": "Esqueletos de carga solo en las 5 vistas que esperan al servidor: Bóveda en la primera sincronización, Salud en la primera revisión de filtraciones, Dispositivos, Actividad reciente y la clave del 2FA. La barra superior, el título y la barra inferior se dibujan reales; el contenido va en bloques grises (contorno al 20 %) con la forma de lo que viene, una línea de estado («Descargando tu bóveda…») y un pulso suave de opacidad que respeta «reducir animaciones». Login, registro, códigos y guardar usan un estado de carga dentro del botón, no esqueleto. Sin conexión: la Bóveda muestra un aviso discreto («Tus cambios se guardan y se subirán al reconectar») y las vistas que dependen del servidor muestran «No pudimos cargar… · Reintentar».",
+      "descripcion": "Esqueletos de carga solo en las 5 vistas que esperan al servidor: Bóveda en la primera sincronización, Salud en la primera revisión de filtraciones, Dispositivos, Actividad reciente y la clave del 2FA. La barra superior, el título y la barra inferior se dibujan reales; el contenido va en bloques grises (contorno al 20 %) con la forma de lo que viene, una línea de estado («Descargando tu bóveda…») y un pulso suave de opacidad que respeta «reducir animaciones». Login, registro, códigos y guardar usan un estado de carga dentro del botón, no esqueleto. Sin conexión (cambiado en la tarea 34): la Bóveda es offline y no lleva aviso fijo. Cuando la sincronización pasa de con conexión a sin conexión y hay cambios sin subir, sale un aviso temporal («Sin conexión. Tus cambios se subirán al reconectar.», unos 4 s, por el host de avisos) una sola vez por corte; no hay aviso al volver la red ni si no hay pendientes. Mientras esté sin conexión, con la app a la vista y la bóveda abierta, se reintenta solo a los 15 s, 30 s, 1 min y luego cada 2 min, y también cuando Android da la red por usable (VALIDATED). Las vistas que dependen del servidor muestran «No pudimos cargar… · Reintentar», y Dispositivos y Actividad además se actualizan deslizando hacia abajo (no la Bóveda ni Salud, que tiene «Revisar ahora»).",
       "estado": "decidido",
       "detalles": {
         "vistas_con_esqueleto": [
@@ -1226,6 +1231,17 @@
           "Dispositivos",
           "Actividad reciente",
           "2FA · clave"
+        ],
+        "aviso_sin_conexion": "temporal, una vez por corte y solo con pendientes (AppMessages); sin aviso fijo en la Bóveda",
+        "reintento_sin_conexion_segundos": [
+          15,
+          30,
+          60,
+          120
+        ],
+        "deslizar_para_actualizar": [
+          "Dispositivos",
+          "Actividad reciente"
         ]
       }
     },
@@ -3964,13 +3980,14 @@
       "tipo": "pantalla",
       "nombre": "Bóveda · sin conexión",
       "descripcion": "Vista 'Bóveda · sin conexión' del módulo MOD-SYNC.",
-      "estado": "decidido",
+      "estado": "descartado",
       "detalles": {
         "figma_nodo": "69:3744",
         "tipo_vista": "sin_conexion",
         "pestana_activa": "Bóveda",
         "requiere_red": false,
-        "tema": "claro"
+        "tema": "claro",
+        "nota": "Descartada en la tarea 34: la Bóveda ya no muestra aviso fijo sin conexión (DEC-58); queda el aviso temporal por corte. El nodo de Figma 69:3744 ya no se implementa."
       }
     },
     {
