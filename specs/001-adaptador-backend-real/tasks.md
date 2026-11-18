@@ -97,7 +97,7 @@
 ## Phase 7: Polish & Cross-Cutting Concerns
 
 - [X] T019 Correr `./gradlew assembleProdDebug testProdDebugUnitTest testDemoDebugUnitTest lintProdDebug` y anotar el resultado real
-- [ ] T020 Revisión con el subagente `security-reviewer` (toca autenticación y red) y «REQUIERE REVISIÓN HUMANA» en el reporte
+- [X] T020 Revisión con el subagente `security-reviewer` (toca autenticación y red) y «REQUIERE REVISIÓN HUMANA» en el reporte
 
 ---
 

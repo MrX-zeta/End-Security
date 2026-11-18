@@ -46,6 +46,7 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.longOrNull
 import java.net.URI
+import java.net.URISyntaxException
 import java.net.URLDecoder
 import java.text.Normalizer
 import java.time.Duration
@@ -427,7 +428,7 @@ class BackendTranslator(
                 if (reply.status == 409) return vaultConflict(reply)
                 return errorOf(reply, Kind.Session)
             }
-            val applied = data(reply, BeVaultPushed.serializer()).applied.single()
+            val applied = data(reply, BeVaultPushed.serializer()).applied.singleOrNull() ?: return problem(500, "server_error")
             return ok(WriteResultDto.serializer(), WriteResultDto(result, applied.version, applied.revision))
         }
 
@@ -464,6 +465,8 @@ class BackendTranslator(
 
         /** Error del backend → `code` del contrato (BR-03; tabla en contracts/translation.md). */
         private fun errorOf(reply: BackendReply, kind: Kind, failuresKey: String? = null): HttpResponse {
+            // Un refresh que el servidor no acepta por ningún motivo deja la sesión inservible: cerrarla (no «sin conexión»).
+            if (kind == Kind.Refresh && reply.status in REFRESH_DEAD) return problem(401, "session_revoked")
             val error = parseError(reply)
             val name = error?.error.orEmpty()
             val details = error?.details
@@ -525,7 +528,8 @@ class BackendTranslator(
     private fun forgetAccount() {
         knownKeys = null
         vaultCursor = 0
-        codeFailures.remove(EMAIL_CHANGE)
+        emailChallenges.clear()
+        codeFailures.clear()
     }
 
     // ---- Conversión de formatos (BR-04, BR-05) ----
@@ -582,6 +586,7 @@ class BackendTranslator(
         /** `@Max(100)` de `GET /audit`. */
         private const val ACTIVITY_PAGE = 100
         private const val ACTIVITY_MAX_PAGES = 20
+        private val REFRESH_DEAD = setOf(400, 401, 403, 404)
         /** `@MaxLength(64)` del backend; la app admite 100. */
         private const val DEVICE_NAME_MAX = 64
         private const val EMAIL_CHANGE = "email-change"
@@ -657,7 +662,12 @@ class BackendTranslator(
 
         /** BR-20: los datos de la clave salen del `otpauth://totp/Emisor:cuenta?secret=…&issuer=…` del servidor. */
         internal fun otpAuthToSetup(secret: String, otpauthUrl: String): TwoFactorSetupDto {
-            val uri = URI(otpauthUrl)
+            // Sin causa ni mensaje: la URL lleva el secreto y no debe terminar en un log de fallos.
+            val uri = try {
+                URI(otpauthUrl)
+            } catch (_: URISyntaxException) {
+                throw IllegalArgumentException("otpauthUrl inválido")
+            }
             val label = uri.path.removePrefix("/")
             val params = parseQuery(uri.rawQuery.orEmpty())
             val issuer = params["issuer"] ?: label.substringBefore(':', "End Security")

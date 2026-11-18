@@ -24,15 +24,23 @@ object ProdNetworkModule {
 
     @Provides
     @Singleton
-    fun provideTransport(): ApiTransport = BackendTransport(
-        baseUrl = BuildConfig.API_BASE_URL,
-        client = OkHttpClient.Builder()
-            .connectTimeout(15, TimeUnit.SECONDS)
-            // La rotación de llaves y el registro pasan por Argon2 en el servidor.
-            .readTimeout(60, TimeUnit.SECONDS)
-            .build(),
-        translator = BackendTranslator(deviceName = { "${Build.MANUFACTURER} ${Build.MODEL}".trim().ifEmpty { "Android" } }),
-    )
+    fun provideTransport(): ApiTransport {
+        // INV-18: fuera de debug solo HTTPS. TODO(BR-26): pines SPKI (principal y respaldo) en network_security_config.
+        check(BuildConfig.DEBUG || BuildConfig.API_BASE_URL.isEmpty() || BuildConfig.API_BASE_URL.startsWith("https://")) {
+            "API_BASE_URL de release debe ser HTTPS"
+        }
+        return BackendTransport(
+            baseUrl = BuildConfig.API_BASE_URL,
+            client = OkHttpClient.Builder()
+                // Sin reintentos de OkHttp: reenviar un POST /auth/refresh ya aplicado parecería robo del token (INV-25).
+                .retryOnConnectionFailure(false)
+                .connectTimeout(15, TimeUnit.SECONDS)
+                // La rotación de llaves y el registro pasan por Argon2 en el servidor.
+                .readTimeout(60, TimeUnit.SECONDS)
+                .build(),
+            translator = BackendTranslator(deviceName = { "${Build.MANUFACTURER} ${Build.MODEL}".trim().ifEmpty { "Android" } }),
+        )
+    }
 
     /** Sin «Modo demostración»: nunca hay código de verificación a la vista. */
     @Provides

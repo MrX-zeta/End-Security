@@ -153,6 +153,8 @@ class BackendTranslatorTest {
         assertEquals("token_expired", run("GET", "/sessions", bearer = "ACCESS").code())
         error(401, "Unauthorized")
         assertEquals("session_revoked", run("POST", "/auth/refresh", """{"refreshToken":"x"}""").code())
+        error(400, "Bad Request")
+        assertEquals("un refresh mal formado tambien cierra", "session_revoked", run("POST", "/auth/refresh", """{"refreshToken":"x"}""").code())
     }
 
     // ---- US2: bóveda (T012) ----
