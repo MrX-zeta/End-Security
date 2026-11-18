@@ -1,9 +1,9 @@
 {
   "meta": {
     "nombre": "Grafo de conocimiento — backend real de End Security",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "actualizado": "2026-11-18",
-    "fuente": "end-security-backend@develop f2b5732 (leído completo por la sesión de diseño)",
+    "fuente": "end-security-backend@develop f2b5732 (leído completo por la sesión de diseño); integracion/app hasta bd27953 (tareas 32 y 33)",
     "proposito": "Mapa del backend real para integrarlo con la app: módulos, endpoints, tablas, seguridad y brechas contra el contrato docs/api 1.4.0.",
     "como_usar_para_agentes": [
       "Cada BEP-xx dice a qué EP-xx del contrato de la app equivale (detalles.equivale_a_app).",
@@ -21,10 +21,10 @@
       "transversal"
     ],
     "estadisticas": {
-      "nodos": 90,
-      "aristas": 108,
+      "nodos": 92,
+      "aristas": 111,
       "por_tipo": {
-        "brecha": 27,
+        "brecha": 29,
         "catalogo": 1,
         "endpoint": 26,
         "modulo": 8,
@@ -32,8 +32,25 @@
         "seguridad": 10,
         "tabla": 8,
         "transversal": 9
+      },
+      "brechas_por_estado": {
+        "adaptada en la app": 15,
+        "resuelta": 11,
+        "abierta": 3
       }
-    }
+    },
+    "historial": [
+      {
+        "version": "1.0.0",
+        "fecha": "2026-11-18",
+        "cambio": "Mapa del backend real (develop f2b5732) y brechas BR-01..27."
+      },
+      {
+        "version": "1.1.0",
+        "fecha": "2026-11-18",
+        "cambio": "Tareas 32 y 33: BR-06, 07, 16, 17, 18, 22, 23, 25 y 27 resueltas en integracion/app; BR-01..05, 08..15, 20 y 21 adaptadas en la app; BR-28 (tope de reenvíos) y BR-29 (cuentas sin verificar) nuevas y resueltas; BR-19, 24 y 26 siguen abiertas."
+      }
+    ]
   },
   "nodos": [
     {
@@ -62,7 +79,7 @@
         "prefijo": "/api",
         "archivos": 133,
         "lineas_ts": 4926,
-        "sin_pruebas": "No hay pruebas automatizadas (solo la colección de Postman End-Security-Backend.postman_collection.json)."
+        "sin_pruebas": "BR-27 resuelta: Jest (38 pruebas en la tarea 33) y la prueba de punta a punta scripts/e2e/flujo-completo.mjs (12 pasos). La colección de Postman sigue en el repositorio."
       }
     },
     {
@@ -798,10 +815,16 @@
       "tipo": "brecha",
       "nombre": "Prefijo /api en lugar de /v1",
       "descripcion": "La app usa baseUrl …/v1.",
-      "estado": "abierta",
+      "estado": "adaptada en la app",
       "detalles": {
         "dueno": "app (adaptador)",
-        "severidad": "baja"
+        "severidad": "baja",
+        "adaptada_en": {
+          "rama": "integracion/backend",
+          "commit": "e9a7e9c",
+          "pr": "MrX-zeta/End-Security#2",
+          "tarea": 32
+        }
       }
     },
     {
@@ -809,10 +832,16 @@
       "tipo": "brecha",
       "nombre": "Envoltura {success,data,timestamp}",
       "descripcion": "Hay que desenvolver `data` en cada éxito.",
-      "estado": "abierta",
+      "estado": "adaptada en la app",
       "detalles": {
         "dueno": "app (adaptador)",
-        "severidad": "baja"
+        "severidad": "baja",
+        "adaptada_en": {
+          "rama": "integracion/backend",
+          "commit": "e9a7e9c",
+          "pr": "MrX-zeta/End-Security#2",
+          "tarea": 32
+        }
       }
     },
     {
@@ -820,10 +849,16 @@
       "tipo": "brecha",
       "nombre": "Errores sin `code` del contrato",
       "descripcion": "La app decide por `code`; aquí hay que mapear por (status, error, details). Tabla de equivalencias en el adaptador.",
-      "estado": "abierta",
+      "estado": "adaptada en la app",
       "detalles": {
         "dueno": "app (adaptador)",
-        "severidad": "media"
+        "severidad": "media",
+        "adaptada_en": {
+          "rama": "integracion/backend",
+          "commit": "e9a7e9c",
+          "pr": "MrX-zeta/End-Security#2",
+          "tarea": 32
+        }
       }
     },
     {
@@ -831,10 +866,16 @@
       "tipo": "brecha",
       "nombre": "Base64 estándar",
       "descripcion": "La app usa base64url sin relleno: convertir en la frontera (DTO del transporte real).",
-      "estado": "abierta",
+      "estado": "adaptada en la app",
       "detalles": {
         "dueno": "app (adaptador)",
-        "severidad": "baja"
+        "severidad": "baja",
+        "adaptada_en": {
+          "rama": "integracion/backend",
+          "commit": "e9a7e9c",
+          "pr": "MrX-zeta/End-Security#2",
+          "tarea": 32
+        }
       }
     },
     {
@@ -842,10 +883,16 @@
       "tipo": "brecha",
       "nombre": "Nombres de campos",
       "descripcion": "authHash = auth_key; pvk{ciphertext,nonce} = protectedVaultKey; kdf.salt dentro de kdf; deviceName obligatorio en login/registro.",
-      "estado": "abierta",
+      "estado": "adaptada en la app",
       "detalles": {
         "dueno": "app (adaptador)",
-        "severidad": "baja"
+        "severidad": "baja",
+        "adaptada_en": {
+          "rama": "integracion/backend",
+          "commit": "e9a7e9c",
+          "pr": "MrX-zeta/End-Security#2",
+          "tarea": 32
+        }
       }
     },
     {
@@ -853,10 +900,16 @@
       "tipo": "brecha",
       "nombre": "El servidor genera el userId",
       "descripcion": "CRÍTICA: la app envuelve la vault_key con AAD end-security/vault-key|userId|keyVersion ANTES de registrarse (DEC-05) y cifra cada elemento con AAD id|userId|formatVersion. Si el id lo inventa el servidor, la pvk no abre. Arreglo mínimo en el backend: RegisterDto.userId (@IsUUID) y users.create({id}); con id repetido, el mismo señuelo.",
-      "estado": "abierta",
+      "estado": "resuelta",
       "detalles": {
         "dueno": "backend",
-        "severidad": "crítica"
+        "severidad": "crítica",
+        "resuelta_en": {
+          "rama": "integracion/app",
+          "commit": "d6f9283",
+          "pr": "Diego-Zarate18/end-security-backend#1",
+          "tarea": 32
+        }
       }
     },
     {
@@ -864,10 +917,16 @@
       "tipo": "brecha",
       "nombre": "displayName obligatorio en el registro",
       "descripcion": "La app no pide nombre. Opción app: mandar la parte local del correo; opción backend: hacerlo opcional.",
-      "estado": "abierta",
+      "estado": "resuelta",
       "detalles": {
         "dueno": "app o backend",
-        "severidad": "baja"
+        "severidad": "baja",
+        "resuelta_en": {
+          "rama": "integracion/app",
+          "commit": "148670a",
+          "pr": "Diego-Zarate18/end-security-backend#1",
+          "tarea": 32
+        }
       }
     },
     {
@@ -875,10 +934,16 @@
       "tipo": "brecha",
       "nombre": "Verificación de correo con challengeToken",
       "descripcion": "El contrato usa {email, code}. La app guarda el challengeToken en memoria (PendingAuth); si se cierra, un nuevo login devuelve otro desafío.",
-      "estado": "abierta",
+      "estado": "adaptada en la app",
       "detalles": {
         "dueno": "app (adaptador)",
-        "severidad": "media"
+        "severidad": "media",
+        "adaptada_en": {
+          "rama": "integracion/backend",
+          "commit": "e9a7e9c",
+          "pr": "MrX-zeta/End-Security#2",
+          "tarea": 32
+        }
       }
     },
     {
@@ -886,10 +951,16 @@
       "tipo": "brecha",
       "nombre": "Login con tres respuestas 200",
       "descripcion": "Mapear: tokens → sesión; requires2FA → pantalla 2FA con challengeToken; requiresEmailVerification → pantalla de código.",
-      "estado": "abierta",
+      "estado": "adaptada en la app",
       "detalles": {
         "dueno": "app (adaptador)",
-        "severidad": "media"
+        "severidad": "media",
+        "adaptada_en": {
+          "rama": "integracion/backend",
+          "commit": "e9a7e9c",
+          "pr": "MrX-zeta/End-Security#2",
+          "tarea": 32
+        }
       }
     },
     {
@@ -897,10 +968,16 @@
       "tipo": "brecha",
       "nombre": "Formato de códigos de recuperación",
       "descripcion": "Backend: 10 caracteres (5-5) del alfabeto abcdefghjkmnpqrstuvwxyz23456789, minúsculas. App: XXXX-XXXX Crockford. Cambiar el campo y su validación en la app.",
-      "estado": "abierta",
+      "estado": "adaptada en la app",
       "detalles": {
         "dueno": "app",
-        "severidad": "media"
+        "severidad": "media",
+        "adaptada_en": {
+          "rama": "integracion/backend",
+          "commit": "6bfedf7",
+          "pr": "MrX-zeta/End-Security#2",
+          "tarea": 32
+        }
       }
     },
     {
@@ -908,10 +985,16 @@
       "tipo": "brecha",
       "nombre": "Sesión revocada = 401 genérico",
       "descripcion": "Adaptador: 401 → refresh una vez; si refresh da 401 → session_revoked (signOutLocally).",
-      "estado": "abierta",
+      "estado": "adaptada en la app",
       "detalles": {
         "dueno": "app (adaptador)",
-        "severidad": "media"
+        "severidad": "media",
+        "adaptada_en": {
+          "rama": "integracion/backend",
+          "commit": "e9a7e9c",
+          "pr": "MrX-zeta/End-Security#2",
+          "tarea": 32
+        }
       }
     },
     {
@@ -919,10 +1002,16 @@
       "tipo": "brecha",
       "nombre": "Descarga de la bóveda",
       "descripcion": "GET /vault/sync?since: sin paginación ni 410; fullResync=true sustituye a cursor_expired.",
-      "estado": "abierta",
+      "estado": "adaptada en la app",
       "detalles": {
         "dueno": "app (adaptador)",
-        "severidad": "media"
+        "severidad": "media",
+        "adaptada_en": {
+          "rama": "integracion/backend",
+          "commit": "e9a7e9c",
+          "pr": "MrX-zeta/End-Security#2",
+          "tarea": 32
+        }
       }
     },
     {
@@ -930,10 +1019,16 @@
       "tipo": "brecha",
       "nombre": "Subida por lote atómico (D-4)",
       "descripcion": "Resuelto sin tocar el backend: la app manda lotes de 1 elemento, así cada conflicto es por elemento como espera DEC-57. 409 VaultSyncConflict → conflict.",
-      "estado": "abierta",
+      "estado": "adaptada en la app",
       "detalles": {
         "dueno": "app (adaptador)",
-        "severidad": "media"
+        "severidad": "media",
+        "adaptada_en": {
+          "rama": "integracion/backend",
+          "commit": "e9a7e9c",
+          "pr": "MrX-zeta/End-Security#2",
+          "tarea": 32
+        }
       }
     },
     {
@@ -941,10 +1036,16 @@
       "tipo": "brecha",
       "nombre": "Sin GET /vault/items/{id} (EP-26)",
       "descripcion": "Para «Elegir versión» la app obtiene la versión del servidor con GET /vault/sync?since=<cursor> antes de mostrar el conflicto.",
-      "estado": "abierta",
+      "estado": "adaptada en la app",
       "detalles": {
         "dueno": "app",
-        "severidad": "media"
+        "severidad": "media",
+        "adaptada_en": {
+          "rama": "integracion/backend",
+          "commit": "e9a7e9c",
+          "pr": "MrX-zeta/End-Security#2",
+          "tarea": 32
+        }
       }
     },
     {
@@ -952,10 +1053,16 @@
       "tipo": "brecha",
       "nombre": "/users/me sin llaves ni keyVersion",
       "descripcion": "La regla de la tarea 19 (key_version mayor) toma keyVersion de GET /vault/sync.",
-      "estado": "abierta",
+      "estado": "adaptada en la app",
       "detalles": {
         "dueno": "app (adaptador)",
-        "severidad": "baja"
+        "severidad": "baja",
+        "adaptada_en": {
+          "rama": "integracion/backend",
+          "commit": "e9a7e9c",
+          "pr": "MrX-zeta/End-Security#2",
+          "tarea": 32
+        }
       }
     },
     {
@@ -963,10 +1070,16 @@
       "tipo": "brecha",
       "nombre": "Sin marketingOptIn",
       "descripcion": "Contrato 1.4.0 (DEC-64): falta columna y campo en register / users/me / PATCH. Decidir: backend lo agrega, o la app oculta la casilla y el interruptor en prod y se ajusta el aviso.",
-      "estado": "abierta",
+      "estado": "resuelta",
       "detalles": {
         "dueno": "decisión del equipo",
-        "severidad": "media"
+        "severidad": "media",
+        "resuelta_en": {
+          "rama": "integracion/app",
+          "commit": "beefccb",
+          "pr": "Diego-Zarate18/end-security-backend#1",
+          "tarea": 32
+        }
       }
     },
     {
@@ -974,10 +1087,17 @@
       "tipo": "brecha",
       "nombre": "Sin cambio de correo (DEC-63)",
       "descripcion": "No existen EP-15/16 ni sus límites. Decidir: backend lo agrega, o la app oculta la flecha de la tarjeta en prod.",
-      "estado": "abierta",
+      "estado": "resuelta",
       "detalles": {
         "dueno": "decisión del equipo",
-        "severidad": "media"
+        "severidad": "media",
+        "resuelta_en": {
+          "rama": "integracion/app",
+          "commit": "edd8e51",
+          "pr": "Diego-Zarate18/end-security-backend#1",
+          "tarea": 32
+        },
+        "riesgo_aceptado": "Con Resend activo el cambio de correo revela por tiempo si el correo nuevo ya existe; aceptado hasta tener dominio (RSG-17 en el grafo de la app)."
       }
     },
     {
@@ -985,10 +1105,16 @@
       "tipo": "brecha",
       "nombre": "Cambio de contraseña sin expectedKeyVersion",
       "descripcion": "Sin 409 si otro teléfono cambió antes. La app compara keyVersion antes (GET /vault/sync). Sugerencia menor al backend.",
-      "estado": "abierta",
+      "estado": "resuelta",
       "detalles": {
         "dueno": "app (+ sugerencia backend)",
-        "severidad": "baja"
+        "severidad": "baja",
+        "resuelta_en": {
+          "rama": "integracion/app",
+          "commit": "096ea94",
+          "pr": "Diego-Zarate18/end-security-backend#1",
+          "tarea": 32
+        }
       }
     },
     {
@@ -1007,10 +1133,16 @@
       "tipo": "brecha",
       "nombre": "Setup 2FA pide reautenticación",
       "descripcion": "La app abre la activación sin contraseña: agregar ReauthSheet antes del paso 1; usar otpauthUrl del servidor.",
-      "estado": "abierta",
+      "estado": "adaptada en la app",
       "detalles": {
         "dueno": "app",
-        "severidad": "media"
+        "severidad": "media",
+        "adaptada_en": {
+          "rama": "integracion/backend",
+          "commit": "9046252",
+          "pr": "MrX-zeta/End-Security#2",
+          "tarea": 32
+        }
       }
     },
     {
@@ -1018,10 +1150,16 @@
       "tipo": "brecha",
       "nombre": "Catálogo de actividad distinto",
       "descripcion": "20 eventos con otros nombres (BCAT-AUDIT) y además IP y user-agent. Nueva tabla de títulos e íconos en la app; no mostrar IP.",
-      "estado": "abierta",
+      "estado": "adaptada en la app",
       "detalles": {
         "dueno": "app",
-        "severidad": "media"
+        "severidad": "media",
+        "adaptada_en": {
+          "rama": "integracion/backend",
+          "commit": "e9a7e9c, a961894",
+          "pr": "MrX-zeta/End-Security#2",
+          "tarea": 32
+        }
       }
     },
     {
@@ -1029,10 +1167,17 @@
       "tipo": "brecha",
       "nombre": "Límites solo por IP",
       "descripcion": "Sin límite por cuenta en login (D-6) ni límites de DEC-63. La app interpreta 429 con Retry-After o details.retryAfterSeconds.",
-      "estado": "abierta",
+      "estado": "resuelta",
       "detalles": {
         "dueno": "backend (sugerencia) + app",
-        "severidad": "media"
+        "severidad": "media",
+        "resuelta_en": {
+          "rama": "integracion/app",
+          "commit": "c3022a1",
+          "pr": "Diego-Zarate18/end-security-backend#1",
+          "tarea": 32
+        },
+        "riesgo_aceptado": "Un tercero puede bloquear una cuenta con 5 contraseñas incorrectas en 15 min; aceptado en la revisión de la tarea 32 (RSG-16 en el grafo de la app)."
       }
     },
     {
@@ -1040,10 +1185,16 @@
       "tipo": "brecha",
       "nombre": "Parámetros KDF señuelo distinguibles",
       "descripcion": "prelogin de correos inexistentes devuelve parallelism 4; las cuentas creadas por la app usan 1 → revela qué correos existen. Arreglo de una línea: DEFAULT_KDF_PARAMS.parallelism = 1. Además el piso del servidor (19 456 KiB, t ≥ 2) es más bajo que DEC-05 (65 536, t ≥ 3).",
-      "estado": "abierta",
+      "estado": "resuelta",
       "detalles": {
         "dueno": "backend",
-        "severidad": "alta"
+        "severidad": "alta",
+        "resuelta_en": {
+          "rama": "integracion/app",
+          "commit": "74b5f46",
+          "pr": "Diego-Zarate18/end-security-backend#1",
+          "tarea": 32
+        }
       }
     },
     {
@@ -1054,7 +1205,8 @@
       "estado": "abierta",
       "detalles": {
         "dueno": "backend (Diego, ya identificado)",
-        "severidad": "alta"
+        "severidad": "alta",
+        "pendiente": "Sigue abierta: dominio de correo verificado en Resend."
       }
     },
     {
@@ -1062,10 +1214,16 @@
       "tipo": "brecha",
       "nombre": "Syslog RFC 5424 (DEC-62) no implementado",
       "descripcion": "Solo el Logger de Nest. Lo pidió el profesor.",
-      "estado": "abierta",
+      "estado": "resuelta",
       "detalles": {
         "dueno": "backend",
-        "severidad": "alta"
+        "severidad": "alta",
+        "resuelta_en": {
+          "rama": "integracion/app",
+          "commit": "19a9fc9",
+          "pr": "Diego-Zarate18/end-security-backend#1",
+          "tarea": 32
+        }
       }
     },
     {
@@ -1076,7 +1234,8 @@
       "estado": "abierta",
       "detalles": {
         "dueno": "backend + app",
-        "severidad": "alta"
+        "severidad": "alta",
+        "pendiente": "Sigue abierta: URL pública HTTPS y los dos pines SPKI."
       }
     },
     {
@@ -1084,10 +1243,50 @@
       "tipo": "brecha",
       "nombre": "Sin pruebas automatizadas",
       "descripcion": "Solo Postman. La app probará contra el servidor real con una suite de integración.",
-      "estado": "abierta",
+      "estado": "resuelta",
       "detalles": {
         "dueno": "backend (sugerencia)",
-        "severidad": "baja"
+        "severidad": "baja",
+        "resuelta_en": {
+          "rama": "integracion/app",
+          "commit": "5c96de5",
+          "pr": "Diego-Zarate18/end-security-backend#1",
+          "tarea": 32
+        }
+      }
+    },
+    {
+      "id": "BR-28",
+      "tipo": "brecha",
+      "nombre": "Reenvío del código de registro sin tope",
+      "descripcion": "Quien conozca un correo podía pedir códigos sin fin (uno cada 60 s) y llenarle la bandeja. Ahora hay un tope por correo: 5 envíos por hora y 10 por día, contados en email_verifications; al pasarse, 429 con retryAfterSeconds. El desafío señuelo lleva el mismo tope, así que el 429 no revela si el correo existe.",
+      "estado": "resuelta",
+      "detalles": {
+        "dueno": "backend",
+        "severidad": "media",
+        "resuelta_en": {
+          "rama": "integracion/app",
+          "commit": "bd27953",
+          "pr": "Diego-Zarate18/end-security-backend#1",
+          "tarea": 33
+        }
+      }
+    },
+    {
+      "id": "BR-29",
+      "tipo": "brecha",
+      "nombre": "Cuentas sin verificar que no vencen",
+      "descripcion": "Un registro sin verificar apartaba el correo para siempre. Ahora, pasadas 24 h, un registro nuevo con el mismo correo anonimiza la cuenta sin verificar y sin bóveda (un UPDATE condicionado, sin tarea periódica; misma anonimización que deleteAccount, la fila se conserva por la cadena de auditoría). Una cuenta verificada nunca se toca.",
+      "estado": "resuelta",
+      "detalles": {
+        "dueno": "backend",
+        "severidad": "media",
+        "resuelta_en": {
+          "rama": "integracion/app",
+          "commit": "bd27953",
+          "pr": "Diego-Zarate18/end-security-backend#1",
+          "tarea": 33
+        }
       }
     }
   ],
@@ -1630,6 +1829,21 @@
     {
       "de": "BR-27",
       "a": "BE-00",
+      "relacion": "afecta"
+    },
+    {
+      "de": "BR-28",
+      "a": "BEP-05",
+      "relacion": "afecta"
+    },
+    {
+      "de": "BR-29",
+      "a": "BEP-03",
+      "relacion": "afecta"
+    },
+    {
+      "de": "BR-29",
+      "a": "BTBL-USERS",
       "relacion": "afecta"
     }
   ]

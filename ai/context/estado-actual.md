@@ -1,39 +1,26 @@
 # Estado actual — End Security
 
 > Claude lo lee al empezar cada sesión y lo actualiza con `/registrar-sesion`.
-> Última actualización: 2026-10-19 (contrato de la API)
+> Última actualización: 2026-11-18 (tarea 33)
 
 ## Hecho
-- Análisis adversario de la propuesta; huecos documentados y resueltos (GAP-01…GAP-37).
-- Alcance cerrado: modo híbrido, multi-dispositivo, 2FA TOTP + códigos de recuperación, Resend de alcance mínimo, sin administrador, lista plana.
-- Grafo de conocimiento v1.5.7 (`ai/context/knowledge-graph.json`): 62 decisiones, 47 operaciones, 46 pantallas con su navegación y 26 endpoints.
-- Arquitectura MVVM (`docs/arquitectura.md`) y carpetas creadas en `app/`.
-- Modelo de datos v1.1: `docs/bd/schema.sql` (probado en PostgreSQL 16; 36 pruebas + concurrencia), Room (ahora con `health_snapshots`), DataStore y Redis (`docs/bd/modelo-datos.md`). Diagrama ER en FigJam.
-- Configuración de Claude Code: `CLAUDE.md`, `.claude/settings.json`, reglas por ruta, subagente `security-reviewer`, skill `/registrar-sesion`.
-- Identidad visual **Carbón y miel** + Montserrat (DEC-50): onboarding oscuro, resto de la app claro (DEC-51).
-- Diseño completo en Figma con biblioteca de componentes y prototipo navegable (DEC-60): https://www.figma.com/design/K8GenUmR7GcNZAtJRjagER/End-security
-  - Onboarding, registro y acceso, Bóveda, Generador, Salud (Resumen | Progreso), Ajustes, 2FA, dispositivos, actividad, contraseña maestra y eliminar cuenta.
-  - Estados: copiada, eliminar con «Deshacer», conflictos agrupados («Por resolver» → «Elegir versión»), 5 pantallas de carga y 2 sin conexión.
-  - 4 puntos de inicio del prototipo: App completa, Bóveda con sesión, Sin conexión · Bóveda, Sin conexión · Dispositivos.
-- Implementación (Claude Code, rama `development`): tareas 01 a 13 aprobadas (registro, acceso, 2FA y desbloqueo reales con backend falso; splash; Bóveda: lista, detalle, nueva/editar, eliminar con Deshacer; sincronización, sin conexión y conflictos; Generador). Tema Carbón y miel en Compose, componentes base, DEC-37 aplicado, onboarding SCR-01…03 con DataStore Iniciar sesión SCR-04 Crear cuenta SCR-05 (medidor zxcvbn4j, NFKC) Verificar correo SCR-06, 2FA SCR-07, código de respaldo SCR-08, Desbloquear SCR-09 y Bóveda · cargando SCR-39 con barra inferior, todo solo interfaz, con `SecureScreen` y `ExcludeFromAutofill` en `core/security`.
-- Relevo entre sesiones por `ai/handoff/` (`siguiente.md` ↔ `reporte.md`).
-- **Contrato de la API v1.2.0** (`docs/api/openapi.yaml` + `docs/api/README.md`, DEC-61): 26 endpoints. El backend lo hace otra persona del equipo; la app usa implementaciones falsas del contrato hasta unirlos.
+- App completa con backend falso (release `v1.0.0-demo`): registro, acceso, 2FA, Bóveda, Generador, Salud, Ajustes, dispositivos, actividad, cuenta, legal, conflictos y sin conexión (tareas 01 a 31).
+- Grafo de conocimiento v1.10.0 (`ai/context/knowledge-graph.json`): decisiones DEC-01…66, 48 pantallas con su navegación (SCR-47 y SCR-48 son el cambio de correo) y 26 endpoints. Grafo del backend v1.1.0 (`ai/context/backend-graph.json`, brechas BR-01…29).
+- **Integración con el backend real (DEC-65), tareas 32 y 33**, probada por la persona en el teléfono con el backend local:
+  - Backend, rama `integracion/app` (PR Diego-Zarate18/end-security-backend#1, sin merge): BR-06, 07, 16, 17, 18, 22, 23, 25 y 27 resueltas, más el tope de reenvíos del código de registro (BR-28) y el reemplazo de cuentas sin verificar de más de 24 h (BR-29). Jest (38 pruebas) y la prueba de punta a punta `scripts/e2e/flujo-completo.mjs` (12 pasos).
+  - App, rama `integracion/backend` (PR MrX-zeta/End-Security#2, sin merge): adaptador de la variante `prod` (`BackendTranslator`, `BackendTransport`; spec en `specs/001-adaptador-backend-real/`) y los ajustes de BR-10 (códigos de respaldo 5-5), BR-20 (reautenticación antes de la clave de 2FA) y BR-21 (catálogo de actividad).
+  - «Más débiles» (Salud · Ranking) ya no incluye contraseñas fuertes y tiene estado vacío (tarea 33).
+- Cómo probar con el backend local: sección «Probar con el backend local» del `README.md`.
 
-## Decisiones del 2026-10-15
-- DEC-51 tema claro para la app · DEC-52 candado = bloquear ahora · DEC-53 2FA sin QR (se copia la clave) · DEC-54 estadísticas de la propia bóveda · DEC-55 historial local `health_snapshots` · DEC-56 navegación y confirmaciones · DEC-57 conflictos agrupados (sin historial de contraseñas) · DEC-58 carga y sin conexión · DEC-59 iconografía (dado para el generador) · DEC-60 Figma y prototipo.
-- ZXing queda descartado (ya no hay QR).
-
-## En curso
-- Aprobación final del modelo de datos por el equipo.
-- `core/crypto`: Argon2id + HKDF (Bouncy Castle 1.86) con vectores de RFC 9106/5869 y vector propio; AES-256-GCM (JCA) con vectores de NIST, `SecureBytes` y envoltura de la `vault_key`; bloqueo local de Desbloquear en DataStore. Ícono instalado.
-- Base local: Room (solo bloques cifrados), `VaultSession` + `AutoLocker` (5 min por defecto), `LockGuard` e `ItemCipher` (JSON v1).
-- Alcance del backend en `docs/backend/README.md` (B1…B15), con syslog RFC 5424 de 5 niveles (DEC-62).
-- Tarea 14 en `ai/handoff/siguiente.md`: Salud (análisis local, HIBP, Resumen, Progreso, Ranking, Filtradas, Repetidas, Antiguas).
-- Protección legal (PEND-12): lista de documentos en `docs/legal/README.md`; falta redactarlos y agregar la casilla en Crear cuenta y el grupo «Legal y ayuda» en Ajustes.
+## Decisiones recientes
+- DEC-65 integración con el backend real · DEC-66 Spec Kit para funcionalidades grandes y `/ponytail-review` antes de cada PR · DEC-64 anonimización inmediata al eliminar.
+- Riesgos aceptados en la revisión de la tarea 32: RSG-16 (un tercero puede bloquear una cuenta con 5 intentos, BR-22) y RSG-17 (el cambio de correo revela por tiempo si el correo nuevo existe, con Resend, hasta tener dominio).
 
 ## Siguiente
-1. Después de Salud: Ajustes, 2FA, dispositivos/actividad, cuenta, legal. Pendientes humanos en `ai/handoff/revisiones-pendientes.md`.
-2. Backend (compañero): implementar `docs/api/` y la migración 002 (piso de KDF). Después, cambiar las implementaciones falsas por Retrofit.
+1. El equipo revisa y fusiona los dos PR (nadie fusiona sin revisión humana: auth, red y SQL).
+2. Abiertas en el backend-graph: BR-19 (aviso de privacidad vs. anonimización inmediata), BR-24 (dominio de correo en Resend) y BR-26 (URL pública HTTPS y los dos pines SPKI; hoy `API_BASE_URL` de release está vacía).
+3. Figma: la hoja de contraseña antes de la clave de 2FA, el código de respaldo `xxxxx-xxxxx` en `prod`, y las pantallas de cambio de correo (SCR-47 y SCR-48 aún sin nodo).
+4. Pendientes humanos en `ai/handoff/revisiones-pendientes.md`.
 
 ## Pendientes abiertos del grafo
 PEND-02 recuperación de contraseña maestra · PEND-04 tiempos de tokens/autobloqueo · PEND-05 plazos de retención · PEND-06 ORM · PEND-10 idioma del código

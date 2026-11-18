@@ -1,7 +1,7 @@
 {
   "meta": {
     "nombre": "Grafo de conocimiento — End Security",
-    "version": "1.9.0",
+    "version": "1.10.0",
     "actualizado": "2026-11-18",
     "fase": "App completa con backend falso (release v1.0.0-demo); integración con el backend real.",
     "historial": [
@@ -159,6 +159,11 @@
         "version": "1.9.0",
         "fecha": "2026-11-18",
         "cambio": "DEC-65 integración con el backend real (brechas en backend-graph.json, ramas integracion/*); DEC-61 permite a Claude Code corregir el backend en su rama; DEC-66 Spec Kit y ponytail; DEC-64 anonimización inmediata."
+      },
+      {
+        "version": "1.10.0",
+        "fecha": "2026-11-18",
+        "cambio": "Tarea 33: «Más débiles» solo por fuerza (SCR-25); RSG-16 (bloqueo de cuenta provocable) y RSG-17 (cambio de correo por tiempo); SCR-47 y SCR-48 (cambio de correo, DEC-63); backend-graph.json 1.1.0 con las brechas resueltas."
       }
     ],
     "proposito": "Fuente de verdad del contexto, decisiones técnicas y huecos resueltos del proyecto, para personas y agentes de IA.",
@@ -242,28 +247,28 @@
       "implementa": "endpoint → operación"
     },
     "estadisticas": {
-      "nodos": 390,
-      "aristas": 1097,
+      "nodos": 394,
+      "aristas": 1110,
       "por_tipo": {
-        "proyecto": 1,
-        "objetivo": 6,
-        "restriccion": 5,
         "actor": 3,
-        "tecnologia": 28,
-        "decision": 66,
-        "hueco": 37,
-        "amenaza": 13,
-        "riesgo_aceptado": 15,
-        "modulo": 10,
-        "operacion": 47,
-        "tabla": 12,
         "almacen_clave_valor": 2,
-        "transaccion": 15,
+        "amenaza": 13,
+        "decision": 66,
+        "endpoint": 26,
         "fuera_de_alcance": 13,
-        "pregunta_abierta": 13,
+        "hueco": 37,
         "invariante": 32,
-        "pantalla": 46,
-        "endpoint": 26
+        "modulo": 10,
+        "objetivo": 6,
+        "operacion": 47,
+        "pantalla": 48,
+        "pregunta_abierta": 13,
+        "proyecto": 1,
+        "restriccion": 5,
+        "riesgo_aceptado": 17,
+        "tabla": 12,
+        "tecnologia": 28,
+        "transaccion": 15
       }
     }
   },
@@ -3698,7 +3703,8 @@
         "tipo_vista": "estado",
         "pestana_activa": "Salud",
         "requiere_red": false,
-        "tema": "claro"
+        "tema": "claro",
+        "regla": "Más débiles se guía por el título y solo por la fuerza: excluye las de fuerza Strong antes de ordenar y tomar las 10; repetidas y filtradas no entran por eso (ya tienen SCR-26 y SCR-27). Sin débiles ni regulares: «No tienes contraseñas débiles. Buen trabajo.» (HealthUiState.rankingFor, tarea 33)."
       }
     },
     {
@@ -4371,7 +4377,7 @@
       "id": "DEC-65",
       "tipo": "decision",
       "nombre": "Integración con el backend real",
-      "descripcion": "El backend real (NestJS 11 + Prisma, develop f2b5732) difiere del contrato 1.4.0; sus diferencias están en ai/context/backend-graph.json como brechas BR-01..27. Reparto: (1) en el backend, rama integracion/app con PR a develop: userId generado por la app (BR-06), KDF p=1 y piso 65536/t3 (BR-23), displayName opcional (BR-07), marketingOptIn (BR-16), cambio de correo con los límites de DEC-63 (BR-17), expectedKeyVersion opcional en cambio de contraseña (BR-18), límite de intentos por cuenta (BR-22), syslog RFC 5424 (BR-25, DEC-62) y pruebas (BR-27). (2) En la app, rama integracion/backend: un adaptador en la variante prod traduce el resto (prefijo /api, envoltura {success,data}, errores, base64 estándar, challengeToken, sync por lotes; D-4 se resuelve con lotes de 1, BR-13). Dominio de correo (BR-24), URL de despliegue y pines SPKI (BR-26) los aporta el equipo.",
+      "descripcion": "El backend real (NestJS 11 + Prisma, develop f2b5732) difiere del contrato 1.4.0; sus diferencias están en ai/context/backend-graph.json como brechas BR-01..27. Reparto: (1) en el backend, rama integracion/app con PR a develop: userId generado por la app (BR-06), KDF p=1 y piso 65536/t3 (BR-23), displayName opcional (BR-07), marketingOptIn (BR-16), cambio de correo con los límites de DEC-63 (BR-17), expectedKeyVersion opcional en cambio de contraseña (BR-18), límite de intentos por cuenta (BR-22), syslog RFC 5424 (BR-25, DEC-62) y pruebas (BR-27). (2) En la app, rama integracion/backend: un adaptador en la variante prod traduce el resto (prefijo /api, envoltura {success,data}, errores, base64 estándar, challengeToken, sync por lotes; D-4 se resuelve con lotes de 1, BR-13). Dominio de correo (BR-24), URL de despliegue y pines SPKI (BR-26) los aporta el equipo. Estado (tareas 32 y 33): BR-06, 07, 16, 17, 18, 22, 23, 25 y 27 resueltas en el backend; el resto de las de la app adaptadas; BR-28 y BR-29 (tope de reenvíos y cuentas sin verificar vencidas) nuevas y resueltas; solo BR-19, 24 y 26 abiertas.",
       "estado": "decidido",
       "detalles": {
         "rama_backend": "integracion/app",
@@ -4394,6 +4400,52 @@
           "spec-kit": "https://github.com/github/spec-kit",
           "ponytail": "https://github.com/DietrichGebert/ponytail"
         }
+      }
+    },
+    {
+      "id": "RSG-16",
+      "tipo": "riesgo_aceptado",
+      "nombre": "Un tercero puede bloquear una cuenta",
+      "descripcion": "El backend cuenta 5 contraseñas incorrectas en 15 min por cuenta (BR-22). Quien conozca un correo puede provocar ese bloqueo temporal con intentos fallidos. Aceptado en la revisión de la tarea 32: el bloqueo dura 15 min, responde igual que una contraseña incorrecta y no revela si la cuenta existe.",
+      "estado": "riesgo_aceptado"
+    },
+    {
+      "id": "RSG-17",
+      "tipo": "riesgo_aceptado",
+      "nombre": "El cambio de correo revela por tiempo si el correo nuevo existe",
+      "descripcion": "Con Resend activo, pedir el cambio a un correo nuevo envía un mensaje, y cuando ese correo ya tiene cuenta no se envía nada (misma respuesta): la diferencia de tiempo puede delatarlo, y solo para quien ya tiene sesión y pasó la reautenticación. Aceptado en la revisión de la tarea 32 hasta tener dominio (BR-24).",
+      "estado": "riesgo_aceptado"
+    },
+    {
+      "id": "SCR-47",
+      "tipo": "pantalla",
+      "nombre": "Cambiar correo · correo nuevo",
+      "descripcion": "Vista 'Cambiar correo · correo nuevo' del módulo MOD-ACCOUNT (EmailStep.Enter). Pide el correo nuevo y, al continuar, la hoja de contraseña maestra (+ código 2FA si lo hay); muestra la espera de DEC-63 cuando el servidor responde 429.",
+      "estado": "decidido",
+      "detalles": {
+        "figma_nodo": null,
+        "sin_diseno_en_figma": true,
+        "tipo_vista": "pantalla",
+        "pestana_activa": "Ajustes",
+        "requiere_red": true,
+        "tema": "claro",
+        "ruta_app": "Routes.CHANGE_EMAIL (feature/account/ui/ChangeEmailScreen.kt)"
+      }
+    },
+    {
+      "id": "SCR-48",
+      "tipo": "pantalla",
+      "nombre": "Cambiar correo · código",
+      "descripcion": "Vista 'Cambiar correo · código' del módulo MOD-ACCOUNT (EmailStep.Code). Pide el código de 6 dígitos que llegó al correo nuevo (15 min, 5 intentos); al acertar, el correo cambia y se vuelve a Ajustes.",
+      "estado": "decidido",
+      "detalles": {
+        "figma_nodo": null,
+        "sin_diseno_en_figma": true,
+        "tipo_vista": "pantalla",
+        "pestana_activa": "Ajustes",
+        "requiere_red": true,
+        "tema": "claro",
+        "ruta_app": "Routes.CHANGE_EMAIL (feature/account/ui/ChangeEmailScreen.kt)"
       }
     }
   ],
@@ -9973,6 +10025,76 @@
       "de": "DEC-65",
       "a": "DEC-66",
       "relacion": "depende_de"
+    },
+    {
+      "de": "RSG-16",
+      "a": "AMZ-04",
+      "relacion": "residual_de"
+    },
+    {
+      "de": "RSG-17",
+      "a": "AMZ-08",
+      "relacion": "residual_de"
+    },
+    {
+      "de": "SCR-47",
+      "a": "MOD-ACCOUNT",
+      "relacion": "parte_de"
+    },
+    {
+      "de": "SCR-48",
+      "a": "MOD-ACCOUNT",
+      "relacion": "parte_de"
+    },
+    {
+      "de": "SCR-47",
+      "a": "DEC-63",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "SCR-48",
+      "a": "DEC-63",
+      "relacion": "definida_por"
+    },
+    {
+      "de": "SCR-29",
+      "a": "SCR-47",
+      "relacion": "navega_a",
+      "nota": "tarjeta Correo"
+    },
+    {
+      "de": "SCR-47",
+      "a": "SCR-48",
+      "relacion": "navega_a",
+      "nota": "Continuar (código enviado)"
+    },
+    {
+      "de": "SCR-48",
+      "a": "SCR-47",
+      "relacion": "navega_a",
+      "nota": "Atrás"
+    },
+    {
+      "de": "SCR-47",
+      "a": "SCR-29",
+      "relacion": "navega_a",
+      "nota": "Atrás"
+    },
+    {
+      "de": "SCR-48",
+      "a": "SCR-29",
+      "relacion": "navega_a",
+      "nota": "Correo cambiado"
+    },
+    {
+      "de": "SCR-47",
+      "a": "OP-26",
+      "relacion": "invoca"
+    },
+    {
+      "de": "SCR-48",
+      "a": "OP-26",
+      "relacion": "invoca"
     }
   ]
 }
