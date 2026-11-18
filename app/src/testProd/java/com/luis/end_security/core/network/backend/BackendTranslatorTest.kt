@@ -15,6 +15,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -258,12 +259,25 @@ class BackendTranslatorTest {
               {"id":7,"eventType":"auth.login","outcome":"failure","occurredAt":"2026-11-18T10:58:00.000Z","metadata":{"reason":"account_locked"},"deviceName":null,"ip":null,"userAgent":null}
             ],"nextCursor":7}""",
         )
+        ok("""{"items":[],"nextCursor":null}""")
         val response = run("GET", "/activity?limit=50&before=10", bearer = "A")
-        assertEquals("audit?limit=50&before=10", calls.single().path)
+        assertEquals(listOf("audit?limit=100&before=10", "audit?limit=100&before=7"), calls.map { it.path })
         val page = ApiJson.decodeFromString(ActivityDto.serializer(), response.body!!)
         assertEquals(listOf("recovery_code_login", "account_locked"), page.events.map { it.eventType })
-        assertTrue(page.hasMore)
+        assertFalse(page.hasMore)
         assertTrue("203.0.113.9" !in response.body!!)
+    }
+
+    @Test
+    fun `una pagina solo de eventos ocultos no corta la actividad`() = runTest {
+        val hidden = (100 downTo 2).joinToString(",") {
+            """{"id":$it,"eventType":"vault.sync_push","outcome":"success","occurredAt":"2026-11-18T10:00:00.000Z","metadata":{}}"""
+        }
+        ok("""{"items":[$hidden],"nextCursor":2}""")
+        ok("""{"items":[{"id":1,"eventType":"auth.register","outcome":"success","occurredAt":"2026-11-18T09:00:00.000Z","metadata":{}}],"nextCursor":null}""")
+        val page = ApiJson.decodeFromString(ActivityDto.serializer(), run("GET", "/activity?limit=50", bearer = "A").body!!)
+        assertEquals(listOf("account_registered"), page.events.map { it.eventType })
+        assertFalse(page.hasMore)
     }
 
     @Test

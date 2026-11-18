@@ -365,15 +365,27 @@ class BackendTranslator(
             return if (reply.ok) noContent() else errorOf(reply, Kind.Session)
         }
 
+        /**
+         * Los eventos ocultos (p. ej. cada sincronización) pueden llenar una página entera; la app pagina con el id del último
+         * evento visible y se detiene con una página vacía. Así que se piden páginas hasta juntar `limit` visibles o acabar.
+         */
         suspend fun activity(query: Map<String, String>): HttpResponse {
-            val params = listOfNotNull(query["limit"]?.let { "limit=$it" }, query["before"]?.let { "before=$it" }).joinToString("&")
-            val reply = get(if (params.isEmpty()) "audit" else "audit?$params")
-            if (!reply.ok) return errorOf(reply, Kind.Session)
-            val page = data(reply, BeAuditPage.serializer())
-            val events = page.items.mapNotNull { item ->
-                activityKind(item)?.let { ActivityEventDto(item.id, item.occurredAt, it, item.outcome, item.deviceName) }
+            val limit = query["limit"]?.toIntOrNull() ?: ACTIVITY_PAGE
+            var before = query["before"]
+            val events = mutableListOf<ActivityEventDto>()
+            repeat(ACTIVITY_MAX_PAGES) {
+                val reply = get("audit?limit=$ACTIVITY_PAGE" + (before?.let { "&before=$it" } ?: ""))
+                if (!reply.ok) return errorOf(reply, Kind.Session)
+                val page = data(reply, BeAuditPage.serializer())
+                page.items.mapNotNullTo(events) { item ->
+                    activityKind(item)?.let { ActivityEventDto(item.id, item.occurredAt, it, item.outcome, item.deviceName) }
+                }
+                if (events.size >= limit) return ok(ActivityDto.serializer(), ActivityDto(events.take(limit), hasMore = true))
+                before = page.nextCursor?.toString() ?: return ok(ActivityDto.serializer(), ActivityDto(events, hasMore = false))
             }
-            return ok(ActivityDto.serializer(), ActivityDto(events, hasMore = page.nextCursor != null))
+            // shortcut: tras ACTIVITY_MAX_PAGES páginas casi todas ocultas se entrega lo que haya; con `hasMore` la app pide
+            // más solo si hay al menos un evento visible. Upgrade: que el backend filtre por tipo de evento.
+            return ok(ActivityDto.serializer(), ActivityDto(events, hasMore = events.isNotEmpty()))
         }
 
         // -- Bóveda (BR-12, BR-13, BR-14) --
@@ -567,6 +579,9 @@ class BackendTranslator(
         private const val RECOVERY_CODES = 10
         private const val CODE_ATTEMPTS = 5
         private const val NONCE_BYTES = 12
+        /** `@Max(100)` de `GET /audit`. */
+        private const val ACTIVITY_PAGE = 100
+        private const val ACTIVITY_MAX_PAGES = 20
         /** `@MaxLength(64)` del backend; la app admite 100. */
         private const val DEVICE_NAME_MAX = 64
         private const val EMAIL_CHANGE = "email-change"
