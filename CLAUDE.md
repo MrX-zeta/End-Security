@@ -18,7 +18,7 @@ Si una decisión cambia, propón actualizar el grafo (nodo + relaciones + versi�
 ## Stack
 - Android: Kotlin 2.2, Jetpack Compose + Material 3, AGP 9.2 (Kotlin integrado), minSdk 28, targetSdk 36.
   Namespace `com.luis.end_security`. MVVM + UDF, Hilt, Room, DataStore, Retrofit/OkHttp, WorkManager.
-- Backend: NestJS + PostgreSQL 16 + Redis en Docker Compose. **Lo desarrolla otra persona del equipo; no se escribe aquí** (DEC-61).
+- Backend: NestJS 11 + Prisma + PostgreSQL, repositorio aparte (`end-security-backend`, de Diego). Su mapa y brechas: `ai/context/backend-graph.json` (DEC-65).
 
 ## Comandos
 - Compilar: `./gradlew assembleDebug`
@@ -50,7 +50,8 @@ Regla de dependencias: `ui → domain ← data`. `ui` nunca usa Retrofit, Room n
 10. Casos de uso solo cuando tienen lógica real; si no, el ViewModel llama al repositorio.
 
 ## Backend y API (DEC-61)
-- No escribas código del backend. El límite es el contrato `docs/api/`; si algo del contrato no alcanza o parece mal, anótalo en el reporte y pregunta.
+- El backend se toca **solo** en la rama `integracion/app` de su repositorio, con PR a `develop` que revisa Diego; nunca hagas commit en `develop` ni `main` (DEC-61, DEC-65).
+  Antes de cambiarlo, busca la brecha `BR-xx` en `ai/context/backend-graph.json`. Si algo no está ahí, pregunta.
 - La app habla con el servidor solo por interfaces de dominio (`AuthApi`, `VaultApi`, `AccountApi`, `SessionApi`). Mientras no exista el backend,
   sus implementaciones usan un transporte falso (`core/network/fake/`, estado en `fake_server.json`) que responde **exactamente** como el contrato: mismos códigos de error, formatos y casos genéricos.
 - Bytes en Base64url sin relleno, UUID canónicos, errores por `code` (RFC 9457). Nunca uses el `title` del error como texto de la UI.
@@ -73,3 +74,5 @@ El diseño y la planeación se hacen en otra sesión; las tareas llegan por arch
 ## Estilo
 - Identificadores y nombres de archivo en inglés; comentarios, documentación y textos de la UI en español.
 - Textos de la UI en `res/values/strings.xml`, nunca escritos directamente en los composables.
+
+Los commits no llevan coautoría de IA.

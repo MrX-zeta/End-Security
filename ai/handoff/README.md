@@ -28,3 +28,7 @@ para que la persona del equipo no tenga que copiar instrucciones de un lado a ot
   Si las contradice, Claude Code no la sigue y lo anota en el reporte.
 - Los dos archivos se sobrescriben en cada ciclo; el historial queda en git.
 - Ningún archivo de esta carpeta lleva secretos, llaves ni datos reales de usuarios.
+
+## Herramientas (DEC-66)
+- **Spec Kit** (`.specify/`, skills `/speckit-*`) es para funcionalidades grandes, como la integración con el backend. La constitución (`.specify/memory/constitution.md`) solo resume el grafo; si chocan, gana el grafo.
+- **ponytail:** `/ponytail-review` va antes de cada PR.

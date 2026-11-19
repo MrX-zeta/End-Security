@@ -1,7 +1,10 @@
 package com.luis.end_security.core.sync
 
+import com.luis.end_security.R
 import com.luis.end_security.core.common.ApiError
 import com.luis.end_security.core.common.ApiResult
+import com.luis.end_security.core.common.AppMessage
+import com.luis.end_security.core.common.AppMessages
 import com.luis.end_security.core.common.DeviceClock
 import com.luis.end_security.core.crypto.Sealed
 import com.luis.end_security.core.database.dao.AccountDao
@@ -28,7 +31,7 @@ sealed interface SyncOutcome {
     /** Todo subido y al día. */
     data object Synced : SyncOutcome
 
-    /** Sin red: se reintenta cuando vuelva, sin aviso intrusivo (DEC-58). */
+    /** Sin red: se reintenta con espera creciente y cuando vuelva la red; un aviso temporal por corte (DEC-58). */
     data object Offline : SyncOutcome
 
     /** Un `5xx` u otro fallo pasajero: reintentar con espera exponencial. */
@@ -48,7 +51,7 @@ interface UploadGuard {
     fun isUploading(id: UUID): Boolean
 }
 
-/** Si la última sincronización falló por falta de red (SCR-44). */
+/** Si la última sincronización falló por falta de red. */
 interface SyncStatus {
     val offline: StateFlow<Boolean>
 }
@@ -72,12 +75,16 @@ class SyncEngine @Inject constructor(
     private val items: VaultItemDao,
     private val accounts: AccountDao,
     private val clock: DeviceClock,
+    private val messages: AppMessages,
 ) : UploadGuard, SyncStatus {
 
     private val mutex = Mutex()
     private val inFlight: MutableSet<String> = ConcurrentHashMap.newKeySet()
     private val _offline = MutableStateFlow(false)
     override val offline: StateFlow<Boolean> = _offline.asStateFlow()
+
+    /** El aviso «Sin conexión» ya salió en este corte: una vez por corte, hasta que una sincronización termine bien. */
+    private var offlineNoticeShown = false
 
     override fun isUploading(id: UUID): Boolean = id.toString() in inFlight
 
@@ -87,8 +94,18 @@ class SyncEngine @Inject constructor(
     suspend fun sync(): SyncOutcome = mutex.withLock {
         val outcome = run()
         when (outcome) {
-            SyncOutcome.Synced -> _offline.value = false
-            SyncOutcome.Offline -> _offline.value = true
+            SyncOutcome.Synced -> {
+                _offline.value = false
+                offlineNoticeShown = false
+            }
+            SyncOutcome.Offline -> {
+                _offline.value = true
+                // DEC-58: la bóveda es offline. Solo se avisa, una vez por corte, si hay cambios sin subir.
+                if (!offlineNoticeShown && items.pendingRows().isNotEmpty()) {
+                    offlineNoticeShown = true
+                    messages.post(AppMessage(R.string.vault_offline_toast, icon = R.drawable.ic_wifi_off_20))
+                }
+            }
             else -> Unit
         }
         outcome

@@ -21,8 +21,10 @@ kotlinxSerialization = "1.9.0"
 splashscreen = "1.2.0"
 biometric = "1.1.0"
 work = "2.10.2"
+okhttp = "4.12.0"
 
 [libraries]
+okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhttp" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 androidx-work-runtime-ktx = { group = "androidx.work", name = "work-runtime-ktx", version.ref = "work" }
 androidx-core-splashscreen = { group = "androidx.core", name = "core-splashscreen", version.ref = "splashscreen" }

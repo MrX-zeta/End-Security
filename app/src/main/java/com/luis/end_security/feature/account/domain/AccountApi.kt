@@ -25,8 +25,11 @@ interface AccountApi {
     /** EP-18 `POST /account/delete`. */
     suspend fun deleteAccount(reauth: Reauth): ApiResult<Unit>
 
-    /** EP-19 `POST /account/2fa/setup`. */
-    suspend fun startTwoFactorSetup(): ApiResult<TwoFactorSetup>
+    /**
+     * EP-19 `POST /account/2fa/setup`. El backend real pide la contraseña maestra antes de dar la clave (BR-20); el servidor
+     * falso de `demo` ignora [reauth].
+     */
+    suspend fun startTwoFactorSetup(reauth: Reauth? = null): ApiResult<TwoFactorSetup>
 
     /** EP-20 `POST /account/2fa/confirm`: los 10 códigos de respaldo, en formato `XXXX-XXXX`. */
     suspend fun confirmTwoFactor(code: String): ApiResult<List<String>>

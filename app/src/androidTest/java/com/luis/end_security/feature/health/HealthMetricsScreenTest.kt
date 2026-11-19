@@ -87,8 +87,8 @@ class HealthMetricsScreenTest {
         val report = analyze(item("Instagram", "s4-Tortuga", breach = 52_341), item("Gmail", "s4-Cebolla-Roja", breach = 1))
         show { HealthBreachedScreen(report, {}, {}) }
         val number = NumberFormat.getIntegerInstance(Locale.getDefault()).format(52_341)
-        composeRule.onNodeWithText("Apareció en $number filtraciones", substring = true).assertIsDisplayed()
-        composeRule.onNodeWithText("Apareció en 1 filtración", substring = true).assertIsDisplayed()
+        composeRule.onNodeWithText("Apareció $number veces en filtraciones", substring = true).assertIsDisplayed()
+        composeRule.onNodeWithText("Apareció 1 vez en filtraciones", substring = true).assertIsDisplayed()
     }
 
     @Test

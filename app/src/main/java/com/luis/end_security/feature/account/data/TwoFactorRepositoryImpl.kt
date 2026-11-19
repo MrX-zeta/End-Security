@@ -18,7 +18,8 @@ class TwoFactorRepositoryImpl @Inject constructor(
 
     override suspend fun isEnabled(): Boolean? = (api.getAccount() as? ApiResult.Success)?.value?.twoFactorEnabled
 
-    override suspend fun startSetup(): ApiResult<TwoFactorSetup> = api.startTwoFactorSetup()
+    override suspend fun startSetup(password: CharSequence): ApiResult<TwoFactorSetup> =
+        reauth.run(password, null) { api.startTwoFactorSetup(it) }
 
     override suspend fun confirm(code: String): ApiResult<List<String>> = api.confirmTwoFactor(code)
 

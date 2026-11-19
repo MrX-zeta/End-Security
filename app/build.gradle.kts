@@ -58,7 +58,16 @@ android {
     }
 
     buildTypes {
+        // Servidor real de la variante `prod` (tarea 32). En el teléfono: `adb reverse tcp:3000 tcp:3000`.
+        // Para probar la app de debug contra el servidor en línea: `-PapiBaseUrl=https://api.endsecurity.lat/api/` (el texto plano
+        // solo se permite hacia 127.0.0.1 y 10.0.2.2, ver src/debug/res/xml/network_security_config.xml).
+        debug {
+            val debugUrl = (project.findProperty("apiBaseUrl") as String?) ?: "http://127.0.0.1:3000/api/"
+            buildConfigField("String", "API_BASE_URL", "\"$debugUrl\"")
+        }
         release {
+            // Servidor de producción (DEC-67). TODO(BR-26): los pines SPKI se agregan cuando el servidor esté en línea (tarea 37).
+            buildConfigField("String", "API_BASE_URL", "\"https://api.endsecurity.lat/api/\"")
             if (keystoreFile.exists()) signingConfig = signingConfigs.getByName("release")
             // DEC-37: R8 (minificación, ofuscación y recorte de recursos) en release.
             optimization {
@@ -124,6 +133,8 @@ dependencies {
     implementation(libs.bouncycastle.bcprov)
     implementation(libs.androidx.lifecycle.process)
     implementation(libs.kotlinx.serialization.json)
+    // Transporte al servidor real, solo en `prod` (PATCH y DELETE con cuerpo; research R1 de specs/001).
+    "prodImplementation"(libs.okhttp)
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)

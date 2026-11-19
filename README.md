@@ -178,9 +178,43 @@ git checkout development
 
 ---
 
+## Probar con el backend local
+
+El servidor de producción (`https://api.endsecurity.lat`) se despliega con la guía [`docs/despliegue.md`](https://github.com/Diego-Zarate18/end-security-backend/blob/integracion/app/docs/despliegue.md) del backend; la variante `prod` de **release** usa `https://api.endsecurity.lat/api/` (DEC-67) y la de debug, `http://127.0.0.1:3000/api/` (o la que pases con `-PapiBaseUrl=...`).
+
+La variante `prod` habla con el backend real ([end-security-backend](https://github.com/Diego-Zarate18/end-security-backend), rama `integracion/app`); `demo` sigue siendo la de siempre y no necesita servidor. Con un teléfono por USB:
+
+1. **Prepara el backend** (necesitas PostgreSQL). Cada persona escribe su propio `.env` a partir de `.env.example`: `DATABASE_URL`, los secretos de sesión, `AUDIT_HMAC_KEY` y `TOTP_ENCRYPTION_KEYS` salen de generarlos tú; no se versionan ni se comparten. Sin `RESEND_API_KEY` los correos (y los códigos de verificación) salen por la consola del backend.
+2. **Instala, migra y arranca** desde la rama `integracion/app`. Las migraciones se aplican con `npx prisma migrate deploy`:
+
+   ```bash
+   npm install
+   npx prisma migrate deploy
+   npm run build
+   npm run start:dev   # puerto 3000
+   ```
+
+3. **Conecta el teléfono al puerto del backend.** Con un emulador abierto, `adb` pide elegir dispositivo, así que indica la serie (`adb devices` la muestra):
+
+   ```bash
+   adb -s <serie> reverse tcp:3000 tcp:3000
+   ```
+
+4. **Instala la app** `prodDebug` (apunta a `http://127.0.0.1:3000/api/`, solo en debug):
+
+   ```bash
+   ./gradlew :app:installProdDebug
+   ```
+
+5. **Prueba de punta a punta sin teléfono:** desde el backend, `node scripts/e2e/flujo-completo.mjs` recorre registro, verificación, bóveda, 2FA, cambio de contraseña y de correo, y la eliminación de la cuenta, con el mismo cifrado de la app.
+
+Si el puerto 3000 ya lo usa otro proceso, arranca el backend con `PORT=3001` y usa `adb -s <serie> reverse tcp:3000 tcp:3001`. Si desconectas el cable, repite el `adb reverse`.
+
+---
+
 ## Pruebas
 
-- **Unitarias: 1064** (variante `demo`; la variante `prod` corre 920 más 3 propias que comprueban que no lleva el backend falso).
+- **Unitarias: 1069** (variante `demo`) y **941** (variante `prod`, con las del adaptador al backend real).
 - **Instrumentadas (Compose y dispositivo): 365**, en un emulador.
 - Las pruebas de la UI usan reloj controlado y comprueban posiciones y tamaños, no capturas.
 

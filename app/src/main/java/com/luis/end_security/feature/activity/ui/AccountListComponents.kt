@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -52,6 +53,9 @@ internal fun AccountListPage(
     modifier: Modifier = Modifier,
     notice: String? = null,
     bottom: (@Composable ColumnScope.() -> Unit)? = null,
+    /** Con [onRefresh], deslizar hacia abajo actualiza la lista (Dispositivos y Actividad). */
+    isRefreshing: Boolean = false,
+    onRefresh: (() -> Unit)? = null,
     content: @Composable () -> Unit,
 ) {
     Column(modifier = modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
@@ -69,7 +73,11 @@ internal fun AccountListPage(
                         modifier = Modifier.padding(start = 14.dp).semantics { heading() },
                     )
                 }
-                Box(modifier = Modifier.weight(1f).fillMaxWidth()) { content() }
+                if (onRefresh != null) {
+                    PullToRefreshBox(isRefreshing = isRefreshing, onRefresh = onRefresh, modifier = Modifier.weight(1f).fillMaxWidth()) { content() }
+                } else {
+                    Box(modifier = Modifier.weight(1f).fillMaxWidth()) { content() }
+                }
                 if (bottom != null) {
                     Column(
                         modifier = Modifier.padding(horizontal = ListPagePadding).padding(top = 8.dp, bottom = 12.dp),
