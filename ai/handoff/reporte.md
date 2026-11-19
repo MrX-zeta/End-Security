@@ -8,3 +8,4 @@
 - **Pruebas:** `testProdDebugUnitTest`, `testDemoDebugUnitTest`, `lintProdDebug`, `assembleProdRelease` en verde. En la primera corrida paralela fallaron 2 pruebas de tiempo de `PasswordSimilarityTest` (carga de la máquina); aisladas pasan.
 - **Docs:** README «Instalar», `docs/release/v1.0.0.md`, `estado-actual.md`, `backend-graph.json` (BR-26). `build_backend_graph.py` aún dice «pendiente» para BR-26: si se regenera el grafo, actualizarlo.
 - **PR #2** (`integracion/backend` → `development`): sin verificar su estado (no se ejecutó `gh`); el PR `development` → `main` aún no existe.
+- **Paso 6 (hecho):** PR #3, #4 y #5 mezclados; tag `v1.0.0` sobre `main` (c9fb103) y release https://github.com/MrX-zeta/End-Security/releases/tag/v1.0.0 (latest) con `EndSecurity-1.0.0.apk`. `v1.0.0-demo` intacto.
