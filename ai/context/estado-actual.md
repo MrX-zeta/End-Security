@@ -1,7 +1,7 @@
 # Estado actual — End Security
 
 > Claude lo lee al empezar cada sesión y lo actualiza con `/registrar-sesion`.
-> Última actualización: 2026-11-19 (tarea 38)
+> Última actualización: 2026-11-19 (tarea 39)
 
 ## Hecho
 - App completa con backend falso (release `v1.0.0-demo`): registro, acceso, 2FA, Bóveda, Generador, Salud, Ajustes, dispositivos, actividad, cuenta, legal, conflictos y sin conexión (tareas 01 a 31).
@@ -11,7 +11,8 @@
   - App, rama `integracion/backend` (PR MrX-zeta/End-Security#2, sin merge): adaptador de la variante `prod` (`BackendTranslator`, `BackendTransport`; spec en `specs/001-adaptador-backend-real/`) y los ajustes de BR-10 (códigos de respaldo 5-5), BR-20 (reautenticación antes de la clave de 2FA) y BR-21 (catálogo de actividad).
   - «Más débiles» (Salud · Ranking) ya no incluye contraseñas fuertes y tiene estado vacío (tarea 33).
 - **Preparación de producción (tarea 36, DEC-67):** dominio `endsecurity.lat`, servidor en `api.endsecurity.lat`, correo con Resend desde `no-reply@endsecurity.lat`. El backend (`integracion/app`) se niega a arrancar en producción sin `RESEND_API_KEY`/`EMAIL_FROM`, con secretos débiles o con `CORS_ORIGIN=*`, y tiene `GET /api/health` mínimo, `npm run migrate:deploy`, `railway.json` y la guía `docs/despliegue.md`. La app de release ya apunta a `https://api.endsecurity.lat/api/`. Nada está desplegado todavía.
-- **Hallazgos de la auditoría (tareas 37 y 38):** F-03 (ValidationPipe sin conversión implícita), F-05 (límites de longitud en el formulario de la bóveda, `ItemLimits`) y F-06 (multer actualizado) cerrados; F-07 ya existía (BR-22). Aceptados: RSG-18, RSG-19, RSG-20. F-01 (pines SPKI) sigue en BR-26.
+- **Hallazgos de la auditoría (tareas 37 y 38):** F-03 (ValidationPipe sin conversión implícita), F-05 (límites de longitud en el formulario de la bóveda, `ItemLimits`) y F-06 (multer actualizado) cerrados; F-07 ya existía (BR-22). Aceptados: RSG-18, RSG-19, RSG-20. F-01 (pines SPKI) cerrado en la tarea 39 (BR-26).
+- **Tarea 39, release 1.0.0:** pines SPKI de `api.endsecurity.lat` (intermedia YR1 + raíz ISRG Root YR de respaldo, vencen 2027-12-31), APK `prod` firmado (`releases/EndSecurity-1.0.0.apk`, fuera de git, SHA-256 `21bf5f8a…c674`), notas en `docs/release/v1.0.0.md`. Falta: merge PR #2 y `development`→`main` (la persona), luego tag y release `v1.0.0`.
 - Cómo probar con el backend local: sección «Probar con el backend local» del `README.md`.
 
 ## Decisiones recientes
@@ -20,7 +21,7 @@
 
 ## Siguiente
 1. El equipo revisa y fusiona los dos PR (nadie fusiona sin revisión humana: auth, red y SQL).
-2. Desplegar con `docs/despliegue.md` (la persona o Diego): proyecto y base en Railway, variables, dominio `api.endsecurity.lat` en Spaceship, dominio verificado y clave en Resend. Abiertas: BR-19 (aviso de privacidad vs. anonimización inmediata; falta el proveedor de hosting, E4), BR-24 (en curso: verificar el dominio en Resend) y BR-26 (pendiente de servidor en línea: los dos pines SPKI, tarea 37).
+2. Desplegar con `docs/despliegue.md` (la persona o Diego): proyecto y base en Railway, variables, dominio `api.endsecurity.lat` en Spaceship, dominio verificado y clave en Resend. Abiertas: BR-19 (aviso de privacidad vs. anonimización inmediata; falta el proveedor de hosting, E4), BR-24 (en curso: verificar el dominio en Resend). BR-26 resuelta (tarea 39).
 3. Figma: la hoja de contraseña antes de la clave de 2FA, el código de respaldo `xxxxx-xxxxx` en `prod`, y las pantallas de cambio de correo (SCR-47 y SCR-48 aún sin nodo).
 4. Pendientes humanos en `ai/handoff/revisiones-pendientes.md`.
 
