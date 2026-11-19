@@ -1,81 +1,58 @@
-# Tarea 34 · Sin conexión: la bóveda deja de mostrar el aviso fijo
+# Tarea 35 · Veces en filtraciones: texto correcto y tope de 10 000
 
 **Estado:** hecha
 **Escrita:** 2026-11-18 · sesión de diseño
 
-## Revisión de la tarea 33
-Aprobada. Probado en el teléfono contra el backend local:
-- «Más débiles» funciona;
-- el tope de reenvíos del código funciona.
+## Revisión de la tarea 34
+Aprobada. Probado en el teléfono: el aviso temporal y la sincronización sin conexión funcionan como se esperaba.
 
-Tú no tienes pendientes de esa tarea: la carpeta original ya la restauró la persona.
-
-**Ramas:** solo la app, en `integracion/backend` (PR #2). No toques el backend. Sin merge.
+**Ramas:** solo la app, `integracion/backend` (PR #2). No toques el backend. Sin merge.
 **Reglas:**
+- trabaja en la carpeta original de la app;
 - sin capturas;
 - no leas `.env*` ni llaves;
-- ponytail en `full`;
-- no te detengas entre pasos salvo un bloqueo real.
-**Carpeta:** trabaja en la carpeta original de la app (la persona instala desde ahí). Si un comando de git te bloquea, anótalo y sigue.
-
----
+- ponytail en `full`.
 
 ## Problema visto en el teléfono
-Con la red débil, la bóveda muestra «Sin conexión. Tus cambios se guardan y se subirán al reconectar.». Cuando la red vuelve, el aviso se queda.
+En Salud → Filtradas, la fila de `admin` muestra solo «Apareció en 42,267,808» y se corta el resto.
+- `VaultLikeRow` (`feature/health/ui/HealthDetailScreens.kt`) pone el subtítulo con `maxLines = 1` y sin `overflow`. Con un número largo, «filtraciones» queda fuera sin aviso.
+- **El texto es incorrecto.** El número de HIBP (`breachCount`) es cuántas veces aparece la contraseña en las bases filtradas, no cuántas filtraciones hubo. Hoy dice «Apareció en N filtraciones».
 
-Causa (`core/sync/SyncScheduler.kt` y `SyncEngine.kt`):
-- el aviso solo se apaga cuando una sincronización termina bien;
-- con red débil, el reintento de `onAvailable` falla y no hay otro hasta desbloquear, guardar o volver a primer plano después de 5 min;
-- el reintento con espera solo existe para `RetryLater` (5xx), no para `Offline`.
+## Decisión (aprobada por la persona)
+**Texto:** «Apareció N veces en filtraciones».
+- Con N ≥ 10 000: «Apareció más de 10 000 veces en filtraciones», sin la cifra exacta.
+- Por debajo, la cifra exacta con separador de miles del idioma (`NumberFormat.getIntegerInstance(locale)`, como ya hace la lista).
+- Con plurales: N = 1 → «Apareció 1 vez en filtraciones».
 
-## Decisiones (aprobadas por la persona; cambian DEC-58)
-1. **La bóveda es offline: sin aviso fijo.** Quita el `OfflineNotice` de `VaultListScreen` (y lo que solo existía para él en `VaultListViewModel`).
-2. **Aviso temporal, una vez por corte.** Usa `AppMessages`/`MessageHost`, que ya existen; no crees un componente nuevo.
-   - Se muestra cuando la sincronización pasa de «con conexión» a `Offline` **y** hay cambios locales sin subir.
-   - Texto nuevo `vault_offline_toast` = «Sin conexión. Tus cambios se subirán al reconectar.». Dura unos 4 s; si `MessageHost` ya tiene una duración estándar, úsala.
-   - No se repite en cada reintento, ni con el mismo corte. No hay mensaje al volver la red.
-   - Si no hay cambios pendientes, no se dice nada.
-3. **Reintento automático mientras esté `Offline`.** En `runSyncs`, trata `Offline` con espera creciente, como `RetryLater`, pero corta: 15 s, 30 s, 1 min, hasta 2 min.
-   - Se detiene al sincronizar bien, al bloquear la bóveda o al cerrar sesión (`closing`).
-   - No debe correr con la app en segundo plano; eso lo cubre `SyncWorker`.
-4. **Reintentar cuando la red ya es usable.** Además de `onAvailable`, usa `onCapabilitiesChanged` con `NET_CAPABILITY_VALIDATED`.
-   - Si está `Offline`, `requestNow()`.
-   - Sin pedir permisos nuevos.
-5. **Deslizar para actualizar solo en Dispositivos y Actividad.**
-   - Usa `PullToRefreshBox` de Material 3: ya viene en la dependencia de Material 3; si no, anótalo y no agregues librerías.
-   - Lanza la misma acción `Retry` que ya existe.
-   - Funciona también cuando la lista se muestra bien (para actualizarla).
-   - El botón «Reintentar» del estado de error se queda.
-   - En la bóveda y en Salud **no** se agrega (Salud ya tiene «Revisar ahora»).
+**Una sola función** decide el texto (tope, formato y plural), y la usan los dos lugares donde sale el número:
+1. la lista de Salud → Filtradas (`health_breached_seen`);
+2. el detalle de la contraseña (`health_detail_breached_body` en `ItemDetailScreen.kt`). Hoy usa `%1$d` sin separador: sale `42267808` pegado.
 
-## Pruebas (unitarias, sin dispositivo)
-- **Programador de sincronización**, con reloj y motor falsos:
-  - con `Offline` reintenta a 15 s, 30 s y 1 min, y no pasa de 2 min;
-  - se detiene al recibir `Synced`, y al cerrar sesión.
-- **Aviso:**
-  - sale una sola vez por corte y solo con pendientes;
-  - con dos fallos seguidos, solo un mensaje;
-  - online → offline → online → offline: dos mensajes.
-- **`VaultListViewModel`:** ya no expone el estado de aviso fijo. Ajusta las pruebas que lo usaban.
-- **Dispositivos y Actividad:** deslizar lanza `Retry` (ViewModel o prueba de UI JVM, lo que ya use el proyecto).
+**Strings:**
+- reemplaza esos dos `plurals` por unos que digan «vez»/«veces»;
+- agrega uno para el tope;
+- el `10 000` también va formateado con el idioma, no escrito a mano.
 
-## Grafo y documentos
-- **`knowledge-graph.json`:**
-  - DEC-58 ya no dice que la Bóveda muestra un aviso fijo. Describe el aviso temporal, el reintento sin conexión y el deslizar en Dispositivos y Actividad.
-  - SCR-44 «Bóveda · sin conexión» pasa a `descartado`, con una nota.
-  - Sube la versión y agrega una línea a `historial`.
-- **`docs/arquitectura.md`:** actualiza la parte de sincronización, si habla del aviso.
+**Que no se corte en silencio:** en `VaultLikeRow`, pon `overflow = TextOverflow.Ellipsis` al subtítulo (y al nombre, si no lo tiene). El texto nuevo debe caber en una línea a 360 dp de ancho con el tamaño de letra normal. Si no cabe, permite 2 líneas en el subtítulo; no lo acortes.
+
+**Grafo:** anota la regla en el nodo de la pantalla Filtradas (`SCR-*`) y en DEC-21 (HIBP). Sube la versión.
+
+## Pruebas (unitarias)
+De la función, con locale `es-MX`:
+- 1 → «1 vez»;
+- 2 → «2 veces»;
+- 9 999 → «9,999 veces»;
+- 10 000 → «más de 10,000 veces»;
+- 42 267 808 → «más de 10,000 veces».
+
+Revisa también que los dos lugares la usan (por ejemplo con una prueba del ViewModel o del texto que recibe la UI, lo que ya use el proyecto).
 
 ## Cierre
 1. `./gradlew testProdDebugUnitTest testDemoDebugUnitTest lintProdDebug assembleProdDebug`, con el resultado real.
 2. `/ponytail-review`.
 3. Commits en `integracion/backend` y push.
-4. **Instala en el teléfono:**
-   - `adb -s YTVSGUPBVGLBNVNJ shell true`;
-   - si está, `./gradlew :app:installProdDebug` y `adb -s YTVSGUPBVGLBNVNJ reverse tcp:3000 tcp:3000`;
-   - si no está conectado, anótalo y sigue.
-5. Reporte en `ai/handoff/reporte.md`:
-   - commits y resultados;
-   - cómo probar el aviso en el teléfono (con el modo avión o apagando el backend);
-   - qué quedó pendiente.
-6. Estado `hecha`, commit y **detente**.
+4. Si el teléfono está conectado (`adb -s YTVSGUPBVGLBNVNJ shell true`):
+   - `./gradlew :app:installProdDebug`;
+   - `adb -s YTVSGUPBVGLBNVNJ reverse tcp:3000 tcp:3000`.
+   Si no está, anótalo.
+5. Reporte en `ai/handoff/reporte.md`, estado `hecha`, commit y **detente**.
