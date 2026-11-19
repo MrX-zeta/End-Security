@@ -1,3 +1,5 @@
+> Reemplazado por `ai/context/backend-graph.json`; no se mantiene.
+
 # Brechas entre el contrato `docs/api` 1.4.0 y el backend real
 
 **Fecha:** 2026-11-05 · **Alcance:** solo análisis. No se cambió el contrato, ni `ApiTransport`, ni se escribió código del backend (DEC-61).

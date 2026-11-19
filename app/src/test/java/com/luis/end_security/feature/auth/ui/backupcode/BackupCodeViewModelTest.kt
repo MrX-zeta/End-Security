@@ -1,5 +1,6 @@
 package com.luis.end_security.feature.auth.ui.backupcode
 
+import com.luis.end_security.feature.auth.domain.BackupCodeFormat
 import com.luis.end_security.core.common.ApiError
 import com.luis.end_security.core.common.ApiResult
 import com.luis.end_security.feature.auth.domain.FakeAuthRepository
@@ -20,6 +21,10 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+
+/** Un código válido en el formato de esta variante: Crockford en demo, el del servidor real en prod (BR-10). */
+private val VALID = if (ActiveBackupCodeFormat === BackupCodeFormat.CROCKFORD) "K7QD2M9X" else "k7m2qx9rtb"
+private val LENGTH = ActiveBackupCodeFormat.length
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class BackupCodeViewModelTest {
@@ -43,16 +48,16 @@ class BackupCodeViewModelTest {
     }
 
     @Test
-    fun `entrar se habilita solo con 8 caracteres`() {
-        viewModel.onAction(BackupCodeAction.CodeLengthChanged(7))
+    fun `entrar se habilita solo con el codigo completo`() {
+        viewModel.onAction(BackupCodeAction.CodeLengthChanged(LENGTH - 1))
         assertFalse(state.canSubmit)
-        viewModel.onAction(BackupCodeAction.CodeLengthChanged(8))
+        viewModel.onAction(BackupCodeAction.CodeLengthChanged(LENGTH))
         assertTrue(state.canSubmit)
     }
 
     @Test
     fun `codigo invalido muestra el error y pide vaciar el campo`() {
-        viewModel.onAction(BackupCodeAction.CodeLengthChanged(8))
+        viewModel.onAction(BackupCodeAction.CodeLengthChanged(LENGTH))
         val before = viewModel.clearRequests.value
 
         viewModel.onResult(SecondFactorResult.Rejected)
@@ -72,7 +77,7 @@ class BackupCodeViewModelTest {
 
     @Test
     fun `el bloqueo deshabilita entrar, vacia el campo y cuenta hacia atras`() = scope.runTest {
-        viewModel.onAction(BackupCodeAction.CodeLengthChanged(8))
+        viewModel.onAction(BackupCodeAction.CodeLengthChanged(LENGTH))
         val before = viewModel.clearRequests.value
         viewModel.onResult(SecondFactorResult.LockedOut(minutes = 9))
         runCurrent()
@@ -88,10 +93,10 @@ class BackupCodeViewModelTest {
 
     @Test
     fun `la accion de enviar no imprime el codigo`() {
-        assertFalse(BackupCodeAction.Submit(StringBuilder("K7QD2M9X")).toString().contains("K7QD"))
+        assertFalse(BackupCodeAction.Submit(StringBuilder(VALID)).toString().contains(VALID.take(4)))
     }
 
-    private fun TestScope.submit(code: String = "K7QD2M9X") {
+    private fun TestScope.submit(code: String = VALID) {
         viewModel.onAction(BackupCodeAction.CodeLengthChanged(code.length))
         viewModel.onAction(BackupCodeAction.Submit(StringBuilder(code)))
         runCurrent()
@@ -100,7 +105,7 @@ class BackupCodeViewModelTest {
     @Test
     fun `entrar con un codigo valido lo manda y va a la boveda`() = scope.runTest {
         submit()
-        assertEquals(listOf("recovery:K7QD2M9X"), auth.calls)
+        assertEquals(listOf("recovery:$VALID"), auth.calls)
         assertEquals(BackupCodeEffect.NavigateToVault, viewModel.effects.first())
     }
 

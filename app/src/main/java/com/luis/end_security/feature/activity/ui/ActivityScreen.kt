@@ -99,6 +99,8 @@ fun ActivityScreen(
         title = stringResource(R.string.activity_title),
         onBack = onBack,
         modifier = modifier,
+        isRefreshing = state.isRefreshing,
+        onRefresh = { onAction(ActivityAction.Refresh) },
         bottom = if (state.phase == ActivityPhase.Offline) {
             {
                 PrimaryButton(

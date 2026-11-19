@@ -2,7 +2,11 @@ package com.luis.end_security.core.sync
 
 import com.luis.end_security.core.database.entity.SyncState
 import com.luis.end_security.core.network.HttpResponse
+import com.luis.end_security.core.common.AppMessage
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -20,6 +24,75 @@ class SyncEngineTest {
 
     /** El servidor rechaza la subida (`validation_failed`): el motor la salta y sigue con la descarga. */
     private val rejectUpload = HttpResponse(400, """{"type":"about:blank","title":"x","status":400,"code":"validation_failed"}""")
+
+    // --- Aviso «Sin conexión» (DEC-58): temporal, una vez por corte y solo con cambios sin subir ---
+
+    private val notices = mutableListOf<AppMessage>()
+
+    private fun collectNotices() {
+        CoroutineScope(Dispatchers.Unconfined).launch { world.messages.messages.collect { notices += it } }
+    }
+
+    private fun cutNetwork() {
+        world.interceptor = { throw java.io.IOException("sin red") }
+    }
+
+    private fun restoreNetwork() {
+        world.interceptor = null
+    }
+
+    @Test
+    fun `sin conexion y con cambios pendientes avisa una sola vez, aunque falle de nuevo`() {
+        collectNotices()
+        phone.createLocal()
+        cutNetwork()
+
+        assertEquals(SyncOutcome.Offline, phone.sync())
+        assertEquals(SyncOutcome.Offline, phone.sync())
+
+        assertEquals(1, notices.size)
+    }
+
+    @Test
+    fun `sin conexion y sin cambios pendientes no dice nada`() {
+        collectNotices()
+        cutNetwork()
+
+        assertEquals(SyncOutcome.Offline, phone.sync())
+
+        assertEquals(0, notices.size)
+    }
+
+    @Test
+    fun `conectado, desconectado, conectado y desconectado otra vez da dos avisos y ninguno al volver`() {
+        collectNotices()
+        phone.createLocal()
+        cutNetwork()
+        phone.sync()
+        assertEquals(1, notices.size)
+
+        restoreNetwork()
+        assertEquals(SyncOutcome.Synced, phone.sync())
+        assertEquals("volver la red no avisa", 1, notices.size)
+
+        phone.createLocal()
+        cutNetwork()
+        phone.sync()
+        assertEquals(2, notices.size)
+    }
+
+    @Test
+    fun `si el corte empezo sin pendientes, el primer cambio guardado ya avisa`() {
+        collectNotices()
+        cutNetwork()
+        phone.sync()
+        assertEquals(0, notices.size)
+
+        phone.createLocal()
+        phone.sync()
+
+        assertEquals(1, notices.size)
+    }
 
     @Test
     fun `crear y subir deja el elemento synced con la version del servidor`() {

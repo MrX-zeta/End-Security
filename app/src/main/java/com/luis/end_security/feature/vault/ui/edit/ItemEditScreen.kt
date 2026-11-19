@@ -2,6 +2,9 @@ package com.luis.end_security.feature.vault.ui.edit
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.text.input.InputTransformation
+import androidx.compose.foundation.text.input.maxLength
+import com.luis.end_security.feature.vault.domain.ItemLimits
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -250,6 +253,7 @@ internal fun ItemEditScreen(
                 Spacer(Modifier.height(4.dp))
                 LabeledTextField(
                     state = fields.name,
+                    inputTransformation = InputTransformation.maxLength(ItemLimits.NAME),
                     label = stringResource(R.string.item_form_name),
                     leadingIcon = R.drawable.ic_file_text_20,
                     errorText = if (state.nameError) stringResource(R.string.item_form_name_required) else null,
@@ -262,6 +266,7 @@ internal fun ItemEditScreen(
                 )
                 LabeledTextField(
                     state = fields.username,
+                    inputTransformation = InputTransformation.maxLength(ItemLimits.USERNAME),
                     label = stringResource(R.string.item_form_username),
                     leadingIcon = R.drawable.ic_user_20,
                     keyboardOptions = KeyboardOptions(
@@ -280,6 +285,7 @@ internal fun ItemEditScreen(
                 )
                 LabeledTextField(
                     state = fields.url,
+                    inputTransformation = InputTransformation.maxLength(ItemLimits.URL),
                     label = stringResource(R.string.item_form_site),
                     leadingIcon = R.drawable.ic_globe_20,
                     keyboardOptions = KeyboardOptions(
@@ -291,6 +297,7 @@ internal fun ItemEditScreen(
                 )
                 LabeledTextField(
                     state = fields.notes,
+                    inputTransformation = InputTransformation.maxLength(ItemLimits.NOTES),
                     label = stringResource(R.string.item_form_notes),
                     leadingIcon = R.drawable.ic_file_text_20,
                     placeholder = stringResource(R.string.item_form_optional),
@@ -360,6 +367,7 @@ private fun PasswordFieldWithMeter(
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         PasswordField(
             state = fields.password,
+            maxLength = ItemLimits.PASSWORD,
             label = stringResource(R.string.item_form_password),
             visible = visible,
             onVisibleChange = onVisibleChange,

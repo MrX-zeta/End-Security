@@ -88,7 +88,7 @@ Solo comunicaremos datos a una autoridad cuando una ley o una orden fundada lo e
 
 También puedes revocar tu consentimiento y limitar el uso de tus datos.
 
-**Desde la app** puedes hacerlo directamente: ver tu correo, dispositivos y actividad (Ajustes), cambiar tu correo (rectificación) y eliminar tu cuenta (Ajustes › Eliminar cuenta). Al eliminarla borramos de inmediato tu bóveda cifrada, tu verificación en dos pasos y tus sesiones; a los 30 días anonimizamos lo restante.
+**Desde la app** puedes hacerlo directamente: ver tu correo, dispositivos y actividad (Ajustes), cambiar tu correo (rectificación) y eliminar tu cuenta (Ajustes › Eliminar cuenta). Al eliminarla borramos de inmediato tu bóveda cifrada, tu verificación en dos pasos, tus sesiones y las IP de tu historial, y anonimizamos tu cuenta en ese mismo momento.
 
 **Procedimiento por correo:**
 1. Escribe a endsecurity.privacidad@gmail.com **desde el correo de tu cuenta**, indicando tu nombre, el derecho que quieres ejercer y una descripción clara de lo que pides.
@@ -109,7 +109,7 @@ Si consideras que tu derecho no fue atendido, puedes acudir a la Secretaría Ant
 
 - **Técnicas:** cifrado de extremo a extremo con conocimiento cero (AES-256-GCM y Argon2id), comunicación cifrada con HTTPS/TLS 1.3 y fijación de certificado, llaves protegidas por Android Keystore, verificación en dos pasos, control de acceso autenticado con sesiones de corta duración, límites de intentos, bitácora protegida contra alteraciones y respaldos periódicos de la base de datos.
 - **Administrativas:** acceso al servidor solo para el equipo responsable, secretos fuera del código fuente y un plan de respuesta a incidentes que incluye avisarte sin demora si una vulneración afecta tus datos.
-- **Conservación:** las IP y los registros operativos se borran a los 90 días; los datos de una cuenta eliminada se anonimizan a los 30 días.
+- **Conservación:** las IP y los registros operativos se borran a los 90 días; los datos de una cuenta eliminada se borran o anonimizan en el momento de eliminarla.
 
 ## 8. Tratamiento de datos de menores de edad
 

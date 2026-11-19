@@ -69,9 +69,10 @@ class AccountApiImpl @Inject constructor(
         "POST", "/account/delete", ReauthRequestDto(reauth.toDto()), ReauthRequestDto.serializer(), true,
     )
 
-    override suspend fun startTwoFactorSetup(): ApiResult<TwoFactorSetup> =
-        client.call<Unit, TwoFactorSetupDto, TwoFactorSetup>(
-            "POST", "/account/2fa/setup", null, null, TwoFactorSetupDto.serializer(), true,
+    override suspend fun startTwoFactorSetup(reauth: Reauth?): ApiResult<TwoFactorSetup> =
+        client.call(
+            "POST", "/account/2fa/setup", reauth?.let { ReauthRequestDto(it.toDto()) }, ReauthRequestDto.serializer(),
+            TwoFactorSetupDto.serializer(), true,
         ) { TwoFactorSetup(it.secret, it.issuer, it.accountName, it.algorithm, it.digits, it.periodSeconds) }
 
     override suspend fun confirmTwoFactor(code: String): ApiResult<List<String>> = client.call(

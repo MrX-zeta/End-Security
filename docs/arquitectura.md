@@ -233,7 +233,7 @@ SinCuenta ──registro/login──► Bloqueado ◄──bloquear / autobloque
 1. `VaultEditViewModel` → `SaveItemUseCase(item)`.
 2. El caso de uso serializa el JSON (`v: 1`), lo cifra con la `vault_key` (nonce nuevo y AAD), y si es una edición incrementa la versión local esperada.
 3. `VaultRepositoryImpl` hace un *upsert* en Room con `sync_state = PENDIENTE`.
-4. `SyncScheduler` encola un `SyncWorker` único, con la restricción de red `CONNECTED`.
+4. `SyncScheduler` sincroniza en primer plano (con 2 s de espera para juntar cambios) y encola un `SyncWorker` único, con la restricción de red `CONNECTED`, para cuando la app está cerrada.
 5. La UI observa `Flow<List<ItemEntity>>` de Room, lo descifra en `Dispatchers.Default` y lo muestra.
 
 **`SyncWorker`:**
@@ -243,6 +243,8 @@ SinCuenta ──registro/login──► Bloqueado ◄──bloquear / autobloque
    - Respuesta `409` → el elemento queda en `conflict`; al desbloquear, la Bóveda muestra un aviso agrupado y el usuario elige qué versión conservar en «Elegir versión» (DEC-57). No se crean copias "(conflicto)".
 2. **Bajar:** pide `GET /vault/changes?cursor=…`, aplica los cambios (incluidas las lápidas) y guarda el cursor nuevo.
 3. Ante un `401`, `TokenAuthenticator` renueva el token. Si la renovación falla, el worker termina sin reintentar y la app pide iniciar sesión de nuevo.
+
+**Sin conexión (DEC-58).** La Bóveda sigue funcionando y no muestra aviso fijo. Si la sincronización falla por falta de red y hay cambios sin subir, sale un aviso temporal una sola vez por corte («Sin conexión. Tus cambios se subirán al reconectar.»). Mientras dure, con la app a la vista y la bóveda abierta, `SyncScheduler` reintenta a los 15 s, 30 s, 1 min y luego cada 2 min (`SyncLoop`), y también cuando Android marca la red como usable (`NET_CAPABILITY_VALIDATED`); se detiene al sincronizar, bloquear o cerrar sesión. Un `5xx` sigue con su espera de 30 s a 15 min.
 
 **Descifrado de la lista.** Con cientos de elementos, descifrar todo en memoria al desbloquear es rápido. No hace falta paginar ni guardar caché en claro.
 

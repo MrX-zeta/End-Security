@@ -51,7 +51,7 @@ private class DeleteFakeTwoFactor : TwoFactorRepository {
 
     override suspend fun isEnabled(): Boolean? = enabled
 
-    override suspend fun startSetup(): ApiResult<TwoFactorSetup> = error("no se usa")
+    override suspend fun startSetup(password: CharSequence): ApiResult<TwoFactorSetup> = error("no se usa")
     override suspend fun confirm(code: String): ApiResult<List<String>> = error("no se usa")
     override suspend fun disable(password: CharSequence, totpCode: String): ApiResult<Unit> = error("no se usa")
     override suspend fun regenerateRecoveryCodes(password: CharSequence, totpCode: String): ApiResult<List<String>> = error("no se usa")

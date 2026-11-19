@@ -107,6 +107,8 @@ fun DevicesScreen(
         onBack = onBack,
         modifier = modifier,
         notice = shown?.let { noticeText(it) },
+        isRefreshing = state.isRefreshing,
+        onRefresh = { onAction(DevicesAction.Retry) },
         bottom = when {
             state.phase == DevicesPhase.Offline -> {
                 {

@@ -57,6 +57,8 @@ data class DevicesUiState(
     /** Cerrando sesión(es): el botón de la hoja carga y la hoja no se cierra. */
     val isClosing: Boolean = false,
     val notice: DevicesNotice? = null,
+    /** Deslizar para actualizar con la lista ya a la vista: se conserva y solo gira el indicador. */
+    val isRefreshing: Boolean = false,
 ) {
     /** «Cerrar sesión en los demás» solo si hay más de uno. */
     val canCloseOthers: Boolean get() = devices.size > 1 && devices.any { !it.current }
@@ -93,15 +95,19 @@ class DevicesViewModel @Inject constructor(
 
     private fun load() {
         loadJob?.cancel()
-        _state.update { it.copy(phase = DevicesPhase.Loading) }
+        // Con la lista a la vista (deslizar para actualizar) no se vuelve al esqueleto.
+        val refreshing = _state.value.phase == DevicesPhase.Loaded
+        _state.update { if (refreshing) it.copy(isRefreshing = true) else it.copy(phase = DevicesPhase.Loading) }
         loadJob = viewModelScope.launch {
             when (val result = api.listSessions()) {
                 is ApiResult.Success -> {
                     val now = Instant.ofEpochMilli(clock.wallMillis())
-                    _state.update { it.copy(phase = DevicesPhase.Loaded, devices = rowsOf(result.value, now)) }
+                    _state.update { it.copy(phase = DevicesPhase.Loaded, isRefreshing = false, devices = rowsOf(result.value, now)) }
                 }
                 // Sin red, sin sesión válida o error del servidor: la misma pantalla «No pudimos cargar tus dispositivos».
-                is ApiResult.Failure -> _state.update { it.copy(phase = DevicesPhase.Offline) }
+                is ApiResult.Failure -> _state.update {
+                    if (refreshing) it.copy(isRefreshing = false) else it.copy(phase = DevicesPhase.Offline)
+                }
             }
         }
     }

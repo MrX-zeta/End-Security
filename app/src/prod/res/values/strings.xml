@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Variante prod (BR-10): los códigos de respaldo del servidor real son de 10 caracteres en dos grupos de 5. -->
+    <string name="backup_code_error_incomplete">Escribe el código completo (xxxxx-xxxxx).</string>
+</resources>

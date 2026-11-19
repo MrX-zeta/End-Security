@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Solo en debug (tarea 32): texto plano hacia el backend local, por `adb reverse` (127.0.0.1) o desde el emulador
+    (10.0.2.2). Todo lo demás, igual que release (app/src/main/res/xml/network_security_config.xml).
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">127.0.0.1</domain>
+        <domain includeSubdomains="false">10.0.2.2</domain>
+    </domain-config>
+    <!-- Have I Been Pwned (DEC-21): sin pinning, con las autoridades del sistema. -->
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="false">api.pwnedpasswords.com</domain>
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </domain-config>
+</network-security-config>

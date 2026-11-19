@@ -6,7 +6,6 @@ import com.luis.end_security.feature.vault.domain.PendingDeletion
 import com.luis.end_security.feature.vault.domain.UnsupportedEntry
 import com.luis.end_security.feature.vault.ui.FakeDeletionUndo
 import com.luis.end_security.feature.vault.ui.FakeHealthRepository
-import com.luis.end_security.feature.vault.ui.FakeSyncStatus
 import com.luis.end_security.feature.vault.ui.FakeVaultRepository
 import com.luis.end_security.feature.vault.ui.TestClock
 import com.luis.end_security.feature.vault.ui.item
@@ -40,7 +39,6 @@ class VaultListViewModelTest {
     private val session = openedSession(clock)
     private val repository = FakeVaultRepository()
     private val deletion = FakeDeletionUndo()
-    private val syncStatus = FakeSyncStatus()
     private val health = FakeHealthRepository()
     private val auth = FakeAuthRepository().apply { accountName = "luis@correo.com" }
 
@@ -54,7 +52,7 @@ class VaultListViewModelTest {
     }
 
     private fun kotlinx.coroutines.test.TestScope.viewModel(): VaultListViewModel {
-        val viewModel = VaultListViewModel(repository, session, deletion, auth, syncStatus, health)
+        val viewModel = VaultListViewModel(repository, session, deletion, auth, health)
         backgroundScope.launch { viewModel.state.collect {} }
         runCurrent()
         return viewModel
@@ -186,20 +184,6 @@ class VaultListViewModelTest {
         viewModel.onItemClick(rows.first { it is VaultRow.Item })
         runCurrent()
         assertEquals(VaultListEffect.OpenItem(gmail.id), viewModel.effects.first())
-    }
-
-    @Test
-    fun `el aviso sin conexion sigue al estado de la sincronizacion`() = runTest(dispatcher) {
-        val viewModel = viewModel()
-        assertFalse(viewModel.state.value.offline)
-
-        syncStatus.offline.value = true
-        runCurrent()
-        assertTrue(viewModel.state.value.offline)
-
-        syncStatus.offline.value = false
-        runCurrent()
-        assertFalse(viewModel.state.value.offline)
     }
 
     @Test

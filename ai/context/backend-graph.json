@@ -1,0 +1,1868 @@
+{
+  "meta": {
+    "nombre": "Grafo de conocimiento — backend real de End Security",
+    "version": "1.3.0",
+    "actualizado": "2026-11-19",
+    "fuente": "end-security-backend@develop f2b5732 (leído completo por la sesión de diseño); integracion/app hasta bd27953 (tareas 32 y 33)",
+    "proposito": "Mapa del backend real para integrarlo con la app: módulos, endpoints, tablas, seguridad y brechas contra el contrato docs/api 1.4.0.",
+    "como_usar_para_agentes": [
+      "Cada BEP-xx dice a qué EP-xx del contrato de la app equivale (detalles.equivale_a_app).",
+      "Las brechas BR-xx dicen quién las resuelve (detalles.dueno). Claude Code solo toca las de la app; nunca escribe código del backend.",
+      "El grafo de la app (ai/context/knowledge-graph.json) sigue siendo la fuente de las decisiones (DEC-xx)."
+    ],
+    "tipos_de_nodo": [
+      "brecha",
+      "catalogo",
+      "endpoint",
+      "modulo",
+      "proyecto",
+      "seguridad",
+      "tabla",
+      "transversal"
+    ],
+    "estadisticas": {
+      "nodos": 92,
+      "aristas": 111,
+      "por_tipo": {
+        "proyecto": 1,
+        "transversal": 9,
+        "modulo": 8,
+        "tabla": 8,
+        "endpoint": 26,
+        "catalogo": 1,
+        "seguridad": 10,
+        "brecha": 29
+      },
+      "brechas_por_estado": {
+        "adaptada en la app": 15,
+        "resuelta": 11,
+        "abierta": 3
+      }
+    },
+    "historial": [
+      {
+        "version": "1.0.0",
+        "fecha": "2026-11-18",
+        "cambio": "Mapa del backend real (develop f2b5732) y brechas BR-01..27."
+      },
+      {
+        "version": "1.1.0",
+        "fecha": "2026-11-18",
+        "cambio": "Tareas 32 y 33: BR-06, 07, 16, 17, 18, 22, 23, 25 y 27 resueltas en integracion/app; BR-01..05, 08..15, 20 y 21 adaptadas en la app; BR-28 (tope de reenvíos) y BR-29 (cuentas sin verificar) nuevas y resueltas; BR-19, 24 y 26 siguen abiertas."
+      },
+      {
+        "version": "1.2.0",
+        "fecha": "2026-11-18",
+        "cambio": "Tarea 36: arranque seguro en producción y health mínimo (BSEC-10), docs/despliegue.md; BR-24 en curso y BR-26 pendiente del servidor en línea."
+      },
+      {
+        "version": "1.3.0",
+        "fecha": "2026-11-19",
+        "cambio": "Tarea 38: ValidationPipe sin enableImplicitConversion (BSEC-11); F-07 ya cubierto por BR-22; multer actualizado; riesgos F-02, F-04 y F-06 documentados en docs/despliegue.md."
+      }
+    ]
+  },
+  "nodos": [
+    {
+      "id": "BE-00",
+      "tipo": "proyecto",
+      "nombre": "end-security-backend",
+      "descripcion": "API NestJS + PostgreSQL (Prisma) del gestor End Security, escrita por Diego Alberto Zárate Vázquez (DEC-61). Conocimiento cero: solo guarda bloques cifrados, sal, parámetros KDF, la pvk y un hash Argon2id del auth key.",
+      "estado": "implementado",
+      "detalles": {
+        "repo": "https://github.com/Diego-Zarate18/end-security-backend",
+        "rama": "develop",
+        "commit": "f2b5732",
+        "fecha_commit": "2026-11-06",
+        "stack": [
+          "NestJS 11",
+          "Prisma",
+          "PostgreSQL",
+          "argon2 (node)",
+          "passport-jwt",
+          "express-rate-limit",
+          "helmet",
+          "Resend",
+          "otplib/qrcode"
+        ],
+        "despliegue": "Railway (según .env.example y TRUST_PROXY); URL pública: pendiente de confirmar",
+        "prefijo": "/api",
+        "archivos": 133,
+        "lineas_ts": 4926,
+        "sin_pruebas": "BR-27 resuelta: Jest (38 pruebas en la tarea 33) y la prueba de punta a punta scripts/e2e/flujo-completo.mjs (12 pasos). La colección de Postman sigue en el repositorio."
+      }
+    },
+    {
+      "id": "BX-01",
+      "tipo": "transversal",
+      "nombre": "Prefijo global /api",
+      "descripcion": "app.setGlobalPrefix('api'). El contrato de la app usa /v1.",
+      "estado": "implementado",
+      "detalles": {
+        "archivo": "src/main.ts"
+      }
+    },
+    {
+      "id": "BX-02",
+      "tipo": "transversal",
+      "nombre": "Envoltura de respuestas",
+      "descripcion": "TransformInterceptor envuelve TODO éxito en {success:true, data, timestamp}. Las respuestas 204 no llevan cuerpo.",
+      "estado": "implementado",
+      "detalles": {
+        "archivo": "src/common/interceptors/transform.interceptor.ts"
+      }
+    },
+    {
+      "id": "BX-03",
+      "tipo": "transversal",
+      "nombre": "Formato de errores",
+      "descripcion": "HttpExceptionFilter responde {statusCode, error, message, details?, path, timestamp}. `error` es un nombre (Unauthorized, InvalidCode, InvalidSecondFactor, SecondFactorRequired, VaultSyncConflict, KeyVersionMismatch, VaultChanged, TooManyRequests, ConflictError…); `details` solo en conflictos de bóveda, rotación y 429 de reenvío ({retryAfterSeconds}). Sin `code` estable ni application/problem+json. Prisma P2002→409, P2025→404, sin filtrar columnas.",
+      "estado": "implementado",
+      "detalles": {
+        "archivo": "src/common/filters/http-exception.filter.ts"
+      }
+    },
+    {
+      "id": "BX-04",
+      "tipo": "transversal",
+      "nombre": "Base64 estándar con relleno",
+      "descripcion": "BYTEA se expone como base64 estándar ('+/' y '='); IsBase64Bytes valida el formato estricto y el largo decodificado.",
+      "estado": "implementado",
+      "detalles": {
+        "archivo": "src/common/utils/encoding.ts"
+      }
+    },
+    {
+      "id": "BX-05",
+      "tipo": "transversal",
+      "nombre": "Validación global",
+      "descripcion": "ValidationPipe whitelist + forbidNonWhitelisted + transform: un campo de más da 400.",
+      "estado": "implementado",
+      "detalles": {
+        "archivo": "src/main.ts"
+      }
+    },
+    {
+      "id": "BX-06",
+      "tipo": "transversal",
+      "nombre": "Límite de peticiones por IP",
+      "descripcion": "express-rate-limit: 100/min global y 10/min en /api/auth (THROTTLE_*, AUTH_THROTTLE_LIMIT). 429 con cabeceras RateLimit-* y Retry-After. No hay límite por cuenta ni Redis.",
+      "estado": "implementado",
+      "detalles": {
+        "archivo": "src/main.ts"
+      }
+    },
+    {
+      "id": "BX-07",
+      "tipo": "transversal",
+      "nombre": "Guard JWT global",
+      "descripcion": "APP_GUARD JwtAuthGuard: todo requiere Bearer salvo @Public. JwtStrategy comprueba además que la sesión siga activa (401 'La sesión ya no es válida.').",
+      "estado": "implementado",
+      "detalles": {
+        "archivo": "src/app.module.ts"
+      }
+    },
+    {
+      "id": "BX-08",
+      "tipo": "transversal",
+      "nombre": "Cabeceras y CORS",
+      "descripcion": "helmet(); CORS desde CORS_ORIGIN (irrelevante para la app nativa). Cuerpo JSON hasta 3 MB.",
+      "estado": "implementado",
+      "detalles": {
+        "archivo": "src/main.ts"
+      }
+    },
+    {
+      "id": "BX-09",
+      "tipo": "transversal",
+      "nombre": "ClientInfo",
+      "descripcion": "Decorador que toma IP (respeta TRUST_PROXY) y User-Agent para la auditoría.",
+      "estado": "implementado",
+      "detalles": {
+        "archivo": "src/common/decorators/client-info.decorator.ts"
+      }
+    },
+    {
+      "id": "BMOD-AUTH",
+      "tipo": "modulo",
+      "nombre": "auth",
+      "descripcion": "Registro, verificación de correo, login, refresh rotativo, logout y sesiones.",
+      "estado": "implementado",
+      "detalles": {
+        "servicios": [
+          "AuthService",
+          "SessionsService",
+          "TokenService"
+        ],
+        "carpeta": "src/modules/auth"
+      }
+    },
+    {
+      "id": "BMOD-2FA",
+      "tipo": "modulo",
+      "nombre": "two-factor",
+      "descripcion": "TOTP (secreto cifrado con AES-256 y llave del servidor con id), anti-replay por last_used_step, 10 códigos de recuperación HMAC, bloqueo 5 fallos/15 min.",
+      "estado": "implementado",
+      "detalles": {
+        "servicios": [
+          "TwoFactorService",
+          "TotpSecretService"
+        ],
+        "carpeta": "src/modules/two-factor"
+      }
+    },
+    {
+      "id": "BMOD-ACCOUNT",
+      "tipo": "modulo",
+      "nombre": "account",
+      "descripcion": "Cambio de contraseña maestra, eliminación de cuenta y ReauthService (authHash + segundo factor).",
+      "estado": "implementado",
+      "detalles": {
+        "servicios": [
+          "AccountService",
+          "ReauthService"
+        ],
+        "carpeta": "src/modules/account"
+      }
+    },
+    {
+      "id": "BMOD-USERS",
+      "tipo": "modulo",
+      "nombre": "users",
+      "descripcion": "Perfil (GET/PATCH /users/me) y acceso a la tabla users.",
+      "estado": "implementado",
+      "detalles": {
+        "servicios": [
+          "UsersService"
+        ],
+        "carpeta": "src/modules/users"
+      }
+    },
+    {
+      "id": "BMOD-VAULT",
+      "tipo": "modulo",
+      "nombre": "vault",
+      "descripcion": "Sincronización por revisión con control optimista por versión; lote atómico; rotación de llave de bóveda.",
+      "estado": "implementado",
+      "detalles": {
+        "servicios": [
+          "VaultService"
+        ],
+        "carpeta": "src/modules/vault"
+      }
+    },
+    {
+      "id": "BMOD-AUDIT",
+      "tipo": "modulo",
+      "nombre": "audit",
+      "descripcion": "Bitácora encadenada con HMAC (AUDIT_HMAC_KEY), IP y user-agent en audit_log_pii; listado paginado y verificación de la cadena.",
+      "estado": "implementado",
+      "detalles": {
+        "servicios": [
+          "AuditService"
+        ],
+        "carpeta": "src/modules/audit"
+      }
+    },
+    {
+      "id": "BMOD-EMAIL",
+      "tipo": "modulo",
+      "nombre": "email-verification",
+      "descripcion": "Códigos de 6 dígitos: 15 min, 5 intentos, reenvío cada 60 s; mismo mensaje para incorrecto/vencido/agotado.",
+      "estado": "implementado",
+      "detalles": {
+        "servicios": [
+          "EmailCodeService"
+        ],
+        "carpeta": "src/modules/email-verification"
+      }
+    },
+    {
+      "id": "BMOD-MAIL",
+      "tipo": "modulo",
+      "nombre": "mail",
+      "descripcion": "Envío con Resend y plantillas; sin RESEND_API_KEY en desarrollo escribe en consola. EMAIL_FROM por defecto onboarding@resend.dev (falta dominio).",
+      "estado": "implementado",
+      "detalles": {
+        "servicios": [
+          "MailService"
+        ],
+        "carpeta": "src/modules/mail"
+      }
+    },
+    {
+      "id": "BTBL-USERS",
+      "tipo": "tabla",
+      "nombre": "users",
+      "descripcion": "id (uuid generado por el servidor), email único, display_name, auth_hash (PHC Argon2id), kdf_salt/memory/iterations/parallelism, pvk_ciphertext/nonce, key_version, vault_revision, purged_through_revision, email_verified_at, deleted_at, anonymized_at. Sin columnas de consentimiento (marketing_opt_in).",
+      "estado": "implementado",
+      "detalles": {
+        "archivo": "prisma/schema.prisma"
+      }
+    },
+    {
+      "id": "BTBL-SESSIONS",
+      "tipo": "tabla",
+      "nombre": "sessions",
+      "descripcion": "device_name, refresh_token_hash (único), previous_refresh_token_hash, expires_at, revoked_at, revoke_reason, last_used_at.",
+      "estado": "implementado",
+      "detalles": {
+        "archivo": "prisma/schema.prisma"
+      }
+    },
+    {
+      "id": "BTBL-EMAILV",
+      "tipo": "tabla",
+      "nombre": "email_verifications",
+      "descripcion": "purpose (solo verificación de registro), target_email, code_hash, attempts, expires_at, consumed_at.",
+      "estado": "implementado",
+      "detalles": {
+        "archivo": "prisma/schema.prisma"
+      }
+    },
+    {
+      "id": "BTBL-AUDIT",
+      "tipo": "tabla",
+      "nombre": "audit_log",
+      "descripcion": "event_type (catálogo AuditEvent), outcome, occurred_at, metadata JSON, prev_hash, hash (HMAC encadenado).",
+      "estado": "implementado",
+      "detalles": {
+        "archivo": "prisma/schema.prisma"
+      }
+    },
+    {
+      "id": "BTBL-AUDITPII",
+      "tipo": "tabla",
+      "nombre": "audit_log_pii",
+      "descripcion": "ip (inet) y user_agent separados para poder borrarlos.",
+      "estado": "implementado",
+      "detalles": {
+        "archivo": "prisma/schema.prisma"
+      }
+    },
+    {
+      "id": "BTBL-VAULT",
+      "tipo": "tabla",
+      "nombre": "vault_items",
+      "descripcion": "id (uuid del cliente), version, revision, nonce, ciphertext, deleted_at (lápida sin contenido), format_version, updated_at.",
+      "estado": "implementado",
+      "detalles": {
+        "archivo": "prisma/schema.prisma"
+      }
+    },
+    {
+      "id": "BTBL-2FA",
+      "tipo": "tabla",
+      "nombre": "two_factor",
+      "descripcion": "status pending/active, secret_ciphertext/nonce, server_key_id, last_used_step, activated_at.",
+      "estado": "implementado",
+      "detalles": {
+        "archivo": "prisma/schema.prisma"
+      }
+    },
+    {
+      "id": "BTBL-RECOVERY",
+      "tipo": "tabla",
+      "nombre": "recovery_codes",
+      "descripcion": "code_hash (HMAC con pepper), used_at.",
+      "estado": "implementado",
+      "detalles": {
+        "archivo": "prisma/schema.prisma"
+      }
+    },
+    {
+      "id": "BEP-01",
+      "tipo": "endpoint",
+      "nombre": "GET /api/health",
+      "descripcion": "Entrada: —. Salida: {status}. Errores: —.",
+      "estado": "implementado",
+      "detalles": {
+        "metodo": "GET",
+        "ruta": "/api/health",
+        "publico": true,
+        "equivale_a_app": null
+      }
+    },
+    {
+      "id": "BEP-02",
+      "tipo": "endpoint",
+      "nombre": "POST /api/auth/prelogin",
+      "descripcion": "Entrada: {email}. Salida: {kdf:{salt,memoryKib,iterations,parallelism}}; correo inexistente: sal determinista y DEFAULT_KDF_PARAMS (p=4). Errores: 400.",
+      "estado": "implementado",
+      "detalles": {
+        "metodo": "POST",
+        "ruta": "/api/auth/prelogin",
+        "publico": true,
+        "equivale_a_app": "EP-01"
+      }
+    },
+    {
+      "id": "BEP-03",
+      "tipo": "endpoint",
+      "nombre": "POST /api/auth/register",
+      "descripcion": "Entrada: {email, displayName (obligatorio), authHash, kdf{salt,memoryKib≥19456,iterations≥2,parallelism}, pvk{ciphertext,nonce}, deviceName}. Salida: 201 {requiresEmailVerification:true, challengeToken (JWT 30 min), verification{sentTo,codeSent,expiresAt,resendAvailableInSeconds}}; correo existente: igual pero señuelo + aviso al dueño. Errores: 400.",
+      "estado": "implementado",
+      "detalles": {
+        "metodo": "POST",
+        "ruta": "/api/auth/register",
+        "publico": true,
+        "equivale_a_app": "EP-02"
+      }
+    },
+    {
+      "id": "BEP-04",
+      "tipo": "endpoint",
+      "nombre": "POST /api/auth/email/verify/confirm",
+      "descripcion": "Entrada: {challengeToken, code}. Salida: 200 AuthResponse {tokens{tokenType,accessToken,expiresIn,refreshToken}, user, keys{kdf,pvk,keyVersion}} o desafío 2FA. Errores: 400 InvalidCode; 409 ya verificado; 401 token inválido.",
+      "estado": "implementado",
+      "detalles": {
+        "metodo": "POST",
+        "ruta": "/api/auth/email/verify/confirm",
+        "publico": true,
+        "equivale_a_app": "EP-03"
+      }
+    },
+    {
+      "id": "BEP-05",
+      "tipo": "endpoint",
+      "nombre": "POST /api/auth/email/verify/resend",
+      "descripcion": "Entrada: {challengeToken}. Salida: 202 mismo objeto que el registro. Errores: 429 TooManyRequests details.retryAfterSeconds; 409.",
+      "estado": "implementado",
+      "detalles": {
+        "metodo": "POST",
+        "ruta": "/api/auth/email/verify/resend",
+        "publico": true,
+        "equivale_a_app": "EP-04"
+      }
+    },
+    {
+      "id": "BEP-06",
+      "tipo": "endpoint",
+      "nombre": "POST /api/auth/login",
+      "descripcion": "Entrada: {email, authHash, deviceName}. Salida: 200 una de tres: AuthResponse | {requires2FA:true, challengeToken (5 min)} | {requiresEmailVerification:true, challengeToken, verification}. Errores: 401 'Credenciales inválidas.' (mismo tiempo con correo inexistente); 429 por IP.",
+      "estado": "implementado",
+      "detalles": {
+        "metodo": "POST",
+        "ruta": "/api/auth/login",
+        "publico": true,
+        "equivale_a_app": "EP-05"
+      }
+    },
+    {
+      "id": "BEP-07",
+      "tipo": "endpoint",
+      "nombre": "POST /api/auth/2fa/verify",
+      "descripcion": "Entrada: {challengeToken, code? | recoveryCode? (5+5, alfabeto abcdefghjkmnpqrstuvwxyz23456789, guion opcional)}. Salida: 200 AuthResponse. Errores: 401 InvalidSecondFactor; 429 tras 5 fallos/15 min.",
+      "estado": "implementado",
+      "detalles": {
+        "metodo": "POST",
+        "ruta": "/api/auth/2fa/verify",
+        "publico": true,
+        "equivale_a_app": "EP-06, EP-07"
+      }
+    },
+    {
+      "id": "BEP-08",
+      "tipo": "endpoint",
+      "nombre": "POST /api/auth/refresh",
+      "descripcion": "Entrada: {refreshToken ('<uuid>.<43 base64url>')}. Salida: 200 TokenPair (sin sessionId). Errores: 401 (reúso detectado revoca la sesión).",
+      "estado": "implementado",
+      "detalles": {
+        "metodo": "POST",
+        "ruta": "/api/auth/refresh",
+        "publico": true,
+        "equivale_a_app": "EP-08"
+      }
+    },
+    {
+      "id": "BEP-09",
+      "tipo": "endpoint",
+      "nombre": "POST /api/auth/logout",
+      "descripcion": "Entrada: —. Salida: 204. Errores: 401.",
+      "estado": "implementado",
+      "detalles": {
+        "metodo": "POST",
+        "ruta": "/api/auth/logout",
+        "publico": false,
+        "equivale_a_app": "EP-09"
+      }
+    },
+    {
+      "id": "BEP-10",
+      "tipo": "endpoint",
+      "nombre": "GET /api/auth/sessions",
+      "descripcion": "Entrada: —. Salida: [{id, deviceName, createdAt, lastUsedAt, expiresAt, current}]. Errores: 401.",
+      "estado": "implementado",
+      "detalles": {
+        "metodo": "GET",
+        "ruta": "/api/auth/sessions",
+        "publico": false,
+        "equivale_a_app": "EP-23"
+      }
+    },
+    {
+      "id": "BEP-11",
+      "tipo": "endpoint",
+      "nombre": "DELETE /api/auth/sessions/:id",
+      "descripcion": "Entrada: —. Salida: 204. Errores: 404 (no existe, cerrada o ajena).",
+      "estado": "implementado",
+      "detalles": {
+        "metodo": "DELETE",
+        "ruta": "/api/auth/sessions/:id",
+        "publico": false,
+        "equivale_a_app": "EP-24"
+      }
+    },
+    {
+      "id": "BEP-12",
+      "tipo": "endpoint",
+      "nombre": "POST /api/auth/sessions/revoke-others",
+      "descripcion": "Entrada: —. Salida: 200 {revoked}. Errores: 401.",
+      "estado": "implementado",
+      "detalles": {
+        "metodo": "POST",
+        "ruta": "/api/auth/sessions/revoke-others",
+        "publico": false,
+        "equivale_a_app": "EP-24 (lote)"
+      }
+    },
+    {
+      "id": "BEP-13",
+      "tipo": "endpoint",
+      "nombre": "GET /api/auth/2fa",
+      "descripcion": "Entrada: —. Salida: {status: disabled|pending|active, activatedAt, recoveryCodesRemaining}. Errores: 401.",
+      "estado": "implementado",
+      "detalles": {
+        "metodo": "GET",
+        "ruta": "/api/auth/2fa",
+        "publico": false,
+        "equivale_a_app": "EP-13 (parcial)"
+      }
+    },
+    {
+      "id": "BEP-14",
+      "tipo": "endpoint",
+      "nombre": "POST /api/auth/2fa/setup",
+      "descripcion": "Entrada: {authHash} (reautenticación). Salida: 200 {secret, otpauthUrl, qrCodeDataUrl}. Errores: 403 contraseña; 409 ya activa.",
+      "estado": "implementado",
+      "detalles": {
+        "metodo": "POST",
+        "ruta": "/api/auth/2fa/setup",
+        "publico": false,
+        "equivale_a_app": "EP-19"
+      }
+    },
+    {
+      "id": "BEP-15",
+      "tipo": "endpoint",
+      "nombre": "POST /api/auth/2fa/activate",
+      "descripcion": "Entrada: {code}. Salida: 200 {recoveryCodes[10]}. Errores: 401 InvalidSecondFactor; 400; 429.",
+      "estado": "implementado",
+      "detalles": {
+        "metodo": "POST",
+        "ruta": "/api/auth/2fa/activate",
+        "publico": false,
+        "equivale_a_app": "EP-20"
+      }
+    },
+    {
+      "id": "BEP-16",
+      "tipo": "endpoint",
+      "nombre": "POST /api/auth/2fa/disable",
+      "descripcion": "Entrada: {authHash, code (TOTP o recuperación)}. Salida: 200 TwoFactorStatus. Errores: 403; 401 InvalidSecondFactor; 429.",
+      "estado": "implementado",
+      "detalles": {
+        "metodo": "POST",
+        "ruta": "/api/auth/2fa/disable",
+        "publico": false,
+        "equivale_a_app": "EP-21"
+      }
+    },
+    {
+      "id": "BEP-17",
+      "tipo": "endpoint",
+      "nombre": "POST /api/auth/2fa/recovery-codes",
+      "descripcion": "Entrada: {authHash, code}. Salida: 200 {recoveryCodes[10]}. Errores: 403; 401; 429.",
+      "estado": "implementado",
+      "detalles": {
+        "metodo": "POST",
+        "ruta": "/api/auth/2fa/recovery-codes",
+        "publico": false,
+        "equivale_a_app": "EP-22"
+      }
+    },
+    {
+      "id": "BEP-18",
+      "tipo": "endpoint",
+      "nombre": "POST /api/auth/password",
+      "descripcion": "Entrada: {currentAuthHash, newAuthHash, kdf, pvk, code?} (sin expectedKeyVersion). Salida: 200 {keyVersion, otherSessionsRevoked}. Errores: 403 contraseña; 400 SecondFactorRequired; 401 InvalidSecondFactor.",
+      "estado": "implementado",
+      "detalles": {
+        "metodo": "POST",
+        "ruta": "/api/auth/password",
+        "publico": false,
+        "equivale_a_app": "EP-17"
+      }
+    },
+    {
+      "id": "BEP-19",
+      "tipo": "endpoint",
+      "nombre": "DELETE /api/users/me",
+      "descripcion": "Entrada: {authHash, code?} (cuerpo en DELETE). Salida: 204; marca deleted_at y anonymized_at en el acto. Errores: 403; 400; 401.",
+      "estado": "implementado",
+      "detalles": {
+        "metodo": "DELETE",
+        "ruta": "/api/users/me",
+        "publico": false,
+        "equivale_a_app": "EP-18"
+      }
+    },
+    {
+      "id": "BEP-20",
+      "tipo": "endpoint",
+      "nombre": "GET /api/users/me",
+      "descripcion": "Entrada: —. Salida: {id, email, displayName, emailVerified, twoFactorEnabled, createdAt} (sin keyVersion, kdf, pvk ni marketingOptIn). Errores: 401.",
+      "estado": "implementado",
+      "detalles": {
+        "metodo": "GET",
+        "ruta": "/api/users/me",
+        "publico": false,
+        "equivale_a_app": "EP-13"
+      }
+    },
+    {
+      "id": "BEP-21",
+      "tipo": "endpoint",
+      "nombre": "PATCH /api/users/me",
+      "descripcion": "Entrada: {displayName} (obligatorio). Salida: 200 perfil. Errores: 400.",
+      "estado": "implementado",
+      "detalles": {
+        "metodo": "PATCH",
+        "ruta": "/api/users/me",
+        "publico": false,
+        "equivale_a_app": "EP-14 (parcial)"
+      }
+    },
+    {
+      "id": "BEP-22",
+      "tipo": "endpoint",
+      "nombre": "GET /api/vault/sync?since=<revision>",
+      "descripcion": "Entrada: since (0 = todo). Salida: {revision, purgedThroughRevision, keyVersion, fullResync, items[{id,version,revision,deleted,nonce?,ciphertext?,formatVersion,updatedAt}]}; fullResync si since=0, < purgado o > actual; sin paginación. Errores: 401.",
+      "estado": "implementado",
+      "detalles": {
+        "metodo": "GET",
+        "ruta": "/api/vault/sync?since=<revision>",
+        "publico": false,
+        "equivale_a_app": "EP-10, EP-26 (sustituto)"
+      }
+    },
+    {
+      "id": "BEP-23",
+      "tipo": "endpoint",
+      "nombre": "POST /api/vault/sync",
+      "descripcion": "Entrada: {items[1..50]: {id, baseVersion, deleted?, nonce?, ciphertext? (17..32768 B), formatVersion?}}. Salida: 200 {revision, applied[{id,version,revision}]}. Errores: 409 VaultSyncConflict details.conflicts[{id, reason: version_mismatch|not_found|id_unavailable, currentVersion}] (todo o nada).",
+      "estado": "implementado",
+      "detalles": {
+        "metodo": "POST",
+        "ruta": "/api/vault/sync",
+        "publico": false,
+        "equivale_a_app": "EP-11, EP-12"
+      }
+    },
+    {
+      "id": "BEP-24",
+      "tipo": "endpoint",
+      "nombre": "POST /api/vault/rotate-key",
+      "descripcion": "Entrada: {authHash, code?, keyVersion, pvk, items[] (todos recifrados)}. Salida: 200 {keyVersion, revision, itemsRotated, otherSessionsRevoked}. Errores: 409 KeyVersionMismatch | VaultChanged.",
+      "estado": "implementado",
+      "detalles": {
+        "metodo": "POST",
+        "ruta": "/api/vault/rotate-key",
+        "publico": false,
+        "equivale_a_app": "— (la app no rota la vault_key)"
+      }
+    },
+    {
+      "id": "BEP-25",
+      "tipo": "endpoint",
+      "nombre": "GET /api/audit?limit&before",
+      "descripcion": "Entrada: limit 1..100, before (id). Salida: {items[{id, eventType, outcome, occurredAt, metadata, deviceName, ip, userAgent}], nextCursor}. Errores: 401.",
+      "estado": "implementado",
+      "detalles": {
+        "metodo": "GET",
+        "ruta": "/api/audit?limit&before",
+        "publico": false,
+        "equivale_a_app": "EP-25"
+      }
+    },
+    {
+      "id": "BEP-26",
+      "tipo": "endpoint",
+      "nombre": "GET /api/audit/verify",
+      "descripcion": "Entrada: —. Salida: {valid, checkedEntries, firstInvalidId?, reason?}. Errores: 401.",
+      "estado": "implementado",
+      "detalles": {
+        "metodo": "GET",
+        "ruta": "/api/audit/verify",
+        "publico": false,
+        "equivale_a_app": "— (nuevo; útil para la demo)"
+      }
+    },
+    {
+      "id": "BCAT-AUDIT",
+      "tipo": "catalogo",
+      "nombre": "AuditEvent (20 eventos)",
+      "descripcion": "Catálogo cerrado; outcome success|failure; metadata.reason en fallos (invalid_credentials, email_not_verified, email_taken, invalid_second_factor…). Distinto de los 18 eventType del contrato de la app: hace falta una tabla de equivalencias en la app.",
+      "estado": "implementado",
+      "detalles": {
+        "eventos": [
+          "auth.register",
+          "auth.login",
+          "auth.2fa_challenge",
+          "auth.refresh_reuse",
+          "auth.logout",
+          "auth.session_revoke",
+          "auth.sessions_revoke_others",
+          "vault.sync_push",
+          "vault.sync_conflict",
+          "vault.key_rotation",
+          "email.verify_request",
+          "email.verify_confirm",
+          "2fa.setup",
+          "2fa.activate",
+          "2fa.verify",
+          "2fa.disable",
+          "2fa.recovery_regenerate",
+          "account.profile_update",
+          "account.password_change",
+          "account.delete"
+        ],
+        "archivo": "src/modules/audit/audit.constants.ts"
+      }
+    },
+    {
+      "id": "BSEC-01",
+      "tipo": "seguridad",
+      "nombre": "Hash del auth key",
+      "descripcion": "Argon2id del servidor (19 MiB, t=2, p=1) sobre el auth key; hash señuelo para igualar tiempos con correos inexistentes.",
+      "estado": "implementado",
+      "detalles": {}
+    },
+    {
+      "id": "BSEC-02",
+      "tipo": "seguridad",
+      "nombre": "Registro sin enumeración",
+      "descripcion": "Correo existente → mismo 201 con desafío señuelo que nunca se confirma y aviso al dueño (máx. 1/h).",
+      "estado": "implementado",
+      "detalles": {}
+    },
+    {
+      "id": "BSEC-03",
+      "tipo": "seguridad",
+      "nombre": "Refresh rotativo",
+      "descripcion": "Token '<uuid>.<secreto>'; guarda hash actual y anterior; reúso del anterior revoca la sesión (auth.refresh_reuse).",
+      "estado": "implementado",
+      "detalles": {}
+    },
+    {
+      "id": "BSEC-04",
+      "tipo": "seguridad",
+      "nombre": "Sesión viva en cada petición",
+      "descripcion": "JwtStrategy consulta que la sesión no esté revocada ni vencida.",
+      "estado": "implementado",
+      "detalles": {}
+    },
+    {
+      "id": "BSEC-05",
+      "tipo": "seguridad",
+      "nombre": "TOTP",
+      "descripcion": "Secreto cifrado AES-256 con llaves rotables por id (TOTP_ENCRYPTION_KEYS), anti-replay por paso, 5 fallos/15 min.",
+      "estado": "implementado",
+      "detalles": {}
+    },
+    {
+      "id": "BSEC-06",
+      "tipo": "seguridad",
+      "nombre": "Códigos de recuperación",
+      "descripcion": "10 códigos de 10 caracteres sin ambiguos, HMAC con pepper, un solo uso.",
+      "estado": "implementado",
+      "detalles": {}
+    },
+    {
+      "id": "BSEC-07",
+      "tipo": "seguridad",
+      "nombre": "Bitácora encadenada",
+      "descripcion": "HMAC encadenado (AUDIT_HMAC_KEY, versión de formato 1) y verificación por usuario; PII aparte.",
+      "estado": "implementado",
+      "detalles": {}
+    },
+    {
+      "id": "BSEC-08",
+      "tipo": "seguridad",
+      "nombre": "Bóveda opaca",
+      "descripcion": "Solo ciphertext/nonce; lápidas sin contenido; control optimista por versión; todo o nada por lote.",
+      "estado": "implementado",
+      "detalles": {}
+    },
+    {
+      "id": "BSEC-09",
+      "tipo": "seguridad",
+      "nombre": "Reautenticación",
+      "descripcion": "Operaciones sensibles piden authHash (+ segundo factor si hay 2FA); 403 sin cerrar la sesión.",
+      "estado": "implementado",
+      "detalles": {}
+    },
+    {
+      "id": "BSEC-10",
+      "tipo": "seguridad",
+      "nombre": "Configuración validada",
+      "descripcion": "env.validation exige secretos de ≥ 32 caracteres, distintos entre sí y sin el valor de ejemplo. En producción el servidor se niega a arrancar (sin imprimir valores) si falta RESEND_API_KEY o EMAIL_FROM, DATABASE_URL o TOTP_ENCRYPTION_KEYS, o si CORS_ORIGIN es *; sin CORS_ORIGIN no se abre ningún origen. TRUST_PROXY=0 en producción solo avisa por syslog. GET /api/health: 200 {status:ok} si la base contesta, 503 si no, sin detalles (tarea 36).",
+      "estado": "implementado",
+      "detalles": {}
+    },
+    {
+      "id": "BSEC-11",
+      "tipo": "seguridad",
+      "nombre": "Validación de entrada sin coerción implícita",
+      "descripcion": "ValidationPipe global con whitelist, forbidNonWhitelisted y transform, sin enableImplicitConversion (F-03): un string donde se espera número se rechaza; los query usan @Type explícito. Opciones en src/common/validation-pipe.options.ts con prueba. El bloqueo de login por cuenta (F-07) ya existía: 5 fallos en 15 min, respuesta genérica y evento de auditoría (BR-22, auth-hash.ts).",
+      "estado": "implementado",
+      "detalles": {}
+    },
+    {
+      "id": "BR-01",
+      "tipo": "brecha",
+      "nombre": "Prefijo /api en lugar de /v1",
+      "descripcion": "La app usa baseUrl …/v1.",
+      "estado": "adaptada en la app",
+      "detalles": {
+        "dueno": "app (adaptador)",
+        "severidad": "baja",
+        "adaptada_en": {
+          "rama": "integracion/backend",
+          "commit": "e9a7e9c",
+          "pr": "MrX-zeta/End-Security#2",
+          "tarea": 32
+        }
+      }
+    },
+    {
+      "id": "BR-02",
+      "tipo": "brecha",
+      "nombre": "Envoltura {success,data,timestamp}",
+      "descripcion": "Hay que desenvolver `data` en cada éxito.",
+      "estado": "adaptada en la app",
+      "detalles": {
+        "dueno": "app (adaptador)",
+        "severidad": "baja",
+        "adaptada_en": {
+          "rama": "integracion/backend",
+          "commit": "e9a7e9c",
+          "pr": "MrX-zeta/End-Security#2",
+          "tarea": 32
+        }
+      }
+    },
+    {
+      "id": "BR-03",
+      "tipo": "brecha",
+      "nombre": "Errores sin `code` del contrato",
+      "descripcion": "La app decide por `code`; aquí hay que mapear por (status, error, details). Tabla de equivalencias en el adaptador.",
+      "estado": "adaptada en la app",
+      "detalles": {
+        "dueno": "app (adaptador)",
+        "severidad": "media",
+        "adaptada_en": {
+          "rama": "integracion/backend",
+          "commit": "e9a7e9c",
+          "pr": "MrX-zeta/End-Security#2",
+          "tarea": 32
+        }
+      }
+    },
+    {
+      "id": "BR-04",
+      "tipo": "brecha",
+      "nombre": "Base64 estándar",
+      "descripcion": "La app usa base64url sin relleno: convertir en la frontera (DTO del transporte real).",
+      "estado": "adaptada en la app",
+      "detalles": {
+        "dueno": "app (adaptador)",
+        "severidad": "baja",
+        "adaptada_en": {
+          "rama": "integracion/backend",
+          "commit": "e9a7e9c",
+          "pr": "MrX-zeta/End-Security#2",
+          "tarea": 32
+        }
+      }
+    },
+    {
+      "id": "BR-05",
+      "tipo": "brecha",
+      "nombre": "Nombres de campos",
+      "descripcion": "authHash = auth_key; pvk{ciphertext,nonce} = protectedVaultKey; kdf.salt dentro de kdf; deviceName obligatorio en login/registro.",
+      "estado": "adaptada en la app",
+      "detalles": {
+        "dueno": "app (adaptador)",
+        "severidad": "baja",
+        "adaptada_en": {
+          "rama": "integracion/backend",
+          "commit": "e9a7e9c",
+          "pr": "MrX-zeta/End-Security#2",
+          "tarea": 32
+        }
+      }
+    },
+    {
+      "id": "BR-06",
+      "tipo": "brecha",
+      "nombre": "El servidor genera el userId",
+      "descripcion": "CRÍTICA: la app envuelve la vault_key con AAD end-security/vault-key|userId|keyVersion ANTES de registrarse (DEC-05) y cifra cada elemento con AAD id|userId|formatVersion. Si el id lo inventa el servidor, la pvk no abre. Arreglo mínimo en el backend: RegisterDto.userId (@IsUUID) y users.create({id}); con id repetido, el mismo señuelo.",
+      "estado": "resuelta",
+      "detalles": {
+        "dueno": "backend",
+        "severidad": "crítica",
+        "resuelta_en": {
+          "rama": "integracion/app",
+          "commit": "d6f9283",
+          "pr": "Diego-Zarate18/end-security-backend#1",
+          "tarea": 32
+        }
+      }
+    },
+    {
+      "id": "BR-07",
+      "tipo": "brecha",
+      "nombre": "displayName obligatorio en el registro",
+      "descripcion": "La app no pide nombre. Opción app: mandar la parte local del correo; opción backend: hacerlo opcional.",
+      "estado": "resuelta",
+      "detalles": {
+        "dueno": "app o backend",
+        "severidad": "baja",
+        "resuelta_en": {
+          "rama": "integracion/app",
+          "commit": "148670a",
+          "pr": "Diego-Zarate18/end-security-backend#1",
+          "tarea": 32
+        }
+      }
+    },
+    {
+      "id": "BR-08",
+      "tipo": "brecha",
+      "nombre": "Verificación de correo con challengeToken",
+      "descripcion": "El contrato usa {email, code}. La app guarda el challengeToken en memoria (PendingAuth); si se cierra, un nuevo login devuelve otro desafío.",
+      "estado": "adaptada en la app",
+      "detalles": {
+        "dueno": "app (adaptador)",
+        "severidad": "media",
+        "adaptada_en": {
+          "rama": "integracion/backend",
+          "commit": "e9a7e9c",
+          "pr": "MrX-zeta/End-Security#2",
+          "tarea": 32
+        }
+      }
+    },
+    {
+      "id": "BR-09",
+      "tipo": "brecha",
+      "nombre": "Login con tres respuestas 200",
+      "descripcion": "Mapear: tokens → sesión; requires2FA → pantalla 2FA con challengeToken; requiresEmailVerification → pantalla de código.",
+      "estado": "adaptada en la app",
+      "detalles": {
+        "dueno": "app (adaptador)",
+        "severidad": "media",
+        "adaptada_en": {
+          "rama": "integracion/backend",
+          "commit": "e9a7e9c",
+          "pr": "MrX-zeta/End-Security#2",
+          "tarea": 32
+        }
+      }
+    },
+    {
+      "id": "BR-10",
+      "tipo": "brecha",
+      "nombre": "Formato de códigos de recuperación",
+      "descripcion": "Backend: 10 caracteres (5-5) del alfabeto abcdefghjkmnpqrstuvwxyz23456789, minúsculas. App: XXXX-XXXX Crockford. Cambiar el campo y su validación en la app.",
+      "estado": "adaptada en la app",
+      "detalles": {
+        "dueno": "app",
+        "severidad": "media",
+        "adaptada_en": {
+          "rama": "integracion/backend",
+          "commit": "6bfedf7",
+          "pr": "MrX-zeta/End-Security#2",
+          "tarea": 32
+        }
+      }
+    },
+    {
+      "id": "BR-11",
+      "tipo": "brecha",
+      "nombre": "Sesión revocada = 401 genérico",
+      "descripcion": "Adaptador: 401 → refresh una vez; si refresh da 401 → session_revoked (signOutLocally).",
+      "estado": "adaptada en la app",
+      "detalles": {
+        "dueno": "app (adaptador)",
+        "severidad": "media",
+        "adaptada_en": {
+          "rama": "integracion/backend",
+          "commit": "e9a7e9c",
+          "pr": "MrX-zeta/End-Security#2",
+          "tarea": 32
+        }
+      }
+    },
+    {
+      "id": "BR-12",
+      "tipo": "brecha",
+      "nombre": "Descarga de la bóveda",
+      "descripcion": "GET /vault/sync?since: sin paginación ni 410; fullResync=true sustituye a cursor_expired.",
+      "estado": "adaptada en la app",
+      "detalles": {
+        "dueno": "app (adaptador)",
+        "severidad": "media",
+        "adaptada_en": {
+          "rama": "integracion/backend",
+          "commit": "e9a7e9c",
+          "pr": "MrX-zeta/End-Security#2",
+          "tarea": 32
+        }
+      }
+    },
+    {
+      "id": "BR-13",
+      "tipo": "brecha",
+      "nombre": "Subida por lote atómico (D-4)",
+      "descripcion": "Resuelto sin tocar el backend: la app manda lotes de 1 elemento, así cada conflicto es por elemento como espera DEC-57. 409 VaultSyncConflict → conflict.",
+      "estado": "adaptada en la app",
+      "detalles": {
+        "dueno": "app (adaptador)",
+        "severidad": "media",
+        "adaptada_en": {
+          "rama": "integracion/backend",
+          "commit": "e9a7e9c",
+          "pr": "MrX-zeta/End-Security#2",
+          "tarea": 32
+        }
+      }
+    },
+    {
+      "id": "BR-14",
+      "tipo": "brecha",
+      "nombre": "Sin GET /vault/items/{id} (EP-26)",
+      "descripcion": "Para «Elegir versión» la app obtiene la versión del servidor con GET /vault/sync?since=<cursor> antes de mostrar el conflicto.",
+      "estado": "adaptada en la app",
+      "detalles": {
+        "dueno": "app",
+        "severidad": "media",
+        "adaptada_en": {
+          "rama": "integracion/backend",
+          "commit": "e9a7e9c",
+          "pr": "MrX-zeta/End-Security#2",
+          "tarea": 32
+        }
+      }
+    },
+    {
+      "id": "BR-15",
+      "tipo": "brecha",
+      "nombre": "/users/me sin llaves ni keyVersion",
+      "descripcion": "La regla de la tarea 19 (key_version mayor) toma keyVersion de GET /vault/sync.",
+      "estado": "adaptada en la app",
+      "detalles": {
+        "dueno": "app (adaptador)",
+        "severidad": "baja",
+        "adaptada_en": {
+          "rama": "integracion/backend",
+          "commit": "e9a7e9c",
+          "pr": "MrX-zeta/End-Security#2",
+          "tarea": 32
+        }
+      }
+    },
+    {
+      "id": "BR-16",
+      "tipo": "brecha",
+      "nombre": "Sin marketingOptIn",
+      "descripcion": "Contrato 1.4.0 (DEC-64): falta columna y campo en register / users/me / PATCH. Decidir: backend lo agrega, o la app oculta la casilla y el interruptor en prod y se ajusta el aviso.",
+      "estado": "resuelta",
+      "detalles": {
+        "dueno": "decisión del equipo",
+        "severidad": "media",
+        "resuelta_en": {
+          "rama": "integracion/app",
+          "commit": "beefccb",
+          "pr": "Diego-Zarate18/end-security-backend#1",
+          "tarea": 32
+        }
+      }
+    },
+    {
+      "id": "BR-17",
+      "tipo": "brecha",
+      "nombre": "Sin cambio de correo (DEC-63)",
+      "descripcion": "No existen EP-15/16 ni sus límites. Decidir: backend lo agrega, o la app oculta la flecha de la tarjeta en prod.",
+      "estado": "resuelta",
+      "detalles": {
+        "dueno": "decisión del equipo",
+        "severidad": "media",
+        "resuelta_en": {
+          "rama": "integracion/app",
+          "commit": "edd8e51",
+          "pr": "Diego-Zarate18/end-security-backend#1",
+          "tarea": 32
+        },
+        "riesgo_aceptado": "Con Resend activo el cambio de correo revela por tiempo si el correo nuevo ya existe; aceptado hasta tener dominio (RSG-17 en el grafo de la app)."
+      }
+    },
+    {
+      "id": "BR-18",
+      "tipo": "brecha",
+      "nombre": "Cambio de contraseña sin expectedKeyVersion",
+      "descripcion": "Sin 409 si otro teléfono cambió antes. La app compara keyVersion antes (GET /vault/sync). Sugerencia menor al backend.",
+      "estado": "resuelta",
+      "detalles": {
+        "dueno": "app (+ sugerencia backend)",
+        "severidad": "baja",
+        "resuelta_en": {
+          "rama": "integracion/app",
+          "commit": "096ea94",
+          "pr": "Diego-Zarate18/end-security-backend#1",
+          "tarea": 32
+        }
+      }
+    },
+    {
+      "id": "BR-19",
+      "tipo": "brecha",
+      "nombre": "Eliminación anonimiza al instante",
+      "descripcion": "El aviso de privacidad dice «a los 30 días anonimizamos lo restante». Corregir el aviso (más simple) o el backend.",
+      "estado": "abierta",
+      "detalles": {
+        "dueno": "legal (aviso)",
+        "severidad": "media"
+      }
+    },
+    {
+      "id": "BR-20",
+      "tipo": "brecha",
+      "nombre": "Setup 2FA pide reautenticación",
+      "descripcion": "La app abre la activación sin contraseña: agregar ReauthSheet antes del paso 1; usar otpauthUrl del servidor.",
+      "estado": "adaptada en la app",
+      "detalles": {
+        "dueno": "app",
+        "severidad": "media",
+        "adaptada_en": {
+          "rama": "integracion/backend",
+          "commit": "9046252",
+          "pr": "MrX-zeta/End-Security#2",
+          "tarea": 32
+        }
+      }
+    },
+    {
+      "id": "BR-21",
+      "tipo": "brecha",
+      "nombre": "Catálogo de actividad distinto",
+      "descripcion": "20 eventos con otros nombres (BCAT-AUDIT) y además IP y user-agent. Nueva tabla de títulos e íconos en la app; no mostrar IP.",
+      "estado": "adaptada en la app",
+      "detalles": {
+        "dueno": "app",
+        "severidad": "media",
+        "adaptada_en": {
+          "rama": "integracion/backend",
+          "commit": "e9a7e9c, a961894",
+          "pr": "MrX-zeta/End-Security#2",
+          "tarea": 32
+        }
+      }
+    },
+    {
+      "id": "BR-22",
+      "tipo": "brecha",
+      "nombre": "Límites solo por IP",
+      "descripcion": "Sin límite por cuenta en login (D-6) ni límites de DEC-63. La app interpreta 429 con Retry-After o details.retryAfterSeconds.",
+      "estado": "resuelta",
+      "detalles": {
+        "dueno": "backend (sugerencia) + app",
+        "severidad": "media",
+        "resuelta_en": {
+          "rama": "integracion/app",
+          "commit": "c3022a1",
+          "pr": "Diego-Zarate18/end-security-backend#1",
+          "tarea": 32
+        },
+        "riesgo_aceptado": "Un tercero puede bloquear una cuenta con 5 contraseñas incorrectas en 15 min; aceptado en la revisión de la tarea 32 (RSG-16 en el grafo de la app)."
+      }
+    },
+    {
+      "id": "BR-23",
+      "tipo": "brecha",
+      "nombre": "Parámetros KDF señuelo distinguibles",
+      "descripcion": "prelogin de correos inexistentes devuelve parallelism 4; las cuentas creadas por la app usan 1 → revela qué correos existen. Arreglo de una línea: DEFAULT_KDF_PARAMS.parallelism = 1. Además el piso del servidor (19 456 KiB, t ≥ 2) es más bajo que DEC-05 (65 536, t ≥ 3).",
+      "estado": "resuelta",
+      "detalles": {
+        "dueno": "backend",
+        "severidad": "alta",
+        "resuelta_en": {
+          "rama": "integracion/app",
+          "commit": "74b5f46",
+          "pr": "Diego-Zarate18/end-security-backend#1",
+          "tarea": 32
+        }
+      }
+    },
+    {
+      "id": "BR-24",
+      "tipo": "brecha",
+      "nombre": "Dominio de correo pendiente",
+      "descripcion": "EMAIL_FROM onboarding@resend.dev solo entrega al dueño de la cuenta de Resend: sin dominio verificado nadie más recibe el código de registro.",
+      "estado": "en curso (la persona verifica el dominio en Resend)",
+      "detalles": {
+        "dueno": "backend (Diego, ya identificado)",
+        "severidad": "alta",
+        "pendiente": "Verificar endsecurity.lat en Resend (registros DNS en Spaceship) y poner RESEND_API_KEY y EMAIL_FROM=End Security <no-reply@endsecurity.lat> en el servidor. Guía: docs/despliegue.md del backend (DEC-67)."
+      }
+    },
+    {
+      "id": "BR-25",
+      "tipo": "brecha",
+      "nombre": "Syslog RFC 5424 (DEC-62) no implementado",
+      "descripcion": "Solo el Logger de Nest. Lo pidió el profesor.",
+      "estado": "resuelta",
+      "detalles": {
+        "dueno": "backend",
+        "severidad": "alta",
+        "resuelta_en": {
+          "rama": "integracion/app",
+          "commit": "19a9fc9",
+          "pr": "Diego-Zarate18/end-security-backend#1",
+          "tarea": 32
+        }
+      }
+    },
+    {
+      "id": "BR-26",
+      "tipo": "brecha",
+      "nombre": "URL pública y pines SPKI (E2)",
+      "descripcion": "Falta la URL HTTPS de producción y los dos hashes SPKI para network_security_config.xml.",
+      "estado": "pendiente de servidor en línea (tarea 37)",
+      "detalles": {
+        "dueno": "backend + app",
+        "severidad": "alta",
+        "pendiente": "La URL de release ya es https://api.endsecurity.lat/api/ (tarea 36). Faltan los dos pines SPKI (principal y respaldo), que se sacan del certificado cuando el servidor esté en línea (tarea 37); TODO(BR-26) en network_security_config.xml."
+      }
+    },
+    {
+      "id": "BR-27",
+      "tipo": "brecha",
+      "nombre": "Sin pruebas automatizadas",
+      "descripcion": "Solo Postman. La app probará contra el servidor real con una suite de integración.",
+      "estado": "resuelta",
+      "detalles": {
+        "dueno": "backend (sugerencia)",
+        "severidad": "baja",
+        "resuelta_en": {
+          "rama": "integracion/app",
+          "commit": "5c96de5",
+          "pr": "Diego-Zarate18/end-security-backend#1",
+          "tarea": 32
+        }
+      }
+    },
+    {
+      "id": "BR-28",
+      "tipo": "brecha",
+      "nombre": "Reenvío del código de registro sin tope",
+      "descripcion": "Quien conozca un correo podía pedir códigos sin fin (uno cada 60 s) y llenarle la bandeja. Ahora hay un tope por correo: 5 envíos por hora y 10 por día, contados en email_verifications; al pasarse, 429 con retryAfterSeconds. El desafío señuelo lleva el mismo tope, así que el 429 no revela si el correo existe.",
+      "estado": "resuelta",
+      "detalles": {
+        "dueno": "backend",
+        "severidad": "media",
+        "resuelta_en": {
+          "rama": "integracion/app",
+          "commit": "bd27953",
+          "pr": "Diego-Zarate18/end-security-backend#1",
+          "tarea": 33
+        }
+      }
+    },
+    {
+      "id": "BR-29",
+      "tipo": "brecha",
+      "nombre": "Cuentas sin verificar que no vencen",
+      "descripcion": "Un registro sin verificar apartaba el correo para siempre. Ahora, pasadas 24 h, un registro nuevo con el mismo correo anonimiza la cuenta sin verificar y sin bóveda (un UPDATE condicionado, sin tarea periódica; misma anonimización que deleteAccount, la fila se conserva por la cadena de auditoría). Una cuenta verificada nunca se toca.",
+      "estado": "resuelta",
+      "detalles": {
+        "dueno": "backend",
+        "severidad": "media",
+        "resuelta_en": {
+          "rama": "integracion/app",
+          "commit": "bd27953",
+          "pr": "Diego-Zarate18/end-security-backend#1",
+          "tarea": 33
+        }
+      }
+    }
+  ],
+  "aristas": [
+    {
+      "de": "BE-00",
+      "a": "BX-01",
+      "relacion": "aplica"
+    },
+    {
+      "de": "BE-00",
+      "a": "BX-02",
+      "relacion": "aplica"
+    },
+    {
+      "de": "BE-00",
+      "a": "BX-03",
+      "relacion": "aplica"
+    },
+    {
+      "de": "BE-00",
+      "a": "BX-04",
+      "relacion": "aplica"
+    },
+    {
+      "de": "BE-00",
+      "a": "BX-05",
+      "relacion": "aplica"
+    },
+    {
+      "de": "BE-00",
+      "a": "BX-06",
+      "relacion": "aplica"
+    },
+    {
+      "de": "BE-00",
+      "a": "BX-07",
+      "relacion": "aplica"
+    },
+    {
+      "de": "BE-00",
+      "a": "BX-08",
+      "relacion": "aplica"
+    },
+    {
+      "de": "BE-00",
+      "a": "BX-09",
+      "relacion": "aplica"
+    },
+    {
+      "de": "BE-00",
+      "a": "BMOD-AUTH",
+      "relacion": "contiene"
+    },
+    {
+      "de": "BE-00",
+      "a": "BMOD-2FA",
+      "relacion": "contiene"
+    },
+    {
+      "de": "BE-00",
+      "a": "BMOD-ACCOUNT",
+      "relacion": "contiene"
+    },
+    {
+      "de": "BE-00",
+      "a": "BMOD-USERS",
+      "relacion": "contiene"
+    },
+    {
+      "de": "BE-00",
+      "a": "BMOD-VAULT",
+      "relacion": "contiene"
+    },
+    {
+      "de": "BE-00",
+      "a": "BMOD-AUDIT",
+      "relacion": "contiene"
+    },
+    {
+      "de": "BE-00",
+      "a": "BMOD-EMAIL",
+      "relacion": "contiene"
+    },
+    {
+      "de": "BE-00",
+      "a": "BMOD-MAIL",
+      "relacion": "contiene"
+    },
+    {
+      "de": "BE-00",
+      "a": "BTBL-USERS",
+      "relacion": "persiste_en"
+    },
+    {
+      "de": "BE-00",
+      "a": "BTBL-SESSIONS",
+      "relacion": "persiste_en"
+    },
+    {
+      "de": "BE-00",
+      "a": "BTBL-EMAILV",
+      "relacion": "persiste_en"
+    },
+    {
+      "de": "BE-00",
+      "a": "BTBL-AUDIT",
+      "relacion": "persiste_en"
+    },
+    {
+      "de": "BE-00",
+      "a": "BTBL-AUDITPII",
+      "relacion": "persiste_en"
+    },
+    {
+      "de": "BE-00",
+      "a": "BTBL-VAULT",
+      "relacion": "persiste_en"
+    },
+    {
+      "de": "BE-00",
+      "a": "BTBL-2FA",
+      "relacion": "persiste_en"
+    },
+    {
+      "de": "BE-00",
+      "a": "BTBL-RECOVERY",
+      "relacion": "persiste_en"
+    },
+    {
+      "de": "BMOD-USERS",
+      "a": "BTBL-USERS",
+      "relacion": "escribe"
+    },
+    {
+      "de": "BMOD-AUTH",
+      "a": "BTBL-SESSIONS",
+      "relacion": "escribe"
+    },
+    {
+      "de": "BMOD-EMAIL",
+      "a": "BTBL-EMAILV",
+      "relacion": "escribe"
+    },
+    {
+      "de": "BMOD-AUDIT",
+      "a": "BTBL-AUDIT",
+      "relacion": "escribe"
+    },
+    {
+      "de": "BMOD-AUDIT",
+      "a": "BTBL-AUDITPII",
+      "relacion": "escribe"
+    },
+    {
+      "de": "BMOD-VAULT",
+      "a": "BTBL-VAULT",
+      "relacion": "escribe"
+    },
+    {
+      "de": "BMOD-2FA",
+      "a": "BTBL-2FA",
+      "relacion": "escribe"
+    },
+    {
+      "de": "BMOD-2FA",
+      "a": "BTBL-RECOVERY",
+      "relacion": "escribe"
+    },
+    {
+      "de": "BE-00",
+      "a": "BEP-01",
+      "relacion": "expone"
+    },
+    {
+      "de": "BMOD-AUTH",
+      "a": "BEP-02",
+      "relacion": "expone"
+    },
+    {
+      "de": "BMOD-AUTH",
+      "a": "BEP-03",
+      "relacion": "expone"
+    },
+    {
+      "de": "BMOD-AUTH",
+      "a": "BEP-04",
+      "relacion": "expone"
+    },
+    {
+      "de": "BMOD-AUTH",
+      "a": "BEP-05",
+      "relacion": "expone"
+    },
+    {
+      "de": "BMOD-AUTH",
+      "a": "BEP-06",
+      "relacion": "expone"
+    },
+    {
+      "de": "BMOD-2FA",
+      "a": "BEP-07",
+      "relacion": "expone"
+    },
+    {
+      "de": "BMOD-AUTH",
+      "a": "BEP-08",
+      "relacion": "expone"
+    },
+    {
+      "de": "BMOD-AUTH",
+      "a": "BEP-09",
+      "relacion": "expone"
+    },
+    {
+      "de": "BMOD-AUTH",
+      "a": "BEP-10",
+      "relacion": "expone"
+    },
+    {
+      "de": "BMOD-AUTH",
+      "a": "BEP-11",
+      "relacion": "expone"
+    },
+    {
+      "de": "BMOD-AUTH",
+      "a": "BEP-12",
+      "relacion": "expone"
+    },
+    {
+      "de": "BMOD-2FA",
+      "a": "BEP-13",
+      "relacion": "expone"
+    },
+    {
+      "de": "BMOD-2FA",
+      "a": "BEP-14",
+      "relacion": "expone"
+    },
+    {
+      "de": "BMOD-2FA",
+      "a": "BEP-15",
+      "relacion": "expone"
+    },
+    {
+      "de": "BMOD-2FA",
+      "a": "BEP-16",
+      "relacion": "expone"
+    },
+    {
+      "de": "BMOD-2FA",
+      "a": "BEP-17",
+      "relacion": "expone"
+    },
+    {
+      "de": "BMOD-ACCOUNT",
+      "a": "BEP-18",
+      "relacion": "expone"
+    },
+    {
+      "de": "BMOD-ACCOUNT",
+      "a": "BEP-19",
+      "relacion": "expone"
+    },
+    {
+      "de": "BMOD-USERS",
+      "a": "BEP-20",
+      "relacion": "expone"
+    },
+    {
+      "de": "BMOD-USERS",
+      "a": "BEP-21",
+      "relacion": "expone"
+    },
+    {
+      "de": "BMOD-VAULT",
+      "a": "BEP-22",
+      "relacion": "expone"
+    },
+    {
+      "de": "BMOD-VAULT",
+      "a": "BEP-23",
+      "relacion": "expone"
+    },
+    {
+      "de": "BMOD-VAULT",
+      "a": "BEP-24",
+      "relacion": "expone"
+    },
+    {
+      "de": "BMOD-AUDIT",
+      "a": "BEP-25",
+      "relacion": "expone"
+    },
+    {
+      "de": "BMOD-AUDIT",
+      "a": "BEP-26",
+      "relacion": "expone"
+    },
+    {
+      "de": "BMOD-AUDIT",
+      "a": "BCAT-AUDIT",
+      "relacion": "define"
+    },
+    {
+      "de": "BE-00",
+      "a": "BSEC-01",
+      "relacion": "cumple"
+    },
+    {
+      "de": "BE-00",
+      "a": "BSEC-02",
+      "relacion": "cumple"
+    },
+    {
+      "de": "BE-00",
+      "a": "BSEC-03",
+      "relacion": "cumple"
+    },
+    {
+      "de": "BE-00",
+      "a": "BSEC-04",
+      "relacion": "cumple"
+    },
+    {
+      "de": "BE-00",
+      "a": "BSEC-05",
+      "relacion": "cumple"
+    },
+    {
+      "de": "BE-00",
+      "a": "BSEC-06",
+      "relacion": "cumple"
+    },
+    {
+      "de": "BE-00",
+      "a": "BSEC-07",
+      "relacion": "cumple"
+    },
+    {
+      "de": "BE-00",
+      "a": "BSEC-08",
+      "relacion": "cumple"
+    },
+    {
+      "de": "BE-00",
+      "a": "BSEC-09",
+      "relacion": "cumple"
+    },
+    {
+      "de": "BE-00",
+      "a": "BSEC-10",
+      "relacion": "cumple"
+    },
+    {
+      "de": "BR-01",
+      "a": "BX-01",
+      "relacion": "afecta"
+    },
+    {
+      "de": "BR-02",
+      "a": "BX-02",
+      "relacion": "afecta"
+    },
+    {
+      "de": "BR-03",
+      "a": "BX-03",
+      "relacion": "afecta"
+    },
+    {
+      "de": "BR-04",
+      "a": "BX-04",
+      "relacion": "afecta"
+    },
+    {
+      "de": "BR-05",
+      "a": "BEP-03",
+      "relacion": "afecta"
+    },
+    {
+      "de": "BR-05",
+      "a": "BEP-06",
+      "relacion": "afecta"
+    },
+    {
+      "de": "BR-06",
+      "a": "BEP-03",
+      "relacion": "afecta"
+    },
+    {
+      "de": "BR-06",
+      "a": "BTBL-USERS",
+      "relacion": "afecta"
+    },
+    {
+      "de": "BR-07",
+      "a": "BEP-03",
+      "relacion": "afecta"
+    },
+    {
+      "de": "BR-08",
+      "a": "BEP-04",
+      "relacion": "afecta"
+    },
+    {
+      "de": "BR-08",
+      "a": "BEP-05",
+      "relacion": "afecta"
+    },
+    {
+      "de": "BR-09",
+      "a": "BEP-06",
+      "relacion": "afecta"
+    },
+    {
+      "de": "BR-10",
+      "a": "BEP-07",
+      "relacion": "afecta"
+    },
+    {
+      "de": "BR-10",
+      "a": "BEP-15",
+      "relacion": "afecta"
+    },
+    {
+      "de": "BR-10",
+      "a": "BEP-17",
+      "relacion": "afecta"
+    },
+    {
+      "de": "BR-11",
+      "a": "BX-07",
+      "relacion": "afecta"
+    },
+    {
+      "de": "BR-11",
+      "a": "BEP-08",
+      "relacion": "afecta"
+    },
+    {
+      "de": "BR-12",
+      "a": "BEP-22",
+      "relacion": "afecta"
+    },
+    {
+      "de": "BR-13",
+      "a": "BEP-23",
+      "relacion": "afecta"
+    },
+    {
+      "de": "BR-14",
+      "a": "BEP-22",
+      "relacion": "afecta"
+    },
+    {
+      "de": "BR-15",
+      "a": "BEP-20",
+      "relacion": "afecta"
+    },
+    {
+      "de": "BR-16",
+      "a": "BEP-03",
+      "relacion": "afecta"
+    },
+    {
+      "de": "BR-16",
+      "a": "BEP-20",
+      "relacion": "afecta"
+    },
+    {
+      "de": "BR-16",
+      "a": "BEP-21",
+      "relacion": "afecta"
+    },
+    {
+      "de": "BR-16",
+      "a": "BTBL-USERS",
+      "relacion": "afecta"
+    },
+    {
+      "de": "BR-17",
+      "a": "BMOD-EMAIL",
+      "relacion": "afecta"
+    },
+    {
+      "de": "BR-18",
+      "a": "BEP-18",
+      "relacion": "afecta"
+    },
+    {
+      "de": "BR-19",
+      "a": "BEP-19",
+      "relacion": "afecta"
+    },
+    {
+      "de": "BR-20",
+      "a": "BEP-14",
+      "relacion": "afecta"
+    },
+    {
+      "de": "BR-21",
+      "a": "BEP-25",
+      "relacion": "afecta"
+    },
+    {
+      "de": "BR-21",
+      "a": "BCAT-AUDIT",
+      "relacion": "afecta"
+    },
+    {
+      "de": "BR-22",
+      "a": "BX-06",
+      "relacion": "afecta"
+    },
+    {
+      "de": "BR-23",
+      "a": "BEP-02",
+      "relacion": "afecta"
+    },
+    {
+      "de": "BR-23",
+      "a": "BEP-03",
+      "relacion": "afecta"
+    },
+    {
+      "de": "BR-24",
+      "a": "BMOD-MAIL",
+      "relacion": "afecta"
+    },
+    {
+      "de": "BR-25",
+      "a": "BE-00",
+      "relacion": "afecta"
+    },
+    {
+      "de": "BR-26",
+      "a": "BE-00",
+      "relacion": "afecta"
+    },
+    {
+      "de": "BR-27",
+      "a": "BE-00",
+      "relacion": "afecta"
+    },
+    {
+      "de": "BR-28",
+      "a": "BEP-05",
+      "relacion": "afecta"
+    },
+    {
+      "de": "BR-29",
+      "a": "BEP-03",
+      "relacion": "afecta"
+    },
+    {
+      "de": "BR-29",
+      "a": "BTBL-USERS",
+      "relacion": "afecta"
+    }
+  ]
+}

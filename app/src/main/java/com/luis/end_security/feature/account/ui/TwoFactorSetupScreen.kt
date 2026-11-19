@@ -150,6 +150,25 @@ fun TwoFactorSetupScreen(
     }
     // En el Paso 3, salir por una pestaña pide confirmar: los códigos no se podrán volver a ver.
     var pendingTab by remember { mutableStateOf<BottomNavTab?>(null) }
+    // BR-20: el servidor pide la contraseña maestra antes de dar la clave (misma hoja que Desactivar, sin código).
+    if (state.askPassword && step == SetupStep.Key) {
+        ReauthSheet(
+            body = stringResource(R.string.tf_setup_reauth_body),
+            confirmLabel = stringResource(R.string.tf_continue),
+            danger = false,
+            state = ReauthSheetState(
+                showPasswordRequired = state.showPasswordRequired,
+                credentialsWrong = state.credentialsWrong,
+                otherError = if (state.isLockedOut) lockoutMessage(state.lockoutSecondsLeft) else null,
+                isLoading = state.isLoadingKey,
+            ),
+            onCodeChange = {},
+            onPasswordEmptinessChanged = { onAction(SetupAction.PasswordEmptinessChanged(it)) },
+            onConfirm = { password -> onAction(SetupAction.SubmitPassword(password)) },
+            onDismiss = { onAction(SetupAction.PasswordDismissed) },
+            showCode = false,
+        )
+    }
     // La barra inferior es única: en el Paso 3 esta pantalla se queda con el toque y pide confirmar.
     InterceptTabSelection { tab ->
         if (step == SetupStep.Codes) {

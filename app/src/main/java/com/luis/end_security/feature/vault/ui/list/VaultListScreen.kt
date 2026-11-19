@@ -60,7 +60,6 @@ import com.luis.end_security.core.designsystem.component.LetterTile
 import com.luis.end_security.core.designsystem.component.MessageBar
 import com.luis.end_security.core.designsystem.component.NeumorphicDisc
 import com.luis.end_security.core.designsystem.component.NoticeCard
-import com.luis.end_security.core.designsystem.component.OfflineNotice
 import com.luis.end_security.core.designsystem.component.OrganicBlob
 import com.luis.end_security.core.designsystem.component.OutlinedIconButton
 import com.luis.end_security.core.designsystem.component.PrimaryButton
@@ -221,11 +220,7 @@ private fun ListContent(
                 onValueChange = onQueryChange,
                 placeholder = stringResource(R.string.vault_search_hint),
             )
-            // SCR-44: sin conexión, y SCR-18: contraseñas que cambiaron en dos dispositivos.
-            if (state.offline) {
-                Spacer(Modifier.height(16.dp))
-                OfflineNotice()
-            }
+            // SCR-18: contraseñas que cambiaron en dos dispositivos. Sin conexión no hay aviso fijo (DEC-58).
             if (state.conflictCount > 0) {
                 Spacer(Modifier.height(16.dp))
                 MessageBar(

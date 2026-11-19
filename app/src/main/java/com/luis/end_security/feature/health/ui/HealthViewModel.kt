@@ -12,6 +12,7 @@ import com.luis.end_security.feature.health.domain.HealthRepository
 import com.luis.end_security.feature.health.domain.ItemHealth
 import com.luis.end_security.feature.health.domain.ProgressSummary
 import com.luis.end_security.feature.health.domain.SnapshotPoint
+import com.luis.end_security.feature.health.domain.StrengthClass
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -95,8 +96,8 @@ class HealthUiState(
     fun rankingFor(tab: RankingTab): List<ItemHealth> {
         val items = report?.items.orEmpty()
         return when (tab) {
-            // Las 10 más débiles (largo como desempate).
-            RankingTab.Weakest -> items.sortedWith(compareBy<ItemHealth> { it.strengthScore }.thenBy { it.passwordLength }).take(RANKING_SIZE)
+            // Las 10 más débiles solo por fuerza (largo como desempate): las fuertes no entran; repetidas y filtradas ya tienen su pantalla.
+            RankingTab.Weakest -> items.filter { it.strength != StrengthClass.Strong }.sortedWith(compareBy<ItemHealth> { it.strengthScore }.thenBy { it.passwordLength }).take(RANKING_SIZE)
             RankingTab.Improved -> improvedRecently
         }
     }

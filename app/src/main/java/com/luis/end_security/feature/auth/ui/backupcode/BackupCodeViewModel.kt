@@ -6,7 +6,6 @@ import com.luis.end_security.core.common.Countdown
 import com.luis.end_security.core.common.ApiError
 import com.luis.end_security.core.common.ApiResult
 import com.luis.end_security.feature.auth.domain.AuthRepository
-import com.luis.end_security.feature.auth.domain.BackupCodeFormat
 import com.luis.end_security.feature.auth.domain.SecondFactorResult
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
@@ -92,7 +91,7 @@ class BackupCodeViewModel @Inject constructor(
                     it.copy(
                         invalidCode = it.invalidCode && action.length == 0,
                         genericError = it.genericError && action.length == 0,
-                        showIncomplete = it.showIncomplete && action.length < BackupCodeFormat.LENGTH,
+                        showIncomplete = it.showIncomplete && action.length < ActiveBackupCodeFormat.length,
                     ).withCanSubmit()
                 }
             }
@@ -104,7 +103,7 @@ class BackupCodeViewModel @Inject constructor(
         // Se vuelve a validar aquí: un cambio programático del campo se saltaría el filtro.
         val current = _state.value
         if (current.isLoading || current.isLockedOut) return
-        if (!BackupCodeFormat.isValid(code)) {
+        if (!ActiveBackupCodeFormat.isValid(code)) {
             // Incompleto: no se manda nada; se marca el campo y se le da el foco.
             _state.update { it.copy(showIncomplete = true, focusRequest = it.focusRequest + 1) }
             return
@@ -150,5 +149,5 @@ class BackupCodeViewModel @Inject constructor(
     }
 
     private fun BackupCodeUiState.withCanSubmit(): BackupCodeUiState =
-        copy(canSubmit = codeLength == BackupCodeFormat.LENGTH && !isLockedOut && !isLoading)
+        copy(canSubmit = codeLength == ActiveBackupCodeFormat.length && !isLockedOut && !isLoading)
 }
