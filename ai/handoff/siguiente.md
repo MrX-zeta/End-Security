@@ -1,28 +1,20 @@
-# Tarea 38 · Corregir los hallazgos de la auditoría (tarea 37)
+# Tarea 39 · Pines SPKI, APK firmado de producción y release v1.0.0
 
-**Estado:** hecha
+**Estado:** pendiente
 **Escrita:** 2026-11-19 · sesión de diseño
-
-## Objetivo
-Cerrar F-03, F-05, F-06 y F-07 del reporte de la tarea 37 con el cambio mínimo. F-01 (pines SPKI) NO entra aquí. F-02 y F-04 son riesgos aceptados: solo se documentan.
 
 ## Reglas
 - Los commits NO llevan coautoría de IA (sin `Co-Authored-By`, `Claude-Session` ni «Generated with»). Verifica con `git log -1 --format=%B`.
-- Rama de la app: parte de `origin/integracion/backend`. Backend: solo en la rama `integracion/app`, con PR a `develop`; nunca toques `develop` ni `main` (DEC-61). No leas `.env*`, claves ni keystores. No pruebes `api.endsecurity.lat`.
-- Cambio mínimo; cada arreglo con una prueba pequeña. Sin pantallas nuevas ni texto de usuario nuevo salvo el mensaje de F-07 (cópialo del estilo de los errores existentes).
+- Parte de `origin/integracion/backend`. No leas ni imprimas `keystore.properties` ni el `.jks`; nunca los subas. No toques el backend. No subas `docs/bd/end_security_db.jpg`.
+- Los merges a `development` y `main` los hace la persona en GitHub; tú los preparas y, cuando ella confirme, creas el tag y el release.
 
 ## Trabajo
-1. **F-07 · bloqueo de login por cuenta.** Verifica en el backend si ya existe bloqueo tras N fallos. Si no: contador de fallos por cuenta (5 fallos → bloqueo de 15 min, se reinicia con un login correcto), respuesta genérica igual a la de credenciales inválidas (sin revelar que la cuenta existe ni que está bloqueada) y evento de auditoría. Reutiliza las tablas y utilidades existentes; si hace falta una migración Prisma, hazla mínima y avísame en el reporte. Si ya existe, documenta dónde y no cambies nada.
-2. **F-05 · límites de longitud en la app.** `maxLength` en los campos de texto de la bóveda (título, usuario, URL, notas, etc.) usando los límites del servidor/DTO; que el tope no corte contraseñas generadas. Una prueba por límite.
-3. **F-03 · `enableImplicitConversion`.** Desactívalo en el `ValidationPipe` (`main.ts`) y corre `npm test`. Si algo se rompe, añade `@Type()` solo donde haga falta; si cuesta más de lo razonable, déjalo y anótalo como riesgo aceptado.
-4. **F-06 · dependencias.** Corre `npm audit --omit=dev` en el backend y `./gradlew lintProdDebug` en la app. Actualiza solo vulnerabilidades altas/críticas con arreglo de versión menor; el resto se anota.
-5. **F-02 y F-04:** una línea en `docs/despliegue.md` (backend) y en el grafo como riesgos aceptados: límite en memoria válido con una sola instancia; log de correo solo en desarrollo.
-
-## Pruebas y grafos
-`npm test`, `testProdDebugUnitTest`, `testDemoDebugUnitTest`, `lintProdDebug`, `assembleProdRelease` en verde. Actualiza grafos (BSEC/RSG según corresponda) y `estado-actual.md`.
+1. **Pines SPKI (BR-26).** Servidor en línea: `https://api.endsecurity.lat`. Permitido UNA conexión TLS de solo lectura a ese host (`openssl s_client`) para obtener la cadena de certificados públicos y calcular los SHA-256 SPKI. Pin 1: la clave pública de la CA intermedia vigente (estable ante la renovación de 90 días de Let's Encrypt). Pin 2 (respaldo): otra intermedia de Let's Encrypt de la misma cadena o raíz (ISRG Root X1/X2) para sobrevivir a una rotación. NO fijes la hoja. Ponlos en `network_security_config.xml` solo para `api.endsecurity.lat`, con `expiration` razonable (≈ 2027-12-31) y comentario con cómo regenerarlos. Debug (`127.0.0.1`/`10.0.2.2`) no lleva pines. Prueba unitaria o de configuración mínima. Si la conexión falla o no se puede calcular con certeza, NO inventes pines: déjalo como estaba y repórtalo.
+2. **Versión.** `versionName` 1.0.0 y `versionCode` coherente en `app/build.gradle.kts`.
+3. **Compilar y firmar.** `./gradlew assembleProdRelease` (la firma sale de `keystore.properties` sin que lo leas). Verifica con `apksigner verify --print-certs` (solo huella del certificado, sin contraseñas) y que NO sea la firma debug. Copia el APK a `releases/EndSecurity-1.0.0.apk` FUERA del control de versiones (añade `releases/` a `.gitignore` si hace falta) y calcula su SHA-256. Pruebas en verde (`testProdDebugUnitTest`, `testDemoDebugUnitTest`, `lintProdDebug`).
+4. **Documentación.** README: sección «Instalar» con descarga del release, SHA-256 y huella del certificado de firma; versión 1.0.0. Grafos y `estado-actual.md`: BR-26 resuelto (o pendiente si el paso 1 falló), release 1.0.0. Notas del release en `docs/release/v1.0.0.md` (qué incluye, requisitos, cómo verificar el APK).
+5. **Entrega y merge.** Commit(s) en `integracion/backend`, push, y deja el PR #2 listo (`integracion/backend` → `development`). Reporta en `ai/handoff/reporte.md` el estado de los PR y qué falta. Luego di a la persona que haga: merge del PR #2, y PR `development` → `main` (lo abres tú con `gh pr create`; lo mezcla ella).
+6. **Tag y release** (solo cuando la persona confirme que `main` está mezclada): `git tag v1.0.0` sobre `main`, `gh release create v1.0.0` con el APK, su SHA-256 y las notas. Marca el release como «latest». Mantén el release `v1.0.0-demo` como está.
 
 ## Entrega
-- Backend: commit(s) en `integracion/app` y PR a `develop` (si el PR #1 ya está abierto, súmalos a él).
-- App: commit(s) en `integracion/backend` (PR #2).
-- `ai/handoff/reporte.md` corto: qué se cerró, qué quedó aceptado y si hubo migración. Sin detalles de explotación.
-- Estado `hecha`, push y detente.
+Estado `hecha` en este archivo tras el paso 5; el paso 6 se anota en un segundo commit. Detente.
