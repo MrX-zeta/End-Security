@@ -1,33 +1,28 @@
-# Tarea 37 · Auditoría básica de seguridad: entradas de texto e inyecciones
+# Tarea 38 · Corregir los hallazgos de la auditoría (tarea 37)
 
 **Estado:** hecha
 **Escrita:** 2026-11-19 · sesión de diseño
 
 ## Objetivo
-Revisión ligera y SOLO LECTURA de app y backend. Enfoque: entradas de texto, inyecciones y lo básico que un profesor puede preguntar. Una sola pasada, pocos tokens.
+Cerrar F-03, F-05, F-06 y F-07 del reporte de la tarea 37 con el cambio mínimo. F-01 (pines SPKI) NO entra aquí. F-02 y F-04 son riesgos aceptados: solo se documentan.
 
 ## Reglas
-- Los commits NO llevan coautoría de IA: sin `Co-Authored-By`, `Claude-Session` ni «Generated with». Pon `{"attribution": {"commit": "", "pr": ""}}` en `.claude/settings.local.json` y añade a `CLAUDE.md` la línea «Los commits no llevan coautoría de IA». Verifica con `git log -1 --format=%B`.
-- No cambies código. No pruebes `api.endsecurity.lat` ni servicios externos. No ejecutes código del objetivo. No leas `.env*`, claves ni keystores.
-- NO uses la skill cloudflare/security-audit en modo full ni subagentes en paralelo (consume demasiado). Si quieres, consulta solo su lista de clases de ataque como referencia.
-- App: rama `integracion/backend`. Backend: `main` de https://github.com/Diego-Zarate18/end-security-backend (solo lectura).
+- Los commits NO llevan coautoría de IA (sin `Co-Authored-By`, `Claude-Session` ni «Generated with»). Verifica con `git log -1 --format=%B`.
+- Rama de la app: parte de `origin/integracion/backend`. Backend: solo en la rama `integracion/app`, con PR a `develop`; nunca toques `develop` ni `main` (DEC-61). No leas `.env*`, claves ni keystores. No pruebes `api.endsecurity.lat`.
+- Cambio mínimo; cada arreglo con una prueba pequeña. Sin pantallas nuevas ni texto de usuario nuevo salvo el mensaje de F-07 (cópialo del estilo de los errores existentes).
 
-## Qué revisar
-Backend:
-1. Inyección SQL: busca `$queryRaw`, `$executeRaw`, `Prisma.raw` y concatenación de strings en consultas.
-2. DTOs: `class-validator` en TODOS los endpoints, `ValidationPipe` con `whitelist` y `forbidNonWhitelisted`, longitudes máximas, tamaño del body, tipos (evita objetos donde se espera string → inyección NoSQL/operadores Prisma).
-3. Inyección en logs/cabeceras/correo: datos de usuario en syslog, en asuntos o cuerpos de correo (saltos de línea, HTML).
-4. Control de acceso/IDOR: cada consulta de vault/sesiones/cuenta filtra por el usuario autenticado; guard global JWT.
-5. Sesiones y tokens: expiración, rotación del refresh, revocación, rate limits en login/códigos.
-6. Secretos y config: nada en el repo ni en logs, CORS, helmet, errores sin stack, dependencias con `npm audit`.
+## Trabajo
+1. **F-07 · bloqueo de login por cuenta.** Verifica en el backend si ya existe bloqueo tras N fallos. Si no: contador de fallos por cuenta (5 fallos → bloqueo de 15 min, se reinicia con un login correcto), respuesta genérica igual a la de credenciales inválidas (sin revelar que la cuenta existe ni que está bloqueada) y evento de auditoría. Reutiliza las tablas y utilidades existentes; si hace falta una migración Prisma, hazla mínima y avísame en el reporte. Si ya existe, documenta dónde y no cambies nada.
+2. **F-05 · límites de longitud en la app.** `maxLength` en los campos de texto de la bóveda (título, usuario, URL, notas, etc.) usando los límites del servidor/DTO; que el tope no corte contraseñas generadas. Una prueba por límite.
+3. **F-03 · `enableImplicitConversion`.** Desactívalo en el `ValidationPipe` (`main.ts`) y corre `npm test`. Si algo se rompe, añade `@Type()` solo donde haga falta; si cuesta más de lo razonable, déjalo y anótalo como riesgo aceptado.
+4. **F-06 · dependencias.** Corre `npm audit --omit=dev` en el backend y `./gradlew lintProdDebug` en la app. Actualiza solo vulnerabilidades altas/críticas con arreglo de versión menor; el resto se anota.
+5. **F-02 y F-04:** una línea en `docs/despliegue.md` (backend) y en el grafo como riesgos aceptados: límite en memoria válido con una sola instancia; log de correo solo en desarrollo.
 
-App:
-1. Room: consultas con parámetros (`@Query` con `:param`), sin `rawQuery` con concatenación.
-2. Entradas de texto: validación y límites en registro, login, campos de bóveda, búsqueda, importación; manejo de deep links/intents.
-3. WebView/`@JavascriptInterface` (si existen), `exported` en el manifest, `allowBackup`, `FLAG_SECURE`, portapapeles, logs con datos sensibles.
-4. Red: `network_security_config` sin cleartext en release, `DEMO_MODE` fuera de prod, secretos en el repo.
+## Pruebas y grafos
+`npm test`, `testProdDebugUnitTest`, `testDemoDebugUnitTest`, `lintProdDebug`, `assembleProdRelease` en verde. Actualiza grafos (BSEC/RSG según corresponda) y `estado-actual.md`.
 
 ## Entrega
-- `ai/handoff/reporte.md` corto: tabla id / título / componente / severidad / estado (confirmado o `needs_validation`). Sin detalles de explotación (el repo puede ser público). Cruza con BR-*/RSG-*.
-- Añade una sección «Qué defender ante el profesor»: 8–10 puntos con la medida que ya existe (p. ej. Prisma parametrizado, DTO whitelist, AES-GCM, Argon2id) y dónde está en el código.
-- Estado `hecha`, commit en `integracion/backend` sin coautoría, y detente.
+- Backend: commit(s) en `integracion/app` y PR a `develop` (si el PR #1 ya está abierto, súmalos a él).
+- App: commit(s) en `integracion/backend` (PR #2).
+- `ai/handoff/reporte.md` corto: qué se cerró, qué quedó aceptado y si hubo migración. Sin detalles de explotación.
+- Estado `hecha`, push y detente.
