@@ -35,14 +35,13 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.luis.end_security.R
 import com.luis.end_security.feature.health.domain.ReuseKind
-import androidx.compose.ui.platform.LocalConfiguration
-import java.text.NumberFormat
 import com.luis.end_security.core.designsystem.component.DirectionalContentSwap
 import com.luis.end_security.core.designsystem.component.Reveal
 import com.luis.end_security.core.designsystem.component.LetterTile
@@ -223,7 +222,7 @@ fun HealthBreachedScreen(report: HealthReport?, onBack: () -> Unit, onOpen: (UUI
                     VaultLikeRow(
                         modifier = Modifier.staggeredEnter(index, arriving, maxStaggered = Motion.MaxStaggeredRows),
                         name = item.name,
-                        subtitle = pluralStringResource(R.plurals.health_breached_seen, item.breachCount, NumberFormat.getIntegerInstance(LocalConfiguration.current.locales[0]).format(item.breachCount)),
+                        subtitle = breachSeenText(item.breachCount),
                         atRisk = true,
                         onClick = { onOpen(item.id) },
                     )
@@ -288,8 +287,9 @@ private fun VaultLikeRow(name: String, subtitle: String, atRisk: Boolean, onClic
     ) {
         LetterTile(letter = initialOf(name), size = 48.dp, cornerRadius = 14.dp, container = colors.onSurfaceVariant)
         Column(modifier = Modifier.weight(1f)) {
-            Text(text = name, style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold), color = colors.onSurface, maxLines = 1)
-            Text(text = subtitle, style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant, maxLines = 1)
+            Text(text = name, style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold), color = colors.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            // Si no cabe en una línea, dos: el texto no se acorta.
+            Text(text = subtitle, style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
         }
         if (atRisk) {
             Icon(painter = painterResource(R.drawable.ic_alert_20), contentDescription = null, tint = colors.error, modifier = Modifier.size(20.dp))

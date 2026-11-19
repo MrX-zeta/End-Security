@@ -73,6 +73,7 @@ import com.luis.end_security.core.security.SecureScreen
 import com.luis.end_security.feature.health.domain.ItemHealth
 import com.luis.end_security.feature.health.domain.RiskLevel
 import com.luis.end_security.feature.health.domain.StrengthClass
+import com.luis.end_security.feature.health.ui.breachSeenText
 import com.luis.end_security.feature.vault.domain.EditedAge
 import java.util.UUID
 
@@ -394,7 +395,7 @@ private fun HealthBlock(health: ItemHealth) {
     when {
         health.breached -> {
             title = stringResource(R.string.health_detail_breached_title)
-            body = pluralStringResource(R.plurals.health_detail_breached_body, health.breachCount, health.breachCount)
+            body = breachSeenText(health.breachCount, detail = true)
         }
         health.repeated && health.similarTo != null -> {
             title = stringResource(R.string.health_detail_similar_title)

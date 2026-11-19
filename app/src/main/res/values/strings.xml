@@ -401,9 +401,10 @@
     </plurals>
     <string name="health_breached_notice">Otros sitios sufrieron robos de datos y estas contraseñas quedaron expuestas. Cámbialas cuanto antes.</string>
     <plurals name="health_breached_seen">
-        <item quantity="one">Apareció en %1$s filtración</item>
-        <item quantity="other">Apareció en %1$s filtraciones</item>
+        <item quantity="one">Apareció %1$s vez en filtraciones</item>
+        <item quantity="other">Apareció %1$s veces en filtraciones</item>
     </plurals>
+    <string name="health_breached_seen_capped">Apareció más de %1$s veces en filtraciones</string>
     <string name="health_breached_footnote">Para revisarlas no enviamos tus contraseñas: solo un fragmento que no permite reconstruirlas.</string>
     <string name="health_hibp_attribution">Datos de Have I Been Pwned</string>
     <plurals name="health_pending_breach">
@@ -443,8 +444,8 @@
     <string name="health_detail_safe_body">Fuerte, única y sin filtraciones</string>
     <string name="health_detail_breached_title">Filtrada</string>
     <plurals name="health_detail_breached_body">
-        <item quantity="one">Apareció en %1$d filtración</item>
-        <item quantity="other">Apareció en %1$d filtraciones</item>
+        <item quantity="one">Apareció %1$s vez en filtraciones</item>
+        <item quantity="other">Apareció %1$s veces en filtraciones</item>
     </plurals>
     <string name="health_detail_repeated_title">Repetida</string>
     <string name="health_detail_similar_title">Parecida</string>
