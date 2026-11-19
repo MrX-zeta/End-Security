@@ -1,8 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
     DEC-22 / DEC-37: sin tráfico en claro y solo con las autoridades del sistema
-    (se ignoran las que instale el usuario). El pinning SPKI se agrega en core/network
-    cuando exista la API propia.
+    (se ignoran las que instale el usuario). El texto plano hacia 127.0.0.1 y 10.0.2.2 vive solo en
+    app/src/debug/res/xml/network_security_config.xml.
+
+    TODO(BR-26): faltan los pines SPKI de api.endsecurity.lat (el principal y uno de respaldo). Se agregan en un
+    <domain-config> con <pin-set> cuando el servidor esté en línea y se pueda sacar el hash de su certificado
+    (tarea 37). Mientras tanto, api.endsecurity.lat va solo con HTTPS y las autoridades del sistema.
 -->
 <network-security-config>
     <base-config cleartextTrafficPermitted="false">

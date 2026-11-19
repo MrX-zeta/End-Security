@@ -1,7 +1,7 @@
 {
   "meta": {
     "nombre": "Grafo de conocimiento — backend real de End Security",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "actualizado": "2026-11-18",
     "fuente": "end-security-backend@develop f2b5732 (leído completo por la sesión de diseño); integracion/app hasta bd27953 (tareas 32 y 33)",
     "proposito": "Mapa del backend real para integrarlo con la app: módulos, endpoints, tablas, seguridad y brechas contra el contrato docs/api 1.4.0.",
@@ -24,14 +24,14 @@
       "nodos": 92,
       "aristas": 111,
       "por_tipo": {
-        "brecha": 29,
-        "catalogo": 1,
-        "endpoint": 26,
-        "modulo": 8,
         "proyecto": 1,
-        "seguridad": 10,
+        "transversal": 9,
+        "modulo": 8,
         "tabla": 8,
-        "transversal": 9
+        "endpoint": 26,
+        "catalogo": 1,
+        "seguridad": 10,
+        "brecha": 29
       },
       "brechas_por_estado": {
         "adaptada en la app": 15,
@@ -49,6 +49,11 @@
         "version": "1.1.0",
         "fecha": "2026-11-18",
         "cambio": "Tareas 32 y 33: BR-06, 07, 16, 17, 18, 22, 23, 25 y 27 resueltas en integracion/app; BR-01..05, 08..15, 20 y 21 adaptadas en la app; BR-28 (tope de reenvíos) y BR-29 (cuentas sin verificar) nuevas y resueltas; BR-19, 24 y 26 siguen abiertas."
+      },
+      {
+        "version": "1.2.0",
+        "fecha": "2026-11-18",
+        "cambio": "Tarea 36: arranque seguro en producción y health mínimo (BSEC-10), docs/despliegue.md; BR-24 en curso y BR-26 pendiente del servidor en línea."
       }
     ]
   },
@@ -806,7 +811,7 @@
       "id": "BSEC-10",
       "tipo": "seguridad",
       "nombre": "Configuración validada",
-      "descripcion": "env.validation exige secretos de ≥ 32 caracteres, distintos entre sí, y RESEND_API_KEY en producción.",
+      "descripcion": "env.validation exige secretos de ≥ 32 caracteres, distintos entre sí y sin el valor de ejemplo. En producción el servidor se niega a arrancar (sin imprimir valores) si falta RESEND_API_KEY o EMAIL_FROM, DATABASE_URL o TOTP_ENCRYPTION_KEYS, o si CORS_ORIGIN es *; sin CORS_ORIGIN no se abre ningún origen. TRUST_PROXY=0 en producción solo avisa por syslog. GET /api/health: 200 {status:ok} si la base contesta, 503 si no, sin detalles (tarea 36).",
       "estado": "implementado",
       "detalles": {}
     },
@@ -1202,11 +1207,11 @@
       "tipo": "brecha",
       "nombre": "Dominio de correo pendiente",
       "descripcion": "EMAIL_FROM onboarding@resend.dev solo entrega al dueño de la cuenta de Resend: sin dominio verificado nadie más recibe el código de registro.",
-      "estado": "abierta",
+      "estado": "en curso (la persona verifica el dominio en Resend)",
       "detalles": {
         "dueno": "backend (Diego, ya identificado)",
         "severidad": "alta",
-        "pendiente": "Sigue abierta: dominio de correo verificado en Resend."
+        "pendiente": "Verificar endsecurity.lat en Resend (registros DNS en Spaceship) y poner RESEND_API_KEY y EMAIL_FROM=End Security <no-reply@endsecurity.lat> en el servidor. Guía: docs/despliegue.md del backend (DEC-67)."
       }
     },
     {
@@ -1231,11 +1236,11 @@
       "tipo": "brecha",
       "nombre": "URL pública y pines SPKI (E2)",
       "descripcion": "Falta la URL HTTPS de producción y los dos hashes SPKI para network_security_config.xml.",
-      "estado": "abierta",
+      "estado": "pendiente de servidor en línea (tarea 37)",
       "detalles": {
         "dueno": "backend + app",
         "severidad": "alta",
-        "pendiente": "Sigue abierta: URL pública HTTPS y los dos pines SPKI."
+        "pendiente": "La URL de release ya es https://api.endsecurity.lat/api/ (tarea 36). Faltan los dos pines SPKI (principal y respaldo), que se sacan del certificado cuando el servidor esté en línea (tarea 37); TODO(BR-26) en network_security_config.xml."
       }
     },
     {

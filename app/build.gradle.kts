@@ -59,12 +59,15 @@ android {
 
     buildTypes {
         // Servidor real de la variante `prod` (tarea 32). En el teléfono: `adb reverse tcp:3000 tcp:3000`.
+        // Para probar la app de debug contra el servidor en línea: `-PapiBaseUrl=https://api.endsecurity.lat/api/` (el texto plano
+        // solo se permite hacia 127.0.0.1 y 10.0.2.2, ver src/debug/res/xml/network_security_config.xml).
         debug {
-            buildConfigField("String", "API_BASE_URL", "\"http://127.0.0.1:3000/api/\"")
+            val debugUrl = (project.findProperty("apiBaseUrl") as String?) ?: "http://127.0.0.1:3000/api/"
+            buildConfigField("String", "API_BASE_URL", "\"$debugUrl\"")
         }
         release {
-            // TODO(BR-26): URL HTTPS de producción y pines SPKI. Vacía = sin conexión.
-            buildConfigField("String", "API_BASE_URL", "\"\"")
+            // Servidor de producción (DEC-67). TODO(BR-26): los pines SPKI se agregan cuando el servidor esté en línea (tarea 37).
+            buildConfigField("String", "API_BASE_URL", "\"https://api.endsecurity.lat/api/\"")
             if (keystoreFile.exists()) signingConfig = signingConfigs.getByName("release")
             // DEC-37: R8 (minificación, ofuscación y recorte de recursos) en release.
             optimization {

@@ -180,6 +180,8 @@ git checkout development
 
 ## Probar con el backend local
 
+El servidor de producción (`https://api.endsecurity.lat`) se despliega con la guía [`docs/despliegue.md`](https://github.com/Diego-Zarate18/end-security-backend/blob/integracion/app/docs/despliegue.md) del backend; la variante `prod` de **release** usa `https://api.endsecurity.lat/api/` (DEC-67) y la de debug, `http://127.0.0.1:3000/api/` (o la que pases con `-PapiBaseUrl=...`).
+
 La variante `prod` habla con el backend real ([end-security-backend](https://github.com/Diego-Zarate18/end-security-backend), rama `integracion/app`); `demo` sigue siendo la de siempre y no necesita servidor. Con un teléfono por USB:
 
 1. **Prepara el backend** (necesitas PostgreSQL). Cada persona escribe su propio `.env` a partir de `.env.example`: `DATABASE_URL`, los secretos de sesión, `AUDIT_HMAC_KEY` y `TOTP_ENCRYPTION_KEYS` salen de generarlos tú; no se versionan ni se comparten. Sin `RESEND_API_KEY` los correos (y los códigos de verificación) salen por la consola del backend.
