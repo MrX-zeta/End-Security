@@ -1,58 +1,78 @@
-# Tarea 35 · Veces en filtraciones: texto correcto y tope de 10 000
+# Tarea 36 · Preparar la producción: dominio, correo real y despliegue
 
 **Estado:** hecha
 **Escrita:** 2026-11-18 · sesión de diseño
 
-## Revisión de la tarea 34
-Aprobada. Probado en el teléfono: el aviso temporal y la sincronización sin conexión funcionan como se esperaba.
+## Revisión de la tarea 35
+Aprobada. Probada en el teléfono: «Apareció más de 10,000 veces en filtraciones» se ve completo.
 
-**Ramas:** solo la app, `integracion/backend` (PR #2). No toques el backend. Sin merge.
+## Contexto (decisiones de la persona)
+- **Dominio:** `endsecurity.lat` (Spaceship). El servidor irá en **`api.endsecurity.lat`**.
+- **Correo:** Resend, con remitente `End Security <no-reply@endsecurity.lat>`. La persona verifica el dominio en Resend y pega los registros DNS en Spaceship; la clave de Resend la pone ella en las variables del servidor.
+- **Despliegue:** probablemente Railway. Lo hace la persona o su compañero Diego; **tú no despliegas ni tienes credenciales**. Tú dejas el código listo y una guía paso a paso.
+- **Correos de contacto:** se mantienen `endsecurity.privacidad@gmail.com` y `endsecurity.soporte@gmail.com`. Buzones con el dominio quedan como mejora futura (ver Paso 4).
+- **Pines SPKI (BR-26):** no en esta tarea. Se ponen cuando el servidor esté en línea (tarea 37).
+
+**Ramas:**
+- Backend: `integracion/app` (PR #1). Si ya la mezclaron en `develop`, crea `integracion/despliegue` desde `develop`.
+- App: `integracion/backend` (PR #2). Si ya la mezclaron en `development`, crea `integracion/despliegue-app` desde `development`.
+- Sin merge. Nada directo en `develop`, `development` ni `main`.
+
 **Reglas:**
-- trabaja en la carpeta original de la app;
-- sin capturas;
-- no leas `.env*` ni llaves;
-- ponytail en `full`.
+- sin capturas; no leas `.env*`, claves ni `keystore.properties`; ponytail en `full`;
+- trabaja en las carpetas originales; no te detengas entre pasos salvo un bloqueo real;
+- cambios en autenticación o arranque llevan **REQUIERE REVISIÓN HUMANA**.
 
-## Problema visto en el teléfono
-En Salud → Filtradas, la fila de `admin` muestra solo «Apareció en 42,267,808» y se corta el resto.
-- `VaultLikeRow` (`feature/health/ui/HealthDetailScreens.kt`) pone el subtítulo con `maxLines = 1` y sin `overflow`. Con un número largo, «filtraciones» queda fuera sin aviso.
-- **El texto es incorrecto.** El número de HIBP (`breachCount`) es cuántas veces aparece la contraseña en las bases filtradas, no cuántas filtraciones hubo. Hoy dice «Apareció en N filtraciones».
+---
 
-## Decisión (aprobada por la persona)
-**Texto:** «Apareció N veces en filtraciones».
-- Con N ≥ 10 000: «Apareció más de 10 000 veces en filtraciones», sin la cifra exacta.
-- Por debajo, la cifra exacta con separador de miles del idioma (`NumberFormat.getIntegerInstance(locale)`, como ya hace la lista).
-- Con plurales: N = 1 → «Apareció 1 vez en filtraciones».
+## Paso 1 · Backend: arranque seguro en producción (`integracion/app`)
+Revisa `src/config/env.validation.ts`, `src/main.ts` y `src/modules/mail`. Con `NODE_ENV=production` el servidor **debe negarse a arrancar** (mensaje claro, sin imprimir valores) si:
+- falta `RESEND_API_KEY` o `EMAIL_FROM` (hoy sin clave solo se escribe en consola, y eso solo debe pasar fuera de producción);
+- `JWT_SECRET`, `JWT_REFRESH_SECRET` o `AUDIT_HMAC_KEY` miden menos de 32 caracteres, o contienen `change_in_production` (ya existe parte de esto: no lo dupliques);
+- falta `TOTP_ENCRYPTION_KEYS`, o `DATABASE_URL`;
+- `CORS_ORIGIN` es `*` (la app es nativa y no usa CORS: en producción debe poder ser una lista vacía o un valor fijo; decide la forma más simple y documéntala).
 
-**Una sola función** decide el texto (tope, formato y plural), y la usan los dos lugares donde sale el número:
-1. la lista de Salud → Filtradas (`health_breached_seen`);
-2. el detalle de la contraseña (`health_detail_breached_body` en `ItemDetailScreen.kt`). Hoy usa `%1$d` sin separador: sale `42267808` pegado.
+`TRUST_PROXY`: en producción detrás de Railway debe ser `1`; si es `0` en producción, **avisa por log** (no falla), porque rompería el límite por IP.
 
-**Strings:**
-- reemplaza esos dos `plurals` por unos que digan «vez»/«veces»;
-- agrega uno para el tope;
-- el `10 000` también va formateado con el idioma, no escrito a mano.
+**Salud:** revisa lo que expone `AppController`. Debe haber un `GET /api/health` público, sin autenticación, que responda `200` solo si la base contesta (una consulta mínima), y que **no devuelva versiones ni detalles**. Si ya existe, déjalo; si no, créalo. Si Railway lo necesita, añade su `healthcheckPath` en el archivo de configuración que corresponda.
 
-**Que no se corte en silencio:** en `VaultLikeRow`, pon `overflow = TextOverflow.Ellipsis` al subtítulo (y al nombre, si no lo tiene). El texto nuevo debe caber en una línea a 360 dp de ancho con el tamaño de letra normal. Si no cabe, permite 2 líneas en el subtítulo; no lo acortes.
+**Migraciones y arranque:**
+- `package.json`: que `npm run build` genere el cliente de Prisma (`prisma generate`) sin pasos manuales, y que haya un script para aplicar migraciones en producción (`prisma migrate deploy`).
+- No agregues Dockerfile, ni dependencias, ni planificadores. Solo lo que haga falta para que Railway (Nixpacks/Railpack) compile y arranque con `npm run build` y `npm run start:prod`.
 
-**Grafo:** anota la regla en el nodo de la pantalla Filtradas (`SCR-*`) y en DEC-21 (HIBP). Sube la versión.
+**Pruebas (Jest):** la validación de entorno en producción (cada caso de arriba falla; uno bueno pasa) y el `health`. `npm run build`, `npm test` y lint, con el resultado real.
 
-## Pruebas (unitarias)
-De la función, con locale `es-MX`:
-- 1 → «1 vez»;
-- 2 → «2 veces»;
-- 9 999 → «9,999 veces»;
-- 10 000 → «más de 10,000 veces»;
-- 42 267 808 → «más de 10,000 veces».
+## Paso 2 · Backend: guía de despliegue
+Crea `docs/despliegue.md` (en español, pasos numerados y cortos, para alguien que nunca ha usado Railway):
+1. Crear el proyecto, el servicio desde el repositorio (rama `develop` o `main`, la que acuerden) y la base PostgreSQL.
+2. **Variables**, solo los nombres y cómo obtener cada una. Los secretos se generan en la computadora de la persona con el comando de Node del `.env.example`, y **nunca** se copian los del entorno local. Incluye `DATABASE_URL` (la referencia que da Railway), `NODE_ENV=production`, `TRUST_PROXY=1`, `PORT` (si Railway lo inyecta, no lo fijes), `RESEND_API_KEY`, `EMAIL_FROM=End Security <no-reply@endsecurity.lat>`.
+3. Comando previo al despliegue: `prisma migrate deploy`.
+4. Dominio personalizado `api.endsecurity.lat`: el registro **CNAME** que indica Railway, pegado en Spaceship → DNS. Esperar a que el certificado HTTPS quede emitido.
+5. Resend: agregar el dominio, pegar los registros en Spaceship, esperar «Verified». La app **no** envía nada de esto: es del servidor.
+6. Comprobaciones: `https://api.endsecurity.lat/api/health` → 200; registrar una cuenta de prueba desde un `curl`/script o desde la app y comprobar que **llega el código por correo** (no por consola); revisar en los logs de Railway las líneas syslog RFC 5424.
+7. Costos y apagado: nota de que Railway cobra por uso; qué hacer para pausar el servicio después de la entrega.
+8. **Qué hacer si algo falla:** el log, `migrate status` y la restauración de la base (respaldos del plan).
 
-Revisa también que los dos lugares la usan (por ejemplo con una prueba del ViewModel o del texto que recibe la UI, lo que ya use el proyecto).
+## Paso 3 · App: URL de producción y red (`integracion/backend`)
+- `app/build.gradle.kts`: `API_BASE_URL` de `release` = `"https://api.endsecurity.lat/api/"`. La de `debug` sigue en `http://127.0.0.1:3000/api/`.
+- Opcional si es corto: que `-PapiBaseUrl=...` sobrescriba la URL de `debug`, para probar contra el servidor real con la app de debug sin recompilar el código.
+- Comprueba que `network_security_config.xml` del `main` sigue sin permitir tráfico en claro, y que el texto plano a `127.0.0.1` vive **solo** en `src/debug`. Si no es así, arréglalo.
+- **No** pongas pines SPKI todavía. Deja en `network_security_config.xml` un comentario con `TODO(BR-26)` que explique qué falta.
+- Pruebas: `./gradlew testProdDebugUnitTest testDemoDebugUnitTest lintProdDebug assembleProdDebug assembleProdRelease`. `assembleProdRelease` puede salir sin firmar si no hay `keystore.properties`; no lo leas ni lo imprimas.
+
+## Paso 4 · Grafos y documentos
+Parchea los JSON directamente; sube la versión y agrega una línea a `historial`.
+- **`knowledge-graph.json`:**
+  - **DEC-67** «Dominio, correo y despliegue»: dominio `endsecurity.lat`, servidor en `api.endsecurity.lat`, remitente `no-reply@endsecurity.lat`, contacto legal con los dos Gmail, despliegue por la persona o por Diego con la guía `docs/despliegue.md`. Con aristas hacia DEC-61, DEC-65 y DEC-64.
+  - Un nodo `fuera_de_alcance` nuevo: «Buzones de contacto con el dominio propio (`privacidad@`, `soporte@`)», como mejora futura. Una línea: hoy no afecta el envío de correos de verificación.
+- **`backend-graph.json`:** BR-24 pasa a «en curso (la persona verifica el dominio en Resend)» y BR-26 a «pendiente de servidor en línea (tarea 37)». Anota el arranque seguro como parte de `BSEC-*` si corresponde.
+- **`README.md` de la app:** una línea que enlace a `docs/despliegue.md` del backend y diga que `release` usa `https://api.endsecurity.lat/api/`.
+- **`ai/context/estado-actual.md`:** al día.
+- **`docs/legal/aviso-de-privacidad.md`:** **no lo cambies.** Falta el proveedor de hosting (E4); lo hará la persona cuando sepa dónde queda.
 
 ## Cierre
-1. `./gradlew testProdDebugUnitTest testDemoDebugUnitTest lintProdDebug assembleProdDebug`, con el resultado real.
-2. `/ponytail-review`.
-3. Commits en `integracion/backend` y push.
-4. Si el teléfono está conectado (`adb -s YTVSGUPBVGLBNVNJ shell true`):
-   - `./gradlew :app:installProdDebug`;
-   - `adb -s YTVSGUPBVGLBNVNJ reverse tcp:3000 tcp:3000`.
-   Si no está, anótalo.
-5. Reporte en `ai/handoff/reporte.md`, estado `hecha`, commit y **detente**.
+1. Verifica y reporta los resultados reales de ambos proyectos.
+2. `/ponytail-review` en las dos ramas.
+3. Commits y push en ambas; los PR #1 y #2 (o los nuevos) se actualizan.
+4. Reporte en `ai/handoff/reporte.md`: qué cambió, resultados, y **qué hace falta de la persona o de Diego** para desplegar (en una lista corta y ordenada).
+5. Estado `hecha`, commit y **detente**.
