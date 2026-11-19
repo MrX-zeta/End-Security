@@ -1,6 +1,6 @@
 # Tarea 39 · Pines SPKI, APK firmado de producción y release v1.0.0
 
-**Estado:** pendiente
+**Estado:** hecha
 **Escrita:** 2026-11-19 · sesión de diseño
 
 ## Reglas

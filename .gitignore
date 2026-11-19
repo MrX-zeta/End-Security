@@ -48,3 +48,6 @@ node_modules/
 # Copia de docs/legal generada por la tarea copyLegalDocs (tarea 22)
 app/src/main/assets/legal/
 release-keys/
+
+# APK de release (tarea 39), se publica en GitHub Releases
+releases/

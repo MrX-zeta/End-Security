@@ -1249,11 +1249,12 @@
       "tipo": "brecha",
       "nombre": "URL pública y pines SPKI (E2)",
       "descripcion": "Falta la URL HTTPS de producción y los dos hashes SPKI para network_security_config.xml.",
-      "estado": "pendiente de servidor en línea (tarea 37)",
+      "estado": "resuelto (tarea 39)",
       "detalles": {
         "dueno": "backend + app",
         "severidad": "alta",
-        "pendiente": "La URL de release ya es https://api.endsecurity.lat/api/ (tarea 36). Faltan los dos pines SPKI (principal y respaldo), que se sacan del certificado cuando el servidor esté en línea (tarea 37); TODO(BR-26) en network_security_config.xml."
+        "resuelto": "Tarea 39: network_security_config.xml fija para api.endsecurity.lat los SHA-256 SPKI de la intermedia Let's Encrypt YR1 (LoMHBotttiDko50Gi13uXW71eIy7LAttI+rYT8wXF4w=) y, de respaldo, ISRG Root YR (fk6IOKit1ild5647BH06ujSIq5XbCgqlbYl6ANhhi88=); expiration 2027-12-31; la hoja no se fija. Debug sin pines. Prueba NetworkSecurityConfigTest.",
+        "historial": "La URL de release ya es https://api.endsecurity.lat/api/ (tarea 36). Faltan los dos pines SPKI (principal y respaldo), que se sacan del certificado cuando el servidor esté en línea (tarea 37); TODO(BR-26) en network_security_config.xml."
       }
     },
     {

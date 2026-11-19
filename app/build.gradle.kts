@@ -66,7 +66,7 @@ android {
             buildConfigField("String", "API_BASE_URL", "\"$debugUrl\"")
         }
         release {
-            // Servidor de producción (DEC-67). TODO(BR-26): los pines SPKI se agregan cuando el servidor esté en línea (tarea 37).
+            // Servidor de producción (DEC-67). Pines SPKI (BR-26): ver res/xml/network_security_config.xml.
             buildConfigField("String", "API_BASE_URL", "\"https://api.endsecurity.lat/api/\"")
             if (keystoreFile.exists()) signingConfig = signingConfigs.getByName("release")
             // DEC-37: R8 (minificación, ofuscación y recorte de recursos) en release.

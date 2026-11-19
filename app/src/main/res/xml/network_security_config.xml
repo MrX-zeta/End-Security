@@ -4,9 +4,14 @@
     (se ignoran las que instale el usuario). El texto plano hacia 127.0.0.1 y 10.0.2.2 vive solo en
     app/src/debug/res/xml/network_security_config.xml.
 
-    TODO(BR-26): faltan los pines SPKI de api.endsecurity.lat (el principal y uno de respaldo). Se agregan en un
-    <domain-config> con <pin-set> cuando el servidor esté en línea y se pueda sacar el hash de su certificado
-    (tarea 37). Mientras tanto, api.endsecurity.lat va solo con HTTPS y las autoridades del sistema.
+BR-26: api.endsecurity.lat fija (SHA-256 SPKI) la CA intermedia vigente de Let's Encrypt (YR1) y, de respaldo,
+    la raíz ISRG Root YR que la firma. NO se fija la hoja (se renueva cada 90 días). Una intermedia nueva de la misma
+    raíz (p. ej. YR2) sigue pasando. Para regenerar (una conexión de solo lectura):
+      openssl s_client -connect api.endsecurity.lat:443 -servername api.endsecurity.lat -showcerts
+      y por cada certificado de la cadena (1 = intermedia, 2 = raíz):
+      openssl x509 -pubkey -noout | openssl pkey -pubin -outform der | openssl dgst -sha256 -binary | openssl base64
+    Tras `expiration` los pines se ignoran (queda solo la validación normal): renovarlos antes.
+    Debug (127.0.0.1 / 10.0.2.2) no lleva pines: ver app/src/debug.
 -->
 <network-security-config>
     <base-config cleartextTrafficPermitted="false">
@@ -14,6 +19,18 @@
             <certificates src="system" />
         </trust-anchors>
     </base-config>
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="false">api.endsecurity.lat</domain>
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+        <pin-set expiration="2027-12-31">
+            <!-- Let's Encrypt YR1 (intermedia), vence 2028-09-02 -->
+            <pin digest="SHA-256">LoMHBotttiDko50Gi13uXW71eIy7LAttI+rYT8wXF4w=</pin>
+            <!-- ISRG Root YR (respaldo), vence 2032-09-02 -->
+            <pin digest="SHA-256">fk6IOKit1ild5647BH06ujSIq5XbCgqlbYl6ANhhi88=</pin>
+        </pin-set>
+    </domain-config>
     <!-- Have I Been Pwned (DEC-21): sin pinning, con las autoridades del sistema. -->
     <domain-config cleartextTrafficPermitted="false">
         <domain includeSubdomains="false">api.pwnedpasswords.com</domain>
