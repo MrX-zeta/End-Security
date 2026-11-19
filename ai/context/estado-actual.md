@@ -1,7 +1,7 @@
 # Estado actual — End Security
 
 > Claude lo lee al empezar cada sesión y lo actualiza con `/registrar-sesion`.
-> Última actualización: 2026-11-18 (tarea 36)
+> Última actualización: 2026-11-19 (tarea 38)
 
 ## Hecho
 - App completa con backend falso (release `v1.0.0-demo`): registro, acceso, 2FA, Bóveda, Generador, Salud, Ajustes, dispositivos, actividad, cuenta, legal, conflictos y sin conexión (tareas 01 a 31).
@@ -11,6 +11,7 @@
   - App, rama `integracion/backend` (PR MrX-zeta/End-Security#2, sin merge): adaptador de la variante `prod` (`BackendTranslator`, `BackendTransport`; spec en `specs/001-adaptador-backend-real/`) y los ajustes de BR-10 (códigos de respaldo 5-5), BR-20 (reautenticación antes de la clave de 2FA) y BR-21 (catálogo de actividad).
   - «Más débiles» (Salud · Ranking) ya no incluye contraseñas fuertes y tiene estado vacío (tarea 33).
 - **Preparación de producción (tarea 36, DEC-67):** dominio `endsecurity.lat`, servidor en `api.endsecurity.lat`, correo con Resend desde `no-reply@endsecurity.lat`. El backend (`integracion/app`) se niega a arrancar en producción sin `RESEND_API_KEY`/`EMAIL_FROM`, con secretos débiles o con `CORS_ORIGIN=*`, y tiene `GET /api/health` mínimo, `npm run migrate:deploy`, `railway.json` y la guía `docs/despliegue.md`. La app de release ya apunta a `https://api.endsecurity.lat/api/`. Nada está desplegado todavía.
+- **Hallazgos de la auditoría (tareas 37 y 38):** F-03 (ValidationPipe sin conversión implícita), F-05 (límites de longitud en el formulario de la bóveda, `ItemLimits`) y F-06 (multer actualizado) cerrados; F-07 ya existía (BR-22). Aceptados: RSG-18, RSG-19, RSG-20. F-01 (pines SPKI) sigue en BR-26.
 - Cómo probar con el backend local: sección «Probar con el backend local» del `README.md`.
 
 ## Decisiones recientes

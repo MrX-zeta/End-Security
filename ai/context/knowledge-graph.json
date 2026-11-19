@@ -1,8 +1,8 @@
 {
   "meta": {
     "nombre": "Grafo de conocimiento — End Security",
-    "version": "1.13.0",
-    "actualizado": "2026-11-18",
+    "version": "1.14.0",
+    "actualizado": "2026-11-19",
     "fase": "App completa con backend falso (release v1.0.0-demo); integración con el backend real.",
     "historial": [
       {
@@ -179,6 +179,11 @@
         "version": "1.13.0",
         "fecha": "2026-11-18",
         "cambio": "Tarea 36: DEC-67 dominio, correo y despliegue; FDA-14 buzones con el dominio propio; release apunta a api.endsecurity.lat."
+      },
+      {
+        "version": "1.14.0",
+        "fecha": "2026-11-19",
+        "cambio": "Tarea 38: hallazgos de la auditoría (tarea 37). Riesgos aceptados RSG-18 (límite en memoria), RSG-19 (correo en log en desarrollo) y RSG-20 (deepmerge-ts vía prisma CLI)."
       }
     ],
     "proposito": "Fuente de verdad del contexto, decisiones técnicas y huecos resueltos del proyecto, para personas y agentes de IA.",
@@ -4442,6 +4447,27 @@
       "tipo": "riesgo_aceptado",
       "nombre": "El cambio de correo revela por tiempo si el correo nuevo existe",
       "descripcion": "Con Resend activo, pedir el cambio a un correo nuevo envía un mensaje, y cuando ese correo ya tiene cuenta no se envía nada (misma respuesta): la diferencia de tiempo puede delatarlo, y solo para quien ya tiene sesión y pasó la reautenticación. Aceptado en la revisión de la tarea 32 hasta tener dominio (BR-24).",
+      "estado": "riesgo_aceptado"
+    },
+    {
+      "id": "RSG-18",
+      "tipo": "riesgo_aceptado",
+      "nombre": "Límite de peticiones en memoria del proceso",
+      "descripcion": "express-rate-limit cuenta por IP en la memoria del proceso (F-02): vale con una sola instancia; con varias réplicas hay que pasarlo a Redis. El bloqueo por cuenta (5 fallos en 15 min, BR-22) sí va en audit_log y es compartido.",
+      "estado": "riesgo_aceptado"
+    },
+    {
+      "id": "RSG-19",
+      "tipo": "riesgo_aceptado",
+      "nombre": "Correo y código en el log sin RESEND_API_KEY",
+      "descripcion": "Sin la clave, el correo y su código se escriben en el log (F-04). Solo ocurre en desarrollo: en producción el arranque falla sin RESEND_API_KEY (BSEC-10).",
+      "estado": "riesgo_aceptado"
+    },
+    {
+      "id": "RSG-20",
+      "tipo": "riesgo_aceptado",
+      "nombre": "deepmerge-ts vulnerable vía prisma CLI",
+      "descripcion": "npm audit --omit=dev deja deepmerge-ts (alta) como dependencia del CLI de Prisma; el arreglo exige un salto mayor de Prisma, que se hace en una tarea aparte (F-06). multer ya se actualizó.",
       "estado": "riesgo_aceptado"
     },
     {

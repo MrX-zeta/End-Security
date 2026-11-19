@@ -1,8 +1,8 @@
 {
   "meta": {
     "nombre": "Grafo de conocimiento — backend real de End Security",
-    "version": "1.2.0",
-    "actualizado": "2026-11-18",
+    "version": "1.3.0",
+    "actualizado": "2026-11-19",
     "fuente": "end-security-backend@develop f2b5732 (leído completo por la sesión de diseño); integracion/app hasta bd27953 (tareas 32 y 33)",
     "proposito": "Mapa del backend real para integrarlo con la app: módulos, endpoints, tablas, seguridad y brechas contra el contrato docs/api 1.4.0.",
     "como_usar_para_agentes": [
@@ -54,6 +54,11 @@
         "version": "1.2.0",
         "fecha": "2026-11-18",
         "cambio": "Tarea 36: arranque seguro en producción y health mínimo (BSEC-10), docs/despliegue.md; BR-24 en curso y BR-26 pendiente del servidor en línea."
+      },
+      {
+        "version": "1.3.0",
+        "fecha": "2026-11-19",
+        "cambio": "Tarea 38: ValidationPipe sin enableImplicitConversion (BSEC-11); F-07 ya cubierto por BR-22; multer actualizado; riesgos F-02, F-04 y F-06 documentados en docs/despliegue.md."
       }
     ]
   },
@@ -812,6 +817,14 @@
       "tipo": "seguridad",
       "nombre": "Configuración validada",
       "descripcion": "env.validation exige secretos de ≥ 32 caracteres, distintos entre sí y sin el valor de ejemplo. En producción el servidor se niega a arrancar (sin imprimir valores) si falta RESEND_API_KEY o EMAIL_FROM, DATABASE_URL o TOTP_ENCRYPTION_KEYS, o si CORS_ORIGIN es *; sin CORS_ORIGIN no se abre ningún origen. TRUST_PROXY=0 en producción solo avisa por syslog. GET /api/health: 200 {status:ok} si la base contesta, 503 si no, sin detalles (tarea 36).",
+      "estado": "implementado",
+      "detalles": {}
+    },
+    {
+      "id": "BSEC-11",
+      "tipo": "seguridad",
+      "nombre": "Validación de entrada sin coerción implícita",
+      "descripcion": "ValidationPipe global con whitelist, forbidNonWhitelisted y transform, sin enableImplicitConversion (F-03): un string donde se espera número se rechaza; los query usan @Type explícito. Opciones en src/common/validation-pipe.options.ts con prueba. El bloqueo de login por cuenta (F-07) ya existía: 5 fallos en 15 min, respuesta genérica y evento de auditoría (BR-22, auth-hash.ts).",
       "estado": "implementado",
       "detalles": {}
     },
