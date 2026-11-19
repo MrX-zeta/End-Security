@@ -1,6 +1,6 @@
 # Tarea 37 · Auditoría básica de seguridad: entradas de texto e inyecciones
 
-**Estado:** pendiente
+**Estado:** hecha
 **Escrita:** 2026-11-19 · sesión de diseño
 
 ## Objetivo

@@ -74,3 +74,5 @@ El diseño y la planeación se hacen en otra sesión; las tareas llegan por arch
 ## Estilo
 - Identificadores y nombres de archivo en inglés; comentarios, documentación y textos de la UI en español.
 - Textos de la UI en `res/values/strings.xml`, nunca escritos directamente en los composables.
+
+Los commits no llevan coautoría de IA.
