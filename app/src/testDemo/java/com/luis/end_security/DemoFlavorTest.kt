@@ -16,7 +16,7 @@ class DemoFlavorTest {
     @Test
     fun el_id_y_la_version_llevan_el_sufijo_demo() {
         assertTrue(BuildConfig.APPLICATION_ID.endsWith(".demo"))
-        assertTrue(BuildConfig.VERSION_NAME.startsWith("1.0.0") && BuildConfig.VERSION_NAME.contains("-demo"))
-        assertEquals(1, BuildConfig.VERSION_CODE)
+        assertTrue(BuildConfig.VERSION_NAME.startsWith("1.0.1") && BuildConfig.VERSION_NAME.contains("-demo"))
+        assertEquals(2, BuildConfig.VERSION_CODE)
     }
 }

@@ -71,7 +71,7 @@ No transferimos tus datos a terceros para que los usen con fines propios. Solo c
 
 | Encargado | Qué hace | Datos que recibe |
 |---|---|---|
-| **Infraestructura y almacenamiento:** [proveedor de hosting y país del servidor] | Aloja el servidor, la base de datos y los registros | Los de la sección 2, con la bóveda siempre cifrada |
+| **Infraestructura y almacenamiento:** Railway (Railway Corp.), servidor en la región US East (Virginia, Estados Unidos) | Aloja el servidor, la base de datos y los registros. **Tus datos se alojan en el extranjero (Estados Unidos)** | Los de la sección 2, con la bóveda siempre cifrada |
 | **Correo transaccional:** Resend (Estados Unidos) | Envía los correos de verificación y alertas | Tu correo y el contenido de esos mensajes |
 | **Analítica web** | No usamos Google Analytics, PostHog ni herramientas similares | Ninguno |
 

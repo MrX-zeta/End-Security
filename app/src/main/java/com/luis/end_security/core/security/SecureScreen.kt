@@ -14,6 +14,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.window.DialogWindowProvider
+import com.luis.end_security.BuildConfig
 
 /**
  * Protege la pantalla que lo llama mientras está en composición (regla no negociable 7, DEC-26):
@@ -37,6 +38,7 @@ import androidx.compose.ui.window.DialogWindowProvider
 @Composable
 fun SecureScreen() {
     if (LocalInspectionMode.current) return // @Preview: no hay ventana real.
+    if (BuildConfig.SIN_FLAG_SECURE) return // Solo capturas de evidencias (debug con -PsinFlagSecure=true); en release es false fijo.
     val view = LocalView.current
     val window = view.dialogWindow() ?: LocalActivity.current?.window
     if (window == null) {
