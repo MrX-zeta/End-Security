@@ -17,8 +17,8 @@ android {
         applicationId = "com.luis.end_security"
         minSdk = 28
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 2
+        versionName = "1.0.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -64,10 +64,13 @@ android {
         debug {
             val debugUrl = (project.findProperty("apiBaseUrl") as String?) ?: "http://127.0.0.1:3000/api/"
             buildConfigField("String", "API_BASE_URL", "\"$debugUrl\"")
+            // Solo para capturas de evidencias: `-PsinFlagSecure=true` apaga FLAG_SECURE. En release es `false` fijo.
+            buildConfigField("boolean", "SIN_FLAG_SECURE", (project.findProperty("sinFlagSecure") == "true").toString())
         }
         release {
             // Servidor de producción (DEC-67). Pines SPKI (BR-26): ver res/xml/network_security_config.xml.
             buildConfigField("String", "API_BASE_URL", "\"https://api.endsecurity.lat/api/\"")
+            buildConfigField("boolean", "SIN_FLAG_SECURE", "false") // FLAG_SECURE siempre activo en release
             if (keystoreFile.exists()) signingConfig = signingConfigs.getByName("release")
             // DEC-37: R8 (minificación, ofuscación y recorte de recursos) en release.
             optimization {

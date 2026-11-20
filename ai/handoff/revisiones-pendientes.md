@@ -56,4 +56,4 @@ Hay que leerlo y entenderlo para poder explicarlo en la presentación.
 | E1 | ~~`USE_FAKE_BACKEND = false` en release~~ **Resuelto por diseño (tarea 31):** el backend falso solo existe en la variante `demo`; `prod` no lo contiene (prueba `ProdFlavorTest` y verificación en el APK `prodRelease`) y `DEMO_MODE` es `false` allí | ☑ |
 | E2 | Pines SPKI del servidor en `network_security_config.xml` (DEC-22) | ☐ |
 | E3 | Volver a correr `ClipboardDeviceTest` con «Enable clipboard sharing» desactivado en el emulador (Android Studio → emulador → ⋯ Extended controls → Settings → General) | ☐ |
-| E4 | Marcadores legales: nombres y correo ✔ (2026-11-04); falta el proveedor de hosting; confirmar domicilio (UPChiapas) y respaldos de la BD con Diego | ☐ |
+| E4 | Marcadores legales: nombres y correo ✔ (2026-11-04); proveedor de hosting ✔ (2026-11-20: Railway, US East); confirmar domicilio (UPChiapas) y respaldos de la BD con Diego | ☐ |

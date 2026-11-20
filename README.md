@@ -214,12 +214,12 @@ Si el puerto 3000 ya lo usa otro proceso, arranca el backend con `PORT=3001` y u
 
 ## Instalar (Android)
 
-Versión **1.0.0** (`prod`, servidor `https://api.endsecurity.lat`). Descarga `EndSecurity-1.0.0.apk` del release [`v1.0.0`](https://github.com/MrX-zeta/End-Security/releases/tag/v1.0.0) y verifícala antes de instalar:
+Versión **1.0.1** (`prod`, servidor `https://api.endsecurity.lat`). Descarga `EndSecurity-1.0.1.apk` del release [`v1.0.1`](https://github.com/MrX-zeta/End-Security/releases/tag/v1.0.1) y verifícala antes de instalar:
 
-- SHA-256 del APK: `21bf5f8abc22b10fdc64d692c91e7610530218af1a310ed74cbb8acd6acec674`
+- SHA-256 del APK: `71d3a9f1cd7ab72ae574078636752469058c690f5024fb4f7c9a0774cd0dbddb`
 - Huella SHA-256 del certificado de firma: `b5ba83bb971544b241b47bbfa41bd83a7680bbfbab963106bc8f744830f8a9dd`
 
-Más detalles en [`docs/release/v1.0.0.md`](docs/release/v1.0.0.md). La demo sin servidor sigue en el release `v1.0.0-demo`.
+Más detalles en [`docs/release/v1.0.1.md`](docs/release/v1.0.1.md). La demo sin servidor sigue en el release `v1.0.0-demo`.
 
 ## Pruebas
 

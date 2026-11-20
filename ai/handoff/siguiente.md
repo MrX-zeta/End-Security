@@ -1,12 +1,7 @@
 # Tarea 40 · Aviso de privacidad al día, APK de capturas y release v1.0.1
 
-<<<<<<< Updated upstream
 **Estado:** hecha
-**Escrita:** 2026-11-19 · sesión de diseño
-=======
-**Estado:** pendiente
 **Escrita:** 2026-11-20 · sesión de diseño
->>>>>>> Stashed changes
 
 ## Reglas
 - Los commits NO llevan coautoría de IA (sin `Co-Authored-By`, `Claude-Session` ni «Generated with»). Verifica con `git log -1 --format=%B`.

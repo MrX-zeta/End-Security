@@ -7,12 +7,11 @@ import org.junit.Test
 import java.io.File
 
 /**
- * Datos reales (E4, tarea 23): ningún texto que la app muestre debe traer los marcadores de antes. El único que puede quedar es el
- * del proveedor de hosting, hasta que el backend esté desplegado.
+ * Datos reales (E4, tareas 23 y 40): ningún texto que la app muestre debe traer los marcadores de antes, incluido el del hosting.
  */
 class LegalPlaceholdersTest {
 
-    private val forbidden = listOf("[privacidad@correo.com]", "[Nombre completo")
+    private val forbidden = listOf("[privacidad@correo.com]", "[Nombre completo", "[proveedor de hosting")
 
     private fun file(vararg candidates: String): File = candidates.map { File(it) }.first { it.exists() }
 
