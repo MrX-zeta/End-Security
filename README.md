@@ -270,4 +270,4 @@ Proyecto académico de la **Universidad Politécnica de Chiapas**, sin fines com
 
 **Créditos:** lista de contraseñas filtradas de [Have I Been Pwned](https://haveibeenpwned.com) (CC BY 4.0) y tipografía Montserrat (SIL OFL).
 
-**Licencia:** Todos los derechos reservados (proyecto académico).
+**Licencia:** MIT. Ver [LICENSE](LICENSE).
